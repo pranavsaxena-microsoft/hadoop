@@ -41,6 +41,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.azurebfs.constants.FSOperationType;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemException;
 import org.apache.hadoop.fs.azurebfs.security.AbfsDelegationTokenManager;
+import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
 import org.apache.hadoop.fs.azurebfs.services.AbfsOutputStream;
 import org.apache.hadoop.fs.azurebfs.services.AuthType;
 import org.apache.hadoop.fs.azurebfs.services.ITestAbfsClient;
@@ -449,7 +450,13 @@ public abstract class AbstractAbfsIntegrationTest extends
   }
 
   public boolean isNamespaceEnabled(final AzureBlobFileSystem fs) throws AzureBlobFileSystemException {
-    return fs.getAbfsStore().getIsNamespaceEnabled(getTestTracingContext(fs, true));
+    return fs.getAbfsStore()
+        .getIsNamespaceEnabled(getTestTracingContext(fs, true));
+  }
+
+  public void setAbfsClient(AzureBlobFileSystemStore abfsStore,
+      AbfsClient client) {
+    abfsStore.setClient(client);
   }
 
   public Path makeQualified(Path path) throws java.io.IOException {
