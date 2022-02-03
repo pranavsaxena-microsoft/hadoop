@@ -80,7 +80,7 @@ public class AbfsFastpathSession {
   public AbfsFastpathSessionInfo getCurrentAbfsFastpathSessionInfoCopy() {
     rwLock.readLock().lock();
     try {
-      if (fastpathSessionInfo.isValidSession()) {
+      if (fastpathSessionInfo!= null && fastpathSessionInfo.isValidSession()) {
         return new AbfsFastpathSessionInfo(fastpathSessionInfo);
       }
 
