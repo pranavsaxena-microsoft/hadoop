@@ -584,6 +584,7 @@ public class AbfsClient implements Closeable {
     // PUT and specify the real method in the X-Http-Method-Override header.
     requestHeaders.add(new AbfsHttpHeader(X_HTTP_METHOD_OVERRIDE,
         HTTP_METHOD_PATCH));
+
     if (reqParams.getLeaseId() != null) {
       requestHeaders.add(new AbfsHttpHeader(X_MS_LEASE_ID, reqParams.getLeaseId()));
     }
@@ -597,6 +598,11 @@ public class AbfsClient implements Closeable {
       abfsUriQueryBuilder.addQuery(QUERY_PARAM_FLUSH, TRUE);
       if (reqParams.getMode() == AppendRequestParameters.Mode.FLUSH_CLOSE_MODE) {
         abfsUriQueryBuilder.addQuery(QUERY_PARAM_CLOSE, TRUE);
+      }
+    } else {
+      if (reqParams.isHybridFastpathConnection()) {
+        requestHeaders.add(new AbfsHttpHeader(X_MS_FASTPATH_SESSION_DATA,
+            reqParams.getAbfsFastpathSessionInfo().getSessionToken()));
       }
     }
 
@@ -748,6 +754,28 @@ public class AbfsClient implements Closeable {
             HTTP_METHOD_HEAD,
             url,
             requestHeaders);
+    op.execute(tracingContext);
+    return op;
+  }
+
+  public AbfsRestOperation getWriteFastpathSessionToken(final String path,
+      final TracingContext tracingContext) throws AzureBlobFileSystemException {
+    final List<AbfsHttpHeader> requestHeaders = createDefaultHeaders();
+
+    final AbfsUriQueryBuilder abfsUriQueryBuilder = createDefaultUriQueryBuilder();
+    String sasTokenForReuse = appendSASTokenToQuery(path,
+        SASTokenProvider.WRITE_OPERATION,
+        abfsUriQueryBuilder, null);
+    abfsUriQueryBuilder.addQuery(QUERY_PARAM_COMP, CREATE_FASTPATH_WRITE_SESSION + "assdfsdf");
+
+    final URL url = createBlobRequestUrl(path, abfsUriQueryBuilder.toString());
+    final AbfsRestOperation op = new AbfsRestOperation(
+        AbfsRestOperationType.GetWriteFastpathSessionToken,
+        this,
+        HTTP_METHOD_POST,
+        url,
+        requestHeaders,
+        sasTokenForReuse);
     op.execute(tracingContext);
     return op;
   }

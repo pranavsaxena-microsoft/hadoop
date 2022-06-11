@@ -60,6 +60,7 @@ import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.S
 import static org.apache.hadoop.fs.azurebfs.services.AbfsErrors.ERR_WRITE_WITHOUT_LEASE;
 import static org.apache.hadoop.fs.impl.StoreImplementationUtils.isProbeForSyncable;
 import static org.apache.hadoop.io.IOUtils.wrapException;
+import static org.apache.hadoop.fs.azurebfs.services.AbfsFastpathSession.IO_MODE.HYBRID_WRITE;
 import static org.apache.hadoop.fs.azurebfs.contracts.services.AppendRequestParameters.Mode.APPEND_MODE;
 import static org.apache.hadoop.fs.azurebfs.contracts.services.AppendRequestParameters.Mode.FLUSH_CLOSE_MODE;
 import static org.apache.hadoop.fs.azurebfs.contracts.services.AppendRequestParameters.Mode.FLUSH_MODE;
@@ -118,6 +119,7 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
 
   private static final Logger LOG =
       LoggerFactory.getLogger(AbfsOutputStream.class);
+  private AbfsFastpathSession fastpathSession = null;
 
   public AbfsOutputStream(
           final AbfsClient client,
@@ -171,13 +173,27 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
       this.ioStatistics = outputStreamStatistics.getIOStatistics();
     }
     this.outputStreamId = createOutputStreamId();
+
     this.tracingContext = new TracingContext(tracingContext);
     this.tracingContext.setStreamID(outputStreamId);
     this.tracingContext.setOperation(FSOperationType.WRITE);
+
+    fastpathSession = createAbfsFastpathSession(abfsOutputStreamContext.isHybridFastpathEnabled());
   }
 
   private String createOutputStreamId() {
     return StringUtils.right(UUID.randomUUID().toString(), STREAM_ID_LEN);
+  }
+
+  protected AbfsFastpathSession createAbfsFastpathSession(boolean isHybridFastpathConfigOn) {
+    if (isHybridFastpathConfigOn) {
+      AbfsFastpathSession fastpathSession = new AbfsFastpathSession(HYBRID_WRITE, client, path, tracingContext);
+      if (fastpathSession.isValid()) {
+        return fastpathSession;
+      }
+    }
+
+    return null;
   }
 
   /**
@@ -410,10 +426,12 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
     AbfsPerfTracker tracker = client.getAbfsPerfTracker();
     try (AbfsPerfInfo perfInfo = new AbfsPerfInfo(tracker,
             "writeCurrentBufferToService", "append")) {
+      AbfsFastpathSessionInfo fastpathSessionInfo = ((fastpathSession == null)
+          ? null
+          : fastpathSession.getCurrentAbfsFastpathSessionInfoCopy());
       AppendRequestParameters reqParams = new AppendRequestParameters(offset, 0,
-          bytesLength, APPEND_MODE, true, leaseId);
-      AbfsRestOperation op = client
-          .append(path, bytes, reqParams, cachedSasToken.get(),
+          bytesLength, APPEND_MODE, true, leaseId, fastpathSessionInfo);
+      AbfsRestOperation op = executeWrite(path, bytes, reqParams, cachedSasToken.get(),
               new TracingContext(tracingContext));
       cachedSasToken.update(op.getSasToken());
       if (outputStreamStatistics != null) {
@@ -484,9 +502,13 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
             } else if (isFlush) {
               mode = FLUSH_MODE;
             }
+
+            AbfsFastpathSessionInfo fastpathSessionInfo = ((fastpathSession == null)
+                ? null
+                : fastpathSession.getCurrentAbfsFastpathSessionInfoCopy());
             AppendRequestParameters reqParams = new AppendRequestParameters(
-                offset, 0, bytesLength, mode, false, leaseId);
-            AbfsRestOperation op = client.append(path, bytes, reqParams,
+                offset, 0, bytesLength, mode, false, leaseId, fastpathSessionInfo);
+            AbfsRestOperation op = executeWrite(path, bytes, reqParams,
                 cachedSasToken.get(), new TracingContext(tracingContext));
             cachedSasToken.update(op.getSasToken());
             perfInfo.registerResult(op.getResult());
@@ -611,6 +633,16 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
         throw lastError;
       }
     }
+  }
+
+  @VisibleForTesting
+  protected AbfsRestOperation executeWrite(final String path,
+      final byte[] buffer,
+      AppendRequestParameters reqParams,
+      final String cachedSasToken,
+      TracingContext tracingContext) throws AzureBlobFileSystemException {
+    return client.append(path, buffer, reqParams, cachedSasToken,
+        new TracingContext(tracingContext));
   }
 
   private static class WriteOperation {

@@ -51,6 +51,7 @@ import static java.lang.Math.min;
 
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.ONE_KB;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.STREAM_ID_LEN;
+import static org.apache.hadoop.fs.azurebfs.services.AbfsFastpathSession.IO_MODE.READ;
 import static org.apache.hadoop.util.StringUtils.toLowerCase;
 
 /**
@@ -156,7 +157,7 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
     // Propagate the config values to ReadBufferManager so that the first instance
     // to initialize can set the readAheadBlockSize
     ReadBufferManager.setReadBufferManagerConfigs(readAheadBlockSize);
-    createAbfsFastpathSession(abfsInputStreamContext.isFastpathEnabled());
+    fastpathSession = createAbfsFastpathSession(abfsInputStreamContext.isFastpathEnabled());
 
     if (streamStatistics != null) {
       ioStatistics = streamStatistics.getIOStatistics();
@@ -172,10 +173,15 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
     return StringUtils.right(UUID.randomUUID().toString(), STREAM_ID_LEN);
   }
 
-  protected void createAbfsFastpathSession(boolean isFastpathFeatureConfigOn) {
+  protected AbfsFastpathSession createAbfsFastpathSession(boolean isFastpathFeatureConfigOn) {
     if (isFastpathFeatureConfigOn) {
-      fastpathSession = new AbfsFastpathSession(client, path, eTag, tracingContext);
+      AbfsFastpathSession fastpathSession = new AbfsFastpathSession(READ, client, path, eTag, tracingContext);
+      if (fastpathSession.isValid()) {
+        return fastpathSession;
+      }
     }
+
+    return null;
   }
 
   @Override

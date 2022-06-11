@@ -49,6 +49,7 @@ import static org.mockito.Mockito.when;
 
 import static org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations.CONTENT_LENGTH;
 import static org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations.X_MS_FASTPATH_SESSION_EXPIRY;
+import static org.apache.hadoop.fs.azurebfs.services.AbfsFastpathSession.IO_MODE.READ;
 
 public class MockAbfsInputStream extends AbfsInputStream {
   //Diff between Filetime epoch and Unix epoch (in ms)
@@ -90,14 +91,18 @@ public class MockAbfsInputStream extends AbfsInputStream {
     }
   }
 
-  protected void createAbfsFastpathSession(boolean isFastpathFeatureConfigOn) {
+  protected AbfsFastpathSession createAbfsFastpathSession(boolean isFastpathFeatureConfigOn) {
     if (isFastpathFeatureConfigOn) {
       try {
-        setFastpathSession(new MockAbfsFastpathSession(getClient(), getPath(), getETag(), getTracingContext()));
+        setFastpathSession(
+            new MockAbfsFastpathSession(READ, getClient(), getPath(), getETag(),
+                getTracingContext()));
       } catch (IOException e) {
         Assert.fail("Failure in creating MockAbfsFastpathSession instance " + e);
       }
     }
+
+    return this.getFastpathSession();
   }
 
   public void createMockAbfsFastpathSession()

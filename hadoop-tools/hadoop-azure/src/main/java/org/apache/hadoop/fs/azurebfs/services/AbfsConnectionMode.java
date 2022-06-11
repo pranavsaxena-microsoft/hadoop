@@ -23,10 +23,15 @@ public enum AbfsConnectionMode {
   FASTPATH_CONN,
   REST_ON_FASTPATH_REQ_FAILURE,
   REST_ON_FASTPATH_CONN_FAILURE,
-  REST_ON_FASTPATH_SESSION_UPD_FAILURE;
+  REST_ON_FASTPATH_SESSION_UPD_FAILURE,
+  HYBRID_FASTPATH_APPEND;
 
   public static boolean isFastpathConnection(final AbfsConnectionMode mode) {
     return (mode == FASTPATH_CONN);
+  }
+
+  public static boolean isHybridFastpathAppendConnection(final AbfsConnectionMode mode) {
+    return (mode == HYBRID_FASTPATH_APPEND);
   }
 
   public static boolean isRESTConnection(final AbfsConnectionMode mode) {

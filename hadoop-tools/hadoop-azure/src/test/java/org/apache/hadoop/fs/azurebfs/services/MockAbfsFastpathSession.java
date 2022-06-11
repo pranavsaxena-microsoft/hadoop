@@ -27,7 +27,11 @@ import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemExc
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 
 import static org.mockito.Mockito.doReturn;
+import static org.apache.hadoop.fs.azurebfs.services.AbfsFastpathSession.IO_MODE.READ;
 
+/**
+ * Mock child class for AbfsFastpathSession for Fastpath read tests
+ */
 public class MockAbfsFastpathSession extends AbfsFastpathSession {
   public static final Duration FIVE_MIN = Duration.ofMinutes(5);
 
@@ -36,15 +40,15 @@ public class MockAbfsFastpathSession extends AbfsFastpathSession {
   private boolean mockConnectionException = false;
   private boolean disableForceFastpathMock = false;
 
-  public MockAbfsFastpathSession(final AbfsClient client,
+  public MockAbfsFastpathSession(final IO_MODE mode, final AbfsClient client,
       final String path,
       final String eTag,
       TracingContext tracingContext) throws IOException {
-    super((new MockAbfsClient(client)), path, eTag, tracingContext);
+    super(IO_MODE.READ, (new MockAbfsClient(client)), path, eTag, tracingContext);
   }
 
   public MockAbfsFastpathSession(final AbfsFastpathSession srcSession) {
-    super(srcSession.getClient(), srcSession.getPath(), srcSession.geteTag(),
+    super(IO_MODE.READ, srcSession.getClient(), srcSession.getPath(), srcSession.geteTag(),
         srcSession.getTracingContext());
   }
 

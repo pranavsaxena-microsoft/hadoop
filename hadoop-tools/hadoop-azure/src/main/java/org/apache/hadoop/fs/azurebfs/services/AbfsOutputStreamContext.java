@@ -18,6 +18,9 @@
 
 package org.apache.hadoop.fs.azurebfs.services;
 
+import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.DEFAULT_FASTPATH_READ_BUFFER_SIZE;
+import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.DEFAULT_WRITE_BUFFER_SIZE;
+
 /**
  * Class to hold extra output stream configs.
  */
@@ -40,6 +43,8 @@ public class AbfsOutputStreamContext extends AbfsStreamContext {
   private int maxWriteRequestsToQueue;
 
   private AbfsLease lease;
+
+  private boolean isHybridFastpathEnabled;
 
   public AbfsOutputStreamContext(final long sasTokenRenewPeriodForStreamsInSeconds) {
     super(sasTokenRenewPeriodForStreamsInSeconds);
@@ -101,6 +106,12 @@ public class AbfsOutputStreamContext extends AbfsStreamContext {
     return this;
   }
 
+  public AbfsOutputStreamContext withHybridFastpath(
+      final boolean isHybridFastpathEnabled) {
+    this.isHybridFastpathEnabled = isHybridFastpathEnabled;
+    return this;
+  }
+
   public int getWriteBufferSize() {
     return writeBufferSize;
   }
@@ -142,5 +153,9 @@ public class AbfsOutputStreamContext extends AbfsStreamContext {
       return null;
     }
     return this.lease.getLeaseID();
+  }
+
+  public boolean isHybridFastpathEnabled() {
+    return isHybridFastpathEnabled;
   }
 }

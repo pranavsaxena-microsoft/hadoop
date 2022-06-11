@@ -48,6 +48,7 @@ public final class AbfsHttpConstants {
   public static final String APPEND_BLOB_TYPE = "appendblob";
   public static final String TOKEN_VERSION = "2";
   public static final String CREATE_FASTPATH_READ_SESSION = "createFastpathReadSession";
+  public static final String CREATE_FASTPATH_WRITE_SESSION = "createFastpathWriteSession";
 
   public static final String JAVA_VENDOR = "java.vendor";
   public static final String JAVA_VERSION = "java.version";

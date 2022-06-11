@@ -31,13 +31,21 @@ public class AbfsFastpathSessionInfo {
   private String sessionToken;
   private OffsetDateTime sessionTokenExpiry = OffsetDateTime.MIN;
   private String fastpathFileHandle = null;
-  private AbfsConnectionMode connectionMode = AbfsConnectionMode.FASTPATH_CONN;
+  private AbfsConnectionMode connectionMode;
 
   public AbfsFastpathSessionInfo(final String sessionToken,
-      final OffsetDateTime sessionTokenExpiry) {
+      final OffsetDateTime sessionTokenExpiry,
+      final AbfsConnectionMode connectionMode) {
     this.sessionToken = sessionToken;
     this.sessionTokenExpiry = sessionTokenExpiry;
+    this.connectionMode = connectionMode;
   }
+
+//  public AbfsFastpathSessionInfo(final String sessionToken,
+//      final OffsetDateTime sessionTokenExpiry) {
+//    this.sessionToken = sessionToken;
+//    this.sessionTokenExpiry = sessionTokenExpiry;
+//  }
 
   public AbfsFastpathSessionInfo(AbfsFastpathSessionInfo sessionInfo) {
     this.sessionToken = sessionInfo.getSessionToken();
@@ -72,7 +80,8 @@ public class AbfsFastpathSessionInfo {
   }
 
   public boolean isValidSession() {
-    return ((connectionMode == AbfsConnectionMode.FASTPATH_CONN)
+    return (((connectionMode == AbfsConnectionMode.FASTPATH_CONN)
+        || (connectionMode == AbfsConnectionMode.HYBRID_FASTPATH_APPEND))
         && (sessionToken != null) && (!sessionToken.isEmpty())
         && (!isTokenPastExpiry()));
   }

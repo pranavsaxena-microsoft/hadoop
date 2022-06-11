@@ -220,6 +220,7 @@ public final class ConfigurationKeys {
    * Config control to enable alternate store connection using Fastpath
    */
   public static final String FS_AZURE_FASTPATH_ENABLE = "fs.azure.fastpath.enable";
+  public static final String FS_AZURE_WRITE_ENABLE_HYBRID_FASTPATH = "fs.azure.write.enableHybridfastpath";
 
   private ConfigurationKeys() {}
 }

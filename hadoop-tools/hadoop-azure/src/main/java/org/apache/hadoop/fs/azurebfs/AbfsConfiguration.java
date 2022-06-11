@@ -133,6 +133,10 @@ public class AbfsConfiguration{
       DefaultValue = DEFAULT_FASTPATH_ENABLE)
   private boolean enableFastpath;
 
+  @BooleanConfigurationValidatorAnnotation(ConfigurationKey = FS_AZURE_WRITE_ENABLE_HYBRID_FASTPATH,
+      DefaultValue = DEFAULT_WRITE_ENABLE_HYBRID_FASTPATH)
+  private boolean enableHybridFastpath;
+
   @IntegerConfigurationValidatorAnnotation(ConfigurationKey = AZURE_MIN_BACKOFF_INTERVAL,
       DefaultValue = DEFAULT_MIN_BACKOFF_INTERVAL)
   private int minBackoffInterval;
@@ -622,6 +626,21 @@ public class AbfsConfiguration{
 
   public boolean isFastpathEnabled() {
     if ((getAuthType() == AuthType.OAuth) && enableFastpath) {
+      return true;
+    }
+
+    return false;
+  }
+
+  public boolean isHybridFastpathEnabled()
+      throws InvalidConfigurationValueException {
+    if ((getAuthType() == AuthType.OAuth) && enableHybridFastpath) {
+      if (enableFastpath) {
+        LOG.debug("Both {0} and {1} can not be enabled at same time",
+            FS_AZURE_FASTPATH_ENABLE, FS_AZURE_WRITE_ENABLE_HYBRID_FASTPATH);
+        throw new InvalidConfigurationValueException(FS_AZURE_FASTPATH_ENABLE);
+      }
+
       return true;
     }
 

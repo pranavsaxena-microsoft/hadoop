@@ -19,6 +19,7 @@
 package org.apache.hadoop.fs.azurebfs.services;
 
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.time.format.DateTimeFormatter;
 import java.time.OffsetDateTime;
 import java.time.temporal.ChronoUnit;
@@ -30,6 +31,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.Date;
 
+import org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations;
 import org.apache.hadoop.thirdparty.com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,7 +50,6 @@ public class AbfsFastpathSession {
   private static final long FILETIME_ONE_MILLISECOND = 10 * 1000;
   private static final double SESSION_REFRESH_INTERVAL_FACTOR = 0.75;
   private final ReentrantReadWriteLock rwLock = new ReentrantReadWriteLock();
-
   private AbfsFastpathSessionInfo fastpathSessionInfo;
   private AbfsClient client;
   private String path;
@@ -57,16 +58,37 @@ public class AbfsFastpathSession {
   private final ScheduledExecutorService scheduledExecutorService
       = Executors.newScheduledThreadPool(1);
   private int sessionRefreshIntervalInSec = -1;
+  private final IO_MODE mode;
+  public enum IO_MODE {
+    READ,
+    WRITE,
+    HYBRID_WRITE
+  }
 
-  public AbfsFastpathSession(final AbfsClient client,
+  public AbfsFastpathSession(final IO_MODE mode, final AbfsClient client,
+      final String path,
+      TracingContext tracingContext) {
+    this(mode, client, path, "", tracingContext);
+  }
+
+  public AbfsFastpathSession(final IO_MODE mode, final AbfsClient client,
       final String path,
       final String eTag,
       TracingContext tracingContext) {
+    this.mode = mode;
     this.client = client;
     this.path = path;
     this.eTag = eTag;
     this.tracingContext = tracingContext;
     fetchSessionTokenAndFileHandle();
+  }
+
+  public boolean isValid() {
+    if (fastpathSessionInfo == null) {
+      return false;
+    }
+
+    return fastpathSessionInfo.isValidSession();
   }
 
   /**
@@ -118,9 +140,11 @@ public class AbfsFastpathSession {
 
   protected void fetchSessionTokenAndFileHandle() {
     fetchFastpathSessionToken();
-    if ((fastpathSessionInfo != null)
-        && (fastpathSessionInfo.isValidSession())) {
-      fetchFastpathFileHandle();
+    if (mode != IO_MODE.HYBRID_WRITE) {
+      if ((fastpathSessionInfo != null)
+          && (fastpathSessionInfo.isValidSession())) {
+        fetchFastpathFileHandle();
+      }
     }
   }
 
@@ -129,7 +153,13 @@ public class AbfsFastpathSession {
     rwLock.writeLock().lock();
     try {
       if (fastpathSessionInfo == null) {
-        fastpathSessionInfo = new AbfsFastpathSessionInfo(token, expiry);
+        if (mode == IO_MODE.HYBRID_WRITE) {
+          fastpathSessionInfo = new AbfsFastpathSessionInfo(token, expiry,
+              AbfsConnectionMode.HYBRID_FASTPATH_APPEND);
+        } else {
+          fastpathSessionInfo = new AbfsFastpathSessionInfo(token, expiry,
+              AbfsConnectionMode.FASTPATH_CONN);
+        }
       } else {
         fastpathSessionInfo.updateSessionToken(token, expiry);
       }
@@ -192,22 +222,34 @@ public class AbfsFastpathSession {
   @VisibleForTesting
   boolean fetchFastpathSessionToken() {
     if ((fastpathSessionInfo != null)
+        && ((fastpathSessionInfo.getConnectionMode()
+        != AbfsConnectionMode.FASTPATH_CONN)
         && (fastpathSessionInfo.getConnectionMode()
-        != AbfsConnectionMode.FASTPATH_CONN)) {
+        != AbfsConnectionMode.HYBRID_FASTPATH_APPEND))) {
       // no need to refresh or schedule another
       return false;
     }
 
     try {
       AbfsRestOperation op = executeFetchFastpathSessionToken();
-      byte[] buffer = new byte[Integer.parseInt(
-          op.getResult().getResponseHeader(CONTENT_LENGTH))];
-      op.getResult().getResponseContentBuffer(buffer);
-      updateAbfsFastpathSessionToken(Base64.getEncoder().encodeToString(buffer),
-          getExpiry(buffer,
-              op.getResult().getResponseHeader(X_MS_FASTPATH_SESSION_EXPIRY)));
-      return true;
-    } catch (AzureBlobFileSystemException e) {
+      if (mode == IO_MODE.READ) {
+        byte[] buffer = new byte[Integer.parseInt(
+            op.getResult().getResponseHeader(CONTENT_LENGTH))];
+        op.getResult().getResponseContentBuffer(buffer);
+        updateAbfsFastpathSessionToken(
+            Base64.getEncoder().encodeToString(buffer),
+            getExpiry(buffer,
+                op.getResult()
+                    .getResponseHeader(X_MS_FASTPATH_SESSION_EXPIRY)));
+        return true;
+      } else {
+        String sessionData = op.getResult().getResponseHeader(HttpHeaderConfigurations.X_MS_FASTPATH_SESSION_DATA);
+        String expiry = op.getResult().getResponseHeader(X_MS_FASTPATH_SESSION_EXPIRY);
+        updateAbfsFastpathSessionToken(sessionData,
+            OffsetDateTime.parse(expiry, DateTimeFormatter.RFC_1123_DATE_TIME));
+        return true;
+      }
+    } catch (Exception e) {
       LOG.debug("Fastpath session token fetch unsuccessful {}", e);
       updateConnectionMode(
           AbfsConnectionMode.REST_ON_FASTPATH_SESSION_UPD_FAILURE);
@@ -250,7 +292,11 @@ public class AbfsFastpathSession {
   @VisibleForTesting
   protected AbfsRestOperation executeFetchFastpathSessionToken()
       throws AzureBlobFileSystemException {
-    return client.getReadFastpathSessionToken(path, eTag, tracingContext);
+    if (mode == IO_MODE.READ) {
+      return client.getReadFastpathSessionToken(path, eTag, tracingContext);
+    } else {
+      return client.getWriteFastpathSessionToken(path, tracingContext);
+    }
   }
 
   @VisibleForTesting

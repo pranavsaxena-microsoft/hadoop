@@ -208,7 +208,7 @@ public class ITestCustomerProvidedKey extends AbstractAbfsIntegrationTest {
     //  Trying to append with correct CPK headers
     AppendRequestParameters appendRequestParameters =
         new AppendRequestParameters(
-        0, 0, 5, Mode.APPEND_MODE, false, null);
+        0, 0, 5, Mode.APPEND_MODE, false, null, null);
     byte[] buffer = getRandomBytesArray(5);
     AbfsClient abfsClient = fs.getAbfsClient();
     AbfsRestOperation abfsRestOperation = abfsClient
@@ -253,7 +253,7 @@ public class ITestCustomerProvidedKey extends AbstractAbfsIntegrationTest {
     //  Trying to append without CPK headers
     AppendRequestParameters appendRequestParameters =
         new AppendRequestParameters(
-        0, 0, 5, Mode.APPEND_MODE, false, null);
+        0, 0, 5, Mode.APPEND_MODE, false, null, null);
     byte[] buffer = getRandomBytesArray(5);
     AbfsClient abfsClient = fs.getAbfsClient();
     AbfsRestOperation abfsRestOperation = abfsClient
