@@ -25,6 +25,7 @@ import java.net.HttpURLConnection;
 import java.util.UUID;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.hadoop.fs.azurebfs.security.EncryptionAdapter;
 import org.apache.hadoop.classification.VisibleForTesting;
 import org.apache.hadoop.util.Preconditions;
 
@@ -97,6 +98,7 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
   //                                                      of valid bytes in buffer)
   private boolean closed = false;
   private TracingContext tracingContext;
+  private final EncryptionAdapter encryptionAdapter;
 
   //  Optimisations modify the pointer fields.
   //  For better resilience the following fields are used to save the
@@ -151,6 +153,7 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
     this.tracingContext.setStreamID(inputStreamId);
     this.context = abfsInputStreamContext;
     readAheadBlockSize = abfsInputStreamContext.getReadAheadBlockSize();
+    encryptionAdapter = abfsInputStreamContext.getEncryptionAdapter();
 
     // Propagate the config values to ReadBufferManager so that the first instance
     // to initialize can set the readAheadBlockSize
@@ -542,7 +545,8 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
       }
       LOG.trace("Trigger client.read for path={} position={} offset={} length={}", path, position, offset, length);
       op = client.read(path, position, b, offset, length,
-          tolerateOobAppends ? "*" : eTag, cachedSasToken.get(), tracingContext);
+          tolerateOobAppends ? "*" : eTag, cachedSasToken.get(),
+         encryptionAdapter, tracingContext);
       cachedSasToken.update(op.getSasToken());
       LOG.debug("issuing HTTP GET request params position = {} b.length = {} "
           + "offset = {} length = {}", position, b.length, offset, length);

@@ -21,6 +21,7 @@ package org.apache.hadoop.fs.azurebfs;
 import java.io.IOException;
 import java.lang.reflect.Field;
 
+import org.apache.hadoop.fs.azurebfs.extensions.EncryptionContextProvider;
 import org.apache.hadoop.classification.VisibleForTesting;
 import org.apache.hadoop.util.Preconditions;
 
@@ -310,6 +311,9 @@ public class AbfsConfiguration{
   @BooleanConfigurationValidatorAnnotation(ConfigurationKey =
       FS_AZURE_ENABLE_ABFS_LIST_ITERATOR, DefaultValue = DEFAULT_ENABLE_ABFS_LIST_ITERATOR)
   private boolean enableAbfsListIterator;
+
+  private String clientProvidedEncryptionKey;
+  private String clientProvidedEncryptionKeySHA;
 
   public AbfsConfiguration(final Configuration rawConfig, String accountName)
       throws IllegalAccessException, InvalidConfigurationValueException, IOException {
@@ -915,6 +919,32 @@ public class AbfsConfiguration{
     }
   }
 
+  public EncryptionContextProvider createEncryptionContextProvider() {
+
+    try {
+      String configKey = FS_AZURE_ENCRYPTION_CONTEXT_PROVIDER_TYPE;
+      if (get(configKey) == null) {
+        return null;
+      }
+      Class<? extends EncryptionContextProvider> encryptionContextClass =
+          getAccountSpecificClass(configKey, null, EncryptionContextProvider.class);
+      Preconditions.checkArgument(encryptionContextClass != null, String.format(
+          "The configuration value for %s is invalid, or config key is not account-specific",
+          configKey));
+
+      EncryptionContextProvider encryptionContextProvider =
+          ReflectionUtils.newInstance(encryptionContextClass, rawConfig);
+      Preconditions.checkArgument(encryptionContextProvider != null,
+          String.format("Failed to initialize %s", encryptionContextClass));
+
+      LOG.trace("{} init complete", encryptionContextClass.getName());
+      return encryptionContextProvider;
+    } catch (Exception e) {
+      throw new IllegalArgumentException("Unable to load encryption context provider class: ", e);
+    }
+
+  }
+
   public int getReadAheadRange() {
     return this.readAheadRange;
   }
@@ -1017,9 +1047,22 @@ public class AbfsConfiguration{
     return this.enableAbfsListIterator;
   }
 
-  public String getClientProvidedEncryptionKey() {
-    String accSpecEncKey = accountConf(FS_AZURE_CLIENT_PROVIDED_ENCRYPTION_KEY);
-    return rawConfig.get(accSpecEncKey, null);
+  public String getEncodedClientProvidedEncryptionKey() {
+    if (clientProvidedEncryptionKey == null) {
+      String accSpecEncKey = accountConf(
+          FS_AZURE_ENCRYPTION_ENCODED_CLIENT_PROVIDED_KEY);
+      clientProvidedEncryptionKey = rawConfig.get(accSpecEncKey, null);
+    }
+    return clientProvidedEncryptionKey;
+  }
+
+  public String getEncodedClientProvidedEncryptionKeySHA() {
+    if (clientProvidedEncryptionKeySHA == null) {
+      String accSpecEncKey = accountConf(
+          FS_AZURE_ENCRYPTION_ENCODED_CLIENT_PROVIDED_KEY_SHA);
+      clientProvidedEncryptionKeySHA = rawConfig.get(accSpecEncKey, null);
+    }
+    return clientProvidedEncryptionKeySHA;
   }
 
   @VisibleForTesting
