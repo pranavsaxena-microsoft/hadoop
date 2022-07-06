@@ -112,6 +112,7 @@ public class AbfsClient implements Closeable {
 
   private final ListeningScheduledExecutorService executorService;
 
+
   /** logging the rename failure if metadata is in an incomplete state. */
   private static final LogExactlyOnce ABFS_METADATA_INCOMPLETE_RENAME_FAILURE =
       new LogExactlyOnce(LOG);
