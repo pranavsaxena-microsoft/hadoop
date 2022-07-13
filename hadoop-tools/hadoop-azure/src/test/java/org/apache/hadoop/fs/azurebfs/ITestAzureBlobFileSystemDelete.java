@@ -19,6 +19,7 @@
 package org.apache.hadoop.fs.azurebfs;
 
 import java.io.FileNotFoundException;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -26,17 +27,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import org.apache.hadoop.fs.azurebfs.services.*;
 import org.assertj.core.api.Assertions;
 import org.junit.Assume;
 import org.junit.Test;
 
 import org.apache.hadoop.fs.azurebfs.constants.FSOperationType;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AbfsRestOperationException;
-import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
-import org.apache.hadoop.fs.azurebfs.services.AbfsHttpOperation;
-import org.apache.hadoop.fs.azurebfs.services.AbfsRestOperation;
-import org.apache.hadoop.fs.azurebfs.services.TestAbfsClient;
-import org.apache.hadoop.fs.azurebfs.services.TestAbfsPerfTracker;
 import org.apache.hadoop.fs.azurebfs.utils.TestMockHelpers;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 import org.apache.hadoop.fs.azurebfs.utils.TracingHeaderValidator;
@@ -163,6 +160,46 @@ public class ITestAzureBlobFileSystemDelete extends
     fs.registerListener(null);
     assertDeleted(fs, dir, true);
     assertPathDoesNotExist(fs, "deleted", dir);
+
+  }
+
+
+  @Test
+  public void testNewDriverRetryMetrics() throws Exception {
+    AbfsConfiguration abfsConfig
+            = TestAbfsConfigurationFieldsValidation.updateRetryConfigs(
+            getConfiguration(),
+            REDUCED_RETRY_COUNT, REDUCED_MAX_BACKOFF_INTERVALS_MS);
+
+    final AzureBlobFileSystem fs = getFileSystem();
+    AbfsClient abfsClient = fs.getAbfsStore().getClient();
+    AbfsClient testClient = TestAbfsClient.createTestClientFromCurrentContext(
+            abfsClient,
+            abfsConfig);
+
+    // Mock instance of AbfsRestOperation
+
+    final AbfsRestOperation op = Mockito.spy(TestAbfsClient.getRestOp(
+            AbfsRestOperationType.DeletePath,
+            testClient,
+            HTTP_METHOD_DELETE,
+            TestAbfsClient.getTestUrl(testClient, "/NonExistingPath"),
+            TestAbfsClient.getTestRequestHeaders(testClient)));
+
+    AbfsHttpOperation abfsHttpOperation = mock(AbfsHttpOperation.class);
+    TestAbfsRestOperation.setHttpOperation(abfsHttpOperation, op);
+    TestAbfsRestOperation.noAuth(op);
+    TestAbfsRestOperation.noSendMetric(op);
+
+    Mockito.doThrow(new UnknownHostException()).when(abfsHttpOperation).processResponse(Mockito.any(), Mockito.anyInt(), Mockito.anyInt());
+
+    TracingContext tracingContext = new TracingContext("abcd",
+            fs.getFileSystemId(), FSOperationType.DELETE,
+            org.apache.hadoop.fs.azurebfs.utils.TracingHeaderFormat.ALL_ID_FORMAT, null);
+
+    op.execute(tracingContext);
+
+    //Mockito.doRetr
 
   }
 
