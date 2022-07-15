@@ -25,16 +25,20 @@ public class PerfTest extends AbstractAbfsScaleTest {
 
     public PerfTest() throws Exception {
         super();
+        this.setup();
     }
 
-    @Test
-    public void perfTest() throws Exception {
-        MetricHelper.startPlot();
+    public static void main(String[] args) throws Exception {
+        PerfTest perfTest = new PerfTest();
+        perfTest.perfTest(args[0]);
+    }
+    public void perfTest(String path) throws Exception {
+        MetricHelper.startPlot(path);
         for(int i=0; i<5;i++) {
             new Thread(() -> {
                 while(true) {
                     try {
-                        testReadWriteAndSeek(40 * ONE_MB, 4* ONE_MB, 4*ONE_MB, 0);
+                        testReadWriteAndSeek(40 * ONE_MB, 4* ONE_MB, 1, 8*ONE_KB);
                     } catch (Exception e) {
 
                     }

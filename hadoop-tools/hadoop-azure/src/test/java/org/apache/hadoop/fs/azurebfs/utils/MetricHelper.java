@@ -23,7 +23,7 @@ public class MetricHelper {
         metricUnitQueue.add(new MetricUnit(new Date().toInstant().toEpochMilli(), latency));
     }
 
-    public static void startPlot() {
+    public static void startPlot(String path) {
 
         new Thread(() -> {
             while(true) {
@@ -41,7 +41,7 @@ public class MetricHelper {
                         return (int) (m1.latency - m2.latency);
                     });
                     if(metricUnitQueue.size() > 0) {
-                        plot(filteredMetricUnits.size(), filteredMetricUnits.get((int) ((filteredMetricUnits.size() - 1) * 0.99)));
+                        plot(filteredMetricUnits.size(), filteredMetricUnits.get((int) ((filteredMetricUnits.size() - 1) * 0.99)), path);
                     }
                 } catch (Exception e) {
                     int a;
@@ -51,8 +51,9 @@ public class MetricHelper {
         }).start();
     }
 
-    private static void plot(int sampleSize, MetricUnit metricUnit) throws IOException {
-        BufferedWriter bufferedWriter = new BufferedWriter(new FileWriter("/home/pranav/Desktop/metrics.csv", true));
+    private static void plot(int sampleSize, MetricUnit metricUnit, String path) throws IOException {
+        //"/home/pranav/Desktop/metrics.csv"
+        BufferedWriter bufferedWriter = new BufferedWriter(new FileWriter(path, true));
         bufferedWriter.append(sampleSize + "," + metricUnit.latency + "\n");
         bufferedWriter.close();
     }
