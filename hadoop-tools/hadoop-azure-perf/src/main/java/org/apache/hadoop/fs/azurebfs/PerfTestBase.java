@@ -118,6 +118,7 @@ public class PerfTestBase {
 
     protected PerfTestBase() throws Exception {
         fileSystemName = TEST_CONTAINER_PREFIX + UUID.randomUUID().toString();
+        System.out.println(fileSystemName);
         rawConfig = new Configuration();
         rawConfig.addResource(TEST_CONFIGURATION_FILE_NAME);
 
@@ -125,7 +126,9 @@ public class PerfTestBase {
         if (accountName == null) {
             // check if accountName is set using different config key
             accountName = rawConfig.get(FS_AZURE_ABFS_ACCOUNT_NAME);
+            System.out.println("accountname: " + accountName);
         }
+        System.out.println("accountname: " + accountName);
 
         abfsConfig = new AbfsConfiguration(rawConfig, accountName);
 
