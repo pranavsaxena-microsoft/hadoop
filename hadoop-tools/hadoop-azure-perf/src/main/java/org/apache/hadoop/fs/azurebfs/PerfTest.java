@@ -32,15 +32,31 @@ public class PerfTest extends PerfTestBase {
 
     public static void main(String[] args) throws Exception {
         PerfTest perfTest = new PerfTest();
-        perfTest.perfTest(args[0]);
+        perfTest.perfTest(args[0], Integer.parseInt(args[1]), args[2], Integer.parseInt(args[3]), args[4],
+                Integer.parseInt(args[5]), args[6]);
     }
-    public void perfTest(String path) throws Exception {
-        MetricHelper.startPlot(path);
+
+    private static Integer getMultiplier(String metric) {
+        if("MB".equalsIgnoreCase(metric)) {
+            return ONE_MB;
+        }
+        if("KB".equalsIgnoreCase(metric)) {
+            return ONE_KB;
+        }
+        return 1;
+    }
+    public void perfTest(String filePath, Integer fileSizeUnit, String fileSizeMetric, Integer seek1Unit, String seek1Metric,
+                         Integer seek2Unit, String seek2Metric) throws Exception {
+        MetricHelper.startPlot(filePath);
+        final Integer fileSize = fileSizeUnit * getMultiplier(fileSizeMetric);
+        final Integer seek1 = seek1Unit * getMultiplier(seek1Metric);
+        final Integer seek2 = seek2Unit * getMultiplier(seek2Metric);
+
         for(int i=0; i<5;i++) {
             new Thread(() -> {
                 while(true) {
                     try {
-                        testReadWriteAndSeek(40 * ONE_MB, 4* ONE_MB, 1, 8*ONE_KB);
+                        testReadWriteAndSeek(fileSize, 4* ONE_MB, seek1, seek2);
                     } catch (Exception e) {
 
                     }

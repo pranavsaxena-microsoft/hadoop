@@ -39,7 +39,7 @@ public class MetricHelper {
                         return (int) (m1.latency - m2.latency);
                     });
                     if(metricUnitQueue.size() > 0) {
-                        plot(filteredMetricUnits.size(), filteredMetricUnits.get((int) ((filteredMetricUnits.size() - 1) * 0.99)), path);
+                        plot(filteredMetricUnits, path);
                     }
                 } catch (Exception e) {
                     int a;
@@ -49,10 +49,25 @@ public class MetricHelper {
         }).start();
     }
 
-    private static void plot(int sampleSize, MetricUnit metricUnit, String path) throws IOException {
+    private static MetricUnit getPercentile(List<MetricUnit> metricUnitList, Double percentileVal) {
+        if(metricUnitList == null || metricUnitList.size() == 0) {
+            return null;
+        }
+        return metricUnitList.get((int) ((metricUnitList.size() - 1) * percentileVal));
+    }
+
+    private static void plot(List<MetricUnit> metricUnitList, String path) throws IOException {
         //"/home/pranav/Desktop/metrics.csv"
+        if(metricUnitList == null | metricUnitList.size() == 0) {
+            return;
+        }
         BufferedWriter bufferedWriter = new BufferedWriter(new FileWriter(path, true));
-        bufferedWriter.append(sampleSize + "," + metricUnit.latency + "\n");
+        int sampleSize = metricUnitList.size();
+        MetricUnit percentile99 = getPercentile(metricUnitList, 0.99);
+        MetricUnit percentile90 = getPercentile(metricUnitList, 0.9);
+        MetricUnit percentile50 = getPercentile(metricUnitList, 0.5);
+        bufferedWriter.append(sampleSize + "," + percentile50.latency + "," + percentile90.latency
+                + "," + percentile99.latency + "\n");
         bufferedWriter.close();
     }
 
