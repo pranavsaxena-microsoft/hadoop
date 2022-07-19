@@ -22,6 +22,8 @@ public class PerfTest extends PerfTestBase {
     Long TEST_TIME = 60*60*1000l;
     private final String TEST_PATH = "/testfile";
 
+    private final Long TEN_MINUTE = 10 * 60 * 1000l;
+
     Logger LOG =
             LoggerFactory.getLogger(PerfTest.class);
 
@@ -52,10 +54,15 @@ public class PerfTest extends PerfTestBase {
         final Integer seek1 = seek1Unit * getMultiplier(seek1Metric);
         final Integer seek2 = seek2Unit * getMultiplier(seek2Metric);
 
+        final Long start = new Date().toInstant().toEpochMilli();
+
         for(int i=0; i<5;i++) {
             new Thread(() -> {
                 while(true) {
                     try {
+                        if(new Date().toInstant().toEpochMilli() > (start + TEN_MINUTE)) {
+                            break;
+                        }
                         testReadWriteAndSeek(fileSize, 4* ONE_MB, seek1, seek2);
                     } catch (Exception e) {
 

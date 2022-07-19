@@ -9,7 +9,12 @@ import java.util.concurrent.ScheduledFuture;
 public class MetricHelper {
 
     private static final Long ONE_MINUTE_DIFF = 60 * 1000l;
+
+    private static final Long TEN_MINUTE_DIFF = 10 * ONE_MINUTE_DIFF;
+
     private static Queue<MetricUnit> metricUnitQueue = new ArrayDeque<>();
+
+    private static List<MetricUnit> metricUnitList = new ArrayList<>();
 
     private static ScheduledFuture scheduledFuture;
 
@@ -18,15 +23,22 @@ public class MetricHelper {
     }
 
     public static void push(Long latency) {
-        metricUnitQueue.add(new MetricUnit(new Date().toInstant().toEpochMilli(), latency));
+        MetricUnit metricUnit = new MetricUnit(new Date().toInstant().toEpochMilli(), latency);
+        metricUnitQueue.add(metricUnit);
+        metricUnitList.add(metricUnit);
     }
 
     public static void startPlot(String path) {
 
+        Long start = new Date().toInstant().toEpochMilli();
         new Thread(() -> {
             while(true) {
                 try {
                     Thread.sleep(ONE_MINUTE_DIFF / 2);
+                    if(new Date().toInstant().toEpochMilli() > (start + TEN_MINUTE_DIFF)) {
+                        finalStats(path);
+                        return;
+                    }
                     List<MetricUnit> filteredMetricUnits;
                     if (metricUnitQueue.size() == 0) {
                         return;
@@ -47,6 +59,13 @@ public class MetricHelper {
                 }
             }
         }).start();
+    }
+
+    private static void finalStats(final String path) throws IOException {
+        metricUnitList.sort((m1, m2) -> {
+            return (int) (m1.latency - m2.latency);
+        });
+        plot(metricUnitList, path);
     }
 
     private static MetricUnit getPercentile(List<MetricUnit> metricUnitList, Double percentileVal) {
