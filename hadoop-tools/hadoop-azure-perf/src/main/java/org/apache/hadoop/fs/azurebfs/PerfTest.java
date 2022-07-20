@@ -60,7 +60,7 @@ public class PerfTest extends PerfTestBase {
             new Thread(() -> {
                 while(true) {
                     try {
-                        if(new Date().toInstant().toEpochMilli() > (start + TEN_MINUTE)) {
+                        if(new Date().toInstant().toEpochMilli() > (start + TEST_TIME)) {
                             break;
                         }
                         testReadWriteAndSeek(fileSize, 4* ONE_MB, seek1, seek2);
@@ -94,7 +94,6 @@ public class PerfTest extends PerfTestBase {
         IOStatisticsLogging.logIOStatisticsAtLevel(LOG, IOSTATISTICS_LOGGING_LEVEL_INFO, stream);
 
         final byte[] readBuffer = new byte[fileSize];
-        int result;
         IOStatisticsSource statisticsSource = null;
         try (FSDataInputStream inputStream = fs.open(testPath)) {
             statisticsSource = inputStream;
@@ -111,20 +110,7 @@ public class PerfTest extends PerfTestBase {
             }
 
             MetricHelper.push(new Date().toInstant().toEpochMilli() - start);
-
-//            inputStream.seek(bufferSize);
-//            result = inputStream.read(readBuffer, bufferSize, bufferSize);
-//            assertNotEquals(-1, result);
-//
-//            //to test tracingHeader for case with bypassReadAhead == true
-//            inputStream.seek(0);
-//            byte[] temp = new byte[5];
-//            int t = inputStream.read(temp, 0, 1);
-//
-//            inputStream.seek(0);
-//            result = inputStream.read(readBuffer, 0, bufferSize);
         }
         IOStatisticsLogging.logIOStatisticsAtLevel(LOG, IOSTATISTICS_LOGGING_LEVEL_INFO, statisticsSource);
-//        assertArrayEquals(readBuffer, b);
     }
 }

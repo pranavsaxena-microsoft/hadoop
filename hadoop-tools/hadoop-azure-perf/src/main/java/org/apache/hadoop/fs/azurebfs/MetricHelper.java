@@ -12,6 +12,8 @@ public class MetricHelper {
 
     private static final Long TEN_MINUTE_DIFF = 10 * ONE_MINUTE_DIFF;
 
+    private static final Long TOTAL_TEST_TIME = 60 * ONE_MINUTE_DIFF;
+
     private static Queue<MetricUnit> metricUnitQueue = new ArrayDeque<>();
 
     private static List<MetricUnit> metricUnitList = new ArrayList<>();
@@ -35,7 +37,7 @@ public class MetricHelper {
             while(true) {
                 try {
                     Thread.sleep(ONE_MINUTE_DIFF / 2);
-                    if(new Date().toInstant().toEpochMilli() > (start + TEN_MINUTE_DIFF)) {
+                    if(new Date().toInstant().toEpochMilli() > (start + TOTAL_TEST_TIME)) {
                         finalStats(path);
                         return;
                     }
@@ -43,7 +45,7 @@ public class MetricHelper {
                     if (metricUnitQueue.size() == 0) {
                         return;
                     }
-                    while (metricUnitQueue.size() > 0 && metricUnitQueue.peek().time < (new Date().toInstant().toEpochMilli() - ONE_MINUTE_DIFF)) {
+                    while (metricUnitQueue.size() > 0 && metricUnitQueue.peek().time < (new Date().toInstant().toEpochMilli() - TEN_MINUTE_DIFF)) {
                         metricUnitQueue.remove();
                     }
                     filteredMetricUnits = new ArrayList<>(metricUnitQueue);
