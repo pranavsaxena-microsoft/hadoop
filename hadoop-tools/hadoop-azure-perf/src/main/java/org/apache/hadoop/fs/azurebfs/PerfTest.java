@@ -103,10 +103,12 @@ public class PerfTest extends PerfTestBase {
                             ((AbfsInputStream) inputStream.getWrappedStream())
                                     .getStreamID()));
             Long start = new Date().toInstant().toEpochMilli();
-            inputStream.read(readBuffer, fileSize - seek1, seek1);
+            inputStream.seek(fileSize - seek1);
+            inputStream.read(readBuffer, 0, seek1);
 
             if(seek2 != 0) {
-                inputStream.read(readBuffer, fileSize - seek1 -seek2, seek2);
+                inputStream.seek(fileSize - seek1 - seek2);
+                inputStream.read(readBuffer, 0, seek2);
             }
 
             MetricHelper.push(new Date().toInstant().toEpochMilli() - start);
