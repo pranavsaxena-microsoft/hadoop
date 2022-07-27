@@ -2,6 +2,7 @@ package org.apache.hadoop.fs.azurebfs;
 
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.azurebfs.constants.FSOperationType;
 import org.apache.hadoop.fs.azurebfs.services.AbfsInputStream;
@@ -17,23 +18,29 @@ import static org.apache.hadoop.fs.CommonConfigurationKeys.IOSTATISTICS_LOGGING_
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.ONE_KB;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.ONE_MB;
 
-public class PerfTest extends PerfTestBase {
+public class PerfTest {
 
     Long TEST_TIME = 60*60*1000l;
     private final String TEST_PATH = "/testfile";
 
     private final Long TEN_MINUTE = 10 * 60 * 1000l;
 
+    private PerfTestSetup perfTestSetup;
     Logger LOG =
             LoggerFactory.getLogger(PerfTest.class);
 
-    public PerfTest() throws Exception {
-        super();
-        this.setup();
+    public PerfTest(String fsType) throws Exception {
+
+        if("azure".equalsIgnoreCase(fsType)) {
+            perfTestSetup = new PerfTestAzureSetup();
+        } else {
+            perfTestSetup = new PerfTestOtherFSSetup();
+        }
+        perfTestSetup.setup();
     }
 
     public static void main(String[] args) throws Exception {
-        PerfTest perfTest = new PerfTest();
+        PerfTest perfTest = new PerfTest(args[7]);
         perfTest.perfTest(args[0], Integer.parseInt(args[1]), args[2], Integer.parseInt(args[3]), args[4],
                 Integer.parseInt(args[5]), args[6]);
     }
@@ -76,15 +83,13 @@ public class PerfTest extends PerfTestBase {
     }
 
     private void testReadWriteAndSeek(int fileSize, int bufferSize, Integer seek1, Integer seek2) throws Exception {
-        final AzureBlobFileSystem fs = getFileSystem();
-        final AbfsConfiguration abfsConfiguration = fs.getAbfsStore().getAbfsConfiguration();
-        abfsConfiguration.setWriteBufferSize(bufferSize);
-        abfsConfiguration.setReadBufferSize(bufferSize);
+        final FileSystem fs = perfTestSetup.getFileSystem();
+
 
         final byte[] b = new byte[fileSize];
         new Random().nextBytes(b);
 
-        Path testPath = path(TEST_PATH);
+        Path testPath = perfTestSetup.path(TEST_PATH);
         FSDataOutputStream stream = fs.create(testPath);
         try {
             stream.write(b);
@@ -97,11 +102,11 @@ public class PerfTest extends PerfTestBase {
         IOStatisticsSource statisticsSource = null;
         try (FSDataInputStream inputStream = fs.open(testPath)) {
             statisticsSource = inputStream;
-            ((AbfsInputStream) inputStream.getWrappedStream()).registerListener(
-                    new TracingHeaderValidator(abfsConfiguration.getClientCorrelationId(),
-                            fs.getFileSystemId(), FSOperationType.READ, true, 0,
-                            ((AbfsInputStream) inputStream.getWrappedStream())
-                                    .getStreamID()));
+//            ((AbfsInputStream) inputStream.getWrappedStream()).registerListener(
+//                    new TracingHeaderValidator(abfsConfiguration.getClientCorrelationId(),
+//                            fs.getFileSystemId(), FSOperationType.READ, true, 0,
+//                            ((AbfsInputStream) inputStream.getWrappedStream())
+//                                    .getStreamID()));
             Long start = new Date().toInstant().toEpochMilli();
             inputStream.seek(fileSize - seek1);
             inputStream.read(readBuffer, 0, seek1);
