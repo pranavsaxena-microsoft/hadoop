@@ -39,6 +39,29 @@ public class PerfTest {
         perfTestSetup.setup();
     }
 
+    /**
+     * Arguments to be given equivalent to example below:
+     * /home/user/Desktop/metrics.csv 8 MB 1 B 4 KB azure
+     * arg[0] = /home/user/Desktop/metrics.csv; location where you want to print the metrics
+     * arg[1] = 8 = size of the file with which we will do IO
+     * arg[2] = MB = metric related to arg[1]. Following are valid input: B, KB, MB
+     * arg[3] = 1 = value of first read size without any metric
+     * arg[4] = B = metric related to arg[3]. Following are valid input: B, KB, MB
+     * arg[5] = 4 = value of second read size without any metric. This read is just above read done for bytes provided
+     * by arg[3] and arg[4].
+     * arg[6] = KB = metric related to arg[5]. Following are valid input: B, KB, MB
+     * arg[7] = azure = fileSystem to be used. Only integration with AzureStorage is done in this project.
+     * For other kind of fileSystem that needs to be tested, Implementation of the integration would have
+     * to be written in PerfTestOtherFSSetup.
+     *
+     * Logic for the test:
+     * 1. It would seek to the (end of file - bytes provided by arg[3] and arg[4])
+     * 2. It would read bytes from the file (number of bytes are provided by arg[3] and arg[4]).
+     * 3. After that it would check for the bytes (provided by arg[5] and arg[6]) above the (end of file -
+     * bytes provided by arg[3] and arg[4])
+     *
+     * In the above example, it would read last 1 B of the file and after that it would read the 4 KB above the last 1 B.
+     * */
     public static void main(String[] args) throws Exception {
         PerfTest perfTest = new PerfTest(args[7]);
         perfTest.perfTest(args[0], Integer.parseInt(args[1]), args[2], Integer.parseInt(args[3]), args[4],
