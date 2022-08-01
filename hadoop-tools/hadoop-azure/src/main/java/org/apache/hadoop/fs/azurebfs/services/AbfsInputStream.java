@@ -23,6 +23,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -121,7 +122,7 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
    * lazy seek to decide whether to seek on the next read or not.
    */
   private long nextReadPos;
-  private AbfsFastpathSession fastpathSession = null;
+  private final List<AbfsInputStreamHelper> abfsInputStreamHelpers = new ArrayList<>();
 
   public AbfsInputStream(
           final AbfsClient client,
@@ -157,7 +158,10 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
     // Propagate the config values to ReadBufferManager so that the first instance
     // to initialize can set the readAheadBlockSize
     ReadBufferManager.setReadBufferManagerConfigs(readAheadBlockSize);
-    createAbfsFastpathSession(abfsInputStreamContext.isFastpathEnabled());
+    if(abfsInputStreamContext.isFastpathEnabled()) {
+      //similarly can be done for other kind of helpers like vectoredRead in the future.
+      abfsInputStreamHelpers.add(new FastpathAbfsInputStreamHelper().init(this));
+    }
 
     if (streamStatistics != null) {
       ioStatistics = streamStatistics.getIOStatistics();
@@ -171,12 +175,6 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
 
   private String createInputStreamId() {
     return StringUtils.right(UUID.randomUUID().toString(), STREAM_ID_LEN);
-  }
-
-  protected void createAbfsFastpathSession(boolean isFastpathFeatureConfigOn) {
-    if (isFastpathFeatureConfigOn) {
-      fastpathSession = new AbfsFastpathSession(client, path, eTag, tracingContext);
-    }
   }
 
   @Override
@@ -940,7 +938,7 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
   }
 
   @VisibleForTesting
-  protected AbfsClient getClient() {
+  AbfsClient getClient() {
     return client;
   }
 }
