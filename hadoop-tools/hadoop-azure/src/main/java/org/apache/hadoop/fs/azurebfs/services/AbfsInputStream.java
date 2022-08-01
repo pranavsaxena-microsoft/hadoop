@@ -167,6 +167,13 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
       ioStatistics = streamStatistics.getIOStatistics();
     }
     this.tracingContext.setOperation(FSOperationType.READ);
+    sortInputStreamHelpersByRank();
+  }
+
+  private void sortInputStreamHelpersByRank() {
+    abfsInputStreamHelpers.sort((h1, h2) -> {
+      return (h1.rank() - h2.rank());
+    });
   }
 
   public String getPath() {
@@ -567,17 +574,19 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
       if (streamStatistics != null) {
         streamStatistics.remoteReadOperation();
       }
-
+      AbfsReadServerCaller abfsReadServerCaller = null;
+      for(AbfsInputStreamHelper helper : abfsInputStreamHelpers) {
+        abfsReadServerCaller = helper.preExecute();
+      }
       LOG.trace("Trigger client.read for path={} position={} offset={} length={}", path, position, offset, length);
-      AbfsFastpathSessionInfo fastpathSessionInfo = ((fastpathSession == null)
-          ? null
-          : fastpathSession.getCurrentAbfsFastpathSessionInfoCopy());
+//      AbfsFastpathSessionInfo fastpathSessionInfo = ((fastpathSession == null)
+//          ? null
+//          : fastpathSession.getCurrentAbfsFastpathSessionInfoCopy());
       ReadRequestParameters reqParams = new ReadRequestParameters(position,
-          offset, length, tolerateOobAppends ? "*" : eTag,
-          fastpathSessionInfo);
-      op =  executeRead(path, b, cachedSasToken.get(), reqParams, readThreadTracingContext);
+          offset, length, tolerateOobAppends ? "*" : eTag);
+      op =  executeRead(path, b, cachedSasToken.get(), reqParams, readThreadTracingContext, abfsReadServerCaller);
       cachedSasToken.update(op.getSasToken());
-      checkForFastpathConnectionFailures(fastpathSessionInfo);
+//      checkForFastpathConnectionFailures(fastpathSessionInfo);
       LOG.debug("issuing HTTP GET request params position = {} b.length = {} "
           + "offset = {} length = {}", position, b.length, offset, length);
       perfInfo.registerResult(op.getResult()).registerSuccess(true);
@@ -603,17 +612,17 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
     return (int) bytesRead;
   }
 
-  protected void checkForFastpathConnectionFailures(final AbfsFastpathSessionInfo fastpathSessionInfo) {
-    if (fastpathSessionInfo != null) {
-      fastpathSession.updateConnectionModeForFailures(fastpathSessionInfo.getConnectionMode());
-    }
-  }
+//  protected void checkForFastpathConnectionFailures(final AbfsFastpathSessionInfo fastpathSessionInfo) {
+//    if (fastpathSessionInfo != null) {
+//      fastpathSession.updateConnectionModeForFailures(fastpathSessionInfo.getConnectionMode());
+//    }
+//  }
 
   @VisibleForTesting
   protected AbfsRestOperation executeRead(String path, byte[] b, String sasToken,
-      ReadRequestParameters reqParam, TracingContext context)
+      ReadRequestParameters reqParam, TracingContext context, AbfsReadServerCaller abfsReadServerCaller)
       throws AzureBlobFileSystemException {
-    return client.read(path, b, sasToken, reqParam, context);
+    return client.read(path, b, sasToken, reqParam, context, abfsReadServerCaller);
   }
 
   /**
@@ -740,10 +749,9 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
 
   @Override
   public synchronized void close() throws IOException {
-    if (fastpathSession != null) {
-      fastpathSession.close();
-    }
-
+   for(AbfsInputStreamHelper helper : abfsInputStreamHelpers) {
+     helper.close();
+   }
     closed = true;
     buffer = null; // de-reference the buffer so it can be GC'ed sooner
     LOG.debug("Closing {}", this);
@@ -921,21 +929,21 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
     return this.statistics;
   }
 
-  @VisibleForTesting
-  AbfsFastpathSession getFastpathSession() {
-    return this.fastpathSession;
-  }
-
-  @VisibleForTesting
-  void setFastpathSession(AbfsFastpathSession fastpathSession) {
-    if ((fastpathSession != null) && (
-        fastpathSession.getCurrentAbfsFastpathSessionInfoCopy() != null)) {
-      tracingContext.setConnectionMode(
-          fastpathSession.getCurrentAbfsFastpathSessionInfoCopy().getConnectionMode());
-    }
-
-    this.fastpathSession = fastpathSession;
-  }
+//  @VisibleForTesting
+//  AbfsFastpathSession getFastpathSession() {
+//    return this.fastpathSession;
+//  }
+//
+//  @VisibleForTesting
+//  void setFastpathSession(AbfsFastpathSession fastpathSession) {
+//    if ((fastpathSession != null) && (
+//        fastpathSession.getCurrentAbfsFastpathSessionInfoCopy() != null)) {
+//      tracingContext.setConnectionMode(
+//          fastpathSession.getCurrentAbfsFastpathSessionInfoCopy().getConnectionMode());
+//    }
+//
+//    this.fastpathSession = fastpathSession;
+//  }
 
   @VisibleForTesting
   AbfsClient getClient() {

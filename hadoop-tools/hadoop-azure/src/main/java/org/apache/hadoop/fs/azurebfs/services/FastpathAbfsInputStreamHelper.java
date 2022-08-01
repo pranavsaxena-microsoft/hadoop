@@ -1,7 +1,5 @@
 package org.apache.hadoop.fs.azurebfs.services;
 
-import org.apache.hadoop.fs.azurebfs.services.AbfsServerCaller.AbfsReadFastpathServerCaller;
-import org.apache.hadoop.fs.azurebfs.services.AbfsServerCaller.AbfsReadServerCaller;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 
 public class FastpathAbfsInputStreamHelper implements AbfsInputStreamHelper{
@@ -12,6 +10,8 @@ public class FastpathAbfsInputStreamHelper implements AbfsInputStreamHelper{
     private String eTag;
     private TracingContext tracingContext;
     private Boolean shouldFastPathBeUsed = true;
+
+    private ThreadLocal<AbfsFastpathSessionInfo> abfsFastpathSessionInfoThreadLocal = new ThreadLocal<>();
 
     @Override
     public FastpathAbfsInputStreamHelper init(AbfsInputStream abfsInputStream) {
@@ -26,14 +26,28 @@ public class FastpathAbfsInputStreamHelper implements AbfsInputStreamHelper{
     @Override
     public AbfsReadServerCaller preExecute() {
         if(shouldFastPathBeUsed) {
-            return new AbfsReadFastpathServerCaller(this);
+            abfsFastpathSessionInfoThreadLocal.set(fastpathSession.getCurrentAbfsFastpathSessionInfoCopy());
+            return new AbfsReadFastpathServerCaller(this, client);
         }
         return null;
     }
 
     @Override
     public void postExecute() {
+        final AbfsFastpathSessionInfo fastpathSessionInfo = abfsFastpathSessionInfoThreadLocal.get();
+        if(fastpathSessionInfo != null) {
+            fastpathSession.updateConnectionModeForFailures(fastpathSessionInfo.getConnectionMode());
+        }
+        abfsFastpathSessionInfoThreadLocal.remove();
+    }
 
+    @Override
+    public void close() {
+        fastpathSession.close();
+    }
+
+    AbfsFastpathSessionInfo getAbfsFastpathSessionInfo() {
+        return abfsFastpathSessionInfoThreadLocal.get();
     }
 
     @Override

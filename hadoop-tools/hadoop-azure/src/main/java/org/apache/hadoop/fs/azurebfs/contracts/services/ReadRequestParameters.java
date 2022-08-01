@@ -30,18 +30,17 @@ public class ReadRequestParameters {
   private final int bufferOffset;
   private final int readLength;
   private final String eTag;
-  private final AbfsFastpathSessionInfo fastpathSessionInfo;
+//  private final AbfsFastpathSessionInfo fastpathSessionInfo;
 
   public ReadRequestParameters(final long storeFilePosition,
       final int bufferOffset,
       final int readLength,
-      final String eTag,
-      final AbfsFastpathSessionInfo fastpathSessionInfo) {
+      final String eTag) {
     this.storeFilePosition = storeFilePosition;
     this.bufferOffset = bufferOffset;
     this.readLength = readLength;
     this.eTag = eTag;
-    this.fastpathSessionInfo = fastpathSessionInfo;
+//    this.fastpathSessionInfo = fastpathSessionInfo;
   }
 
   public long getStoreFilePosition() {
@@ -60,21 +59,21 @@ public class ReadRequestParameters {
     return this.eTag;
   }
 
-  public AbfsConnectionMode getAbfsConnectionMode() {
-    if (fastpathSessionInfo == null) {
-      return DEFAULT_CONNECTION_MODE;
-    } else {
-      return fastpathSessionInfo.getConnectionMode();
-    }
-  }
+//  public AbfsConnectionMode getAbfsConnectionMode() {
+//    if (fastpathSessionInfo == null) {
+//      return DEFAULT_CONNECTION_MODE;
+//    } else {
+//      return fastpathSessionInfo.getConnectionMode();
+//    }
+//  }
+//
+//  public boolean isFastpathConnection() {
+//    return ((fastpathSessionInfo != null)
+//        && (AbfsConnectionMode.isFastpathConnection(
+//        fastpathSessionInfo.getConnectionMode())));
+//  }
 
-  public boolean isFastpathConnection() {
-    return ((fastpathSessionInfo != null)
-        && (AbfsConnectionMode.isFastpathConnection(
-        fastpathSessionInfo.getConnectionMode())));
-  }
-
-  public AbfsFastpathSessionInfo getAbfsFastpathSessionInfo() {
-    return fastpathSessionInfo;
-  }
+//  public AbfsFastpathSessionInfo getAbfsFastpathSessionInfo() {
+//    return fastpathSessionInfo;
+//  }
 }

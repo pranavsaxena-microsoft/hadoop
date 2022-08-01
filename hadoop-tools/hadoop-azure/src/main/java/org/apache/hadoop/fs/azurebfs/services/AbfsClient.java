@@ -807,7 +807,7 @@ public class AbfsClient implements Closeable {
       byte[] buffer,
       String cachedSasToken,
       ReadRequestParameters reqParams,
-      TracingContext tracingContext) throws AzureBlobFileSystemException {
+      TracingContext tracingContext, AbfsReadServerCaller abfsReadServerCaller) throws AzureBlobFileSystemException {
     final List<AbfsHttpHeader> requestHeaders = createDefaultHeaders();
     long position = reqParams.getStoreFilePosition();
     requestHeaders.add(new AbfsHttpHeader(RANGE,
@@ -826,10 +826,12 @@ public class AbfsClient implements Closeable {
 
     AbfsRestOperation op = null;
 
-    if (reqParams.isFastpathConnection()) {
-      op = executeFastpathRead(path, reqParams, url, requestHeaders, buffer,
-          sasTokenForReuse, tracingContext);
-    } else {
+    if(abfsReadServerCaller != null) {
+      op = abfsReadServerCaller.operate(path, reqParams, url, requestHeaders, buffer,
+              sasTokenForReuse, tracingContext);
+    }
+
+    if (op != null) {
       op = new AbfsRestOperation(
           AbfsRestOperationType.ReadFile,
           this,
@@ -1287,52 +1289,52 @@ public class AbfsClient implements Closeable {
     Futures.addCallback(future, callback, executorService);
   }
 
-  @VisibleForTesting
-  protected AbfsRestOperation executeFastpathRead(String path,
-      ReadRequestParameters reqParams,
-      URL url,
-      List<AbfsHttpHeader> requestHeaders,
-      byte[] buffer,
-      String sasTokenForReuse,
-      TracingContext tracingContext) throws AzureBlobFileSystemException {
-    final AbfsRestOperation op = new AbfsRestOperation(
-        AbfsRestOperationType.FastpathRead,
-        this,
-        HTTP_METHOD_GET,
-        url,
-        requestHeaders,
-        buffer,
-        reqParams.getBufferOffset(),
-        reqParams.getReadLength(),
-        reqParams.getAbfsFastpathSessionInfo());
-
-    try {
-      op.execute(tracingContext);
-      return op;
-    } catch (AbfsFastpathException ex) {
-      // Fastpath threw irrecoverable exception
-      // when FastpathRequestException is received, the request needs to
-      // be retried on REST
-      if (ex.getCause() instanceof FastpathRequestException) {
-        tracingContext.setConnectionMode(
-            AbfsConnectionMode.REST_ON_FASTPATH_REQ_FAILURE);
-        reqParams.getAbfsFastpathSessionInfo()
-            .setConnectionMode(
-                AbfsConnectionMode.REST_ON_FASTPATH_REQ_FAILURE);
-      } else {
-        // when FastpathConnectionException is received, the request needs to
-        // be retried on REST as well as switch AbfsInputStream to REST for
-        // all future reads in its lifetime
-        tracingContext.setConnectionMode(
-            AbfsConnectionMode.REST_ON_FASTPATH_CONN_FAILURE);
-        reqParams.getAbfsFastpathSessionInfo()
-            .setConnectionMode(
-                AbfsConnectionMode.REST_ON_FASTPATH_CONN_FAILURE);
-      }
-
-      return read(path, buffer, op.getSasToken(), reqParams, tracingContext);
-    }
-  }
+//  @VisibleForTesting
+//  protected AbfsRestOperation executeFastpathRead(String path,
+//      ReadRequestParameters reqParams,
+//      URL url,
+//      List<AbfsHttpHeader> requestHeaders,
+//      byte[] buffer,
+//      String sasTokenForReuse,
+//      TracingContext tracingContext) throws AzureBlobFileSystemException {
+//    final AbfsRestOperation op = new AbfsRestOperation(
+//        AbfsRestOperationType.FastpathRead,
+//        this,
+//        HTTP_METHOD_GET,
+//        url,
+//        requestHeaders,
+//        buffer,
+//        reqParams.getBufferOffset(),
+//        reqParams.getReadLength(),
+//        reqParams.getAbfsFastpathSessionInfo());
+//
+//    try {
+//      op.execute(tracingContext);
+//      return op;
+//    } catch (AbfsFastpathException ex) {
+//      // Fastpath threw irrecoverable exception
+//      // when FastpathRequestException is received, the request needs to
+//      // be retried on REST
+//      if (ex.getCause() instanceof FastpathRequestException) {
+//        tracingContext.setConnectionMode(
+//            AbfsConnectionMode.REST_ON_FASTPATH_REQ_FAILURE);
+//        reqParams.getAbfsFastpathSessionInfo()
+//            .setConnectionMode(
+//                AbfsConnectionMode.REST_ON_FASTPATH_REQ_FAILURE);
+//      } else {
+//        // when FastpathConnectionException is received, the request needs to
+//        // be retried on REST as well as switch AbfsInputStream to REST for
+//        // all future reads in its lifetime
+//        tracingContext.setConnectionMode(
+//            AbfsConnectionMode.REST_ON_FASTPATH_CONN_FAILURE);
+//        reqParams.getAbfsFastpathSessionInfo()
+//            .setConnectionMode(
+//                AbfsConnectionMode.REST_ON_FASTPATH_CONN_FAILURE);
+//      }
+//
+//      return read(path, buffer, op.getSasToken(), reqParams, tracingContext);
+//    }
+//  }
 
   @VisibleForTesting
   protected AbfsRestOperation executeFastpathOpen(URL url,
