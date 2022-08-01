@@ -22,20 +22,21 @@ import java.io.EOFException;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.HttpURLConnection;
+import java.nio.ByteBuffer;
+import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.IntFunction;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.hadoop.fs.*;
 import org.apache.hadoop.thirdparty.com.google.common.annotations.VisibleForTesting;
 import org.apache.hadoop.thirdparty.com.google.common.base.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.hadoop.fs.CanUnbuffer;
-import org.apache.hadoop.fs.FSExceptionMessages;
-import org.apache.hadoop.fs.FSInputStream;
 import org.apache.hadoop.fs.FileSystem.Statistics;
-import org.apache.hadoop.fs.StreamCapabilities;
 import org.apache.hadoop.fs.azurebfs.constants.FSOperationType;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AbfsRestOperationException;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemException;
@@ -221,6 +222,24 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
       return -1;
     } else {
       return (b[0] & 0xFF);
+    }
+  }
+
+  public void readVectored(List<? extends FileRange> ranges, IntFunction<ByteBuffer> allocate) {
+    //Lets assume all ranges are disjoint
+    for(FileRange fileRange : ranges) {
+      //validate
+      CompletableFuture<ByteBuffer> completableFuture = new CompletableFuture<>();
+      fileRange.setData(completableFuture);
+      new Thread(() -> {
+        try {
+          ByteBuffer byteBuffer = ByteBuffer.allocate(fileRange.getLength());
+          read(byteBuffer.array(), (int) fileRange.getOffset(), fileRange.getLength());
+          completableFuture.complete(byteBuffer);
+        } catch (Exception e) {
+          completableFuture.complete(null);
+        }
+      }).start();
     }
   }
 
