@@ -24,6 +24,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -99,6 +100,12 @@ public class MockAbfsInputStream extends AbfsInputStream {
       }
     }
   }
+
+  private void setFastpathSession(MockAbfsFastpathSession mockAbfsFastpathSession) {
+    List<AbfsInputStreamHelper> helpers = getHelpers();
+    FastpathAbfsInputStreamHelper fastpathAbfsInputStreamHelper = (FastpathAbfsInputStreamHelper) helpers.get(helpers.size() - 1);
+  }
+
 
   public void createMockAbfsFastpathSession()
       throws Exception {

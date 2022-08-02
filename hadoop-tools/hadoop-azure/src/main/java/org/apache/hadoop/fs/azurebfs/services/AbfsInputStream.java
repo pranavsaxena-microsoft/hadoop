@@ -946,6 +946,12 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
 //  }
 
   @VisibleForTesting
+  List<AbfsInputStreamHelper> getHelpers() {
+    return abfsInputStreamHelpers;
+  }
+
+
+  @VisibleForTesting
   AbfsClient getClient() {
     return client;
   }

@@ -1,0 +1,21 @@
+@startuml
+'https://plantuml.com/sequence-diagram
+
+autonumber
+AbfsStore -> AbfsInputStream : readRemote()
+AbfsInputStream -> FastpathAbfsInputStreamHelper : preExecute()
+FastpathAbfsInputStreamHelper -> FastpathAbfsInputStreamHelper: session = createFastpathSession()
+FastpathAbfsInputStreamHelper -> FastpathAbfsInputStreamHelper:abfsReadFastpathServerCaller = \nnew  AbfsReadFastpathServerCaller(session)
+FastpathAbfsInputStreamHelper -> AbfsInputStream : abfsReadFastpathServerCaller
+AbfsInputStream -> AbfsClient : read(path, abfsReadFastpathServerCaller)
+alt abfsReadFastpathServerCaller != null
+AbfsClient -> AbfsReadFastpathServerCaller: abfsReadFastpathServerCaller.operate()
+AbfsReadFastpathServerCaller -> AbfsReadFastpathServerCaller: op = new AbfsRestOperation().execute()
+AbfsReadFastpathServerCaller -> AbfsClient : return op;
+else abfsReadFastpathServerCaller == null
+AbfsClient -> AbfsClient : op = new AbfsRestOperation().execute()
+end
+AbfsClient -> AbfsInputStream : return op;
+AbfsInputStream -> AbfsInputStream: process(op)
+
+@enduml
