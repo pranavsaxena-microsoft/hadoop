@@ -2,6 +2,26 @@
 'https://plantuml.com/sequence-diagram
 
 autonumber
-
+Developer_code -> AzureBlobFileSystem: open();
+AzureBlobFileSystem -> AbfsStore : open();
+AbfsStore -> AbfsInputStream: call constructor();
+AbfsInputStream -> AbfsInputStream: init List<AbfsInputStreamHelper>
+AbfsInputStream -> AbfsStore: return abfsInputStream;
+AbfsStore -> AzureBlobFileSystem: abfsInputStream;
+AzureBlobFileSystem -> Developer_code: abfsInputStream;
+Developer_code -> AbfsInputStream: abfsInputStream.read();
+AbfsInputStream -> AbfsInputStream: serverCaller = null;
+loop each abfsInputStreamHelper in List<AbfsInputStreamHelper>
+AbfsInputStream -> AbfsInputStream: serverCaller = abfsInputStreamHelper\n.preExecute();
+end
+AbfsInputStream -> AbfsClient: read(path, serverCaller)
+alt serverCaller != null
+AbfsClient -> AbfsClient: op = serverCaller.operate();
+else serverCaller == null
+AbfsClient -> AbfsClient: op = new AbfsRestOperation()\n.execute();\n/*normal exec as done now*/
+end
+AbfsClient -> AbfsInputStream: return op;
+AbfsInputStream -> AbfsInputStream: process(op);
+AbfsInputStream -> Developer_code: method complete;
 
 @enduml

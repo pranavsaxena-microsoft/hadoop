@@ -2,7 +2,7 @@
 'https://plantuml.com/sequence-diagram
 
 autonumber
-AbfsStore -> AbfsInputStream : readRemote()
+Developer_code -> AbfsInputStream : readRemote()
 AbfsInputStream -> FastpathAbfsInputStreamHelper : preExecute()
 FastpathAbfsInputStreamHelper -> FastpathAbfsInputStreamHelper: session = createFastpathSession()
 FastpathAbfsInputStreamHelper -> FastpathAbfsInputStreamHelper:abfsReadFastpathServerCaller = \nnew  AbfsReadFastpathServerCaller(session)
@@ -13,9 +13,9 @@ AbfsClient -> AbfsReadFastpathServerCaller: abfsReadFastpathServerCaller.operate
 AbfsReadFastpathServerCaller -> AbfsReadFastpathServerCaller: op = new AbfsRestOperation().execute()
 AbfsReadFastpathServerCaller -> AbfsClient : return op;
 else abfsReadFastpathServerCaller == null
-AbfsClient -> AbfsClient : op = new AbfsRestOperation().execute()
+AbfsClient -> AbfsClient : op = new AbfsRestOperation().execute()\n/*normal exec as done now*/
 end
 AbfsClient -> AbfsInputStream : return op;
 AbfsInputStream -> AbfsInputStream: process(op)
-
+AbfsInputStream -> Developer_code: method complete;
 @enduml
