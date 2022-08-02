@@ -10,7 +10,7 @@ FastpathAbfsInputStreamHelper -> AbfsInputStream : abfsReadFastpathServerCaller
 AbfsInputStream -> AbfsClient : read(path, abfsReadFastpathServerCaller)
 alt abfsReadFastpathServerCaller != null
 AbfsClient -> AbfsReadFastpathServerCaller: abfsReadFastpathServerCaller.operate()
-AbfsReadFastpathServerCaller -> AbfsReadFastpathServerCaller: op = new AbfsRestOperation().execute()
+AbfsReadFastpathServerCaller -> AbfsReadFastpathServerCaller: op = new AbfsRestOperation().execute()\n/*call via Fastpath jar + handle fastpath exception*/
 AbfsReadFastpathServerCaller -> AbfsClient : return op;
 else abfsReadFastpathServerCaller == null
 AbfsClient -> AbfsClient : op = new AbfsRestOperation().execute()\n/*normal exec as done now*/
