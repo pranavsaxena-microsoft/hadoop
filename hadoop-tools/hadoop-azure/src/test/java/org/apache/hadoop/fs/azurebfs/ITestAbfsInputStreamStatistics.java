@@ -46,7 +46,7 @@ import org.apache.hadoop.io.IOUtils;
 import static org.apache.hadoop.fs.statistics.IOStatisticAssertions.extractStatistics;
 import static org.apache.hadoop.fs.statistics.IOStatisticAssertions.lookupMeanStatistic;
 import static org.apache.hadoop.fs.statistics.IOStatisticsLogging.ioStatisticsToPrettyString;
-import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_FASTPATH_ENABLE;
+import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_READ_DEFAULT_FASTPATH;
 
 public class ITestAbfsInputStreamStatistics
     extends AbstractAbfsIntegrationTest {
@@ -515,7 +515,7 @@ public class ITestAbfsInputStreamStatistics
             actionHttpGetRequestPath.getName(), b, 0, b.length);
         addToTestTearDownCleanupList(actionHttpGetRequestPath);
         Configuration conf = fs.getConf();
-        conf.setBoolean(FS_AZURE_FASTPATH_ENABLE, true);
+        conf.setBoolean(FS_AZURE_READ_DEFAULT_FASTPATH, true);
         fs = (AzureBlobFileSystem) FileSystem.get(fs.getUri(), conf);
         abfsInputStream = getMockInputStream(fs, actionHttpGetRequestPath);
       } else {

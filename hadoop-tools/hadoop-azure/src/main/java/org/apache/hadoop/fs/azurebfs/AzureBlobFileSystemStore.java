@@ -645,7 +645,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
             .withWriteMaxConcurrentRequestCount(abfsConfiguration.getWriteMaxConcurrentRequestCount())
             .withMaxWriteRequestsToQueue(abfsConfiguration.getMaxWriteRequestsToQueue())
             .withLease(lease)
-            .withHybridFastpath(abfsConfiguration.isHybridFastpathEnabled())
+            .withDefaultOptimizedRest(abfsConfiguration.isWriteByDefaultOnOptimizedRest())
             .build();
   }
 
@@ -748,8 +748,8 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         abfsInputStreamContext, eTag, tracingContext);
   }
 
-  private AbfsInputStreamContext populateAbfsInputStreamContext(
-      Optional<Configuration> options) {
+  private AbfsInputStreamContext populateAbfsInputStreamContext(Optional<Configuration> options)
+      throws InvalidConfigurationValueException {
     boolean bufferedPreadDisabled = options
         .map(c -> c.getBoolean(FS_AZURE_BUFFERED_PREAD_DISABLE, false))
         .orElse(false);
@@ -765,7 +765,8 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
                 abfsConfiguration.shouldReadBufferSizeAlways())
             .withReadAheadBlockSize(abfsConfiguration.getReadAheadBlockSize())
             .withBufferedPreadDisabled(bufferedPreadDisabled)
-            .withFastpathEnabledState(abfsConfiguration.isFastpathEnabled())
+            .withDefaultFastpath(abfsConfiguration.isReadByDefaultOnFastpath())
+            .withDefaultOptimizedRest(abfsConfiguration.isReadByDefaultOnOptimizedRest())
             .build();
   }
 

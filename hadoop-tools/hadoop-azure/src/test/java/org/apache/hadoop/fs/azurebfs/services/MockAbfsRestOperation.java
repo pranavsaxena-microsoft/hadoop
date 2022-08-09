@@ -37,7 +37,7 @@ public class MockAbfsRestOperation extends AbfsRestOperation {
       final String method,
       final URL url,
       final List<AbfsHttpHeader> requestHeaders,
-      final AbfsFastpathSessionInfo fastpathSessionInfo) {
+      final AbfsFastpathSessionData fastpathSessionInfo) {
     super(operationType, client, method, url, requestHeaders, fastpathSessionInfo);
   }
 
@@ -49,7 +49,7 @@ public class MockAbfsRestOperation extends AbfsRestOperation {
       byte[] buffer,
       int bufferOffset,
       int bufferLength,
-      AbfsFastpathSessionInfo fastpathSessionInfo) {
+      AbfsFastpathSessionData fastpathSessionInfo) {
     super(operationType, client, method, url, requestHeaders, buffer,
         bufferOffset, bufferLength, fastpathSessionInfo);
   }
@@ -57,7 +57,7 @@ public class MockAbfsRestOperation extends AbfsRestOperation {
   protected AbfsFastpathConnection getFastpathConnection() throws IOException {
     return new MockAbfsFastpathConnection(getOperationType(), getUrl(), getMethod(),
         getAbfsClient().getAuthType(), getAbfsClient().getAccessToken(), getRequestHeaders(),
-        getFastpathSessionInfo());
+        getFastpathSessionData());
   }
 
   private void setEffectiveMock() {

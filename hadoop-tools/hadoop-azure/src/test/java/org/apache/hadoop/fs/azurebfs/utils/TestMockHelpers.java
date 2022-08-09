@@ -53,6 +53,23 @@ public final class TestMockHelpers {
     return obj;
   }
 
+  public static <T> T setParentClassField(
+      Class<T> type,
+      final T obj,
+      final String fieldName,
+      Object fieldObject) throws Exception {
+
+    Field field = type.getSuperclass().getDeclaredField(fieldName);
+    field.setAccessible(true);
+    Field modifiersField = Field.class.getDeclaredField("modifiers");
+    modifiersField.setAccessible(true);
+    modifiersField.setInt(field,
+        field.getModifiers() & ~Modifier.FINAL);
+    field.set(obj, fieldObject);
+
+    return obj;
+  }
+
   private TestMockHelpers() {
     // Not called. - For checkstyle: HideUtilityClassConstructor
   }

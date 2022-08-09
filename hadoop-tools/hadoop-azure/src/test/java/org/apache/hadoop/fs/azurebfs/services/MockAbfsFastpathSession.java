@@ -27,7 +27,6 @@ import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemExc
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 
 import static org.mockito.Mockito.doReturn;
-import static org.apache.hadoop.fs.azurebfs.services.AbfsFastpathSession.IO_MODE.READ;
 
 /**
  * Mock child class for AbfsFastpathSession for Fastpath read tests
@@ -40,15 +39,15 @@ public class MockAbfsFastpathSession extends AbfsFastpathSession {
   private boolean mockConnectionException = false;
   private boolean disableForceFastpathMock = false;
 
-  public MockAbfsFastpathSession(final IO_MODE mode, final AbfsClient client,
+  public MockAbfsFastpathSession(final IO_SESSION_SCOPE scope, final AbfsClient client,
       final String path,
       final String eTag,
       TracingContext tracingContext) throws IOException {
-    super(IO_MODE.READ, (new MockAbfsClient(client)), path, eTag, tracingContext);
+    super(IO_SESSION_SCOPE.READ_ON_FASTPATH, (new MockAbfsClient(client)), path, eTag, tracingContext);
   }
 
-  public MockAbfsFastpathSession(final AbfsFastpathSession srcSession) {
-    super(IO_MODE.READ, srcSession.getClient(), srcSession.getPath(), srcSession.geteTag(),
+  public MockAbfsFastpathSession(final AbfsSession srcSession) {
+    super(IO_SESSION_SCOPE.READ_ON_FASTPATH, srcSession.getClient(), srcSession.getPath(), srcSession.geteTag(),
         srcSession.getTracingContext());
   }
 
@@ -63,11 +62,11 @@ public class MockAbfsFastpathSession extends AbfsFastpathSession {
 
       doReturn(ssnTokenRspOp1)
           .when(fastpathSsn)
-          .executeFetchFastpathSessionToken();
+          .executeFetchSessionToken();
 
-      fastpathSsn.fetchFastpathSessionToken();
+      fastpathSsn.fetchSessionToken();
 
-      AbfsFastpathSessionInfo stubbedInfo = fastpathSsn.getCurrentAbfsFastpathSessionInfoCopy();
+      AbfsFastpathSessionData stubbedInfo = (AbfsFastpathSessionData)fastpathSsn.getCurrentSessionData();
       setAbfsFastpathSessionInfo(stubbedInfo);
       fetchFastpathFileHandle();
     } catch (Exception ex) {
@@ -77,23 +76,23 @@ public class MockAbfsFastpathSession extends AbfsFastpathSession {
     }
   }
 
-  void setAbfsFastpathSessionInfo(AbfsFastpathSessionInfo sessionInfo) {
-    updateAbfsFastpathSessionToken(sessionInfo.getSessionToken(),
-        sessionInfo.getSessionTokenExpiry());
+  void setAbfsFastpathSessionInfo(AbfsSessionData sessionInfo) {
+    updateAbfsSessionToken(MockAbfsInputStream.getMockSuccessRestOpWithExpiryHeader(sessionInfo.getSessionToken(),
+        sessionInfo.getSessionTokenExpiry()));
   }
 
   protected AbfsRestOperation executeFastpathClose()
       throws AzureBlobFileSystemException {
     signalErrorConditionToMockClient();
     return getClient().fastPathClose(getPath(), geteTag(),
-        getFastpathSessionInfo(), getTracingContext());
+        (AbfsFastpathSessionData)getSessionData(), getTracingContext());
   }
 
   protected AbfsRestOperation executeFastpathOpen()
       throws AzureBlobFileSystemException {
     signalErrorConditionToMockClient();
     return getClient().fastPathOpen(getPath(), geteTag(),
-        getFastpathSessionInfo(), getTracingContext());
+        (AbfsFastpathSessionData)getSessionData(), getTracingContext());
   }
 
   private void signalErrorConditionToMockClient() {

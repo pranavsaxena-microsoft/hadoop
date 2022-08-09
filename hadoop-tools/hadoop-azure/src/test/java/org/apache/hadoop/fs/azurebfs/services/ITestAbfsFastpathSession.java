@@ -77,7 +77,7 @@ public class ITestAbfsFastpathSession extends AbstractAbfsIntegrationTest {
 
   private static final int MIN_REFRESH_INTL_FOR_SERVER_SESSION_TOKEN
       = (int) Math.floor(SERVER_SESSION_TOKEN_MIN_EXPIRY_IN_SECS
-      * AbfsFastpathSession.getSessionRefreshIntervalFactor());
+      * AbfsSession.getSessionRefreshIntervalFactor());
 
 
   public ITestAbfsFastpathSession() throws Exception {
@@ -99,7 +99,7 @@ public class ITestAbfsFastpathSession extends AbstractAbfsIntegrationTest {
       AbfsInputStream currStream = (AbfsInputStream) inputStream.getWrappedStream();
 
       // Fastpath session should be valid now. Check.
-      validateFastpathSession(currStream.getFastpathSession());
+      validateFastpathSession(currStream.getAbfsSession());
 
       // Perform read checks
       byte[] buffer = new byte[THREE_MB];
@@ -112,7 +112,7 @@ public class ITestAbfsFastpathSession extends AbstractAbfsIntegrationTest {
 
   private int getSessionRefreshInterval(int newTokenValidDurationInMins) {
     return (int) Math.floor(newTokenValidDurationInMins * ONE_MIN_IN_SECS
-        * AbfsFastpathSession.getSessionRefreshIntervalFactor());
+        * AbfsSession.getSessionRefreshIntervalFactor());
   }
 
   @Test
@@ -129,17 +129,19 @@ public class ITestAbfsFastpathSession extends AbstractAbfsIntegrationTest {
       AbfsInputStream currStream = (AbfsInputStream) inputStream.getWrappedStream();
 
       // Take snap of current fastpath session
-      AbfsFastpathSession fastpathSsn = currStream.getFastpathSession();
-      AbfsFastpathSessionInfo fastpathSsnInfo = fastpathSsn.getCurrentAbfsFastpathSessionInfoCopy();
+      AbfsFastpathSession fastpathSsn
+          = (AbfsFastpathSession) currStream.getAbfsSession();
+      AbfsFastpathSessionData fastpathSsnInfo
+          = (AbfsFastpathSessionData) fastpathSsn.getCurrentSessionData();
       String fastpathFileHandle = fastpathSsnInfo.getFastpathFileHandle();
-      String sessionToken = fastpathSsnInfo.getSessionToken();
+      String sessionToken = fastpathSsnInfo.getFastpathSessionToken();
 
       // overwrite session expiry with a quicker expiry time
       OffsetDateTime utcNow = OffsetDateTime.now(java.time.ZoneOffset.UTC);
       Stopwatch stopwatch = Stopwatch.createStarted();
       OffsetDateTime expiry = utcNow.plusMinutes(MOCK_EXPIRY_TIMESPAN_OF_1_MIN);
       int sessionRefreshInterval = getSessionRefreshInterval(MOCK_EXPIRY_TIMESPAN_OF_1_MIN);
-      fastpathSsn.updateAbfsFastpathSessionToken(sessionToken, expiry);
+      fastpathSsn.updateAbfsSessionToken(MockAbfsInputStream.getMockSuccessRestOpWithExpiryHeader(sessionToken, expiry));
 
        // assert that
       // session token is still the same,
@@ -190,40 +192,41 @@ public class ITestAbfsFastpathSession extends AbstractAbfsIntegrationTest {
 
     try (FSDataInputStream inputStream = openMockAbfsInputStream(this.getFileSystem(), testPath)) {
       MockAbfsInputStream currStream = (MockAbfsInputStream) inputStream.getWrappedStream();
-      AbfsFastpathSession currFastpathSession = currStream.getFastpathSession();
-      AbfsFastpathSessionInfo currFastpathSessionInfo = currFastpathSession.getCurrentAbfsFastpathSessionInfoCopy();
+      AbfsFastpathSession currFastpathSession = (AbfsFastpathSession)currStream.getAbfsSession();
+      AbfsFastpathSessionData currFastpathSessionInfo = (AbfsFastpathSessionData) currFastpathSession.getCurrentSessionData();
+      
       String currFastpathFileHandle = currFastpathSessionInfo.getFastpathFileHandle();
       OffsetDateTime currSessionTokenExpiry = currFastpathSessionInfo.getSessionTokenExpiry();
-      String currSessionToken = currFastpathSessionInfo.getSessionToken();
+      String currSessionToken = currFastpathSessionInfo.getFastpathSessionToken();
 
       // Fetch a mocked session using current values
-      AbfsFastpathSessionInfo mockSsnInfo = getMockAbfsFastpathSessionInfo(
+      AbfsSessionData mockSsnInfo = getMockAbfsFastpathSessionInfo(
           currSessionToken,
           currSessionTokenExpiry,
           currFastpathFileHandle,
           AbfsConnectionMode.FASTPATH_CONN);
-      AbfsFastpathSession mockSsn = MockAbfsInputStream.getStubAbfsFastpathSession(
+      AbfsSession mockSsn = MockAbfsInputStream.getStubAbfsFastpathSession(
           currStream.getClient(), currStream.getPath(), currStream.getETag(),
           currStream.getTracingContext(), mockSsnInfo);
 
-      when(mockSsn.executeFetchFastpathSessionToken()).thenThrow(
+      when(mockSsn.executeFetchSessionToken()).thenThrow(
           new AbfsRestOperationException(BAD_REQUEST_HTTP_STATUS, "", "",
               new Exception("session token fetch failed")));
 
-      currStream.setFastpathSession(mockSsn);
+      currStream.setAbfsSession(mockSsn);
       currFastpathSession.close();
 
       OffsetDateTime utcNow = OffsetDateTime.now(java.time.ZoneOffset.UTC);
       Stopwatch stopwatch = Stopwatch.createStarted();
       // overwrite session expiry with a quicker expiry time
       OffsetDateTime expiry = utcNow.plusMinutes(MOCK_EXPIRY_TIMESPAN_OF_1_MIN);
-      mockSsn.updateAbfsFastpathSessionToken(currSessionToken, expiry);
+      mockSsn.updateAbfsSessionToken(MockAbfsInputStream.getMockSuccessRestOpWithExpiryHeader(currSessionToken, expiry));
 
       // assert that
       // session token is still the same,
       // session expiry is 3/4th of expiry, in this case 45 sec
       // and file handle remains the same
-      validateFastpathSession(currStream.getFastpathSession(), currSessionToken,
+      validateFastpathSession(currStream.getAbfsSession(), currSessionToken,
           getSessionRefreshInterval(MOCK_EXPIRY_TIMESPAN_OF_1_MIN), currFastpathFileHandle, AbfsConnectionMode.FASTPATH_CONN);
 
       // test read before refresh
@@ -238,7 +241,7 @@ public class ITestAbfsFastpathSession extends AbstractAbfsIntegrationTest {
               TimeUnit.SECONDS) - 1) * ONE_SEC_IN_MS);
 
       // When refresh is in progress, current token should be valid
-      validateFastpathSession(currStream.getFastpathSession(), currSessionToken,
+      validateFastpathSession(currStream.getAbfsSession(), currSessionToken,
           getSessionRefreshInterval(MOCK_EXPIRY_TIMESPAN_OF_1_MIN),
           currFastpathFileHandle, AbfsConnectionMode.FASTPATH_CONN);
 
@@ -290,18 +293,18 @@ public class ITestAbfsFastpathSession extends AbstractAbfsIntegrationTest {
     Path testPath = path(fileName);
     createTestFileAndRegisterToMock(testPath, ONE_KB);
     try(AbfsInputStream inputStream = getInputStreamWithMockFastpathSession(client, testPath, FIVE_MIN)) {
-      AbfsFastpathSession fastpathSsn = inputStream.getFastpathSession();
-      AbfsFastpathSessionInfo fastpathSsnInfo
-          = fastpathSsn.getCurrentAbfsFastpathSessionInfoCopy();
+      AbfsSession fastpathSsn = inputStream.getAbfsSession();
+      AbfsFastpathSessionData fastpathSsnInfo
+          = (AbfsFastpathSessionData) fastpathSsn.getCurrentSessionData();
       String fastpathFileHandle = fastpathSsnInfo.getFastpathFileHandle();
-      String sessionToken = fastpathSsnInfo.getSessionToken();
+      String sessionToken = fastpathSsnInfo.getFastpathSessionToken();
 
       // overwrite session expiry with a quicker expiry time
       // next refresh will get mock token with 2 min expiry
       OffsetDateTime utcNow = OffsetDateTime.now(java.time.ZoneOffset.UTC);
       Stopwatch stopwatch = Stopwatch.createStarted();
       OffsetDateTime expiry = utcNow.plusMinutes(MOCK_EXPIRY_TIMESPAN_OF_1_MIN);
-      fastpathSsn.updateAbfsFastpathSessionToken(sessionToken, expiry);
+      fastpathSsn.updateAbfsSessionToken(MockAbfsInputStream.getMockSuccessRestOpWithExpiryHeader(sessionToken, expiry));
 
       // assert that
       // session token is still the same,
@@ -321,13 +324,13 @@ public class ITestAbfsFastpathSession extends AbstractAbfsIntegrationTest {
           ssnTokenRspOp2 = MockAbfsInputStream.getMockSuccessRestOp(client,
               mockSecondToken.getBytes(), TWO_MIN);
         }
-        when(fastpathSsn.executeFetchFastpathSessionToken()).thenReturn(
+        when(fastpathSsn.executeFetchSessionToken()).thenReturn(
             ssnTokenRspOp2);
       } else {
         doThrow(new AbfsRestOperationException(BAD_REQUEST_HTTP_STATUS, "", "",
             new Exception("session token fetch failed")))
             .when(fastpathSsn)
-            .executeFetchFastpathSessionToken();
+            .executeFetchSessionToken();
       }
 
       LOG.debug("Put thread on sleep until just before session refresh time");
@@ -371,12 +374,12 @@ public class ITestAbfsFastpathSession extends AbstractAbfsIntegrationTest {
     Answer<AbfsRestOperation> answer = invocation -> {
       ReadRequestParameters params = (ReadRequestParameters) invocation.getArguments()[3];
       if (params.getAbfsConnectionMode() == AbfsConnectionMode.FASTPATH_CONN) {
-        Assertions.assertThat(params.getAbfsFastpathSessionInfo())
+        Assertions.assertThat(params.getAbfsSessionData())
             .describedAs("Fastpath session info must be present when in FASTPATH_CONN mode")
             .isNotNull();
         // Mock Fastpath Connection failure
-        params.getAbfsFastpathSessionInfo()
-            .setConnectionMode(AbfsConnectionMode.REST_ON_FASTPATH_CONN_FAILURE);
+        params.getAbfsSessionData()
+            .setConnectionMode(AbfsConnectionMode.OPTIMIZED_REST_ON_FASTPATH_CONN_FAILURE);
       }
       return successOpn;
     };
@@ -390,8 +393,8 @@ public class ITestAbfsFastpathSession extends AbstractAbfsIntegrationTest {
     createTestFileAndRegisterToMock(testPath, THREE_KB);
     try(AbfsInputStream inputStream = getInputStreamWithMockFastpathSession(client, testPath, FIVE_MIN)) {
       // Initially sessionInfo is valid and is in FASTPATH_CONN mode
-      Assertions.assertThat(inputStream.getFastpathSession()
-          .getCurrentAbfsFastpathSessionInfoCopy()
+      Assertions.assertThat(inputStream.getAbfsSession()
+          .getCurrentSessionData()
           .getConnectionMode()).describedAs(
           "Valid Fastpath session should be in FASTPATH_CONN mode")
           .isEqualTo(AbfsConnectionMode.FASTPATH_CONN);
@@ -407,14 +410,14 @@ public class ITestAbfsFastpathSession extends AbstractAbfsIntegrationTest {
       // Fastpath request failure should have flipped the inputStream
       // to REST and it should have no fastpath session info
       Assertions.assertThat(
-          inputStream.getFastpathSession().getCurrentAbfsFastpathSessionInfoCopy())
+          inputStream.getAbfsSession().getCurrentSessionData())
           .describedAs(
               "As a readAhead thread failed, fastpath session should have been invalidated")
           .isEqualTo(null);
       Assertions.assertThat(inputStream.getTracingContext().getConnectionMode())
           .describedAs(
               "InputStream tracing context should be in FASTPATH_CONN mode")
-          .isEqualTo(AbfsConnectionMode.REST_ON_FASTPATH_CONN_FAILURE);
+          .isEqualTo(AbfsConnectionMode.OPTIMIZED_REST_ON_FASTPATH_CONN_FAILURE);
     }
   }
 
@@ -426,38 +429,38 @@ public class ITestAbfsFastpathSession extends AbstractAbfsIntegrationTest {
 
   private void validateFailedFastpathRefresh(AbfsInputStream inputStream) {
     Assertions.assertThat(
-        inputStream.getFastpathSession().getCurrentAbfsFastpathSessionInfoCopy())
+        inputStream.getAbfsSession().getCurrentSessionData())
         .describedAs(
             "No fastpath session info should be returned if refresh failed")
         .isEqualTo(null);
     Assertions.assertThat(inputStream.getTracingContext().getConnectionMode())
         .describedAs(
-            "InputStream trackingContext should have REST_ON_FASTPATH_SESSION_UPD_FAILURE")
-        .isEqualTo(AbfsConnectionMode.REST_ON_FASTPATH_SESSION_UPD_FAILURE);
+            "InputStream trackingContext should have REST_ON_SESSION_UPD_FAILURE")
+        .isEqualTo(AbfsConnectionMode.REST_ON_SESSION_UPD_FAILURE);
   }
 
-  private void validateFastpathSessionToken(AbfsFastpathSessionInfo sessionInfo, String sessionToken) {
+  private void validateFastpathSessionToken(AbfsSessionData sessionInfo, String sessionToken) {
     Assertions.assertThat(sessionInfo.getSessionToken()).describedAs(
         "Fastpath session token not as expected")
         .isEqualTo(sessionToken);
   }
 
-  private void validateRefreshedFastpathSessionToken(AbfsFastpathSessionInfo sessionInfo, String oldSessionToken) {
+  private void validateRefreshedFastpathSessionToken(AbfsSessionData sessionInfo, String oldSessionToken) {
     Assertions.assertThat(sessionInfo.getSessionToken()).describedAs(
         "Fastpath session token not as expected")
         .isNotEqualTo(oldSessionToken);
   }
 
-  private void validateFastpathSessionOnServerRefresh(AbfsFastpathSession fastpathSession,
-      String oldSessionToken,
-      String fastpathFileHandle,
-      AbfsConnectionMode connectionMode) {
-    AbfsFastpathSessionInfo sessionInfo = fastpathSession.getCurrentAbfsFastpathSessionInfoCopy();
+  private void validateFastpathSessionOnServerRefresh(AbfsSession fastpathSession,
+                                                      String oldSessionToken,
+                                                      String fastpathFileHandle,
+                                                      AbfsConnectionMode connectionMode) {
+    AbfsSessionData sessionInfo = fastpathSession.getCurrentSessionData();
     validateRefreshedFastpathSessionToken(sessionInfo, oldSessionToken);
     Assertions.assertThat(fastpathSession.getSessionRefreshIntervalInSec()).describedAs(
         "Fastpath session should have been valid for a minimim of {} mins", SERVER_SESSION_TOKEN_MIN_EXPIRY_IN_SECS)
         .isGreaterThan(MIN_REFRESH_INTL_FOR_SERVER_SESSION_TOKEN);
-    Assertions.assertThat(sessionInfo.getFastpathFileHandle()).describedAs(
+    Assertions.assertThat(((AbfsFastpathSessionData)sessionInfo).getFastpathFileHandle()).describedAs(
         "Fastpath session refresh should not affect fileHandle")
         .isEqualTo(fastpathFileHandle);
     Assertions.assertThat(sessionInfo.getConnectionMode()).describedAs(
@@ -465,27 +468,27 @@ public class ITestAbfsFastpathSession extends AbstractAbfsIntegrationTest {
         .isEqualTo(connectionMode);
   }
 
-  private void validateFastpathSessionOnRefresh(AbfsFastpathSession fastpathSession, String oldSessionToken,
-      int sessionRefreshInternal, String fastpathFileHandle,
-      AbfsConnectionMode connectionMode) {
+  private void validateFastpathSessionOnRefresh(AbfsSession fastpathSession, String oldSessionToken,
+                                                int sessionRefreshInternal, String fastpathFileHandle,
+                                                AbfsConnectionMode connectionMode) {
     validateFastpathSession(true, fastpathSession, oldSessionToken,
         sessionRefreshInternal, fastpathFileHandle, connectionMode);
   }
 
-  private void validateFastpathSession(AbfsFastpathSession fastpathSession, String sessionToken,
-      int sessionRefreshInternal, String fastpathFileHandle,
-      AbfsConnectionMode connectionMode) {
+  private void validateFastpathSession(AbfsSession fastpathSession, String sessionToken,
+                                       int sessionRefreshInternal, String fastpathFileHandle,
+                                       AbfsConnectionMode connectionMode) {
     validateFastpathSession(false, fastpathSession, sessionToken,
         sessionRefreshInternal, fastpathFileHandle, connectionMode);
   }
 
   private void validateFastpathSession(boolean isRefreshValidation,
-      AbfsFastpathSession fastpathSession,
+      AbfsSession fastpathSession,
       String sessionToken,
       int sessionRefreshInternal,
       String fastpathFileHandle,
       AbfsConnectionMode connectionMode) {
-    AbfsFastpathSessionInfo sessionInfo = fastpathSession.getCurrentAbfsFastpathSessionInfoCopy();
+    AbfsSessionData sessionInfo = fastpathSession.getCurrentSessionData();
     if (isRefreshValidation) {
       validateRefreshedFastpathSessionToken(sessionInfo, sessionToken);
     } else {
@@ -495,7 +498,7 @@ public class ITestAbfsFastpathSession extends AbstractAbfsIntegrationTest {
     Assertions.assertThat(fastpathSession.getSessionRefreshIntervalInSec()).describedAs(
         "Fastpath session interval should be less than or equal to {} secs", sessionRefreshInternal)
         .isLessThanOrEqualTo(sessionRefreshInternal);
-    Assertions.assertThat(sessionInfo.getFastpathFileHandle()).describedAs(
+    Assertions.assertThat(((AbfsFastpathSessionData) sessionInfo).getFastpathFileHandle()).describedAs(
         "Fastpath session refresh should not affect fileHandle")
         .isEqualTo(fastpathFileHandle);
     Assertions.assertThat(sessionInfo.getConnectionMode()).describedAs(
@@ -503,8 +506,8 @@ public class ITestAbfsFastpathSession extends AbstractAbfsIntegrationTest {
         .isEqualTo(connectionMode);
   }
 
-  private void validateFastpathSession(AbfsFastpathSession fastpathSession) {
-    AbfsFastpathSessionInfo sessionInfo = fastpathSession.getCurrentAbfsFastpathSessionInfoCopy();
+  private void validateFastpathSession(AbfsSession fastpathSession) {
+    AbfsSessionData sessionInfo = fastpathSession.getCurrentSessionData();
     Assertions.assertThat(sessionInfo.getSessionToken()).describedAs(
         "Fastpath session token should have a non null value")
         .isNotNull();
@@ -514,10 +517,10 @@ public class ITestAbfsFastpathSession extends AbstractAbfsIntegrationTest {
     Assertions.assertThat(fastpathSession.getSessionRefreshIntervalInSec()).describedAs(
         "Fastpath session token expiry interval should be > 0")
         .isGreaterThan(0);
-    Assertions.assertThat(sessionInfo.getFastpathFileHandle()).describedAs(
+    Assertions.assertThat(((AbfsFastpathSessionData) sessionInfo).getFastpathFileHandle()).describedAs(
         "Fastpath fileHandle should have a non null value")
         .isNotNull();
-    Assertions.assertThat(sessionInfo.getFastpathFileHandle()).describedAs(
+    Assertions.assertThat(((AbfsFastpathSessionData) sessionInfo).getFastpathFileHandle()).describedAs(
         "Fastpath fileHandle should have a non empty value")
         .isNotEmpty();
     Assertions.assertThat(sessionInfo.getConnectionMode()).describedAs(
@@ -580,51 +583,51 @@ public class ITestAbfsFastpathSession extends AbstractAbfsIntegrationTest {
 
     AbfsInputStream inputStream = inStreamTest.getAbfsInputStream(mockClient, testPath.getName());
 
-    AbfsFastpathSession fastpathSsn = MockAbfsInputStream.getStubAbfsFastpathSession(
+    AbfsSession fastpathSsn = MockAbfsInputStream.getStubAbfsFastpathSession(
         inputStream.getClient(), inputStream.getPath(), inputStream.getETag(),
         inputStream.getTracingContext());
 
     String mockFirstToken = "firstToken";
     AbfsRestOperation ssnTokenRspOp1 = MockAbfsInputStream.getMockSuccessRestOp(mockClient, mockFirstToken.getBytes(), initialSessionValidityDuration);
-    when(fastpathSsn.executeFetchFastpathSessionToken()).thenReturn(ssnTokenRspOp1);
+    when(fastpathSsn.executeFetchSessionToken()).thenReturn(ssnTokenRspOp1);
 
     // Create mock session for initialSessionValidityDuration
-    fastpathSsn.fetchFastpathSessionToken();
-    AbfsFastpathSessionInfo fastpathSsnInfo = fastpathSsn.getCurrentAbfsFastpathSessionInfoCopy();
-    fastpathSsnInfo.setFastpathFileHandle(UUID.randomUUID().toString());
-    inputStream.setFastpathSession(fastpathSsn);
+    fastpathSsn.fetchSessionToken();
+    AbfsSessionData fastpathSsnInfo = fastpathSsn.getCurrentSessionData();
+    ((AbfsFastpathSessionData)fastpathSsnInfo).setFastpathFileHandle(UUID.randomUUID().toString());
+    inputStream.setAbfsSession(fastpathSsn);
     return inputStream;
   }
 
-  private static AbfsFastpathSessionInfo getMockAbfsFastpathSessionInfo(final String sessionToken,
-      final OffsetDateTime sessionTokenExpiry,
-      final String fastpathFileHandle,
-      AbfsConnectionMode connectionMode) throws Exception {
+  private static AbfsSessionData getMockAbfsFastpathSessionInfo(final String sessionToken,
+                                                                final OffsetDateTime sessionTokenExpiry,
+                                                                final String fastpathFileHandle,
+                                                                AbfsConnectionMode connectionMode) throws Exception {
 
     Logger log = LoggerFactory.getLogger(AbfsInputStream.class);
-    AbfsFastpathSessionInfo mockSsnInfo = mock(AbfsFastpathSessionInfo.class);
-    mockSsnInfo = TestMockHelpers.setClassField(AbfsFastpathSessionInfo.class,
+    AbfsFastpathSessionData mockSsnInfo = mock(AbfsFastpathSessionData.class);
+    mockSsnInfo = TestMockHelpers.setClassField(AbfsFastpathSessionData.class,
         mockSsnInfo, "LOG", log);
-    mockSsnInfo = TestMockHelpers.setClassField(AbfsFastpathSessionInfo.class,
+    mockSsnInfo = TestMockHelpers.setClassField(AbfsFastpathSessionData.class,
         mockSsnInfo, "sessionToken", sessionToken);
-    mockSsnInfo = TestMockHelpers.setClassField(AbfsFastpathSessionInfo.class,
+    mockSsnInfo = TestMockHelpers.setClassField(AbfsFastpathSessionData.class,
         mockSsnInfo, "sessionTokenExpiry", sessionTokenExpiry);
-    mockSsnInfo = TestMockHelpers.setClassField(AbfsFastpathSessionInfo.class,
+    mockSsnInfo = TestMockHelpers.setClassField(AbfsFastpathSessionData.class,
         mockSsnInfo, "fastpathFileHandle", fastpathFileHandle);
-    mockSsnInfo = TestMockHelpers.setClassField(AbfsFastpathSessionInfo.class,
+    mockSsnInfo = TestMockHelpers.setClassField(AbfsFastpathSessionData.class,
         mockSsnInfo, "connectionMode", connectionMode);
 
+//    doCallRealMethod().when(mockSsnInfo)
+//        .updateSessionToken(any(), any());
     doCallRealMethod().when(mockSsnInfo)
-        .updateSessionToken(any(), any());
-    doCallRealMethod().when(mockSsnInfo)
-        .setFastpathFileHandle(any(), any(AbfsConnectionMode.class));
+        .setFastpathFileHandle(any());
     doCallRealMethod().when(mockSsnInfo)
         .setConnectionMode(any(AbfsConnectionMode.class));
 
     when(mockSsnInfo.getSessionTokenExpiry()).thenCallRealMethod();
     when(mockSsnInfo.getFastpathFileHandle()).thenCallRealMethod();
     when(mockSsnInfo.getConnectionMode()).thenCallRealMethod();
-    when(mockSsnInfo.getSessionToken()).thenCallRealMethod();
+    when(mockSsnInfo.getFastpathSessionToken()).thenCallRealMethod();
     when(mockSsnInfo.isValidSession()).thenCallRealMethod();
 
     return mockSsnInfo;

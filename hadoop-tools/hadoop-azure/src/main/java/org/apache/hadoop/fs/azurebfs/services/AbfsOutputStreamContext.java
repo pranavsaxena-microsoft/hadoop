@@ -44,7 +44,7 @@ public class AbfsOutputStreamContext extends AbfsStreamContext {
 
   private AbfsLease lease;
 
-  private boolean isHybridFastpathEnabled;
+  private boolean defaultConnectionOnOptimizedRest;
 
   public AbfsOutputStreamContext(final long sasTokenRenewPeriodForStreamsInSeconds) {
     super(sasTokenRenewPeriodForStreamsInSeconds);
@@ -106,9 +106,9 @@ public class AbfsOutputStreamContext extends AbfsStreamContext {
     return this;
   }
 
-  public AbfsOutputStreamContext withHybridFastpath(
-      final boolean isHybridFastpathEnabled) {
-    this.isHybridFastpathEnabled = isHybridFastpathEnabled;
+  public AbfsOutputStreamContext withDefaultOptimizedRest(
+      final boolean isOptimizedRestDefault) {
+    this.defaultConnectionOnOptimizedRest = isOptimizedRestDefault;
     return this;
   }
 
@@ -154,8 +154,7 @@ public class AbfsOutputStreamContext extends AbfsStreamContext {
     }
     return this.lease.getLeaseID();
   }
-
-  public boolean isHybridFastpathEnabled() {
-    return isHybridFastpathEnabled;
+  public boolean isDefaultConnectionOnOptimizedRest() {
+    return defaultConnectionOnOptimizedRest;
   }
 }

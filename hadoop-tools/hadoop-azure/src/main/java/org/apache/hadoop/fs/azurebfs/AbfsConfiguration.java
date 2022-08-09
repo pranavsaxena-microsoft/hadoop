@@ -129,13 +129,17 @@ public class AbfsConfiguration{
       DefaultValue = DEFAULT_READ_AHEAD_RANGE)
   private int readAheadRange;
 
-  @BooleanConfigurationValidatorAnnotation(ConfigurationKey = FS_AZURE_FASTPATH_ENABLE,
-      DefaultValue = DEFAULT_FASTPATH_ENABLE)
-  private boolean enableFastpath;
+  @BooleanConfigurationValidatorAnnotation(ConfigurationKey = FS_AZURE_READ_DEFAULT_FASTPATH,
+      DefaultValue = DEFAULT_READ_FASTPATH)
+  private boolean readByDefaultOnFastpath;
 
-  @BooleanConfigurationValidatorAnnotation(ConfigurationKey = FS_AZURE_WRITE_ENABLE_HYBRID_FASTPATH,
-      DefaultValue = DEFAULT_WRITE_ENABLE_HYBRID_FASTPATH)
-  private boolean enableHybridFastpath;
+  @BooleanConfigurationValidatorAnnotation(ConfigurationKey = FS_AZURE_READ_DEFAULT_OPTIMIZED_REST,
+          DefaultValue = DEFAULT_READ_OPTIMIZED_REST)
+  private boolean readByDefaultOnOptimizedRest;
+
+  @BooleanConfigurationValidatorAnnotation(ConfigurationKey = FS_AZURE_WRITE_DEFAULT_OPTIMIZED_REST,
+      DefaultValue = DEFAULT_WRITE_OPTIMIZED_REST)
+  private boolean writeByDefaultOnOptimizedRest;
 
   @IntegerConfigurationValidatorAnnotation(ConfigurationKey = AZURE_MIN_BACKOFF_INTERVAL,
       DefaultValue = DEFAULT_MIN_BACKOFF_INTERVAL)
@@ -624,23 +628,35 @@ public class AbfsConfiguration{
     return this.readBufferSize;
   }
 
-  public boolean isFastpathEnabled() {
-    if ((getAuthType() == AuthType.OAuth) && enableFastpath) {
+  public boolean isReadByDefaultOnFastpath() {
+    if ((getAuthType() == AuthType.OAuth) && readByDefaultOnFastpath) {
       return true;
     }
 
     return false;
   }
 
-  public boolean isHybridFastpathEnabled()
-      throws InvalidConfigurationValueException {
-    if ((getAuthType() == AuthType.OAuth) && enableHybridFastpath) {
-      if (enableFastpath) {
-        LOG.debug("Both {0} and {1} can not be enabled at same time",
-            FS_AZURE_FASTPATH_ENABLE, FS_AZURE_WRITE_ENABLE_HYBRID_FASTPATH);
-        throw new InvalidConfigurationValueException(FS_AZURE_FASTPATH_ENABLE);
+  public boolean isReadByDefaultOnOptimizedRest()
+          throws InvalidConfigurationValueException {
+    if ((getAuthType() == AuthType.OAuth) && readByDefaultOnOptimizedRest) {
+      if (readByDefaultOnFastpath) {
+        String errorMsg = "Both " + FS_AZURE_READ_DEFAULT_FASTPATH + " and "
+            + FS_AZURE_READ_DEFAULT_OPTIMIZED_REST
+            + " can not be enabled at same time";
+        LOG.debug(errorMsg);
+        throw new InvalidConfigurationValueException(
+            FS_AZURE_READ_DEFAULT_OPTIMIZED_REST, errorMsg);
       }
 
+      return true;
+    }
+
+    return false;
+  }
+
+  public boolean isWriteByDefaultOnOptimizedRest()
+      throws InvalidConfigurationValueException {
+    if ((getAuthType() == AuthType.OAuth) && writeByDefaultOnOptimizedRest) {
       return true;
     }
 
@@ -1115,7 +1131,7 @@ public class AbfsConfiguration{
   }
 
   @VisibleForTesting
-  public void setEnableFastpath(boolean enableFastpath) {
-    this.enableFastpath = enableFastpath;
+  public void setReadByDefaultOnFastpath(boolean readByDefaultOnFastpath) {
+    this.readByDefaultOnFastpath = readByDefaultOnFastpath;
   }
 }

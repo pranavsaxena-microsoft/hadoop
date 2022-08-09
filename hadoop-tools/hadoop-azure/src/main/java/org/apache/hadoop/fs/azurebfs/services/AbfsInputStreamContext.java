@@ -51,7 +51,9 @@ public class AbfsInputStreamContext extends AbfsStreamContext {
 
   private boolean bufferedPreadDisabled;
 
-  private boolean isFastpathEnabled;
+  private boolean defaultConnectionOnFastpath;
+
+  private boolean defaultConnectionOnOptimizedRest;
 
   public AbfsInputStreamContext(final long sasTokenRenewPeriodForStreamsInSeconds) {
     super(sasTokenRenewPeriodForStreamsInSeconds);
@@ -118,9 +120,15 @@ public class AbfsInputStreamContext extends AbfsStreamContext {
     return this;
   }
 
-  public AbfsInputStreamContext withFastpathEnabledState(
-      final boolean isFastpathEnabled) {
-    this.isFastpathEnabled = isFastpathEnabled;
+  public AbfsInputStreamContext withDefaultFastpath(
+      final boolean isFastpathDefault) {
+    this.defaultConnectionOnFastpath = isFastpathDefault;
+    return this;
+  }
+
+  public AbfsInputStreamContext withDefaultOptimizedRest(
+          final boolean isOptimizedRestDefault) {
+    this.defaultConnectionOnOptimizedRest = isOptimizedRestDefault;
     return this;
   }
 
@@ -179,8 +187,8 @@ public class AbfsInputStreamContext extends AbfsStreamContext {
     return bufferedPreadDisabled;
   }
 
-  public boolean isFastpathEnabled() {
-    if ((isFastpathEnabled)
+  public boolean isDefaultConnectionOnFastpath() {
+    if ((defaultConnectionOnFastpath)
         && ((readBufferSize != DEFAULT_FASTPATH_READ_BUFFER_SIZE)
         || (readAheadBlockSize != DEFAULT_FASTPATH_READ_BUFFER_SIZE))) {
       LOG.debug("fs.azure.read.request.size[={}] or "
@@ -190,6 +198,10 @@ public class AbfsInputStreamContext extends AbfsStreamContext {
       return false;
     }
 
-    return isFastpathEnabled;
+    return defaultConnectionOnFastpath;
+  }
+
+  public boolean isDefaultConnectionOnOptimizedRest() {
+    return defaultConnectionOnOptimizedRest;
   }
 }

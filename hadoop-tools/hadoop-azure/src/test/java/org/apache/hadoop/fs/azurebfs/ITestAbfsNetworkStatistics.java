@@ -260,7 +260,7 @@ public class ITestAbfsNetworkStatistics extends AbstractAbfsIntegrationTest {
 
         // Fastpath feature is on,
         // Additional connections for FastpathCreateSession and FastpathOpen
-        if (getConfiguration().isFastpathEnabled()) {
+        if (getConfiguration().isReadByDefaultOnFastpath()) {
           expectedConnectionsMade+=2;
           expectedGetResponses+=2;
         }
@@ -341,7 +341,7 @@ public class ITestAbfsNetworkStatistics extends AbstractAbfsIntegrationTest {
 
         // Fastpath feature is on,
         // Additional connections for FastpathCreateSession and FastpathOpen
-        if (getConfiguration().isFastpathEnabled()) {
+        if (getConfiguration().isReadByDefaultOnFastpath()) {
           expectedConnectionsMade+=2;
           expectedGetResponses+=2;
         }

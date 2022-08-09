@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.UUID;
@@ -49,7 +50,7 @@ import static org.mockito.Mockito.when;
 
 import static org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations.CONTENT_LENGTH;
 import static org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations.X_MS_FASTPATH_SESSION_EXPIRY;
-import static org.apache.hadoop.fs.azurebfs.services.AbfsFastpathSession.IO_MODE.READ;
+import static org.apache.hadoop.fs.azurebfs.services.AbfsSession.IO_SESSION_SCOPE.READ_ON_FASTPATH;
 
 public class MockAbfsInputStream extends AbfsInputStream {
   //Diff between Filetime epoch and Unix epoch (in ms)
@@ -63,7 +64,7 @@ public class MockAbfsInputStream extends AbfsInputStream {
   private boolean mockConnectionException = false;
   private boolean disableForceFastpathMock = false;
 
-  public MockAbfsInputStream(final AbfsClient mockClient,
+  public MockAbfsInputStream(final MockAbfsClient mockClient,
       final Statistics statistics,
       final String path,
       final long contentLength,
@@ -75,13 +76,18 @@ public class MockAbfsInputStream extends AbfsInputStream {
         new TracingContext("MockFastpathTest",
             UUID.randomUUID().toString(), FSOperationType.OPEN, TracingHeaderFormat.ALL_ID_FORMAT,
             null));
-    createMockAbfsFastpathSession();
+    try {
+      createMockAbfsFastpathSession();
+    } catch (Exception e) {
+      Assert.fail("createMockAbfsFastpathSession failed " + e);
+    }
   }
 
   public MockAbfsInputStream(final AbfsClient client, final AbfsInputStream in)
       throws IOException {
     super(new MockAbfsClient(client), in.getFSStatistics(), in.getPath(),
-        in.getContentLength(), in.getContext().withFastpathEnabledState(false),
+        in.getContentLength(),
+        in.getContext().withDefaultFastpath(false).withDefaultOptimizedRest(false),
         in.getETag(),
         in.getTracingContext());
     try {
@@ -91,25 +97,25 @@ public class MockAbfsInputStream extends AbfsInputStream {
     }
   }
 
-  protected AbfsFastpathSession createAbfsFastpathSession(boolean isFastpathFeatureConfigOn) {
+  protected AbfsSession createAbfsSession(boolean isFastpathFeatureConfigOn) {
     if (isFastpathFeatureConfigOn) {
       try {
-        setFastpathSession(
-            new MockAbfsFastpathSession(READ, getClient(), getPath(), getETag(),
+        setAbfsSession(
+            new MockAbfsFastpathSession(READ_ON_FASTPATH, getClient(), getPath(), getETag(),
                 getTracingContext()));
       } catch (IOException e) {
         Assert.fail("Failure in creating MockAbfsFastpathSession instance " + e);
       }
     }
 
-    return this.getFastpathSession();
+    return this.getAbfsSession();
   }
 
   public void createMockAbfsFastpathSession()
       throws Exception {
     AbfsFastpathSession fastpathSsn = MockAbfsInputStream.getStubAbfsFastpathSession(
         getClient(), getPath(), getETag(), getTracingContext());
-    setFastpathSession(new MockAbfsFastpathSession(fastpathSsn));
+    setAbfsSession(new MockAbfsFastpathSession(fastpathSsn));
   }
 
   protected AbfsRestOperation executeRead(String path,
@@ -167,75 +173,90 @@ public class MockAbfsInputStream extends AbfsInputStream {
     mockConnectionException = false;
   }
 
-  public static AbfsFastpathSession getStubAbfsFastpathSession(final AbfsClient client,
-      final String path,
-      final String eTag,
-      TracingContext tracingContext,
-  AbfsFastpathSessionInfo ssnInfo) throws Exception {
-    AbfsFastpathSession mockSession = getStubAbfsFastpathSession(client, path, eTag, tracingContext);
+  public static AbfsSession getStubAbfsFastpathSession(final AbfsClient client,
+                                                       final String path,
+                                                       final String eTag,
+                                                       TracingContext tracingContext,
+                                                       AbfsSessionData ssnInfo) throws Exception {
+    AbfsSession mockSession = getStubAbfsFastpathSession(client, path, eTag, tracingContext);
     // set the sessionInfo so that fileHandle and connectionMode are set
     // (session token and expiry will also get set but they will be rewritten)
-    mockSession = TestMockHelpers.setClassField(AbfsFastpathSession.class,
+    mockSession = TestMockHelpers.setClassField(AbfsSession.class,
         mockSession, "fastpathSessionInfo", ssnInfo);
     // Overwrite session token and expiry so that refresh of the token is
     // triggered as well.
-    mockSession.updateAbfsFastpathSessionToken(ssnInfo.getSessionToken(), ssnInfo.getSessionTokenExpiry());
+    mockSession.updateAbfsSessionToken(
+        getMockSuccessRestOpWithExpiryHeader(ssnInfo.getSessionToken(),
+            ssnInfo.getSessionTokenExpiry()));
     return mockSession;
   }
 
   public static AbfsFastpathSession getStubAbfsFastpathSession(final AbfsClient client,
-      final String path,
-      final String eTag,
-      TracingContext tracingContext) throws Exception {
+                                                       final String path,
+                                                       final String eTag,
+                                                       TracingContext tracingContext) throws Exception {
 
-    AbfsFastpathSession mockSession = mock(AbfsFastpathSession.class);
+    AbfsSession mockSession = mock(AbfsSession.class);
+    AbfsFastpathSession mockFastpathSession = mock(AbfsFastpathSession.class);
     Logger log = LoggerFactory.getLogger(AbfsInputStream.class);
-    double sessionRefreshInternalFactor = AbfsFastpathSession.getSessionRefreshIntervalFactor();
+    double sessionRefreshInternalFactor = AbfsSession.getSessionRefreshIntervalFactor();
     ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(1);
     ReentrantReadWriteLock rwLock = new ReentrantReadWriteLock();
 
-    // override fields
-    mockSession = TestMockHelpers.setClassField(AbfsFastpathSession.class,
-        mockSession, "LOG", log);
-    mockSession = TestMockHelpers.setClassField(AbfsFastpathSession.class,
-        mockSession, "SESSION_REFRESH_INTERVAL_FACTOR", sessionRefreshInternalFactor);
-    mockSession = TestMockHelpers.setClassField(AbfsFastpathSession.class,
-        mockSession, "client", client);
-    mockSession = TestMockHelpers.setClassField(AbfsFastpathSession.class,
-        mockSession, "path", path);
-    mockSession = TestMockHelpers.setClassField(AbfsFastpathSession.class,
-        mockSession, "eTag", eTag);
-    mockSession = TestMockHelpers.setClassField(AbfsFastpathSession.class,
-        mockSession, "tracingContext", tracingContext);
-    mockSession = TestMockHelpers.setClassField(AbfsFastpathSession.class,
-        mockSession, "scheduledExecutorService", scheduledExecutorService);
-    mockSession = TestMockHelpers.setClassField(AbfsFastpathSession.class,
-        mockSession, "rwLock", rwLock);
+      // override fields
+      mockFastpathSession = TestMockHelpers.setParentClassField(AbfsFastpathSession.class,
+          mockFastpathSession, "LOG", log);
+    mockFastpathSession = TestMockHelpers.setParentClassField(AbfsFastpathSession.class,
+        mockFastpathSession, "SESSION_REFRESH_INTERVAL_FACTOR", sessionRefreshInternalFactor);
+    mockFastpathSession = TestMockHelpers.setParentClassField(AbfsFastpathSession.class,
+        mockFastpathSession, "scope", READ_ON_FASTPATH);
+    mockFastpathSession = TestMockHelpers.setParentClassField(AbfsFastpathSession.class,
+        mockFastpathSession, "client", client);
+    mockFastpathSession = TestMockHelpers.setParentClassField(AbfsFastpathSession.class,
+        mockFastpathSession, "path", path);
+    mockFastpathSession = TestMockHelpers.setParentClassField(AbfsFastpathSession.class,
+        mockFastpathSession, "eTag", eTag);
+    mockFastpathSession = TestMockHelpers.setParentClassField(AbfsFastpathSession.class,
+        mockFastpathSession, "tracingContext", tracingContext);
+    mockFastpathSession = TestMockHelpers.setParentClassField(AbfsFastpathSession.class,
+        mockFastpathSession, "scheduledExecutorService", scheduledExecutorService);
+    mockFastpathSession = TestMockHelpers.setParentClassField(AbfsFastpathSession.class,
+        mockFastpathSession, "rwLock", rwLock);
 
     doCallRealMethod().when(mockSession)
-        .updateAbfsFastpathSessionToken(any(), any());
+        .updateAbfsSessionToken(any());
     doCallRealMethod().when(mockSession)
         .updateConnectionMode(any(AbfsConnectionMode.class));
     doCallRealMethod().when(mockSession)
-        .updateConnectionModeForFailures(any(AbfsConnectionMode.class));
+        .enforceConnectionModeFallbacks(any(AbfsConnectionMode.class));
     doCallRealMethod().when(mockSession).close();
     doCallRealMethod().when(mockSession)
         .setConnectionMode(any(AbfsConnectionMode.class));
     doCallRealMethod().when(mockSession)
         .getExpiry(any(byte[].class), any());
+      doCallRealMethod().when(mockSession)
+          .mapSessionScopeToConnMode(any());
+      doCallRealMethod().when(mockSession)
+              .createSessionDataInstance(any(), any());
+      doCallRealMethod().when(mockSession)
+              .checkAndUpdateAbfsSession(any(), any());
+      doCallRealMethod().when(mockSession)
+              .enforceConnectionModeFallbacks(any());
 
-    when(mockSession.executeFastpathClose()).thenCallRealMethod();
-    when(mockSession.executeFastpathOpen()).thenCallRealMethod();
-    when(mockSession.getCurrentAbfsFastpathSessionInfoCopy()).thenCallRealMethod();
-    when(mockSession.executeFetchFastpathSessionToken()).thenCallRealMethod();
+//    when(mockSession.executeFastpathClose()).thenCallRealMethod();
+//    when(mockSession.executeFastpathOpen()).thenCallRealMethod();
+    when(mockSession.getCurrentSessionData()).thenCallRealMethod();
+    when(mockSession.getSessionDataCopy()).thenCallRealMethod();
+    when(mockSession.executeFetchSessionToken()).thenCallRealMethod();
     when(mockSession.getSessionRefreshIntervalInSec()).thenCallRealMethod();
-    when(mockSession.fetchFastpathSessionToken()).thenCallRealMethod();
+    when(mockSession.fetchSessionToken()).thenCallRealMethod();
     when(mockSession.getPath()).thenCallRealMethod();
     when(mockSession.geteTag()).thenCallRealMethod();
     when(mockSession.getTracingContext()).thenCallRealMethod();
     when(mockSession.getClient()).thenCallRealMethod();
-    when(mockSession.getFastpathSessionInfo()).thenCallRealMethod();
-    return mockSession;
+    when(mockSession.getSessionData()).thenCallRealMethod();
+    when(mockSession.isValid()).thenCallRealMethod();
+    return mockFastpathSession;
   }
 
   public static AbfsRestOperation getMockSuccessRestOp(AbfsClient client, byte[] token, Duration tokenDuration)
@@ -277,6 +298,25 @@ public class MockAbfsInputStream extends AbfsInputStream {
 
     String expiryTime = DateTimeFormatter.RFC_1123_DATE_TIME.withZone(
         ZoneId.of("Etc/UTC")).format(Instant.now().plus(tokenDuration));
+    when(httpOp.getResponseHeader(X_MS_FASTPATH_SESSION_EXPIRY)).thenReturn(expiryTime);
+    when(op.getResult()).thenReturn(httpOp);
+    return op;
+  }
+
+  public static AbfsRestOperation getMockSuccessRestOpWithExpiryHeader(
+      String token,
+      OffsetDateTime expiry) {
+    AbfsRestOperation op = mock(AbfsRestOperation.class);
+    AbfsHttpOperation httpOp = mock(AbfsHttpOperation.class);
+    when(httpOp.getResponseHeader(CONTENT_LENGTH)).thenReturn(String.valueOf(token.length()));
+    doAnswer(invocation -> {
+      Object arg0 = invocation.getArgument(0);
+      System.arraycopy(token, 0, arg0, 0, token.length());
+      return null;
+    }).when(httpOp).getResponseContentBuffer(any(byte[].class));
+
+    String expiryTime = DateTimeFormatter.RFC_1123_DATE_TIME.withZone(
+        ZoneId.of("Etc/UTC")).format(expiry);
     when(httpOp.getResponseHeader(X_MS_FASTPATH_SESSION_EXPIRY)).thenReturn(expiryTime);
     when(op.getResult()).thenReturn(httpOp);
     return op;

@@ -75,7 +75,7 @@ public class MockAbfsClient extends AbfsClient {
       // becase of Fastpath open failure. This is for mock tests to fail
       // if fastpath connection didnt work rather than reporting a successful test
       // run due to REST fallback
-      reqParams.getAbfsFastpathSessionInfo().setConnectionMode(AbfsConnectionMode.FASTPATH_CONN);
+      reqParams.getAbfsSessionData().setConnectionMode(AbfsConnectionMode.FASTPATH_CONN);
     }
 
     return super.read(path, buffer, cachedSasToken, reqParams, tracingContext);
@@ -97,7 +97,7 @@ public class MockAbfsClient extends AbfsClient {
         buffer,
         reqParams.getBufferOffset(),
         reqParams.getReadLength(),
-        reqParams.getAbfsFastpathSessionInfo());
+        (AbfsFastpathSessionData) reqParams.getAbfsSessionData());
 
     try {
       signalErrorConditionToMockRestOp(op);
@@ -108,11 +108,11 @@ public class MockAbfsClient extends AbfsClient {
         forceFastpathReadAlways = false;
         // execute original abfsclient behaviour
         if (ex.getCause() instanceof FastpathRequestException) {
-          tracingContext.setConnectionMode(AbfsConnectionMode.REST_ON_FASTPATH_REQ_FAILURE);
-          reqParams.getAbfsFastpathSessionInfo().setConnectionMode(AbfsConnectionMode.REST_ON_FASTPATH_REQ_FAILURE);
+          tracingContext.setConnectionMode(AbfsConnectionMode.OPTIMIZED_REST_ON_FASTPATH_REQ_FAILURE);
+          reqParams.getAbfsSessionData().setConnectionMode(AbfsConnectionMode.OPTIMIZED_REST_ON_FASTPATH_REQ_FAILURE);
         } else {
-          tracingContext.setConnectionMode(AbfsConnectionMode.REST_ON_FASTPATH_CONN_FAILURE);
-          reqParams.getAbfsFastpathSessionInfo().setConnectionMode(AbfsConnectionMode.REST_ON_FASTPATH_CONN_FAILURE);
+          tracingContext.setConnectionMode(AbfsConnectionMode.OPTIMIZED_REST_ON_FASTPATH_CONN_FAILURE);
+          reqParams.getAbfsSessionData().setConnectionMode(AbfsConnectionMode.OPTIMIZED_REST_ON_FASTPATH_CONN_FAILURE);
         }
 
         return read(path, buffer, op.getSasToken(), reqParams, tracingContext);
@@ -125,7 +125,7 @@ public class MockAbfsClient extends AbfsClient {
 
   protected AbfsRestOperation executeFastpathOpen(URL url,
       List<AbfsHttpHeader> requestHeaders,
-      AbfsFastpathSessionInfo fastpathSessionInfo,
+      AbfsFastpathSessionData fastpathSessionInfo,
       TracingContext tracingContext) throws AzureBlobFileSystemException {
     final MockAbfsRestOperation op = new MockAbfsRestOperation(
         AbfsRestOperationType.FastpathOpen,
@@ -141,7 +141,7 @@ public class MockAbfsClient extends AbfsClient {
 
   protected AbfsRestOperation executeFastpathClose(URL url,
       List<AbfsHttpHeader> requestHeaders,
-      AbfsFastpathSessionInfo fastpathSessionInfo,
+      AbfsFastpathSessionData fastpathSessionInfo,
       TracingContext tracingContext) throws AzureBlobFileSystemException {
     final MockAbfsRestOperation op = new MockAbfsRestOperation(
         AbfsRestOperationType.FastpathClose,

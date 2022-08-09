@@ -16,37 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.hadoop.fs.azurebfs.services;
+package org.apache.hadoop.fs.azurebfs.contracts.exceptions;
 
-/**
- * The REST operation type (Read, Append, Other ).
- */
-public enum AbfsRestOperationType {
-    CreateFileSystem,
-    GetFileSystemProperties,
-    SetFileSystemProperties,
-    ListPaths,
-    DeleteFileSystem,
-    CreatePath,
-    RenamePath,
-    GetAcl,
-    GetPathProperties,
-    GetPathStatus,
-    SetAcl,
-    SetOwner,
-    SetPathProperties,
-    SetPermissions,
-    Append,
-    Flush,
-    ReadFile,
-    DeletePath,
-    CheckAccess,
-    LeasePath,
-    FastpathOpen,
-    FastpathRead,
-    FastpathClose,
-    GetReadFastpathSessionToken,
-    GetWriteFastpathSessionToken,
-    OptimizedRead,
-    OptimizedAppend
+public class AbfsInvalidOperationException extends AzureBlobFileSystemException {
+
+  public AbfsInvalidOperationException(final String message) {
+    super(message);
+  }
+
+  public AbfsInvalidOperationException(final String message,
+      final Throwable innerException) {
+    super(message, innerException);
+  }
 }

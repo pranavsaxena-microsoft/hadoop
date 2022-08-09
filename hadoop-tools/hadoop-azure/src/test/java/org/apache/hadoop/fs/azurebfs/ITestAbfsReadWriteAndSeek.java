@@ -102,7 +102,7 @@ public class ITestAbfsReadWriteAndSeek extends AbstractAbfsScaleTest {
     int result = -1;
     boolean isUnsuppFastpathBuffSize = (
         (bufferSize != DEFAULT_FASTPATH_READ_BUFFER_SIZE)
-            && (fs.getAbfsStore().getAbfsConfiguration().isFastpathEnabled()
+            && (fs.getAbfsStore().getAbfsConfiguration().isReadByDefaultOnFastpath()
             || isMockFastpathTest));
     try (FSDataInputStream inputStream = isMockFastpathTest
         ? openMockAbfsInputStream(fs, fs.open(testPath))

@@ -25,15 +25,16 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.hadoop.thirdparty.com.google.common.annotations.VisibleForTesting;
 
-public class AbfsFastpathSessionInfo {
+public class AbfsSessionData {
   protected static final Logger LOG = LoggerFactory.getLogger(AbfsInputStream.class);
 
   private String sessionToken;
+
   private OffsetDateTime sessionTokenExpiry = OffsetDateTime.MIN;
-  private String fastpathFileHandle = null;
+
   private AbfsConnectionMode connectionMode;
 
-  public AbfsFastpathSessionInfo(final String sessionToken,
+  public AbfsSessionData(final String sessionToken,
       final OffsetDateTime sessionTokenExpiry,
       final AbfsConnectionMode connectionMode) {
     this.sessionToken = sessionToken;
@@ -41,17 +42,10 @@ public class AbfsFastpathSessionInfo {
     this.connectionMode = connectionMode;
   }
 
-//  public AbfsFastpathSessionInfo(final String sessionToken,
-//      final OffsetDateTime sessionTokenExpiry) {
-//    this.sessionToken = sessionToken;
-//    this.sessionTokenExpiry = sessionTokenExpiry;
-//  }
-
-  public AbfsFastpathSessionInfo(AbfsFastpathSessionInfo sessionInfo) {
-    this.sessionToken = sessionInfo.getSessionToken();
-    this.sessionTokenExpiry = sessionInfo.getSessionTokenExpiry();
-    this.fastpathFileHandle = sessionInfo.getFastpathFileHandle();
-    this.connectionMode = sessionInfo.getConnectionMode();
+  public AbfsSessionData(AbfsSessionData sessionData) {
+    this.sessionToken = sessionData.getSessionToken();
+    this.sessionTokenExpiry = sessionData.getSessionTokenExpiry();
+    this.connectionMode = sessionData.getConnectionMode();
   }
 
   public String getSessionToken() {
@@ -71,19 +65,24 @@ public class AbfsFastpathSessionInfo {
     return connectionMode;
   }
 
-  public String getFastpathFileHandle() {
-    return fastpathFileHandle;
-  }
-
-  public void setFastpathFileHandle(final String fileHandle) {
-    this.fastpathFileHandle = fileHandle;
-  }
+//  public String getFastpathFileHandle() {
+//    return fastpathFileHandle;
+//  }
+//
+//  public void setFastpathFileHandle(final String fileHandle) {
+//    this.fastpathFileHandle = fileHandle;
+//  }
 
   public boolean isValidSession() {
-    return (((connectionMode == AbfsConnectionMode.FASTPATH_CONN)
-        || (connectionMode == AbfsConnectionMode.HYBRID_FASTPATH_APPEND))
+    return ((connectionMode != AbfsConnectionMode.REST_CONN)
+        && (connectionMode != AbfsConnectionMode.REST_ON_SESSION_UPD_FAILURE)
         && (sessionToken != null) && (!sessionToken.isEmpty())
         && (!isTokenPastExpiry()));
+  }
+
+  public AbfsSessionData getAClone() {
+    LOG.debug("AbfsSessionData - getAClone");
+    return new AbfsSessionData(this);
   }
 
   private boolean isTokenPastExpiry() {
@@ -99,15 +98,19 @@ public class AbfsFastpathSessionInfo {
     this.connectionMode = connMode;
   }
 
-  public void setFastpathFileHandle(final String fileHandle,
-      final AbfsConnectionMode connMode) {
-    this.fastpathFileHandle = fileHandle;
-    this.connectionMode = connMode;
+  public void setSessionToken(String sessionToken) {
+    this.sessionToken = sessionToken;
   }
 
-  @VisibleForTesting
-  void updateSessionToken(String token, OffsetDateTime expiry) {
-    sessionToken = token;
-    sessionTokenExpiry = expiry;
-  }
+//  public void setFastpathFileHandle(final String fileHandle,
+//      final AbfsConnectionMode connMode) {
+//    this.fastpathFileHandle = fileHandle;
+//    this.connectionMode = connMode;
+//  }
+
+//  @VisibleForTesting
+//  void updateSessionToken(String token, OffsetDateTime expiry) {
+//    sessionToken  = token;
+//    sessionTokenExpiry = expiry;
+//  }
 }

@@ -540,7 +540,7 @@ public abstract class AbstractAbfsIntegrationTest extends
         getFileSystem().getIsNamespaceEnabled(getTestTracingContext(getFileSystem(), false)));
     assumeTrue("Fastpath supported only for OAuth auth type",
         authType == AuthType.OAuth);
-    return getFileSystem().getAbfsStore().getAbfsConfiguration().isFastpathEnabled();
+    return getFileSystem().getAbfsStore().getAbfsConfiguration().isReadByDefaultOnFastpath();
   }
 
   public FSDataInputStream openMockAbfsInputStream(AzureBlobFileSystem fs,
@@ -552,7 +552,7 @@ public abstract class AbstractAbfsIntegrationTest extends
       FSDataInputStream in) throws IOException {
     if (!bufferSizeCorrectForFastpath(fs)) {
       LOG.debug("Creating non-Mock AbfsInputStream with Fastpath ON");
-      fs.getAbfsStore().getAbfsConfiguration().setEnableFastpath(true);
+      fs.getAbfsStore().getAbfsConfiguration().setReadByDefaultOnFastpath(true);
       AbfsInputStream srcStream = (AbfsInputStream) in.getWrappedStream();
       return fs.open(new Path(srcStream.getPath()));
     }
@@ -574,7 +574,7 @@ public abstract class AbstractAbfsIntegrationTest extends
   public AbfsInputStream getMockAbfsInputStream(AzureBlobFileSystem fs,
       Path testFilePath, Optional<OpenFileParameters> opt) throws IOException {
     Configuration conf = fs.getConf();
-    conf.setBoolean(FS_AZURE_FASTPATH_ENABLE, true);
+    conf.setBoolean(FS_AZURE_READ_DEFAULT_FASTPATH, true);
     fs = (AzureBlobFileSystem) FileSystem.get(fs.getUri(), conf);
     Path qualifiedPath = makeQualified(testFilePath);
     AzureBlobFileSystemStore store = fs.getAbfsStore();

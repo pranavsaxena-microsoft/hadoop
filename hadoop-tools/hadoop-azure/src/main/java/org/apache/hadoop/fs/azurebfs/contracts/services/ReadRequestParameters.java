@@ -19,7 +19,7 @@
 package org.apache.hadoop.fs.azurebfs.contracts.services;
 
 import org.apache.hadoop.fs.azurebfs.services.AbfsConnectionMode;
-import org.apache.hadoop.fs.azurebfs.services.AbfsFastpathSessionInfo;
+import org.apache.hadoop.fs.azurebfs.services.AbfsSessionData;
 
 /**
  * Saves the different request parameters for read
@@ -30,18 +30,18 @@ public class ReadRequestParameters {
   private final int bufferOffset;
   private final int readLength;
   private final String eTag;
-  private final AbfsFastpathSessionInfo fastpathSessionInfo;
+  private final AbfsSessionData sessionData;
 
   public ReadRequestParameters(final long storeFilePosition,
       final int bufferOffset,
       final int readLength,
       final String eTag,
-      final AbfsFastpathSessionInfo fastpathSessionInfo) {
+      final AbfsSessionData sessionData) {
     this.storeFilePosition = storeFilePosition;
     this.bufferOffset = bufferOffset;
     this.readLength = readLength;
     this.eTag = eTag;
-    this.fastpathSessionInfo = fastpathSessionInfo;
+    this.sessionData = sessionData;
   }
 
   public long getStoreFilePosition() {
@@ -61,20 +61,26 @@ public class ReadRequestParameters {
   }
 
   public AbfsConnectionMode getAbfsConnectionMode() {
-    if (fastpathSessionInfo == null) {
+    if (sessionData == null) {
       return DEFAULT_CONNECTION_MODE;
     } else {
-      return fastpathSessionInfo.getConnectionMode();
+      return sessionData.getConnectionMode();
     }
   }
 
   public boolean isFastpathConnection() {
-    return ((fastpathSessionInfo != null)
+    return ((sessionData != null)
         && (AbfsConnectionMode.isFastpathConnection(
-        fastpathSessionInfo.getConnectionMode())));
+        sessionData.getConnectionMode())));
   }
 
-  public AbfsFastpathSessionInfo getAbfsFastpathSessionInfo() {
-    return fastpathSessionInfo;
+  public boolean isOptimizedRestConnection() {
+    return ((sessionData != null)
+        && (AbfsConnectionMode.isOptimizedRestConnection(
+        sessionData.getConnectionMode())));
+  }
+
+  public AbfsSessionData getAbfsSessionData() {
+    return sessionData;
   }
 }

@@ -74,7 +74,7 @@ public class AbfsRestOperation {
 
   private AbfsHttpOperation result;
   private AbfsCounters abfsCounters;
-  private AbfsFastpathSessionInfo fastpathSessionInfo;
+  private AbfsFastpathSessionData fastpathSessionData;
 
   public AbfsHttpOperation getResult() {
     return result;
@@ -185,16 +185,16 @@ public class AbfsRestOperation {
    * @param method The HTTP method (PUT, PATCH, POST, GET, HEAD, or DELETE).
    * @param url The full URL including query string parameters.
    * @param requestHeaders The HTTP request headers.
-   * @param fastpathSessionInfo Fastpath session info
+   * @param fastpathSessionData Fastpath session info
    */
   AbfsRestOperation(final AbfsRestOperationType operationType,
       final AbfsClient client,
       final String method,
       final URL url,
       final List<AbfsHttpHeader> requestHeaders,
-      final AbfsFastpathSessionInfo fastpathSessionInfo) {
+      final AbfsFastpathSessionData fastpathSessionData) {
     this(operationType, client, method, url, requestHeaders);
-    this.fastpathSessionInfo = fastpathSessionInfo;
+    this.fastpathSessionData = fastpathSessionData;
   }
 
   /**
@@ -209,7 +209,7 @@ public class AbfsRestOperation {
    *               this will hold the response entity body.
    * @param bufferOffset An offset into the buffer where the data beings.
    * @param bufferLength The length of the data in the buffer.
-   * @param fastpathSessionInfo Fastpath session info instance
+   * @param fastpathSessionData Fastpath session info instance
    */
   AbfsRestOperation(AbfsRestOperationType operationType,
       AbfsClient client,
@@ -219,8 +219,9 @@ public class AbfsRestOperation {
       byte[] buffer,
       int bufferOffset,
       int bufferLength,
-      AbfsFastpathSessionInfo fastpathSessionInfo) {
-    this(operationType, client, method, url, requestHeaders, fastpathSessionInfo);
+      AbfsFastpathSessionData fastpathSessionData) {
+    this(operationType, client, method, url, requestHeaders,
+        fastpathSessionData);
     this.buffer = buffer;
     this.bufferOffset = bufferOffset;
     this.bufferLength = bufferLength;
@@ -412,8 +413,8 @@ public class AbfsRestOperation {
   @VisibleForTesting
   protected AbfsFastpathConnection getFastpathConnection() throws IOException {
     return new AbfsFastpathConnection(operationType, url, method,
-        client.getAuthType(), client.getAccessToken(), requestHeaders,
-        fastpathSessionInfo);
+        client.getAuthType(), client.getAccessToken(), requestHeaders, //TODO: remove oauth?
+        fastpathSessionData);
   }
 
   @VisibleForTesting
@@ -454,8 +455,8 @@ public class AbfsRestOperation {
   }
 
   @VisibleForTesting
-  protected AbfsFastpathSessionInfo getFastpathSessionInfo() {
-    return fastpathSessionInfo;
+  protected AbfsFastpathSessionData getFastpathSessionData() {
+    return fastpathSessionData;
   }
 
   @VisibleForTesting

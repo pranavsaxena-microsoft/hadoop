@@ -19,7 +19,7 @@
 package org.apache.hadoop.fs.azurebfs.contracts.services;
 
 import org.apache.hadoop.fs.azurebfs.services.AbfsConnectionMode;
-import org.apache.hadoop.fs.azurebfs.services.AbfsFastpathSessionInfo;
+import org.apache.hadoop.fs.azurebfs.services.AbfsSessionData;
 
 /**
  * Saves the different request parameters for append
@@ -38,7 +38,7 @@ public class AppendRequestParameters {
   private final Mode mode;
   private final boolean isAppendBlob;
   private final String leaseId;
-  private final AbfsFastpathSessionInfo fastpathSessionInfo;
+  private final AbfsSessionData sessionData;
 
   public AppendRequestParameters(final long position,
       final int offset,
@@ -46,14 +46,14 @@ public class AppendRequestParameters {
       final Mode mode,
       final boolean isAppendBlob,
       final String leaseId,
-      final AbfsFastpathSessionInfo fastpathSessionInfo) {
+      final AbfsSessionData sessionData) {
     this.position = position;
     this.offset = offset;
     this.length = length;
     this.mode = mode;
     this.isAppendBlob = isAppendBlob;
     this.leaseId = leaseId;
-    this.fastpathSessionInfo = fastpathSessionInfo;
+    this.sessionData = sessionData;
   }
 
   public long getPosition() {
@@ -80,13 +80,13 @@ public class AppendRequestParameters {
     return this.leaseId;
   }
 
-  public boolean isHybridFastpathConnection() {
-    return ((fastpathSessionInfo != null)
-        && (AbfsConnectionMode.isHybridFastpathAppendConnection(
-        fastpathSessionInfo.getConnectionMode())));
+  public boolean isOptimizedRestConnection() {
+    return ((sessionData != null)
+        && (AbfsConnectionMode.isOptimizedRestConnection(
+        sessionData.getConnectionMode())));
   }
 
-  public AbfsFastpathSessionInfo getAbfsFastpathSessionInfo() {
-    return fastpathSessionInfo;
+  public AbfsSessionData getAbfsSessionData() {
+    return sessionData;
   }
 }

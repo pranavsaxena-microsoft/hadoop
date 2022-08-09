@@ -21,27 +21,29 @@ package org.apache.hadoop.fs.azurebfs.services;
 public enum AbfsConnectionMode {
   REST_CONN,
   FASTPATH_CONN,
-  REST_ON_FASTPATH_REQ_FAILURE,
-  REST_ON_FASTPATH_CONN_FAILURE,
-  REST_ON_FASTPATH_SESSION_UPD_FAILURE,
-  HYBRID_FASTPATH_APPEND;
+  OPTIMIZED_REST,
+  OPTIMIZED_REST_ON_FASTPATH_REQ_FAILURE,
+  OPTIMIZED_REST_ON_FASTPATH_CONN_FAILURE,
+  REST_ON_SESSION_UPD_FAILURE;
 
   public static boolean isFastpathConnection(final AbfsConnectionMode mode) {
     return (mode == FASTPATH_CONN);
   }
 
-  public static boolean isHybridFastpathAppendConnection(final AbfsConnectionMode mode) {
-    return (mode == HYBRID_FASTPATH_APPEND);
+  public static boolean isOptimizedRestConnection(final AbfsConnectionMode mode) {
+    return ((mode == OPTIMIZED_REST)
+            || (mode == OPTIMIZED_REST_ON_FASTPATH_REQ_FAILURE)
+            || (mode == OPTIMIZED_REST_ON_FASTPATH_CONN_FAILURE));
   }
 
-  public static boolean isRESTConnection(final AbfsConnectionMode mode) {
-    return (!isFastpathConnection(mode));
+  public static boolean isBaseRestConnection(final AbfsConnectionMode mode) {
+    return ((mode == REST_CONN) || (mode == REST_ON_SESSION_UPD_FAILURE));
   }
 
   public static boolean isErrorConnectionMode(final AbfsConnectionMode mode) {
-    return ((mode == AbfsConnectionMode.REST_ON_FASTPATH_SESSION_UPD_FAILURE)
-        || (mode == AbfsConnectionMode.REST_ON_FASTPATH_REQ_FAILURE)
-        || (mode == AbfsConnectionMode.REST_ON_FASTPATH_CONN_FAILURE));
+    return ((mode == AbfsConnectionMode.REST_ON_SESSION_UPD_FAILURE)
+        || (mode == AbfsConnectionMode.OPTIMIZED_REST_ON_FASTPATH_REQ_FAILURE)
+        || (mode == AbfsConnectionMode.OPTIMIZED_REST_ON_FASTPATH_CONN_FAILURE));
   }
 
 }

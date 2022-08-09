@@ -175,7 +175,7 @@ public class TestAbfsInputStream extends
         .withShouldReadBufferSizeAlways(alwaysReadBufferSize)
         .withReadAheadBlockSize(readAheadBlockSize)
         .withReadAheadRange(DEFAULT_READ_AHEAD_RANGE)
-        .withFastpathEnabledState(isFastpathEnabled)
+        .withDefaultFastpath(isFastpathEnabled)
         .build();
     return inputStreamContext;
   }
@@ -884,9 +884,9 @@ public class TestAbfsInputStream extends
   }
 
   public static boolean isFastpathEnabled(AbfsInputStream inStream) {
-    if ((inStream.getFastpathSession() != null)
-      && (inStream.getFastpathSession().getFastpathSessionInfo() != null)
-        && (inStream.getFastpathSession().getFastpathSessionInfo().getConnectionMode()
+    if ((inStream.getAbfsSession() != null)
+      && (inStream.getAbfsSession().getSessionData() != null)
+        && (inStream.getAbfsSession().getSessionData().getConnectionMode()
             == AbfsConnectionMode.FASTPATH_CONN)) {
       return true;
     }

@@ -22,9 +22,12 @@ import java.io.EOFException;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.HttpURLConnection;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.UUID;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations;
 import org.apache.hadoop.thirdparty.com.google.common.annotations.VisibleForTesting;
 import org.apache.hadoop.thirdparty.com.google.common.base.Preconditions;
 
@@ -51,7 +54,10 @@ import static java.lang.Math.min;
 
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.ONE_KB;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.STREAM_ID_LEN;
-import static org.apache.hadoop.fs.azurebfs.services.AbfsFastpathSession.IO_MODE.READ;
+import static org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations.X_MS_FASTPATH_SESSION_DATA;
+import static org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations.X_MS_FASTPATH_SESSION_EXPIRY;
+import static org.apache.hadoop.fs.azurebfs.services.AbfsSession.IO_SESSION_SCOPE.READ_ON_FASTPATH;
+import static org.apache.hadoop.fs.azurebfs.services.AbfsSession.IO_SESSION_SCOPE.READ_ON_OPTIMIZED_REST;
 import static org.apache.hadoop.util.StringUtils.toLowerCase;
 
 /**
@@ -73,7 +79,7 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
   private final int readAheadQueueDepth;         // initialized in constructor
   private final String eTag;                  // eTag of the path when InputStream are created
   private final boolean tolerateOobAppends; // whether tolerate Oob Appends
-  private final boolean readAheadEnabled; // whether enable readAhead;
+  private boolean readAheadEnabled; // whether enable readAhead;
   private final String inputStreamId;
   private final boolean alwaysReadBufferSize;
   /*
@@ -121,7 +127,7 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
    * lazy seek to decide whether to seek on the next read or not.
    */
   private long nextReadPos;
-  private AbfsFastpathSession fastpathSession = null;
+  private AbfsSession abfsSession = null;
 
   public AbfsInputStream(
           final AbfsClient client,
@@ -157,7 +163,7 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
     // Propagate the config values to ReadBufferManager so that the first instance
     // to initialize can set the readAheadBlockSize
     ReadBufferManager.setReadBufferManagerConfigs(readAheadBlockSize);
-    fastpathSession = createAbfsFastpathSession(abfsInputStreamContext.isFastpathEnabled());
+    abfsSession = createAbfsSession(abfsInputStreamContext);
 
     if (streamStatistics != null) {
       ioStatistics = streamStatistics.getIOStatistics();
@@ -173,12 +179,19 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
     return StringUtils.right(UUID.randomUUID().toString(), STREAM_ID_LEN);
   }
 
-  protected AbfsFastpathSession createAbfsFastpathSession(boolean isFastpathFeatureConfigOn) {
-    if (isFastpathFeatureConfigOn) {
-      AbfsFastpathSession fastpathSession = new AbfsFastpathSession(READ, client, path, eTag, tracingContext);
-      if (fastpathSession.isValid()) {
-        return fastpathSession;
-      }
+  protected AbfsSession createAbfsSession(AbfsInputStreamContext context) {
+    AbfsSession session = null;
+    if (context.isDefaultConnectionOnFastpath()) {
+      session = new AbfsFastpathSession(READ_ON_FASTPATH, client, path, eTag, tracingContext);
+    }
+
+    if (context.isDefaultConnectionOnOptimizedRest()) {
+      session = new AbfsSession(READ_ON_OPTIMIZED_REST, client, path, eTag, tracingContext);
+      readAheadEnabled = false;
+    }
+
+    if ((session != null) && session.isValid()) {
+      return session;
     }
 
     return null;
@@ -558,15 +571,18 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
       }
 
       LOG.trace("Trigger client.read for path={} position={} offset={} length={}", path, position, offset, length);
-      AbfsFastpathSessionInfo fastpathSessionInfo = ((fastpathSession == null)
+      AbfsSessionData sessionData = (abfsSession == null)
           ? null
-          : fastpathSession.getCurrentAbfsFastpathSessionInfoCopy());
+          : abfsSession.getCurrentSessionData();
       ReadRequestParameters reqParams = new ReadRequestParameters(position,
           offset, length, tolerateOobAppends ? "*" : eTag,
-          fastpathSessionInfo);
+          sessionData);
       op =  executeRead(path, b, cachedSasToken.get(), reqParams, readThreadTracingContext);
       cachedSasToken.update(op.getSasToken());
-      checkForFastpathConnectionFailures(fastpathSessionInfo);
+      if (abfsSession != null) {
+        abfsSession.checkAndUpdateAbfsSession(op, sessionData);
+      }
+
       LOG.debug("issuing HTTP GET request params position = {} b.length = {} "
           + "offset = {} length = {}", position, b.length, offset, length);
       perfInfo.registerResult(op.getResult()).registerSuccess(true);
@@ -592,13 +608,7 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
     return (int) bytesRead;
   }
 
-  protected void checkForFastpathConnectionFailures(final AbfsFastpathSessionInfo fastpathSessionInfo) {
-    if (fastpathSessionInfo != null) {
-      fastpathSession.updateConnectionModeForFailures(fastpathSessionInfo.getConnectionMode());
-    }
-  }
-
-  @VisibleForTesting
+ @VisibleForTesting
   protected AbfsRestOperation executeRead(String path, byte[] b, String sasToken,
       ReadRequestParameters reqParam, TracingContext context)
       throws AzureBlobFileSystemException {
@@ -729,8 +739,8 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
 
   @Override
   public synchronized void close() throws IOException {
-    if (fastpathSession != null) {
-      fastpathSession.close();
+    if (abfsSession != null) {
+      abfsSession.close();
     }
 
     closed = true;
@@ -911,19 +921,19 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
   }
 
   @VisibleForTesting
-  AbfsFastpathSession getFastpathSession() {
-    return this.fastpathSession;
+  AbfsSession getAbfsSession() {
+    return this.abfsSession;
   }
 
   @VisibleForTesting
-  void setFastpathSession(AbfsFastpathSession fastpathSession) {
-    if ((fastpathSession != null) && (
-        fastpathSession.getCurrentAbfsFastpathSessionInfoCopy() != null)) {
+  void setAbfsSession(AbfsSession abfsSession) {
+    if ((abfsSession != null) && (
+        abfsSession.getCurrentSessionData() != null)) {
       tracingContext.setConnectionMode(
-          fastpathSession.getCurrentAbfsFastpathSessionInfoCopy().getConnectionMode());
+          abfsSession.getCurrentSessionData().getConnectionMode());
     }
 
-    this.fastpathSession = fastpathSession;
+    this.abfsSession = abfsSession;
   }
 
   @VisibleForTesting

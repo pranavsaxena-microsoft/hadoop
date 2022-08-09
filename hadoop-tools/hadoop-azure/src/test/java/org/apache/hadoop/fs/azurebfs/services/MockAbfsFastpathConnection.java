@@ -43,7 +43,7 @@ public class MockAbfsFastpathConnection extends AbfsFastpathConnection {
       final AuthType authType,
       final String authToken,
       final List<AbfsHttpHeader> requestHeaders,
-      final AbfsFastpathSessionInfo fastpathSessionInfo) throws IOException {
+      final AbfsFastpathSessionData fastpathSessionInfo) throws IOException {
     super(opType, url, method, authType, authToken, requestHeaders,
         fastpathSessionInfo);
   }
