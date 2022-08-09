@@ -1,0 +1,38 @@
+@startuml
+'https://plantuml.com/sequence-diagram
+
+autonumber
+
+Developer_code -> AbfsInputStream: read(blockB1)
+loop next two blocks from blockB1
+AbfsInputStream -> ReadBufferManager: queueReadAhead(block.startOffset,\n block.endOffset)
+ReadBufferManager -> AbfsInputStream: return;
+end
+AbfsInputStream -> AbfsInputStream: readRemote(blockB1)
+AbfsInputStream -> FastpathAbfsInputStreamHelper: preExecute(blockB1)
+FastpathAbfsInputStreamHelper -> FastpathAbfsInputStreamHelper: session = getValidSession()
+FastpathAbfsInputStreamHelper -> FastpathAbfsInputStreamHelper: startOffset = blockB1.startOffset;\n endOffset = blockB1.endOffset
+FastpathAbfsInputStreamHelper -> FastpathAbfsInputStreamHelper: lastOffsetRead = null;
+FastpathAbfsInputStreamHelper -> FastpathAbfsInputStreamHelper: abfsReadFastpathServerCaller =new AbfsReadFastpathServerCaller\n(session, fastpathAbfsInputStreamHelperObj, sessionHeader);
+FastpathAbfsInputStreamHelper -> AbfsInputStream: abfsReadFastpathServerCaller
+AbfsInputStream -> AbfsReadFastpathServerCaller: operate(blockB1)
+AbfsReadFastpathServerCaller <-> XFE_Server: header_up_down()
+AbfsReadFastpathServerCaller -> FastpathAbfsInputStreamHelper: next sessionHeader
+FastpathAbfsInputStreamHelper <- XFE_Server: dataTransfer
+FastpathAbfsInputStreamHelper -> AbfsInputStream: return op;
+AbfsInputStream -> FastpathAbfsInputStreamHelper: postExecute()
+FastpathAbfsInputStreamHelper -> FastpathAbfsInputStreamHelper: lastOffsetRead = endOffset;
+FastpathAbfsInputStreamHelper -> AbfsInputStream: return;
+AbfsInputStream -> Developer_code: return;
+ReadBufferWorker -> ReadBufferManager: getNextBlockToWork()
+ReadBufferManager -> ReadBufferWorker: blockB2
+ReadBufferWorker -> AbfsInputStream: readRemote(blockB2)
+AbfsInputStream -> FastpathAbfsInputStreamHelper: preExecute(blockB2)
+alt readMode == FastpathRead
+loop blockB2.startOffset != (lastOffsetRead + 1)
+FastpathAbfsInputStreamHelper -> FastpathAbfsInputStreamHelper:;
+end
+FastpathAbfsInputStreamHelper -> FastpathAbfsInputStreamHelper: abfsReadFastpathServerCaller =new AbfsReadFastpathServerCaller\n(session, fastpathAbfsInputStreamHelperObj, sessionHeader);
+FastpathAbfsInputStreamHelper -> FastpathAbfsInputStreamHelper: do all steps as shown from Step 10 to 18
+end
+@enduml
