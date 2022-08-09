@@ -1,0 +1,27 @@
+@startuml
+'https://plantuml.com/sequence-diagram
+
+autonumber
+Developer_code -> AbfsInputStream : readRemote()
+AbfsInputStream -> FastpathAbfsInputStreamHelper : preExecute()
+FastpathAbfsInputStreamHelper -> FastpathAbfsInputStreamHelper: session = createFastpathSession()
+FastpathAbfsInputStreamHelper -> FastpathAbfsInputStreamHelper:abfsReadFastpathServerCaller = \nnew  AbfsReadFastpathServerCaller(session)
+FastpathAbfsInputStreamHelper -> AbfsInputStream : abfsReadFastpathServerCaller
+AbfsInputStream -> AbfsClient : read(path, abfsReadFastpathServerCaller)
+alt abfsReadFastpathServerCaller != null
+AbfsClient -> AbfsReadFastpathServerCaller: abfsReadFastpathServerCaller.operate()
+AbfsReadFastpathServerCaller -> AbfsReadFastpathServerCaller: op = new AbfsRestOperation().execute()\n/*call via Fastpath jar + handle fastpath exception*/
+alt exception received
+AbfsReadFastpathServerCaller -> AbfsReadFastpathServerCaller: session.mode = REST++/REST
+end
+AbfsReadFastpathServerCaller -> AbfsClient : return op;
+else abfsReadFastpathServerCaller == null
+AbfsClient -> AbfsClient : op = new AbfsRestOperation().execute()\n/*normal exec as done now*/
+end
+AbfsClient -> AbfsInputStream : return op;
+AbfsInputStream -> AbfsInputStream: process(op)
+AbfsInputStream -> FastpathAbfsInputStreamHelper: postExecute()
+FastpathAbfsInputStreamHelper -> FastpathAbfsInputStreamHelper: define steps to be taken for next processing \nas per session.mode
+FastpathAbfsInputStreamHelper -> AbfsInputStream: method return;
+AbfsInputStream -> Developer_code: method complete;
+@enduml
