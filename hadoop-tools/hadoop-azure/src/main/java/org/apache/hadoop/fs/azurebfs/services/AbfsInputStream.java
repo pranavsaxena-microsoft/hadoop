@@ -22,12 +22,10 @@ import java.io.EOFException;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.HttpURLConnection;
-import java.time.OffsetDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.UUID;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations;
+import org.apache.hadoop.fs.azurebfs.contracts.services.ReadRequestParameters;
 import org.apache.hadoop.fs.azurebfs.services.abfsInputStreamHelpers.AbfsInputStreamHelper;
 import org.apache.hadoop.fs.azurebfs.services.abfsInputStreamHelpers.RestAbfsInputStreamHelper;
 import org.apache.hadoop.fs.azurebfs.services.abfsInputStreamHelpers.exceptions.BlockHelperException;
@@ -45,7 +43,6 @@ import org.apache.hadoop.fs.StreamCapabilities;
 import org.apache.hadoop.fs.azurebfs.constants.FSOperationType;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AbfsRestOperationException;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemException;
-import org.apache.hadoop.fs.azurebfs.contracts.services.ReadRequestParameters;
 import org.apache.hadoop.fs.azurebfs.utils.CachedSASToken;
 import org.apache.hadoop.fs.azurebfs.utils.Listener;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
@@ -57,8 +54,6 @@ import static java.lang.Math.min;
 
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.ONE_KB;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.STREAM_ID_LEN;
-import static org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations.X_MS_FASTPATH_SESSION_DATA;
-import static org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations.X_MS_FASTPATH_SESSION_EXPIRY;
 import static org.apache.hadoop.fs.azurebfs.services.AbfsSession.IO_SESSION_SCOPE.READ_ON_FASTPATH;
 import static org.apache.hadoop.fs.azurebfs.services.AbfsSession.IO_SESSION_SCOPE.READ_ON_OPTIMIZED_REST;
 import static org.apache.hadoop.util.StringUtils.toLowerCase;
@@ -520,6 +515,13 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
       while (numReadAheads > 0 && nextOffset < contentLength) {
         LOG.debug("issuing read ahead requestedOffset = {} requested size {}",
             nextOffset, nextSize);
+        AbfsInputStreamHelper abfsInputStreamHelper = abfsInputStreamHelperStart;
+        while(abfsInputStreamHelper.shouldGoNext()) {
+          abfsInputStreamHelper = abfsInputStreamHelper.getNext();
+        }
+        if(!abfsInputStreamHelper.explicitPreFetchReadAllowed()) {
+          break;
+        }
         ReadBufferManager.getBufferManager().queueReadAhead(this, nextOffset, (int) nextSize,
                 new TracingContext(readAheadTracingContext));
         nextOffset = nextOffset + nextSize;
@@ -576,7 +578,7 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
       }
 
       LOG.trace("Trigger client.read for path={} position={} offset={} length={}", path, position, offset, length);
-      /*
+
       AbfsSessionData sessionData = (abfsSession == null)
           ? null
           : abfsSession.getCurrentSessionData();
@@ -588,8 +590,7 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
       if (abfsSession != null) {
         abfsSession.checkAndUpdateAbfsSession(op, sessionData);
       }
-      */
-      op = executeRead();
+//      op = executeRead(path, b, cachedSasToken.get(), readThreadTracingContext);
       LOG.debug("issuing HTTP GET request params position = {} b.length = {} "
           + "offset = {} length = {}", position, b.length, offset, length);
       perfInfo.registerResult(op.getResult()).registerSuccess(true);
@@ -615,14 +616,14 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
     return (int) bytesRead;
   }
 
-  private AbfsRestOperation executeRead() throws IOException {
+  private AbfsRestOperation executeRead(String path, byte[] b, String sasToken, ReadRequestParameters readRequestParameters, TracingContext context) throws IOException {
     AbfsInputStreamHelper helper = abfsInputStreamHelperStart;
     while(helper != null && helper.shouldGoNext()) {
       helper = helper.getNext();
     }
     while(helper != null) {
       try {
-        return helper.operate();
+        return helper.operate(path, b, sasToken, readRequestParameters, context, client);
       } catch (IOException e) {
         if(e.getClass() == BlockHelperException.class) {
           helper = helper.getBack();
@@ -633,12 +634,12 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
     throw new IOException("No Communication technology could help");
   }
 
- @VisibleForTesting
-  protected AbfsRestOperation executeRead(String path, byte[] b, String sasToken,
-      ReadRequestParameters reqParam, TracingContext context)
-      throws AzureBlobFileSystemException {
-    return client.read(path, b, sasToken, reqParam, context);
-  }
+// @VisibleForTesting
+//  protected AbfsRestOperation executeRead(String path, byte[] b, String sasToken,
+//      ReadRequestParameters reqParam, TracingContext context)
+//      throws AzureBlobFileSystemException {
+//    return client.read(path, b, sasToken, reqParam, context);
+//  }
 
   /**
    * Increment Read Operations.
