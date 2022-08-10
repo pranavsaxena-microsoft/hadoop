@@ -28,6 +28,9 @@ import java.util.UUID;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations;
+import org.apache.hadoop.fs.azurebfs.services.abfsInputStreamHelpers.AbfsInputStreamHelper;
+import org.apache.hadoop.fs.azurebfs.services.abfsInputStreamHelpers.RestAbfsInputStreamHelper;
+import org.apache.hadoop.fs.azurebfs.services.abfsInputStreamHelpers.exceptions.BlockHelperException;
 import org.apache.hadoop.thirdparty.com.google.common.annotations.VisibleForTesting;
 import org.apache.hadoop.thirdparty.com.google.common.base.Preconditions;
 
@@ -128,6 +131,7 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
    */
   private long nextReadPos;
   private AbfsSession abfsSession = null;
+  private AbfsInputStreamHelper abfsInputStreamHelperStart;
 
   public AbfsInputStream(
           final AbfsClient client,
@@ -169,6 +173,7 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
       ioStatistics = streamStatistics.getIOStatistics();
     }
     this.tracingContext.setOperation(FSOperationType.READ);
+    this.abfsInputStreamHelperStart = new RestAbfsInputStreamHelper();
   }
 
   public String getPath() {
@@ -571,6 +576,7 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
       }
 
       LOG.trace("Trigger client.read for path={} position={} offset={} length={}", path, position, offset, length);
+      /*
       AbfsSessionData sessionData = (abfsSession == null)
           ? null
           : abfsSession.getCurrentSessionData();
@@ -582,7 +588,8 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
       if (abfsSession != null) {
         abfsSession.checkAndUpdateAbfsSession(op, sessionData);
       }
-
+      */
+      op = executeRead();
       LOG.debug("issuing HTTP GET request params position = {} b.length = {} "
           + "offset = {} length = {}", position, b.length, offset, length);
       perfInfo.registerResult(op.getResult()).registerSuccess(true);
@@ -606,6 +613,24 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
     LOG.debug("HTTP request read bytes = {}", bytesRead);
     bytesFromRemoteRead += bytesRead;
     return (int) bytesRead;
+  }
+
+  private AbfsRestOperation executeRead() throws IOException {
+    AbfsInputStreamHelper helper = abfsInputStreamHelperStart;
+    while(helper != null && helper.shouldGoNext()) {
+      helper = helper.getNext();
+    }
+    while(helper != null) {
+      try {
+        return helper.operate();
+      } catch (IOException e) {
+        if(e.getClass() == BlockHelperException.class) {
+          helper = helper.getBack();
+          helper.setNextAsInvalid();
+        }
+      }
+    }
+    throw new IOException("No Communication technology could help");
   }
 
  @VisibleForTesting
