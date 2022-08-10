@@ -1,0 +1,33 @@
+@startuml
+'https://plantuml.com/sequence-diagram
+
+autonumber
+
+AbfsInputStream -> RestHelper: operate()
+alt RestHelper can complete request
+    RestHelper -> RestHelper: operateComplete()
+else
+    RestHelper -> FastpathRestHelper: operate()
+    alt FastpathRestHelper can complete
+        FastpathRestHelper -> FastpathRestHelper: operateComplete()
+    else
+        FastpathRestHelper -> FastpathRimbaudHelper: operate()
+        FastpathRimbaudHelper ->FastpathRimbaudHelper: operateComplete()
+        alt no exception
+            FastpathRimbaudHelper -> FastpathRestHelper: op
+        else
+            FastpathRimbaudHelper -> FastpathRestHelper: operateComplete();
+        end
+    end
+    alt no exception
+        FastpathRestHelper -> RestHelper: op
+    else
+        FastpathRestHelper -> RestHelper: operateComplete();
+    end
+end
+alt no exception
+RestHelper -> AbfsInputStream: op
+else
+return exception
+end
+@enduml
