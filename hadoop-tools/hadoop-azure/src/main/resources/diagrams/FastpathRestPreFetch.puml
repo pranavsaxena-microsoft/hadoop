@@ -31,7 +31,7 @@ ReadBufferManager -> ReadBufferWorker: blockB2
 ReadBufferWorker -> AbfsInputStream: readRemote(blockB2)
 AbfsInputStream -> FastpathAbfsInputStreamHelper: preExecute(blockB2)
 alt readMode == FastpathRead && (call from ReadAheadQueue)
-loop blockB2.startOffset != (lastOffsetHeaderRead + 1)
+loop blockB2.startOffset != (lastOffsetHeaderRead + 1) || timeout for loop
 FastpathAbfsInputStreamHelper -> FastpathAbfsInputStreamHelper:;
 end
 FastpathAbfsInputStreamHelper -> FastpathAbfsInputStreamHelper: abfsReadFastpathServerCaller =new AbfsReadFastpathServerCaller\n(session, fastpathAbfsInputStreamHelperObj, sessionHeader);
