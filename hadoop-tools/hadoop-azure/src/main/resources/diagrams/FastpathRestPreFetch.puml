@@ -12,24 +12,26 @@ AbfsInputStream -> AbfsInputStream: readRemote(blockB1)
 AbfsInputStream -> FastpathAbfsInputStreamHelper: preExecute(blockB1)
 FastpathAbfsInputStreamHelper -> FastpathAbfsInputStreamHelper: session = getValidSession()
 FastpathAbfsInputStreamHelper -> FastpathAbfsInputStreamHelper: startOffset = blockB1.startOffset;\n endOffset = blockB1.endOffset
-FastpathAbfsInputStreamHelper -> FastpathAbfsInputStreamHelper: lastOffsetRead = null;
+FastpathAbfsInputStreamHelper -> FastpathAbfsInputStreamHelper: lastOffsetHeaderRead = null;
 FastpathAbfsInputStreamHelper -> FastpathAbfsInputStreamHelper: abfsReadFastpathServerCaller =new AbfsReadFastpathServerCaller\n(session, fastpathAbfsInputStreamHelperObj, sessionHeader);
 FastpathAbfsInputStreamHelper -> AbfsInputStream: abfsReadFastpathServerCaller
 AbfsInputStream -> AbfsReadFastpathServerCaller: operate(blockB1)
 AbfsReadFastpathServerCaller <-> XFE_Server: header_up_down()
 AbfsReadFastpathServerCaller -> FastpathAbfsInputStreamHelper: next sessionHeader
-FastpathAbfsInputStreamHelper <- XFE_Server: dataTransfer
+FastpathAbfsInputStreamHelper -> FastpathAbfsInputStreamHelper: lastOffsetHeaderRead = endOffset;
+AbfsReadFastpathServerCaller <- XFE_Server: dataTransfer
+FastpathAbfsInputStreamHelper <- AbfsReadFastpathServerCaller: dataTransfer
 FastpathAbfsInputStreamHelper -> AbfsInputStream: return op;
 AbfsInputStream -> FastpathAbfsInputStreamHelper: postExecute()
-FastpathAbfsInputStreamHelper -> FastpathAbfsInputStreamHelper: lastOffsetRead = endOffset;
+FastpathAbfsInputStreamHelper -> FastpathAbfsInputStreamHelper:define steps for next processing as per session.mode
 FastpathAbfsInputStreamHelper -> AbfsInputStream: return;
 AbfsInputStream -> Developer_code: return;
 ReadBufferWorker -> ReadBufferManager: getNextBlockToWork()
 ReadBufferManager -> ReadBufferWorker: blockB2
 ReadBufferWorker -> AbfsInputStream: readRemote(blockB2)
 AbfsInputStream -> FastpathAbfsInputStreamHelper: preExecute(blockB2)
-alt readMode == FastpathRead
-loop blockB2.startOffset != (lastOffsetRead + 1)
+alt readMode == FastpathRead && (call from ReadAheadQueue)
+loop blockB2.startOffset != (lastOffsetHeaderRead + 1)
 FastpathAbfsInputStreamHelper -> FastpathAbfsInputStreamHelper:;
 end
 FastpathAbfsInputStreamHelper -> FastpathAbfsInputStreamHelper: abfsReadFastpathServerCaller =new AbfsReadFastpathServerCaller\n(session, fastpathAbfsInputStreamHelperObj, sessionHeader);
