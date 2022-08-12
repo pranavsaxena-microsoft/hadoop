@@ -28,6 +28,6 @@ end
 alt no exception
 RestHelper -> AbfsInputStream: op
 else
-return exception
+RestHelper -> AbfsInputStream: exception
 end
 @enduml
