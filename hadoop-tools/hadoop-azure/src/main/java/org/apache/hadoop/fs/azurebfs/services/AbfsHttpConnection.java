@@ -26,6 +26,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
 
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLSocketFactory;
@@ -45,11 +46,22 @@ public class AbfsHttpConnection extends AbfsHttpOperation {
   private HttpURLConnection connection;
   private ListResultSchema listResultSchema = null;
 
+  private Callable headerUpDownCallable;
+
   public AbfsHttpConnection(final URL url,
       final String method,
       List<AbfsHttpHeader> requestHeaders) throws IOException {
     super(url, method, requestHeaders);
     init(url, method, requestHeaders);
+  }
+
+  public AbfsHttpConnection(final URL url,
+                            final String method,
+                            List<AbfsHttpHeader> requestHeaders,
+                            Callable headerUpdownCallable) throws IOException {
+    super(url, method, requestHeaders);
+    init(url, method, requestHeaders);
+    this.headerUpDownCallable = headerUpdownCallable;
   }
 
   /**
@@ -171,6 +183,12 @@ public class AbfsHttpConnection extends AbfsHttpOperation {
     }
 
     setStatusCode(this.connection.getResponseCode());
+    ThreadBasedMessageQueue.push(headerUpDownCallable, "DATA");
+    try {
+      headerUpDownCallable.call();
+    } catch (Exception e) {
+      ThreadBasedMessageQueue.removeObject(headerUpDownCallable);
+    }
 
     if (isTraceEnabled()) {
       setRecvResponseTimeMs(elapsedTimeMs(startTime));

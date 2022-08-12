@@ -105,6 +105,8 @@ public class AbfsClient implements Closeable {
   private final ListeningScheduledExecutorService executorService;
   private final AbfsClientContext abfsClientContext;
 
+  private final ThreadLocal<Callable> headerUpdownCallback = new ThreadLocal<>();
+
   private AbfsClient(final URL baseUrl, final SharedKeyCredentials sharedKeyCredentials,
                     final AbfsConfiguration abfsConfiguration,
                     final AbfsClientContext abfsClientContext)
@@ -837,7 +839,7 @@ public class AbfsClient implements Closeable {
       byte[] buffer,
       String cachedSasToken,
       ReadRequestParameters reqParams,
-      TracingContext tracingContext) throws AzureBlobFileSystemException {
+      TracingContext tracingContext, Callable headerUpDownCallable) throws AzureBlobFileSystemException {
     final List<AbfsHttpHeader> requestHeaders = createDefaultHeaders();
     long position = reqParams.getStoreFilePosition();
     requestHeaders.add(new AbfsHttpHeader(RANGE,
@@ -875,7 +877,7 @@ public class AbfsClient implements Closeable {
           requestHeaders,
           buffer,
           reqParams.getBufferOffset(),
-          reqParams.getReadLength(), sasTokenForReuse);
+          reqParams.getReadLength(), sasTokenForReuse, headerUpDownCallable);
 
       try {
       op.execute(tracingContext); }
@@ -887,7 +889,7 @@ public class AbfsClient implements Closeable {
           reqParams.getAbfsSessionData()
               .setConnectionMode(
                   AbfsConnectionMode.REST_CONN);
-          return read(path, buffer, cachedSasToken, reqParams, tracingContext);
+          return read(path, buffer, cachedSasToken, reqParams, tracingContext, headerUpDownCallable);
         }
 
         throw ex;
@@ -1383,7 +1385,7 @@ public class AbfsClient implements Closeable {
                 AbfsConnectionMode.OPTIMIZED_REST_ON_FASTPATH_CONN_FAILURE);
       }
 
-      return read(path, buffer, op.getSasToken(), reqParams, tracingContext);
+      return read(path, buffer, op.getSasToken(), reqParams, tracingContext, null);
     }
   }
 

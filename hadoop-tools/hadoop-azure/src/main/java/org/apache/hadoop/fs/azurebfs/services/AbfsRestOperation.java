@@ -24,6 +24,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.UnknownHostException;
 import java.util.List;
+import java.util.concurrent.Callable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -75,6 +76,8 @@ public class AbfsRestOperation {
   private AbfsHttpOperation result;
   private AbfsCounters abfsCounters;
   private AbfsFastpathSessionData fastpathSessionData;
+
+  private Callable headerUpDownCallable;
 
   public AbfsHttpOperation getResult() {
     return result;
@@ -176,6 +179,38 @@ public class AbfsRestOperation {
     this.bufferOffset = bufferOffset;
     this.bufferLength = bufferLength;
     this.abfsCounters = client.getAbfsCounters();
+  }
+
+  /**
+   * Initializes a new REST operation.
+   *
+   * @param operationType The type of the REST operation (Append, ReadFile, etc).
+   * @param client The Blob FS client.
+   * @param method The HTTP method (PUT, PATCH, POST, GET, HEAD, or DELETE).
+   * @param url The full URL including query string parameters.
+   * @param requestHeaders The HTTP request headers.
+   * @param buffer For uploads, this is the request entity body.  For downloads,
+   *               this will hold the response entity body.
+   * @param bufferOffset An offset into the buffer where the data beings.
+   * @param bufferLength The length of the data in the buffer.
+   * @param sasToken A sasToken for optional re-use by AbfsInputStream/AbfsOutputStream.
+   */
+  AbfsRestOperation(AbfsRestOperationType operationType,
+                    AbfsClient client,
+                    String method,
+                    URL url,
+                    List<AbfsHttpHeader> requestHeaders,
+                    byte[] buffer,
+                    int bufferOffset,
+                    int bufferLength,
+                    String sasToken,
+                    Callable headerUpDownCallable) {
+    this(operationType, client, method, url, requestHeaders, sasToken);
+    this.buffer = buffer;
+    this.bufferOffset = bufferOffset;
+    this.bufferLength = bufferLength;
+    this.abfsCounters = client.getAbfsCounters();
+    this.headerUpDownCallable = headerUpDownCallable;
   }
 
   /**
@@ -311,7 +346,7 @@ public class AbfsRestOperation {
           if (isAFastpathRequest()) {
             httpOperation = getFastpathConnection();
           } else {
-            httpOperation = new AbfsHttpConnection(url, method, requestHeaders);
+            httpOperation = new AbfsHttpConnection(url, method, requestHeaders, headerUpDownCallable);
             httpOperation.setHeader(
                 HttpHeaderConfigurations.AUTHORIZATION,
                 client.getAccessToken());
