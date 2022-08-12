@@ -17,7 +17,7 @@ public class FastpathRestAbfsInputStreamHelper implements AbfsInputStreamHelper 
     private AbfsInputStreamHelper nextHelper;
     private AbfsInputStreamHelper prevHelper;
 
-    private List<ReadAheadByteInfo> readAheadByteInfoList = new ArrayList<>();
+    private static List<ReadAheadByteInfo> readAheadByteInfoList = new ArrayList<>();
 
 
     public FastpathRestAbfsInputStreamHelper(AbfsInputStreamHelper abfsInputStreamHelper) {
