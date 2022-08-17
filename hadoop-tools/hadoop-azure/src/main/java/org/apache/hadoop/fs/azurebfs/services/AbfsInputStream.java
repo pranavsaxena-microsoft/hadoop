@@ -127,7 +127,7 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
    */
   private long nextReadPos;
   private AbfsSession abfsSession = null;
-  private AbfsInputStreamHelper abfsInputStreamHelperStart;
+  private static final AbfsInputStreamHelper abfsInputStreamHelperStart = new RestAbfsInputStreamHelper();
 
   public AbfsInputStream(
           final AbfsClient client,
@@ -169,7 +169,6 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
       ioStatistics = streamStatistics.getIOStatistics();
     }
     this.tracingContext.setOperation(FSOperationType.READ);
-    this.abfsInputStreamHelperStart = new RestAbfsInputStreamHelper();
   }
 
   public String getPath() {

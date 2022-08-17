@@ -1,9 +1,11 @@
 package org.apache.hadoop.fs.azurebfs.services.abfsInputStreamHelpers;
 
+import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemException;
 import org.apache.hadoop.fs.azurebfs.contracts.services.ReadRequestParameters;
 import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
 import org.apache.hadoop.fs.azurebfs.services.AbfsRestOperation;
 import org.apache.hadoop.fs.azurebfs.services.ThreadBasedMessageQueue;
+import org.apache.hadoop.fs.azurebfs.services.abfsInputStreamHelpers.exceptions.RequestBlockException;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 
 import java.io.IOException;
@@ -48,7 +50,7 @@ public class FastpathRestAbfsInputStreamHelper implements AbfsInputStreamHelper 
     @Override
     public AbfsRestOperation operate(String path, byte[] bytes, String sasToken, ReadRequestParameters readRequestParameters,
                                      TracingContext tracingContext, AbfsClient abfsClient)
-        throws IOException {
+        throws AzureBlobFileSystemException {
         try {
             Callable callable = new Callable() {
                 private String uuid = UUID.randomUUID().toString();
@@ -68,19 +70,27 @@ public class FastpathRestAbfsInputStreamHelper implements AbfsInputStreamHelper 
                         nextPossibleRetries = readAheadByteInfo.readAheadNextPossibleCount - 1;
                     }
                     if(nextPossibleRetries != 0) {
-                        pushForReadAhead();
+                        pushForReadAhead();//TODO: will add element in readAheadByteInfolist; populate inside ReadBufferManager
                     }
                     return null;
                 }
             };
-            AbfsRestOperation op = operateViaAbfsClient(path, bytes, sasToken, readRequestParameters, tracingContext, abfsClient);
+            final AbfsRestOperation op = abfsClient.read(path, bytes, sasToken,
+                readRequestParameters, tracingContext, callable);
             return op;
-        } catch (Exception e) {
-
+        } catch (IOException e) {
+          if(e.getClass() == AzureBlobFileSystemException.class) {
+            throw new RequestBlockException(e);
+          }
+          throw e;
         }
     }
 
-    @Override
+  private void pushForReadAhead() {
+  }
+
+
+  @Override
     public Boolean explicitPreFetchReadAllowed() {
         return false;
     }

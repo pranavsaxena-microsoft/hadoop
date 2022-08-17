@@ -38,6 +38,8 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.hadoop.fs.azurebfs.services.abfsInputStreamHelpers.exceptions.BlockHelperException;
+import org.apache.hadoop.fs.azurebfs.services.abfsInputStreamHelpers.exceptions.RequestBlockException;
 import org.apache.hadoop.thirdparty.com.google.common.annotations.VisibleForTesting;
 import org.apache.hadoop.thirdparty.com.google.common.base.Strings;
 import org.apache.hadoop.thirdparty.com.google.common.util.concurrent.FutureCallback;
@@ -1381,6 +1383,7 @@ public class AbfsClient implements Closeable {
         reqParams.getAbfsSessionData()
             .setConnectionMode(
                 AbfsConnectionMode.OPTIMIZED_REST_ON_FASTPATH_REQ_FAILURE);
+        throw new RequestBlockException(ex);
       } else {
         // when FastpathConnectionException is received, the request needs to
         // be retried on REST as well as switch AbfsInputStream to REST for
@@ -1391,9 +1394,8 @@ public class AbfsClient implements Closeable {
         reqParams.getAbfsSessionData()
             .setConnectionMode(
                 AbfsConnectionMode.OPTIMIZED_REST_ON_FASTPATH_CONN_FAILURE);
+        throw new BlockHelperException(ex);
       }
-
-      return read(path, buffer, op.getSasToken(), reqParams, tracingContext, null);
     }
   }
 

@@ -1,9 +1,13 @@
 package org.apache.hadoop.fs.azurebfs.services.abfsInputStreamHelpers.exceptions;
 
-import java.io.IOException;
+import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemException;
 
-public class RequestBlockException extends IOException {
+public class RequestBlockException extends AzureBlobFileSystemException {
   public RequestBlockException(String message) {
     super(message);
+  }
+
+  public RequestBlockException(final Throwable throwable) {
+    super(throwable);
   }
 }
