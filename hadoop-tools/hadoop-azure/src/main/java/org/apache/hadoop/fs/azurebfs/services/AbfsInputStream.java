@@ -29,6 +29,7 @@ import org.apache.hadoop.fs.azurebfs.contracts.services.ReadRequestParameters;
 import org.apache.hadoop.fs.azurebfs.services.abfsInputStreamHelpers.AbfsInputStreamHelper;
 import org.apache.hadoop.fs.azurebfs.services.abfsInputStreamHelpers.RestAbfsInputStreamHelper;
 import org.apache.hadoop.fs.azurebfs.services.abfsInputStreamHelpers.exceptions.BlockHelperException;
+import org.apache.hadoop.fs.azurebfs.services.abfsInputStreamHelpers.exceptions.RequestBlockException;
 import org.apache.hadoop.thirdparty.com.google.common.annotations.VisibleForTesting;
 import org.apache.hadoop.thirdparty.com.google.common.base.Preconditions;
 
@@ -628,6 +629,10 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
         if(e.getClass() == BlockHelperException.class) {
           helper = helper.getBack();
           helper.setNextAsInvalid();
+          continue;
+        }
+        if(e.getClass() == RequestBlockException.class) {
+          helper = helper.getBack();
         }
       }
     }

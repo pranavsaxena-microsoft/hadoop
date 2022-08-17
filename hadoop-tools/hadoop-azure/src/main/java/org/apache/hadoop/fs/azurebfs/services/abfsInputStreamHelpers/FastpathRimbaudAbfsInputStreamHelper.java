@@ -1,9 +1,10 @@
 package org.apache.hadoop.fs.azurebfs.services.abfsInputStreamHelpers;
 
+import java.io.IOException;
+
 import org.apache.hadoop.fs.azurebfs.contracts.services.ReadRequestParameters;
 import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
 import org.apache.hadoop.fs.azurebfs.services.AbfsRestOperation;
-import org.apache.hadoop.fs.azurebfs.services.abfsInputStreamHelpers.exceptions.BlockHelperException;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 
 public class FastpathRimbaudAbfsInputStreamHelper implements  AbfsInputStreamHelper {
@@ -39,7 +40,8 @@ public class FastpathRimbaudAbfsInputStreamHelper implements  AbfsInputStreamHel
     }
 
     @Override
-    public AbfsRestOperation operate(String path, byte[] bytes, String sasToken, ReadRequestParameters readRequestParameters, TracingContext tracingContext, AbfsClient abfsClient) throws BlockHelperException {
-        return null;
+    public AbfsRestOperation operate(String path, byte[] bytes, String sasToken, ReadRequestParameters readRequestParameters, TracingContext tracingContext, AbfsClient abfsClient)
+        throws IOException {
+      return abfsClient.read(path, bytes, sasToken, readRequestParameters, tracingContext);
     }
 }

@@ -839,6 +839,14 @@ public class AbfsClient implements Closeable {
       byte[] buffer,
       String cachedSasToken,
       ReadRequestParameters reqParams,
+      TracingContext tracingContext) throws AzureBlobFileSystemException {
+    return this.read(path, buffer, cachedSasToken, reqParams, tracingContext, null);
+  }
+
+  public AbfsRestOperation read(String path,
+      byte[] buffer,
+      String cachedSasToken,
+      ReadRequestParameters reqParams,
       TracingContext tracingContext, Callable headerUpDownCallable) throws AzureBlobFileSystemException {
     final List<AbfsHttpHeader> requestHeaders = createDefaultHeaders();
     long position = reqParams.getStoreFilePosition();

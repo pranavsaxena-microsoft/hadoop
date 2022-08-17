@@ -4,9 +4,9 @@ import org.apache.hadoop.fs.azurebfs.contracts.services.ReadRequestParameters;
 import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
 import org.apache.hadoop.fs.azurebfs.services.AbfsRestOperation;
 import org.apache.hadoop.fs.azurebfs.services.ThreadBasedMessageQueue;
-import org.apache.hadoop.fs.azurebfs.services.abfsInputStreamHelpers.exceptions.BlockHelperException;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -47,7 +47,8 @@ public class FastpathRestAbfsInputStreamHelper implements AbfsInputStreamHelper 
 
     @Override
     public AbfsRestOperation operate(String path, byte[] bytes, String sasToken, ReadRequestParameters readRequestParameters,
-                                     TracingContext tracingContext, AbfsClient abfsClient) throws BlockHelperException {
+                                     TracingContext tracingContext, AbfsClient abfsClient)
+        throws IOException {
         try {
             Callable callable = new Callable() {
                 private String uuid = UUID.randomUUID().toString();
