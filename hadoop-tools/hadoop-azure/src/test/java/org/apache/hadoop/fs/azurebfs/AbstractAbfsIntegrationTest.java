@@ -573,22 +573,30 @@ public abstract class AbstractAbfsIntegrationTest extends
 
   public AbfsInputStream getMockAbfsInputStream(AzureBlobFileSystem fs,
       Path testFilePath, Optional<OpenFileParameters> opt) throws IOException {
+    AzureBlobFileSystemStore store = getStore(fs);
+    return getAbfsInputStreamFromStore(fs, testFilePath, opt, store);
+  }
+
+  protected AbfsInputStream getAbfsInputStreamFromStore(final AzureBlobFileSystem fs,
+      final Path testFilePath,
+      final Optional<OpenFileParameters> opt,
+      final AzureBlobFileSystemStore store) throws IOException {
+    Path qualifiedPath = makeQualified(testFilePath);
+    return store.openFileForRead(qualifiedPath, opt, fs.getFsStatistics(),
+        getTestTracingContext(fs, false));
+  }
+
+  protected AzureBlobFileSystemStore getStore(AzureBlobFileSystem fs) throws IOException {
     Configuration conf = fs.getConf();
     conf.setBoolean(FS_AZURE_READ_DEFAULT_FASTPATH, true);
     fs = (AzureBlobFileSystem) FileSystem.get(fs.getUri(), conf);
-    Path qualifiedPath = makeQualified(testFilePath);
     AzureBlobFileSystemStore store = fs.getAbfsStore();
     if (!bufferSizeCorrectForFastpath(fs)) {
-      LOG.debug("Creating non-Mock AbfsInputStream with Fastpath ON");
-      return store.openFileForRead(qualifiedPath, opt, fs.getFsStatistics(),
-          getTestTracingContext(fs, false));
+      return store;
     }
-    MockAzureBlobFileSystemStore mockStore = new MockAzureBlobFileSystemStore(
+    return new MockAzureBlobFileSystemStore(
         fs.getUri(), fs.isSecureScheme(), fs.getConf(),
         store.getAbfsCounters());
-    MockAbfsInputStream inputStream = (MockAbfsInputStream) mockStore.openFileForRead(qualifiedPath,
-        opt, fs.getFsStatistics(), getTestTracingContext(fs, false));
-    return inputStream;
   }
 
   private boolean bufferSizeCorrectForFastpath(AzureBlobFileSystem fs) {

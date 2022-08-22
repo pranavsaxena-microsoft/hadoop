@@ -20,13 +20,22 @@ package org.apache.hadoop.fs.azurebfs;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Random;
 
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
+import org.mockito.Mockito;
+import org.mockito.Spy;
 
+import org.apache.hadoop.fs.azurebfs.contracts.services.ReadRequestParameters;
+import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
+import org.apache.hadoop.fs.azurebfs.services.AbfsConnectionMode;
 import org.apache.hadoop.fs.azurebfs.utils.MockFastpathConnection;
 
 import org.apache.hadoop.conf.Configuration;
@@ -37,6 +46,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.azurebfs.services.AbfsInputStream;
 import org.apache.hadoop.fs.azurebfs.services.AuthType;
 import org.apache.hadoop.fs.azurebfs.services.MockAbfsInputStream;
+import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 
 import static org.junit.Assume.assumeTrue;
 
@@ -53,6 +63,8 @@ public class TestAbfsFastpath extends AbstractAbfsIntegrationTest {
   private static final int BAD_REQUEST_HTTP_STATUS = 400;
   private static final int FILE_NOT_FOUND_HTTP_STATUS = 404;
   private static final int THROTTLED_HTTP_STATUS = 503;
+
+  private AbfsClient spiedClient = null;
 
   @Rule
   public TestName methodName = new TestName();
@@ -110,7 +122,15 @@ public class TestAbfsFastpath extends AbstractAbfsIntegrationTest {
 
     MockFastpathConnection.registerAppend(fileSize, testPath.getName(),
         writeBuffer, 0, fileSize);
-    return getMockAbfsInputStream(fs, testPath);
+    AzureBlobFileSystemStore azureBlobFileSystemStore = getStore(fs);
+    if(azureBlobFileSystemStore.getClass() == MockAzureBlobFileSystemStore.class) {
+      spiedClient = Mockito.spy(azureBlobFileSystemStore.getClient());
+      azureBlobFileSystemStore.setClient(spiedClient);
+    } else {
+      spiedClient = null;
+    }
+    return getAbfsInputStreamFromStore(fs, testPath, Optional.empty(),
+        azureBlobFileSystemStore);
   }
 
   @Test
@@ -194,4 +214,40 @@ public class TestAbfsFastpath extends AbstractAbfsIntegrationTest {
     assertAbfsStatistics(GET_RESPONSES,
         expectedGetResponses, metricMap);
   }
+
+
+  @Test
+  public void testFastpathRestPlusFailure() throws IOException {
+    AzureBlobFileSystem fs = getAbfsFileSystem(2,
+        DEFAULT_FASTPATH_READ_BUFFER_SIZE, 0);
+    AbfsInputStream inStream = createTestfileAndGetInputStream(fs,
+        this.methodName.getMethodName(), 4 * DEFAULT_FASTPATH_READ_BUFFER_SIZE);
+
+    final List<AbfsConnectionMode> abfsConnectionModesSeen = new ArrayList<>();
+    if (spiedClient != null) {
+      Mockito.doAnswer((invokationOnMock) -> {
+            final ReadRequestParameters readRequestParameters
+                = invokationOnMock.getArgument(3);
+            abfsConnectionModesSeen.add(
+                readRequestParameters.getAbfsConnectionMode());
+            return null;
+          })
+          .when(spiedClient)
+          .read(Mockito.anyString(), Mockito.any(), Mockito.anyString(),
+              Mockito.any(
+                  ReadRequestParameters.class),
+              Mockito.any(TracingContext.class));
+    }
+
+    byte[] readBuffer = new byte[DEFAULT_FASTPATH_READ_BUFFER_SIZE];
+    inStream.read(readBuffer, 0, DEFAULT_FASTPATH_READ_BUFFER_SIZE);
+    Assert.assertTrue(abfsConnectionModesSeen.size() == 2);
+    Assert.assertTrue((abfsConnectionModesSeen.get(0) != null) &&
+        (AbfsConnectionMode.OPTIMIZED_REST.toString()
+            .equalsIgnoreCase(abfsConnectionModesSeen.get(0).toString())));
+    Assert.assertTrue((abfsConnectionModesSeen.get(1) != null) &&
+        (AbfsConnectionMode.REST_CONN.toString()
+            .equalsIgnoreCase(abfsConnectionModesSeen.get(1).toString())));
+  }
+
 }

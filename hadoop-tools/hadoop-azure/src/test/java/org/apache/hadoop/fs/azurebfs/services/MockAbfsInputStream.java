@@ -321,4 +321,8 @@ public class MockAbfsInputStream extends AbfsInputStream {
     when(op.getResult()).thenReturn(httpOp);
     return op;
   }
+
+  public AbfsClient getClient() {
+    return super.getClient();
+  }
 }
