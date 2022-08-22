@@ -223,6 +223,11 @@ public class MockAbfsInputStream extends AbfsInputStream {
     mockFastpathSession = TestMockHelpers.setParentClassField(AbfsFastpathSession.class,
         mockFastpathSession, "rwLock", rwLock);
 
+    doCallRealMethod().when(mockFastpathSession).getTracingContext();
+    doCallRealMethod().when(mockFastpathSession).getClient();
+    doCallRealMethod().when(mockFastpathSession).getPath();
+    doCallRealMethod().when(mockFastpathSession).geteTag();
+
     doCallRealMethod().when(mockSession)
         .updateAbfsSessionToken(any());
     doCallRealMethod().when(mockSession)

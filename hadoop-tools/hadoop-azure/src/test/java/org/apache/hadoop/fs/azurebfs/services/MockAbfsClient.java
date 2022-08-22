@@ -20,11 +20,18 @@ package org.apache.hadoop.fs.azurebfs.services;
 
 import java.io.IOException;
 import java.net.URL;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
+import java.util.Date;
 import java.util.List;
 
 import com.azure.storage.fastpath.exceptions.FastpathRequestException;
+import org.mockito.Mockito;
 
 import org.apache.hadoop.fs.azurebfs.AbfsConfiguration;
+import org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AbfsFastpathException;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemException;
 import org.apache.hadoop.fs.azurebfs.contracts.services.ReadRequestParameters;
@@ -33,6 +40,7 @@ import org.apache.hadoop.fs.azurebfs.oauth2.AccessTokenProvider;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.HTTP_METHOD_GET;
+import static org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations.X_MS_FASTPATH_SESSION_EXPIRY;
 
 public class MockAbfsClient extends AbfsClient {
 
@@ -202,4 +210,33 @@ public class MockAbfsClient extends AbfsClient {
   public void setForceFastpathReadAlways(final boolean forceFastpathReadAlways) {
     this.forceFastpathReadAlways = forceFastpathReadAlways;
   }
+
+  @Override
+  public AbfsRestOperation getReadSessionToken(final String path,
+      final String eTag,
+      final TracingContext tracingContext) throws AzureBlobFileSystemException {
+    final MockAbfsRestOperation op = Mockito.mock(MockAbfsRestOperation.class);
+    final AbfsHttpOperation abfsHttpOperation = Mockito.mock(AbfsHttpOperation.class);
+
+
+
+
+    Mockito.doReturn(abfsHttpOperation).when(op).getResult();
+    Mockito.doReturn("sessionToken").when(abfsHttpOperation).getResponseHeader(
+        HttpHeaderConfigurations.X_MS_FASTPATH_SESSION_DATA);
+    Mockito.doReturn("Mon, 3 Jun 2024 11:05:30 GMT")
+        .when(abfsHttpOperation).getResponseHeader(X_MS_FASTPATH_SESSION_EXPIRY);
+    Mockito.doAnswer(invoke -> {
+      byte[] buffer = invoke.getArgument(0);
+      for(int i=0; i < buffer.length; i++) {
+        buffer[i] = 0;
+      }
+      return null;
+    }).when(abfsHttpOperation).getResponseContentBuffer(Mockito.any());
+    Mockito.doReturn("10").when(abfsHttpOperation).getResponseHeader(
+        HttpHeaderConfigurations.CONTENT_LENGTH);
+    return op;
+  }
+
+
 }
