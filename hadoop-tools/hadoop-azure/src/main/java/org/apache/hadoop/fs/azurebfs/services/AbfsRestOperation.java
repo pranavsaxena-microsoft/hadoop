@@ -311,7 +311,7 @@ public class AbfsRestOperation {
           if (isAFastpathRequest()) {
             httpOperation = getFastpathConnection();
           } else {
-            httpOperation = new AbfsHttpConnection(url, method, requestHeaders);
+            httpOperation = getHttpOperation();
             httpOperation.setHeader(
                 HttpHeaderConfigurations.AUTHORIZATION,
                 client.getAccessToken());
@@ -320,13 +320,13 @@ public class AbfsRestOperation {
           tracingContext.constructHeader(httpOperation);
           break;
         case SAS:
-          httpOperation  = new AbfsHttpConnection(url, method, requestHeaders);
+          httpOperation  = getHttpOperation();
           // do nothing; the SAS token should already be appended to the query string
           httpOperation.setMaskForSAS(); //mask sig/oid from url for logs
           tracingContext.constructHeader(httpOperation);
           break;
         case SharedKey:
-          httpOperation  = new AbfsHttpConnection(url, method, requestHeaders);
+          httpOperation  = getHttpOperation();
           // Construct correlation header before sharedKeyCred sign
           tracingContext.constructHeader(httpOperation);
           // sign the HTTP request
@@ -408,6 +408,11 @@ public class AbfsRestOperation {
     result = httpOperation;
 
     return true;
+  }
+
+  @VisibleForTesting
+  protected AbfsHttpConnection getHttpOperation() throws IOException {
+    return new AbfsHttpConnection(url, method, requestHeaders);
   }
 
   @VisibleForTesting

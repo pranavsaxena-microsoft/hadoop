@@ -867,15 +867,8 @@ public class AbfsClient implements Closeable {
             reqParams.getAbfsSessionData().getSessionToken()));
       }
 
-      op = new AbfsRestOperation(
-          opType,
-          this,
-          HTTP_METHOD_GET,
-          url,
-          requestHeaders,
-          buffer,
-          reqParams.getBufferOffset(),
-          reqParams.getReadLength(), sasTokenForReuse);
+      op = getAbfsRestOperation(buffer, reqParams, requestHeaders, sasTokenForReuse, url,
+          opType);
 
       try {
       op.execute(tracingContext); }
@@ -895,6 +888,23 @@ public class AbfsClient implements Closeable {
     }
 
     return op;
+  }
+
+  protected AbfsRestOperation getAbfsRestOperation(final byte[] buffer,
+      final ReadRequestParameters reqParams,
+      final List<AbfsHttpHeader> requestHeaders,
+      final String sasTokenForReuse,
+      final URL url,
+      final AbfsRestOperationType opType) {
+    return new AbfsRestOperation(
+        opType,
+        this,
+        HTTP_METHOD_GET,
+        url,
+        requestHeaders,
+        buffer,
+        reqParams.getBufferOffset(),
+        reqParams.getReadLength(), sasTokenForReuse);
   }
 
   public AbfsRestOperation deletePath(final String path, final boolean recursive, final String continuation,

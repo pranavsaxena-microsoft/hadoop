@@ -89,6 +89,22 @@ public class MockAbfsClient extends AbfsClient {
     return super.read(path, buffer, cachedSasToken, reqParams, tracingContext);
   }
 
+  @Override
+  protected AbfsRestOperation getAbfsRestOperation(final byte[] buffer,
+      final ReadRequestParameters reqParams,
+      final List<AbfsHttpHeader> requestHeaders,
+      final String sasTokenForReuse,
+      final URL url,
+      final AbfsRestOperationType opType) {
+    if(AbfsRestOperationType.OptimizedRead.equals(opType)) {
+      return new MockAbfsRestOperation(opType, this, HTTP_METHOD_GET, url,
+          requestHeaders, buffer, reqParams.getBufferOffset(),
+          reqParams.getReadLength(), sasTokenForReuse);
+    }
+    return super.getAbfsRestOperation(buffer, reqParams, requestHeaders,
+        sasTokenForReuse, url, opType);
+  }
+
   protected AbfsRestOperation executeFastpathRead(String path,
       ReadRequestParameters reqParams,
       URL url,

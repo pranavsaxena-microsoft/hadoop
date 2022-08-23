@@ -28,9 +28,9 @@ import static org.apache.hadoop.fs.azurebfs.constants.TestConfigurationKeys.FS_A
 
 public class MockAbfsRestOperation extends AbfsRestOperation {
 
-  private int errStatus = 0;
-  private boolean mockRequestException = false;
-  private boolean mockConnectionException = false;
+  private int errStatusFastpath = 0;
+  private boolean mockRequestExceptionFastpath = false;
+  private boolean mockConnectionExceptionFastpath = false;
 
   MockAbfsRestOperation(final AbfsRestOperationType operationType,
       final AbfsClient client,
@@ -54,10 +54,31 @@ public class MockAbfsRestOperation extends AbfsRestOperation {
         bufferOffset, bufferLength, fastpathSessionInfo);
   }
 
+  MockAbfsRestOperation(AbfsRestOperationType operationType,
+      AbfsClient client,
+      String method,
+      URL url,
+      List<AbfsHttpHeader> requestHeaders,
+      byte[] buffer,
+      int bufferOffset,
+      int bufferLength,
+      String sasTokenForReuse) {
+    super(operationType, client, method, url, requestHeaders, buffer,
+        bufferOffset, bufferLength, sasTokenForReuse);
+  }
+
   protected AbfsFastpathConnection getFastpathConnection() throws IOException {
     return new MockAbfsFastpathConnection(getOperationType(), getUrl(), getMethod(),
         getAbfsClient().getAuthType(), getAbfsClient().getAccessToken(), getRequestHeaders(),
         getFastpathSessionData());
+  }
+
+  @Override
+  protected AbfsHttpConnection getHttpOperation() throws IOException {
+    if(AbfsRestOperationType.OptimizedRead.equals(getOperationType())) {
+      return new MockAbfsHttpConnection(getUrl(), getMethod(), getRequestHeaders());
+    }
+    return super.getHttpOperation();
   }
 
   private void setEffectiveMock() {
@@ -77,34 +98,34 @@ public class MockAbfsRestOperation extends AbfsRestOperation {
   }
 
   private void signalErrorConditionToMockAbfsFastpathConn(MockAbfsFastpathConnection httpOperation) {
-    if (errStatus != 0) {
-      httpOperation.induceError(errStatus);
+    if (errStatusFastpath != 0) {
+      httpOperation.induceError(errStatusFastpath);
     }
 
-    if (mockRequestException) {
+    if (mockRequestExceptionFastpath) {
       httpOperation.induceRequestException();
     }
 
-    if (mockConnectionException) {
+    if (mockConnectionExceptionFastpath) {
       httpOperation.induceConnectionException();
     }
   }
 
   public void induceError(int httpStatus) {
-    errStatus = httpStatus;
+    errStatusFastpath = httpStatus;
   }
 
   public void induceRequestException() {
-    mockRequestException = true;
+    mockRequestExceptionFastpath = true;
   }
 
   public void induceConnectionException() {
-    mockConnectionException = true;
+    mockConnectionExceptionFastpath = true;
   }
 
   public void resetAllMockErrStates() {
-    errStatus = 0;
-    mockRequestException = false;
-    mockConnectionException = false;
+    errStatusFastpath = 0;
+    mockRequestExceptionFastpath = false;
+    mockConnectionExceptionFastpath = false;
   }
 }
