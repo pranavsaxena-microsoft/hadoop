@@ -28,9 +28,12 @@ import static org.apache.hadoop.fs.azurebfs.constants.TestConfigurationKeys.FS_A
 
 public class MockAbfsRestOperation extends AbfsRestOperation {
 
-  private int errStatusFastpath = 0;
-  private boolean mockRequestExceptionFastpath = false;
-  private boolean mockConnectionExceptionFastpath = false;
+  private int errStatusFastpathRimbaud = 0;
+  private boolean mockRequestExceptionFastpathRimbaud = false;
+  private boolean mockConnectionExceptionFastpathRimbaud = false;
+  private int errStatusFastpathRest = 0;
+  private boolean mockRequestExceptionFastpathRest = false;
+  private boolean mockConnectionExceptionFastpathRest = false;
 
   MockAbfsRestOperation(final AbfsRestOperationType operationType,
       final AbfsClient client,
@@ -93,39 +96,68 @@ public class MockAbfsRestOperation extends AbfsRestOperation {
       signalErrorConditionToMockAbfsFastpathConn((MockAbfsFastpathConnection) httpOperation);
       ((MockAbfsFastpathConnection) httpOperation).processResponse(getBuffer(), getBufferOffset(), getBufferLength());
     } else {
+      if(AbfsRestOperationType.OptimizedRead.equals(getOperationType())) {
+        signalErrorConditionToMockAbfsFastpathRestConn(
+            (MockAbfsHttpConnection) httpOperation);
+      }
       httpOperation.processResponse(getBuffer(), getBufferOffset(), getBufferLength());
     }
   }
 
   private void signalErrorConditionToMockAbfsFastpathConn(MockAbfsFastpathConnection httpOperation) {
-    if (errStatusFastpath != 0) {
-      httpOperation.induceError(errStatusFastpath);
+    if (errStatusFastpathRimbaud != 0) {
+      httpOperation.induceError(errStatusFastpathRimbaud);
     }
 
-    if (mockRequestExceptionFastpath) {
+    if (mockRequestExceptionFastpathRimbaud) {
       httpOperation.induceRequestException();
     }
 
-    if (mockConnectionExceptionFastpath) {
+    if (mockConnectionExceptionFastpathRimbaud) {
       httpOperation.induceConnectionException();
     }
   }
 
-  public void induceError(int httpStatus) {
-    errStatusFastpath = httpStatus;
+  private void signalErrorConditionToMockAbfsFastpathRestConn(MockAbfsHttpConnection httpOperation) {
+    if (errStatusFastpathRest != 0) {
+      httpOperation.induceError(errStatusFastpathRest);
+    }
+
+    if (mockRequestExceptionFastpathRest) {
+      httpOperation.induceRequestException();
+    }
+
+    if (mockConnectionExceptionFastpathRest) {
+      httpOperation.induceConnectionException();
+    }
   }
 
-  public void induceRequestException() {
-    mockRequestExceptionFastpath = true;
+  public void induceFpRimbaudError(int httpStatus) {
+    errStatusFastpathRimbaud = httpStatus;
   }
 
-  public void induceConnectionException() {
-    mockConnectionExceptionFastpath = true;
+  public void induceFpRimbaudRequestException() {
+    mockRequestExceptionFastpathRimbaud = true;
+  }
+
+  public void induceFpRimbaudConnectionException() {
+    mockConnectionExceptionFastpathRimbaud = true;
+  }
+  public void induceFpRestError(int httpStatus) {
+    errStatusFastpathRest = httpStatus;
+  }
+
+  public void induceFpRestRequestException() {
+    mockRequestExceptionFastpathRest = true;
+  }
+
+  public void induceFpRestConnectionException() {
+    mockConnectionExceptionFastpathRest= true;
   }
 
   public void resetAllMockErrStates() {
-    errStatusFastpath = 0;
-    mockRequestExceptionFastpath = false;
-    mockConnectionExceptionFastpath = false;
+    errStatusFastpathRimbaud = 0;
+    mockRequestExceptionFastpathRimbaud = false;
+    mockConnectionExceptionFastpathRimbaud = false;
   }
 }

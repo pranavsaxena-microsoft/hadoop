@@ -97,15 +97,15 @@ public class MockAbfsFastpathSession extends AbfsFastpathSession {
 
   private void signalErrorConditionToMockClient() {
     if (errStatus != 0) {
-      ((MockAbfsClient) getClient()).induceError(errStatus);
+      ((MockAbfsClient) getClient()).induceFpRimbaudError(errStatus);
     }
 
     if (mockRequestException) {
-      ((MockAbfsClient) getClient()).induceRequestException();
+      ((MockAbfsClient) getClient()).induceFpRimbaudRequestException();
     }
 
     if (mockConnectionException) {
-      ((MockAbfsClient) getClient()).induceConnectionException();
+      ((MockAbfsClient) getClient()).induceFpRimbaudConnectionException();
     }
 
     if (disableForceFastpathMock) {
