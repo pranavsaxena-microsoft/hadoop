@@ -22,7 +22,12 @@ import java.io.IOException;
 import java.net.URL;
 import java.util.List;
 
+import org.apache.hadoop.fs.azurebfs.AbfsStatistic;
+import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AbfsRestOperationException;
+import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemException;
+import org.apache.hadoop.fs.azurebfs.contracts.services.ReadRequestParameters;
 import org.apache.hadoop.fs.azurebfs.utils.MockFastpathConnection;
+import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 
 import static org.apache.hadoop.fs.azurebfs.constants.TestConfigurationKeys.FS_AZURE_TEST_FASTPATH_MOCK_SO_ENABLED;
 
@@ -34,6 +39,7 @@ public class MockAbfsRestOperation extends AbfsRestOperation {
   private int errStatusFastpathRest = 0;
   private boolean mockRequestExceptionFastpathRest = false;
   private boolean mockConnectionExceptionFastpathRest = false;
+  private ReadRequestParameters readRequestParameters;
 
   MockAbfsRestOperation(final AbfsRestOperationType operationType,
       final AbfsClient client,
@@ -65,9 +71,11 @@ public class MockAbfsRestOperation extends AbfsRestOperation {
       byte[] buffer,
       int bufferOffset,
       int bufferLength,
-      String sasTokenForReuse) {
+      String sasTokenForReuse,
+      ReadRequestParameters readRequestParameters) {
     super(operationType, client, method, url, requestHeaders, buffer,
         bufferOffset, bufferLength, sasTokenForReuse);
+    this.readRequestParameters = readRequestParameters;
   }
 
   protected AbfsFastpathConnection getFastpathConnection() throws IOException {
@@ -102,6 +110,19 @@ public class MockAbfsRestOperation extends AbfsRestOperation {
       }
       httpOperation.processResponse(getBuffer(), getBufferOffset(), getBufferLength());
     }
+  }
+
+  @Override
+  public void execute(final TracingContext tracingContext)
+      throws AzureBlobFileSystemException {
+    if (readRequestParameters != null &&
+        readRequestParameters.isOptimizedRestConnection() &&
+        mockConnectionExceptionFastpathRest) {
+      getAbfsClient().getAbfsCounters()
+          .incrementCounter(AbfsStatistic.CONNECTIONS_MADE, 1);
+      throw new AbfsRestOperationException(500, "500", "500", null);
+    }
+    super.execute(tracingContext);
   }
 
   private void signalErrorConditionToMockAbfsFastpathConn(MockAbfsFastpathConnection httpOperation) {

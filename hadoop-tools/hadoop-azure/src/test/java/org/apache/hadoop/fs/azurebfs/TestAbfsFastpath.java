@@ -27,6 +27,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
 
+import org.apache.hadoop.fs.azurebfs.services.MockAbfsHttpConnection;
 import org.apache.hadoop.fs.azurebfs.utils.MockFastpathConnection;
 
 import org.apache.hadoop.conf.Configuration;
@@ -197,10 +198,12 @@ public class TestAbfsFastpath extends AbstractAbfsIntegrationTest {
 
   @Test
   public void testFastpathRimbaudAndRestConnectionFailure() throws IOException {
-    AzureBlobFileSystem fs = getAbfsFileSystem(2, DEFAULT_FASTPATH_READ_BUFFER_SIZE, 0);
+    AzureBlobFileSystem fs = getAbfsFileSystem(2,
+        DEFAULT_FASTPATH_READ_BUFFER_SIZE, 0);
     AbfsInputStream inStream = createTestfileAndGetInputStream(fs,
         this.methodName.getMethodName(), 4 * DEFAULT_FASTPATH_READ_BUFFER_SIZE);
     ((MockAbfsInputStream) inStream).induceFpRimbaudConnectionException();
+    ((MockAbfsInputStream) inStream).induceFpRestConnectionException();
     byte[] readBuffer = new byte[DEFAULT_FASTPATH_READ_BUFFER_SIZE];
     Map<String, Long> metricMap;
     metricMap = fs.getInstrumentationMap();
@@ -213,7 +216,7 @@ public class TestAbfsFastpath extends AbstractAbfsIntegrationTest {
 
 
     expectedConnectionsMade += 3;
-    expectedGetResponses += 2;
+    expectedGetResponses += 1;
     metricMap = fs.getInstrumentationMap();
     assertAbfsStatistics(CONNECTIONS_MADE,
         expectedConnectionsMade, metricMap);

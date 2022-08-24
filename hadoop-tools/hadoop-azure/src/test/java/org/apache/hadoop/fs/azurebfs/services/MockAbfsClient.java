@@ -94,10 +94,13 @@ public class MockAbfsClient extends AbfsClient {
       final String sasTokenForReuse,
       final URL url,
       final AbfsRestOperationType opType) {
-    if(AbfsRestOperationType.OptimizedRead.equals(opType)) {
-      return new MockAbfsRestOperation(opType, this, HTTP_METHOD_GET, url,
+    if (AbfsRestOperationType.OptimizedRead.equals(opType)) {
+      final MockAbfsRestOperation op = new MockAbfsRestOperation(opType, this,
+          HTTP_METHOD_GET, url,
           requestHeaders, buffer, reqParams.getBufferOffset(),
-          reqParams.getReadLength(), sasTokenForReuse);
+          reqParams.getReadLength(), sasTokenForReuse, reqParams);
+      signalErrorConditionToMockRestOp(op);
+      return op;
     }
     return super.getAbfsRestOperation(buffer, reqParams, requestHeaders,
         sasTokenForReuse, url, opType);
