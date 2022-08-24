@@ -353,4 +353,8 @@ public class MockAbfsInputStream extends AbfsInputStream {
     when(op.getResult()).thenReturn(httpOp);
     return op;
   }
+
+  public void setSessionMode(final AbfsConnectionMode restConn) {
+    getAbfsSession().setConnectionMode(restConn);
+  }
 }

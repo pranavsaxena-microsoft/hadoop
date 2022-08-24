@@ -27,6 +27,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
 
+import org.apache.hadoop.fs.azurebfs.services.AbfsConnectionMode;
 import org.apache.hadoop.fs.azurebfs.services.MockAbfsHttpConnection;
 import org.apache.hadoop.fs.azurebfs.utils.MockFastpathConnection;
 
@@ -229,4 +230,34 @@ public class TestAbfsFastpath extends AbstractAbfsIntegrationTest {
     assertAbfsStatistics(GET_RESPONSES,
         expectedGetResponses, metricMap);
   }
+  @Test
+  public void testIfSessionTokenInCurrentResponseUsedInNextRequestFpRest() throws IOException {
+    AzureBlobFileSystem fs = getAbfsFileSystem(2,
+        DEFAULT_FASTPATH_READ_BUFFER_SIZE, 0);
+    AbfsInputStream inStream = createTestfileAndGetInputStream(fs,
+        this.methodName.getMethodName(), 4 * DEFAULT_FASTPATH_READ_BUFFER_SIZE);
+    ((MockAbfsInputStream) inStream).setSessionMode(AbfsConnectionMode.OPTIMIZED_REST_ON_FASTPATH_CONN_FAILURE);
+    byte[] readBuffer = new byte[DEFAULT_FASTPATH_READ_BUFFER_SIZE];
+    Map<String, Long> metricMap;
+    metricMap = fs.getInstrumentationMap();
+    long expectedConnectionsMade = metricMap.get(
+        CONNECTIONS_MADE.getStatName());
+    long expectedGetResponses = metricMap.get(GET_RESPONSES.getStatName());
+    // read will attempt over fastpath, but will fail with exception => 1+conn 0+getresp
+    // will attempt on http connection => 1+conn 1+getrsp
+    inStream.read(readBuffer, 0, DEFAULT_FASTPATH_READ_BUFFER_SIZE);
+    // move out of buffered range
+    inStream.seek(3 * DEFAULT_FASTPATH_READ_BUFFER_SIZE);
+    // input stream will have switched to http permanentely due to conn failure
+    // next read direct on http => 1+conn 1+getrsp
+    inStream.read(readBuffer, 0, DEFAULT_FASTPATH_READ_BUFFER_SIZE);
+    expectedConnectionsMade += 2;
+    expectedGetResponses += 2;
+    metricMap = fs.getInstrumentationMap();
+    assertAbfsStatistics(CONNECTIONS_MADE,
+        expectedConnectionsMade, metricMap);
+    assertAbfsStatistics(GET_RESPONSES,
+        expectedGetResponses, metricMap);
+  }
+
 }

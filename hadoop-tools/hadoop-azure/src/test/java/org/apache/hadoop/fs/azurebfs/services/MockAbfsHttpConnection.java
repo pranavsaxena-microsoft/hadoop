@@ -5,6 +5,8 @@ import java.net.URL;
 import java.util.List;
 import java.util.UUID;
 
+import org.junit.Assert;
+
 import static org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations.X_MS_FASTPATH_SESSION_DATA;
 
 public class MockAbfsHttpConnection extends AbfsHttpConnection {
@@ -12,6 +14,8 @@ public class MockAbfsHttpConnection extends AbfsHttpConnection {
   private int errStatus;
   private Boolean mockRequestException;
   private Boolean mockConnectionException;
+
+  public static String lastSessionToken = null;
 
   public MockAbfsHttpConnection(final URL url,
       final String method,
@@ -24,6 +28,12 @@ public class MockAbfsHttpConnection extends AbfsHttpConnection {
       final int offset,
       final int length)
       throws IOException {
+    if(AbfsRestOperationType.OptimizedRead.equals(getOpType())) {
+      if (lastSessionToken != null && !lastSessionToken.equalsIgnoreCase(
+          getRequestHeader(X_MS_FASTPATH_SESSION_DATA))) {
+        Assert.assertTrue(false);
+      }
+    }
     setStatusCode(200);
   }
 
@@ -31,7 +41,8 @@ public class MockAbfsHttpConnection extends AbfsHttpConnection {
   @Override
   public String getResponseHeader(final String httpHeader) {
     if(X_MS_FASTPATH_SESSION_DATA.equalsIgnoreCase(httpHeader)) {
-      return UUID.randomUUID().toString();
+      lastSessionToken = UUID.randomUUID().toString();
+      return lastSessionToken;
     }
     return super.getResponseHeader(httpHeader);
   }
