@@ -23,11 +23,13 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.Random;
 
+import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
 
 import org.apache.hadoop.fs.azurebfs.services.AbfsConnectionMode;
+import org.apache.hadoop.fs.azurebfs.services.MockAbfsClient;
 import org.apache.hadoop.fs.azurebfs.services.MockAbfsHttpConnection;
 import org.apache.hadoop.fs.azurebfs.utils.MockFastpathConnection;
 
@@ -58,6 +60,11 @@ public class TestAbfsFastpath extends AbstractAbfsIntegrationTest {
 
   @Rule
   public TestName methodName = new TestName();
+
+  @After
+  public void afterTest() {
+    MockAbfsHttpConnection.refreshLastSessionToken();
+  }
 
   public TestAbfsFastpath() throws Exception {
     super();
@@ -231,12 +238,15 @@ public class TestAbfsFastpath extends AbstractAbfsIntegrationTest {
         expectedGetResponses, metricMap);
   }
   @Test
-  public void testIfSessionTokenInCurrentResponseUsedInNextRequestFpRest() throws IOException {
+  public void testIfSessionTokenInCurrentResponseUsedInNextRequestFpRest()
+      throws IOException {
     AzureBlobFileSystem fs = getAbfsFileSystem(2,
         DEFAULT_FASTPATH_READ_BUFFER_SIZE, 0);
     AbfsInputStream inStream = createTestfileAndGetInputStream(fs,
         this.methodName.getMethodName(), 4 * DEFAULT_FASTPATH_READ_BUFFER_SIZE);
-    ((MockAbfsInputStream) inStream).setSessionMode(AbfsConnectionMode.OPTIMIZED_REST_ON_FASTPATH_CONN_FAILURE);
+    ((MockAbfsInputStream) inStream).setSessionMode(
+        AbfsConnectionMode.OPTIMIZED_REST_ON_FASTPATH_CONN_FAILURE);
+    ((MockAbfsInputStream) inStream).turnOffForceFastpath();
     byte[] readBuffer = new byte[DEFAULT_FASTPATH_READ_BUFFER_SIZE];
     Map<String, Long> metricMap;
     metricMap = fs.getInstrumentationMap();

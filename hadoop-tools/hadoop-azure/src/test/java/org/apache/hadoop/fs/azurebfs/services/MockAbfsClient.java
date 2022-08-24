@@ -87,6 +87,10 @@ public class MockAbfsClient extends AbfsClient {
     return super.read(path, buffer, cachedSasToken, reqParams, tracingContext);
   }
 
+  public void setForceFastpathReadAlways(Boolean forceFastpathReadAlways) {
+    this.forceFastpathReadAlways = forceFastpathReadAlways;
+  }
+
   @Override
   protected AbfsRestOperation getAbfsRestOperation(final byte[] buffer,
       final ReadRequestParameters reqParams,

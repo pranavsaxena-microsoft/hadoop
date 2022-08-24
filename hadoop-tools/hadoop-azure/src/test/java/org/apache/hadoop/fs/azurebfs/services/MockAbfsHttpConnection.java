@@ -28,20 +28,22 @@ public class MockAbfsHttpConnection extends AbfsHttpConnection {
       final int offset,
       final int length)
       throws IOException {
-    if(AbfsRestOperationType.OptimizedRead.equals(getOpType())) {
-      if (lastSessionToken != null && !lastSessionToken.equalsIgnoreCase(
-          getRequestHeader(X_MS_FASTPATH_SESSION_DATA))) {
-        Assert.assertTrue(false);
-      }
+    if (lastSessionToken != null && !lastSessionToken.equalsIgnoreCase(
+        getRequestHeader(X_MS_FASTPATH_SESSION_DATA))) {
+      Assert.assertTrue(false);
     }
+    lastSessionToken = UUID.randomUUID().toString();
     setStatusCode(200);
+  }
+
+  public static void refreshLastSessionToken() {
+    lastSessionToken = null;
   }
 
 
   @Override
   public String getResponseHeader(final String httpHeader) {
     if(X_MS_FASTPATH_SESSION_DATA.equalsIgnoreCase(httpHeader)) {
-      lastSessionToken = UUID.randomUUID().toString();
       return lastSessionToken;
     }
     return super.getResponseHeader(httpHeader);

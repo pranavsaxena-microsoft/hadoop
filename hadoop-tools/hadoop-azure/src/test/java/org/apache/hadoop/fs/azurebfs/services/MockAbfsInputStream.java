@@ -200,6 +200,10 @@ public class MockAbfsInputStream extends AbfsInputStream {
     mockFpRimbaudConnectionException = false;
   }
 
+  public void turnOffForceFastpath() {
+    ((MockAbfsClient) getClient()).setForceFastpathReadAlways(false);
+  }
+
   public static AbfsSession getStubAbfsFastpathSession(final AbfsClient client,
                                                        final String path,
                                                        final String eTag,
