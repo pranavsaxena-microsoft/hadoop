@@ -213,10 +213,16 @@ public class TestAbfsFastpath extends AbstractAbfsIntegrationTest {
     // read will attempt over fastpath, but will fail with exception => 1+conn 0+getresp
     // will attempt on http connection => 1+conn 1+getrsp
     inStream.read(readBuffer, 0, DEFAULT_FASTPATH_READ_BUFFER_SIZE);
+    // move out of buffered range
+    inStream.seek(3 * DEFAULT_FASTPATH_READ_BUFFER_SIZE);
+    // input stream will have switched to http permanentely due to conn failure
+    // next read direct on http => 1+conn 1+getrsp
+    inStream.read(readBuffer, 0, DEFAULT_FASTPATH_READ_BUFFER_SIZE);
 
-
-    expectedConnectionsMade += 3;
-    expectedGetResponses += 1;
+    //First request will take 3 conn (rimbaud + rest++ + rest), second request
+    // will take only one conn.
+    expectedConnectionsMade += 4;
+    expectedGetResponses += 2;
     metricMap = fs.getInstrumentationMap();
     assertAbfsStatistics(CONNECTIONS_MADE,
         expectedConnectionsMade, metricMap);
