@@ -59,9 +59,12 @@ public class MockAbfsInputStream extends AbfsInputStream {
   private static final long FILETIME_ONE_MILLISECOND = 10 * 1000;
   private static final int EXPIRY_POS_START = 8;
   private static final int EXPIRY_POS_END = 16;
-  private int errStatus = 0;
-  private boolean mockRequestException = false;
-  private boolean mockConnectionException = false;
+  private int errFpRimbaudStatus = 0;
+  private boolean mockFpRimbaudRequestException = false;
+  private boolean mockFpRimbaudConnectionException = false;
+  private int errFpRestStatus = 0;
+  private boolean mockFpRestRequestException = false;
+  private boolean mockFpRestConnectionException = false;
   private boolean disableForceFastpathMock = false;
 
   public MockAbfsInputStream(final MockAbfsClient mockClient,
@@ -129,16 +132,28 @@ public class MockAbfsInputStream extends AbfsInputStream {
   }
 
   private void signalErrorConditionToMockClient() {
-    if (errStatus != 0) {
-      ((MockAbfsClient) getClient()).induceError(errStatus);
+    if (errFpRimbaudStatus != 0) {
+      ((MockAbfsClient) getClient()).induceFpRimbaudError(errFpRimbaudStatus);
     }
 
-    if (mockRequestException) {
-      ((MockAbfsClient) getClient()).induceRequestException();
+    if (mockFpRimbaudRequestException) {
+      ((MockAbfsClient) getClient()).induceFpRimbaudRequestException();
     }
 
-    if (mockConnectionException) {
-      ((MockAbfsClient) getClient()).induceConnectionException();
+    if (mockFpRimbaudConnectionException) {
+      ((MockAbfsClient) getClient()).induceFpRimbaudConnectionException();
+    }
+
+    if (errFpRestStatus != 0) {
+      ((MockAbfsClient) getClient()).induceFpRestError(errFpRestStatus);
+    }
+
+    if (mockFpRestRequestException) {
+      ((MockAbfsClient) getClient()).induceFpRestRequestException();
+    }
+
+    if (mockFpRestConnectionException) {
+      ((MockAbfsClient) getClient()).induceFpRestConnectionException();
     }
 
     if (disableForceFastpathMock) {
@@ -150,16 +165,28 @@ public class MockAbfsInputStream extends AbfsInputStream {
     return super.getFSStatistics();
   }
 
-  public void induceError(int httpStatus) {
-    errStatus = httpStatus;
+  public void induceFpRimbaudError(int httpStatus) {
+    errFpRimbaudStatus = httpStatus;
   }
 
-  public void induceRequestException() {
-    mockRequestException = true;
+  public void induceFpRimbaudRequestException() {
+    mockFpRimbaudRequestException = true;
   }
 
-  public void induceConnectionException() {
-    mockConnectionException = true;
+  public void induceFpRimbaudConnectionException() {
+    mockFpRimbaudConnectionException = true;
+  }
+
+  public void induceFpRestError(int httpStatus) {
+    errFpRestStatus = httpStatus;
+  }
+
+  public void induceFpRestRequestException() {
+    mockFpRestRequestException = true;
+  }
+
+  public void induceFpRestConnectionException() {
+    mockFpRestConnectionException = true;
   }
 
   public void disableAlwaysOnFastpathTestMock() {
@@ -168,9 +195,13 @@ public class MockAbfsInputStream extends AbfsInputStream {
   }
 
   public void resetAllMockErrStates() {
-    errStatus = 0;
-    mockRequestException = false;
-    mockConnectionException = false;
+    errFpRimbaudStatus = 0;
+    mockFpRimbaudRequestException = false;
+    mockFpRimbaudConnectionException = false;
+  }
+
+  public void turnOffForceFastpath() {
+    ((MockAbfsClient) getClient()).setForceFastpathReadAlways(false);
   }
 
   public static AbfsSession getStubAbfsFastpathSession(final AbfsClient client,
@@ -222,6 +253,11 @@ public class MockAbfsInputStream extends AbfsInputStream {
         mockFastpathSession, "scheduledExecutorService", scheduledExecutorService);
     mockFastpathSession = TestMockHelpers.setParentClassField(AbfsFastpathSession.class,
         mockFastpathSession, "rwLock", rwLock);
+
+    doCallRealMethod().when(mockFastpathSession).getTracingContext();
+    doCallRealMethod().when(mockFastpathSession).getClient();
+    doCallRealMethod().when(mockFastpathSession).getPath();
+    doCallRealMethod().when(mockFastpathSession).geteTag();
 
     doCallRealMethod().when(mockSession)
         .updateAbfsSessionToken(any());
@@ -320,5 +356,9 @@ public class MockAbfsInputStream extends AbfsInputStream {
     when(httpOp.getResponseHeader(X_MS_FASTPATH_SESSION_EXPIRY)).thenReturn(expiryTime);
     when(op.getResult()).thenReturn(httpOp);
     return op;
+  }
+
+  public void setSessionMode(final AbfsConnectionMode restConn) {
+    getAbfsSession().setConnectionMode(restConn);
   }
 }

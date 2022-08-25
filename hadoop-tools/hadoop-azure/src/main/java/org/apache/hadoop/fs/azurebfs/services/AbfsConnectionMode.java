@@ -42,7 +42,7 @@ public enum AbfsConnectionMode {
 
   public static boolean isErrorConnectionMode(final AbfsConnectionMode mode) {
     return ((mode == AbfsConnectionMode.REST_ON_SESSION_UPD_FAILURE)
-        || (mode == AbfsConnectionMode.OPTIMIZED_REST_ON_FASTPATH_REQ_FAILURE)
+        || (mode == AbfsConnectionMode.REST_CONN)
         || (mode == AbfsConnectionMode.OPTIMIZED_REST_ON_FASTPATH_CONN_FAILURE));
   }
 

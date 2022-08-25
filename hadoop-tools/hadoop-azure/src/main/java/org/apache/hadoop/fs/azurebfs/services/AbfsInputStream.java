@@ -587,7 +587,7 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
           sessionData);
       op =  executeRead(path, b, cachedSasToken.get(), reqParams, readThreadTracingContext);
       cachedSasToken.update(op.getSasToken());
-      if (abfsSession != null) {
+      if (abfsSession != null && sessionData != null) {
         abfsSession.checkAndUpdateAbfsSession(op, sessionData);
       }
 //      op = executeRead(path, b, cachedSasToken.get(), readThreadTracingContext);
