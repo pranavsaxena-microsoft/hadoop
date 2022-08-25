@@ -516,7 +516,7 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
         LOG.debug("issuing read ahead requestedOffset = {} requested size {}",
             nextOffset, nextSize);
         AbfsInputStreamHelper abfsInputStreamHelper = abfsInputStreamHelperStart;
-        while(abfsInputStreamHelper.shouldGoNext()) {
+        while(abfsInputStreamHelper.shouldGoNext(context)) {
           abfsInputStreamHelper = abfsInputStreamHelper.getNext();
         }
         if(!abfsInputStreamHelper.explicitPreFetchReadAllowed()) {
@@ -616,21 +616,26 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
     return (int) bytesRead;
   }
 
-  private AbfsRestOperation executeRead(String path, byte[] b, String sasToken, ReadRequestParameters readRequestParameters, TracingContext context) throws IOException {
+  private AbfsRestOperation executeRead(String path,
+      byte[] b,
+      String sasToken,
+      ReadRequestParameters readRequestParameters,
+      TracingContext tracingContext) throws IOException {
     AbfsInputStreamHelper helper = abfsInputStreamHelperStart;
-    while(helper != null && helper.shouldGoNext()) {
+    while (helper != null && helper.shouldGoNext(context)) {
       helper = helper.getNext();
     }
-    while(helper != null) {
+    while (helper != null) {
       try {
-        return helper.operate(path, b, sasToken, readRequestParameters, context, client);
+        return helper.operate(path, b, sasToken, readRequestParameters,
+            tracingContext, client);
       } catch (IOException e) {
-        if(e.getClass() == BlockHelperException.class) {
+        if (e.getClass() == BlockHelperException.class) {
           helper = helper.getBack();
           helper.setNextAsInvalid();
           continue;
         }
-        if(e.getClass() == RequestBlockException.class) {
+        if (e.getClass() == RequestBlockException.class) {
           helper = helper.getBack();
         }
       }
