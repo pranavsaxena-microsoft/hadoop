@@ -17,7 +17,7 @@
  */
 package org.apache.hadoop.hdfs.server.datanode.erasurecode;
 
-import org.apache.hadoop.thirdparty.com.google.common.base.Preconditions;
+import org.apache.hadoop.util.Preconditions;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.StorageType;
@@ -123,13 +123,14 @@ class StripedWriter {
 
   private void initTargetIndices() {
     BitSet bitset = reconstructor.getLiveBitSet();
+    BitSet excludebitset=reconstructor.getExcludeBitSet();
 
     int m = 0;
     hasValidTargets = false;
     for (int i = 0; i < dataBlkNum + parityBlkNum; i++) {
       if (!bitset.get(i)) {
         if (reconstructor.getBlockLen(i) > 0) {
-          if (m < targets.length) {
+          if (m < targets.length && !excludebitset.get(i)) {
             targetIndices[m++] = (short)i;
             hasValidTargets = true;
           }

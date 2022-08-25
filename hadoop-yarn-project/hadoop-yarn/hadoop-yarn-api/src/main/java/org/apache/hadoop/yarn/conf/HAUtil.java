@@ -27,7 +27,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.net.NetUtils;
 import org.apache.hadoop.yarn.exceptions.YarnRuntimeException;
 
-import org.apache.hadoop.thirdparty.com.google.common.annotations.VisibleForTesting;
+import org.apache.hadoop.classification.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,8 +64,12 @@ public class HAUtil {
    *         configuration; else false.
    */
   public static boolean isFederationFailoverEnabled(Configuration conf) {
-    return conf.getBoolean(YarnConfiguration.FEDERATION_FAILOVER_ENABLED,
-        YarnConfiguration.DEFAULT_FEDERATION_FAILOVER_ENABLED);
+    // Federation failover is not enabled unless federation is enabled. This previously caused
+    // YARN RMProxy to use the HA Retry policy in a non-HA & non-federation environments because
+    // the default federation failover enabled value is true.
+    return isFederationEnabled(conf) &&
+        conf.getBoolean(YarnConfiguration.FEDERATION_FAILOVER_ENABLED,
+            YarnConfiguration.DEFAULT_FEDERATION_FAILOVER_ENABLED);
   }
 
   /**

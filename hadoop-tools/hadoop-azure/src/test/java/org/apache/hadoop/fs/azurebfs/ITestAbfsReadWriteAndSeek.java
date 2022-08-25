@@ -37,7 +37,10 @@ import org.apache.hadoop.fs.azurebfs.services.AbfsInputStream;
 import org.apache.hadoop.fs.azurebfs.services.AbfsOutputStream;
 import org.apache.hadoop.fs.azurebfs.services.TestAbfsInputStream;
 import org.apache.hadoop.fs.azurebfs.utils.TracingHeaderValidator;
+import org.apache.hadoop.fs.statistics.IOStatisticsLogging;
+import org.apache.hadoop.fs.statistics.IOStatisticsSource;
 
+import static org.apache.hadoop.fs.CommonConfigurationKeys.IOSTATISTICS_LOGGING_LEVEL_INFO;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.APPENDBLOB_MAX_WRITE_BUFFER_SIZE;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.DEFAULT_FASTPATH_READ_BUFFER_SIZE;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.DEFAULT_READ_BUFFER_SIZE;
@@ -91,15 +94,20 @@ public class ITestAbfsReadWriteAndSeek extends AbstractAbfsScaleTest {
     new Random().nextBytes(b);
 
     Path testPath = path(TEST_PATH);
-    try (FSDataOutputStream stream = fs.create(testPath)) {
+    FSDataOutputStream stream = fs.create(testPath);
+    try {
       stream.write(b);
+    } finally{
+    stream.close();
     }
     if (isMockFastpathTest) {
       MockFastpathConnection.registerAppend(b.length, testPath.getName(), b, 0, b.length);
     }
+    IOStatisticsLogging.logIOStatisticsAtLevel(LOG, IOSTATISTICS_LOGGING_LEVEL_INFO, stream);
 
     final byte[] readBuffer = new byte[2 * bufferSize];
     int result = -1;
+    IOStatisticsSource statisticsSource = null;
     boolean isUnsuppFastpathBuffSize = (
         (bufferSize != DEFAULT_FASTPATH_READ_BUFFER_SIZE)
             && (fs.getAbfsStore().getAbfsConfiguration().isReadByDefaultOnFastpath()
@@ -107,6 +115,7 @@ public class ITestAbfsReadWriteAndSeek extends AbstractAbfsScaleTest {
     try (FSDataInputStream inputStream = isMockFastpathTest
         ? openMockAbfsInputStream(fs, fs.open(testPath))
         : fs.open(testPath)) {
+      statisticsSource = inputStream;
       ((AbfsInputStream) inputStream.getWrappedStream()).registerListener(
           new TracingHeaderValidator(abfsConfiguration.getClientCorrelationId(),
               fs.getFileSystemId(), FSOperationType.READ, true, 0,
@@ -126,6 +135,7 @@ public class ITestAbfsReadWriteAndSeek extends AbstractAbfsScaleTest {
       inputStream.seek(0);
       result = inputStream.read(readBuffer, 0, bufferSize);
     }
+    IOStatisticsLogging.logIOStatisticsAtLevel(LOG, IOSTATISTICS_LOGGING_LEVEL_INFO, statisticsSource);
 
     assertNotEquals("data read in final read()", -1, result);
     assertArrayEquals(readBuffer, b);

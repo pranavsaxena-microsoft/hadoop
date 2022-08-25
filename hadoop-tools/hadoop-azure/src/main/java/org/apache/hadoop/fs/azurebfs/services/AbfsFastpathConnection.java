@@ -25,8 +25,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.hadoop.thirdparty.com.google.common.annotations.VisibleForTesting;
-
 import com.azure.storage.fastpath.exceptions.FastpathException;
 import com.azure.storage.fastpath.FastpathConnection;
 import com.azure.storage.fastpath.requestParameters.AccessTokenType;
@@ -38,6 +36,7 @@ import com.azure.storage.fastpath.responseProviders.FastpathOpenResponse;
 import com.azure.storage.fastpath.responseProviders.FastpathReadResponse;
 import com.azure.storage.fastpath.responseProviders.FastpathResponse;
 
+import org.apache.hadoop.classification.VisibleForTesting;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AbfsFastpathException;
 
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.DEFAULT_TIMEOUT;

@@ -29,7 +29,8 @@ import java.util.concurrent.Callable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.hadoop.thirdparty.com.google.common.annotations.VisibleForTesting;
+
+import org.apache.hadoop.classification.VisibleForTesting;
 import org.apache.hadoop.fs.azurebfs.AbfsStatistic;
 import org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AbfsFastpathException;
@@ -78,6 +79,14 @@ public class AbfsRestOperation {
   private AbfsFastpathSessionData fastpathSessionData;
 
   private Callable headerUpDownCallable;
+
+  /**
+   * Checks if there is non-null HTTP response.
+   * @return true if there is a non-null HTTP response from the ABFS call.
+   */
+  public boolean hasResult() {
+    return result != null;
+  }
 
   public AbfsHttpOperation getResult() {
     return result;

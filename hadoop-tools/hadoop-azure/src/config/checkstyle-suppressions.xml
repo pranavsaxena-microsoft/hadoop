@@ -52,4 +52,7 @@
               files="org[\\/]apache[\\/]hadoop[\\/]fs[\\/]azurebfs[\\/]services[\\/]AbfsRestOperation.java"/>
     <suppress checks="ParameterNumber"
               files="org[\\/]apache[\\/]hadoop[\\/]fs[\\/]azurebfs[\\/]services[\\/]MockAbfsRestOperation.java"/>
+    <!-- allow tests to use _ for ordering. -->
+    <suppress checks="MethodName"
+              files="org[\\/]apache[\\/]hadoop[\\/]fs[\\/]azurebfs[\\/]commit[\\/]ITestAbfsTerasort.java"/>
 </suppressions>

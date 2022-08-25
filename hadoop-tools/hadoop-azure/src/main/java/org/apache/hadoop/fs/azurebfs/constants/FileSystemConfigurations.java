@@ -121,5 +121,28 @@ public final class FileSystemConfigurations {
 
   public static final int DEFAULT_FASTPATH_READ_BUFFER_SIZE = 4 * ONE_MB;
 
+  /**
+   * Limit of queued block upload operations before writes
+   * block for an OutputStream. Value: {@value}
+   */
+  public static final int BLOCK_UPLOAD_ACTIVE_BLOCKS_DEFAULT = 20;
+
+  /**
+   * Buffer blocks to disk.
+   * Capacity is limited to available disk space.
+   */
+  public static final String DATA_BLOCKS_BUFFER_DISK = "disk";
+
+  /**
+   * Default buffer option: {@value}.
+   */
+  public static final String DATA_BLOCKS_BUFFER_DEFAULT =
+      DATA_BLOCKS_BUFFER_DISK;
+
+  /**
+   * IO rate limit. Value: {@value}
+   */
+  public static final int RATE_LIMIT_DEFAULT = 10_000;
+
   private FileSystemConfigurations() {}
 }

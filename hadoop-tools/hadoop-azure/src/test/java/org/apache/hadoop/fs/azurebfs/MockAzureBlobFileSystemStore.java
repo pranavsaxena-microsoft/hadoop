@@ -39,7 +39,11 @@ public class MockAzureBlobFileSystemStore extends AzureBlobFileSystemStore {
       final Configuration configuration,
       final AbfsCounters abfsCounters)
       throws IOException {
-    super(uri, isSecureScheme, configuration, abfsCounters);
+    super(new AzureBlobFileSystemStoreBuilder()
+        .withAbfsCounters(abfsCounters)
+        .withUri(uri)
+        .withConfiguration(configuration)
+        .withSecureScheme(isSecureScheme));
   }
 
   protected MockAbfsInputStream createAbfsInputStreamInstance(final AbfsClient client,

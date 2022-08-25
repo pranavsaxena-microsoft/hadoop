@@ -347,34 +347,40 @@ public class ITestAbfsInputStreamSmallFileReads extends ITestAbfsInputStream {
       int length, byte[] fileContent, boolean isMockFastpathTest)
       throws IOException, NoSuchFieldException, IllegalAccessException {
     AbfsConfiguration conf = getAbfsStore(fs).getAbfsConfiguration();
-    FSDataInputStream iStream = getFileSystem().open(testFilePath);
-    if (isMockFastpathTest) {
-      iStream = openMockAbfsInputStream((AzureBlobFileSystem) fs, iStream);
-    }
-    seek(iStream, seekPos);
-    byte[] buffer = new byte[length];
-    int bytesRead = iStream.read(buffer, 0, length);
-    assertEquals(bytesRead, length);
-    assertContentReadCorrectly(fileContent, seekPos, length, buffer);
-    AbfsInputStream abfsInputStream = (AbfsInputStream) iStream
-        .getWrappedStream();
+    try (FSDataInputStream iStream = fs.open(testFilePath)) {
+      seek(iStream, seekPos);
+      byte[] buffer = new byte[length];
+      int bytesRead = iStream.read(buffer, 0, length);
+      assertEquals(bytesRead, length);
+      assertContentReadCorrectly(fileContent, seekPos, length, buffer, testFilePath);
+      AbfsInputStream abfsInputStream = (AbfsInputStream) iStream
+          .getWrappedStream();
 
-    final int readBufferSize = conf.getReadBufferSize();
-    final int fileContentLength = fileContent.length;
-    final boolean smallFile = fileContentLength <= readBufferSize;
-    int expectedLimit, expectedFCursor;
-    int expectedBCursor;
-    if (conf.readSmallFilesCompletely() && smallFile) {
-      assertBuffersAreEqual(fileContent, abfsInputStream.getBuffer(), conf);
-      expectedFCursor = fileContentLength;
-      expectedLimit = fileContentLength;
-      expectedBCursor = seekPos + length;
-    } else {
-      if ((seekPos == 0)) {
-        assertBuffersAreEqual(fileContent, abfsInputStream.getBuffer(), conf);
+      final int readBufferSize = conf.getReadBufferSize();
+      final int fileContentLength = fileContent.length;
+      final boolean smallFile = fileContentLength <= readBufferSize;
+      int expectedLimit, expectedFCursor;
+      int expectedBCursor;
+      if (conf.readSmallFilesCompletely() && smallFile) {
+        assertBuffersAreEqual(fileContent, abfsInputStream.getBuffer(), conf, testFilePath);
+        expectedFCursor = fileContentLength;
+        expectedLimit = fileContentLength;
+        expectedBCursor = seekPos + length;
       } else {
-        assertBuffersAreNotEqual(fileContent, abfsInputStream.getBuffer(),
-            conf);
+        if ((seekPos == 0)) {
+          assertBuffersAreEqual(fileContent, abfsInputStream.getBuffer(), conf, testFilePath);
+        } else {
+          assertBuffersAreNotEqual(fileContent, abfsInputStream.getBuffer(),
+              conf, testFilePath);
+        }
+        expectedBCursor = length;
+        expectedFCursor = (fileContentLength < (seekPos + readBufferSize))
+            ? fileContentLength
+            : (seekPos + readBufferSize);
+        expectedLimit = (fileContentLength < (seekPos + readBufferSize))
+            ? (fileContentLength - seekPos)
+            : readBufferSize;
+
       }
       expectedBCursor = length;
       expectedFCursor = (fileContentLength < (seekPos + readBufferSize))
@@ -383,11 +389,11 @@ public class ITestAbfsInputStreamSmallFileReads extends ITestAbfsInputStream {
       expectedLimit = (fileContentLength < (seekPos + readBufferSize))
           ? (fileContentLength - seekPos)
           : readBufferSize;
+      assertEquals(expectedFCursor, abfsInputStream.getFCursor());
+      assertEquals(expectedFCursor, abfsInputStream.getFCursorAfterLastRead());
+      assertEquals(expectedBCursor, abfsInputStream.getBCursor());
+      assertEquals(expectedLimit, abfsInputStream.getLimit());
     }
-    assertEquals(expectedFCursor, abfsInputStream.getFCursor());
-    assertEquals(expectedFCursor, abfsInputStream.getFCursorAfterLastRead());
-    assertEquals(expectedBCursor, abfsInputStream.getBCursor());
-    assertEquals(expectedLimit, abfsInputStream.getLimit());
   }
 
   @Test
@@ -441,7 +447,7 @@ public class ITestAbfsInputStreamSmallFileReads extends ITestAbfsInputStream {
       byte[] buffer = new byte[length];
       int bytesRead = iStream.read(buffer, 0, length);
       assertEquals(bytesRead, length);
-      assertContentReadCorrectly(fileContent, seekPos, length, buffer);
+      assertContentReadCorrectly(fileContent, seekPos, length, buffer, testFilePath);
       assertEquals(fileContent.length, abfsInputStream.getFCursor());
       assertEquals(fileContent.length,
           abfsInputStream.getFCursorAfterLastRead());

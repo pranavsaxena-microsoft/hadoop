@@ -20,8 +20,8 @@ package org.apache.hadoop.fs.azurebfs.services;
 
 import java.time.OffsetDateTime;
 import java.util.Base64;
-import org.apache.hadoop.thirdparty.com.google.common.annotations.VisibleForTesting;
 
+import org.apache.hadoop.classification.VisibleForTesting;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemException;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 

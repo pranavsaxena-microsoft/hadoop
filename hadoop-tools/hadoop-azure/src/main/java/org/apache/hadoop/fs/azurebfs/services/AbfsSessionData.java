@@ -23,8 +23,6 @@ import java.time.ZoneOffset;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.hadoop.thirdparty.com.google.common.annotations.VisibleForTesting;
-
 public class AbfsSessionData {
   protected static final Logger LOG = LoggerFactory.getLogger(AbfsInputStream.class);
 
