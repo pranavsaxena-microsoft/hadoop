@@ -24,12 +24,16 @@ import java.util.Map;
 import java.util.Random;
 
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
 
 import org.apache.hadoop.fs.azurebfs.services.AbfsConnectionMode;
 import org.apache.hadoop.fs.azurebfs.services.MockAbfsHttpConnection;
+import org.apache.hadoop.fs.azurebfs.services.abfsInputStreamHelpers.FastpathRestAbfsInputStreamHelper;
+import org.apache.hadoop.fs.azurebfs.services.abfsInputStreamHelpers.FastpathRimbaudAbfsInputStreamHelper;
+import org.apache.hadoop.fs.azurebfs.services.abfsInputStreamHelpers.RestAbfsInputStreamHelper;
 import org.apache.hadoop.fs.azurebfs.utils.MockFastpathConnection;
 
 import org.apache.hadoop.conf.Configuration;
@@ -172,6 +176,10 @@ public class TestAbfsFastpath extends AbstractAbfsIntegrationTest {
         expectedConnectionsMade, metricMap);
     assertAbfsStatistics(GET_RESPONSES,
         expectedGetResponses, metricMap);
+    Assert.assertTrue(((MockAbfsInputStream) inStream).helpersUsed.get(
+        FastpathRimbaudAbfsInputStreamHelper.class.getName()) == 2);
+    Assert.assertTrue(((MockAbfsInputStream) inStream).helpersUsed.get(
+        FastpathRestAbfsInputStreamHelper.class.getName()) == 2);
   }
 
   @Test
@@ -201,6 +209,10 @@ public class TestAbfsFastpath extends AbstractAbfsIntegrationTest {
         expectedConnectionsMade, metricMap);
     assertAbfsStatistics(GET_RESPONSES,
         expectedGetResponses, metricMap);
+    Assert.assertTrue(((MockAbfsInputStream) inStream).helpersUsed.get(
+        FastpathRimbaudAbfsInputStreamHelper.class.getName()) == 1);
+    Assert.assertTrue(((MockAbfsInputStream) inStream).helpersUsed.get(
+        FastpathRestAbfsInputStreamHelper.class.getName()) == 2);
   }
 
   @Test
@@ -235,6 +247,12 @@ public class TestAbfsFastpath extends AbstractAbfsIntegrationTest {
         expectedConnectionsMade, metricMap);
     assertAbfsStatistics(GET_RESPONSES,
         expectedGetResponses, metricMap);
+    Assert.assertTrue(((MockAbfsInputStream) inStream).helpersUsed.get(
+        FastpathRimbaudAbfsInputStreamHelper.class.getName()) == 1);
+    Assert.assertTrue(((MockAbfsInputStream) inStream).helpersUsed.get(
+        FastpathRestAbfsInputStreamHelper.class.getName()) == 1);
+    Assert.assertTrue(((MockAbfsInputStream) inStream).helpersUsed.get(
+        RestAbfsInputStreamHelper.class.getName()) == 1);
   }
   @Test
   public void testIfSessionTokenInCurrentResponseUsedInNextRequestFpRest()

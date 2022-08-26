@@ -25,6 +25,8 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -38,6 +40,7 @@ import org.apache.hadoop.fs.FileSystem.Statistics;
 import org.apache.hadoop.fs.azurebfs.constants.FSOperationType;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemException;
 import org.apache.hadoop.fs.azurebfs.contracts.services.ReadRequestParameters;
+import org.apache.hadoop.fs.azurebfs.services.abfsInputStreamHelpers.AbfsInputStreamHelper;
 import org.apache.hadoop.fs.azurebfs.utils.TestMockHelpers;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 import org.apache.hadoop.fs.azurebfs.utils.TracingHeaderFormat;
@@ -66,6 +69,7 @@ public class MockAbfsInputStream extends AbfsInputStream {
   private boolean mockFpRestRequestException = false;
   private boolean mockFpRestConnectionException = false;
   private boolean disableForceFastpathMock = false;
+  public Map<String, Integer> helpersUsed = new HashMap<>();
 
   public MockAbfsInputStream(final MockAbfsClient mockClient,
       final Statistics statistics,
@@ -135,6 +139,21 @@ public class MockAbfsInputStream extends AbfsInputStream {
       TracingContext tracingContext) throws IOException {
     signalErrorConditionToMockClient();
     return super.executeRead(path, b, sasToken, reqParam, tracingContext);
+  }
+
+  @Override
+  protected AbfsRestOperation executeRead(final String path,
+      final byte[] b,
+      final String sasToken,
+      final ReadRequestParameters readRequestParameters,
+      final TracingContext tracingContext,
+      final AbfsInputStreamHelper helper) throws AzureBlobFileSystemException {
+    final String helperClassName = helper.getClass().getName();
+    Integer currentCount = helpersUsed.get(helperClassName);
+    currentCount = (currentCount == null) ? 0 : (currentCount + 1);
+    helpersUsed.put(helperClassName, currentCount);
+    return super.executeRead(path, b, sasToken, readRequestParameters,
+        tracingContext, helper);
   }
 
   private void signalErrorConditionToMockClient() {

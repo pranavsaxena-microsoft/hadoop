@@ -627,8 +627,8 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
     }
     while (helper != null) {
       try {
-        return helper.operate(path, b, sasToken, readRequestParameters,
-            tracingContext, client);
+        return executeRead(path, b, sasToken, readRequestParameters,
+            tracingContext, helper);
       } catch (IOException e) {
         if (e.getClass() == BlockHelperException.class) {
           helper = helper.getBack();
@@ -643,6 +643,16 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
       }
     }
     throw new IOException("No Communication technology could help");
+  }
+
+  protected AbfsRestOperation executeRead(final String path,
+      final byte[] b,
+      final String sasToken,
+      final ReadRequestParameters readRequestParameters,
+      final TracingContext tracingContext,
+      final AbfsInputStreamHelper helper) throws AzureBlobFileSystemException {
+    return helper.operate(path, b, sasToken, readRequestParameters,
+        tracingContext, client);
   }
 
 // @VisibleForTesting
