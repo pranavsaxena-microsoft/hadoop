@@ -616,7 +616,7 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
     return (int) bytesRead;
   }
 
-  private AbfsRestOperation executeRead(String path,
+  protected AbfsRestOperation executeRead(String path,
       byte[] b,
       String sasToken,
       ReadRequestParameters readRequestParameters,
@@ -637,7 +637,9 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
         }
         if (e.getClass() == RequestBlockException.class) {
           helper = helper.getBack();
+          continue;
         }
+        throw e;
       }
     }
     throw new IOException("No Communication technology could help");

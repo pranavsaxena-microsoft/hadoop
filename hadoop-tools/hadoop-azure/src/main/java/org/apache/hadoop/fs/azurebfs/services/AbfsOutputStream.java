@@ -349,7 +349,7 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
              */
             //TODO: Check if sessionData object has to come.
             AppendRequestParameters reqParams = new AppendRequestParameters(
-                offset, 0, bytesLength, mode, false, leaseId, abfsSession.getSessionData());
+                offset, 0, bytesLength, mode, false, leaseId, null);
             AbfsRestOperation op =
                 client.append(path, blockUploadData.toByteArray(), reqParams,
                     cachedSasToken.get(), new TracingContext(tracingContext));

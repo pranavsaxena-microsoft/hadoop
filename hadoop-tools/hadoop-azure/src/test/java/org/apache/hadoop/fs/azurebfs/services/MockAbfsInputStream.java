@@ -116,19 +116,25 @@ public class MockAbfsInputStream extends AbfsInputStream {
 
   public void createMockAbfsFastpathSession()
       throws Exception {
-    AbfsFastpathSession fastpathSsn = MockAbfsInputStream.getStubAbfsFastpathSession(
-        getClient(), getPath(), getETag(), getTracingContext());
-    setAbfsSession(new MockAbfsFastpathSession(fastpathSsn));
+    if (getContext() == null) {
+      return;
+    }
+    if (getContext().isDefaultConnectionOnFastpath()
+        || getContext().isDefaultConnectionOnOptimizedRest()) {
+      AbfsFastpathSession fastpathSsn
+          = MockAbfsInputStream.getStubAbfsFastpathSession(
+          getClient(), getPath(), getETag(), getTracingContext());
+      setAbfsSession(new MockAbfsFastpathSession(fastpathSsn));
+    }
   }
 
   protected AbfsRestOperation executeRead(String path,
       byte[] b,
       String sasToken,
       ReadRequestParameters reqParam,
-      TracingContext tracingContext) throws AzureBlobFileSystemException {
+      TracingContext tracingContext) throws IOException {
     signalErrorConditionToMockClient();
-    // Force fastpath connection so that test fails and not pass on REST fallback
-    return ((MockAbfsClient) getClient()).read(path, b, sasToken, reqParam, tracingContext);
+    return super.executeRead(path, b, sasToken, reqParam, tracingContext);
   }
 
   private void signalErrorConditionToMockClient() {
@@ -360,5 +366,10 @@ public class MockAbfsInputStream extends AbfsInputStream {
 
   public void setSessionMode(final AbfsConnectionMode restConn) {
     getAbfsSession().setConnectionMode(restConn);
+  }
+
+  @Override
+  public AbfsInputStreamContext getContext() {
+    return super.getContext();
   }
 }
