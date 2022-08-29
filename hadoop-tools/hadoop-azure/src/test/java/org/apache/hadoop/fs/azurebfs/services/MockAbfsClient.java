@@ -77,13 +77,13 @@ public class MockAbfsClient extends AbfsClient {
       String cachedSasToken,
       ReadRequestParameters reqParams,
       TracingContext tracingContext) throws AzureBlobFileSystemException {
-    if (forceFastpathReadAlways) {
-      // Forcing read over fastpath even if InputStream determined REST mode
-      // becase of Fastpath open failure. This is for mock tests to fail
-      // if fastpath connection didnt work rather than reporting a successful test
-      // run due to REST fallback
-      reqParams.getAbfsSessionData().setConnectionMode(AbfsConnectionMode.FASTPATH_CONN);
-    }
+//    if (forceFastpathReadAlways) {
+//      // Forcing read over fastpath even if InputStream determined REST mode
+//      // becase of Fastpath open failure. This is for mock tests to fail
+//      // if fastpath connection didnt work rather than reporting a successful test
+//      // run due to REST fallback
+//      reqParams.getAbfsSessionData().setConnectionMode(AbfsConnectionMode.FASTPATH_CONN);
+//    }
 
     return super.read(path, buffer, cachedSasToken, reqParams, tracingContext);
   }
@@ -111,13 +111,12 @@ public class MockAbfsClient extends AbfsClient {
         sasTokenForReuse, url, opType, headerUpDownCallable);
   }
 
-  protected AbfsRestOperation executeFastpathRead(String path,
-      ReadRequestParameters reqParams,
-      URL url,
-      List<AbfsHttpHeader> requestHeaders,
-      byte[] buffer,
-      String sasTokenForReuse,
-      TracingContext  tracingContext) throws AzureBlobFileSystemException {
+
+  @Override
+  protected AbfsRestOperation getFastpathRimbaudReadAbfsRestOperation(final ReadRequestParameters reqParams,
+      final URL url,
+      final List<AbfsHttpHeader> requestHeaders,
+      final byte[] buffer) {
     final MockAbfsRestOperation op = new MockAbfsRestOperation(
         AbfsRestOperationType.FastpathRead,
         this,
@@ -128,30 +127,51 @@ public class MockAbfsClient extends AbfsClient {
         reqParams.getBufferOffset(),
         reqParams.getReadLength(),
         (AbfsFastpathSessionData) reqParams.getAbfsSessionData());
-
-    try {
-      signalErrorConditionToMockRestOp(op);
-      op.execute(tracingContext);
-      return op;
-    } catch (AbfsFastpathException ex) {
-      if (mockErrorConditionSet()) {
-        forceFastpathReadAlways = false;
-        // execute original abfsclient behaviour
-        if (ex.getCause() instanceof FastpathRequestException) {
-          tracingContext.setConnectionMode(AbfsConnectionMode.OPTIMIZED_REST_ON_FASTPATH_REQ_FAILURE);
-          reqParams.getAbfsSessionData().setConnectionMode(AbfsConnectionMode.OPTIMIZED_REST_ON_FASTPATH_REQ_FAILURE);
-        } else {
-          tracingContext.setConnectionMode(AbfsConnectionMode.OPTIMIZED_REST_ON_FASTPATH_CONN_FAILURE);
-          reqParams.getAbfsSessionData().setConnectionMode(AbfsConnectionMode.OPTIMIZED_REST_ON_FASTPATH_CONN_FAILURE);
-        }
-
-        return read(path, buffer, op.getSasToken(), reqParams, tracingContext);
-      } else {
-        // Stop REST fall back for mock tests
-        throw ex;
-      }
-    }
+    signalErrorConditionToMockRestOp(op);
+    return op;
   }
+
+//  protected AbfsRestOperation executeFastpathRead(String path,
+//      ReadRequestParameters reqParams,
+//      URL url,
+//      List<AbfsHttpHeader> requestHeaders,
+//      byte[] buffer,
+//      String sasTokenForReuse,
+//      TracingContext  tracingContext) throws AzureBlobFileSystemException {
+//    final MockAbfsRestOperation op = new MockAbfsRestOperation(
+//        AbfsRestOperationType.FastpathRead,
+//        this,
+//        HTTP_METHOD_GET,
+//        url,
+//        requestHeaders,
+//        buffer,
+//        reqParams.getBufferOffset(),
+//        reqParams.getReadLength(),
+//        (AbfsFastpathSessionData) reqParams.getAbfsSessionData());
+//
+//    try {
+//      signalErrorConditionToMockRestOp(op);
+//      op.execute(tracingContext);
+//      return op;
+//    } catch (AbfsFastpathException ex) {
+//      if (mockErrorConditionSet()) {
+//        forceFastpathReadAlways = false;
+//        // execute original abfsclient behaviour
+//        if (ex.getCause() instanceof FastpathRequestException) {
+//          tracingContext.setConnectionMode(AbfsConnectionMode.OPTIMIZED_REST_ON_FASTPATH_REQ_FAILURE);
+//          reqParams.getAbfsSessionData().setConnectionMode(AbfsConnectionMode.OPTIMIZED_REST_ON_FASTPATH_REQ_FAILURE);
+//        } else {
+//          tracingContext.setConnectionMode(AbfsConnectionMode.OPTIMIZED_REST_ON_FASTPATH_CONN_FAILURE);
+//          reqParams.getAbfsSessionData().setConnectionMode(AbfsConnectionMode.OPTIMIZED_REST_ON_FASTPATH_CONN_FAILURE);
+//        }
+//
+//        return read(path, buffer, op.getSasToken(), reqParams, tracingContext);
+//      } else {
+//        // Stop REST fall back for mock tests
+//        throw ex;
+//      }
+//    }
+//  }
 
   protected AbfsRestOperation executeFastpathOpen(URL url,
       List<AbfsHttpHeader> requestHeaders,

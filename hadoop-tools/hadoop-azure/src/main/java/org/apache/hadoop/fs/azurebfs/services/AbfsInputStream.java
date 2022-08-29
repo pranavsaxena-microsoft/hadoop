@@ -127,7 +127,7 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
    */
   private long nextReadPos;
   private AbfsSession abfsSession = null;
-  private static final AbfsInputStreamHelper abfsInputStreamHelperStart = new RestAbfsInputStreamHelper();
+  private AbfsInputStreamHelper abfsInputStreamHelperStart = new RestAbfsInputStreamHelper();
 
   public AbfsInputStream(
           final AbfsClient client,

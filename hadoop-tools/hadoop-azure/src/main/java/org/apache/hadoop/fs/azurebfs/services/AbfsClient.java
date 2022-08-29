@@ -964,16 +964,6 @@ public class AbfsClient implements Closeable {
       try {
       op.execute(tracingContext); }
       catch (AzureBlobFileSystemException ex) {
-        if (reqParams.isOptimizedRestConnection()) {
-          LOG.debug("Fallback: From OptimizedREST to Vanilla REST");
-          tracingContext.setConnectionMode(
-              AbfsConnectionMode.REST_CONN);
-          reqParams.getAbfsSessionData()
-              .setConnectionMode(
-                  AbfsConnectionMode.REST_CONN);
-          return read(path, buffer, cachedSasToken, reqParams, tracingContext, headerUpDownCallable);
-        }
-
         throw ex;
       }
     }
@@ -1444,24 +1434,14 @@ public class AbfsClient implements Closeable {
     Futures.addCallback(future, callback, executorService);
   }
 
-  @VisibleForTesting
-  protected AbfsRestOperation executeFastpathRead(String path,
+  private AbfsRestOperation executeFastpathRead(String path,
       ReadRequestParameters reqParams,
       URL url,
       List<AbfsHttpHeader> requestHeaders,
       byte[] buffer,
       String sasTokenForReuse,
       TracingContext tracingContext) throws AzureBlobFileSystemException {
-    final AbfsRestOperation op = new AbfsRestOperation(
-        AbfsRestOperationType.FastpathRead,
-        this,
-        HTTP_METHOD_GET,
-        url,
-        requestHeaders,
-        buffer,
-        reqParams.getBufferOffset(),
-        reqParams.getReadLength(),
-        (AbfsFastpathSessionData) reqParams.getAbfsSessionData());
+    final AbfsRestOperation op = getFastpathRimbaudReadAbfsRestOperation(reqParams, url, requestHeaders, buffer);
 
     try {
       op.execute(tracingContext);
@@ -1491,6 +1471,23 @@ public class AbfsClient implements Closeable {
         throw new BlockHelperException(ex);
       }
     }
+  }
+
+  @VisibleForTesting
+  protected AbfsRestOperation getFastpathRimbaudReadAbfsRestOperation(final ReadRequestParameters reqParams,
+      final URL url,
+      final List<AbfsHttpHeader> requestHeaders,
+      final byte[] buffer) {
+    return new AbfsRestOperation(
+        AbfsRestOperationType.FastpathRead,
+        this,
+        HTTP_METHOD_GET,
+        url,
+        requestHeaders,
+        buffer,
+        reqParams.getBufferOffset(),
+        reqParams.getReadLength(),
+        (AbfsFastpathSessionData) reqParams.getAbfsSessionData());
   }
 
   @VisibleForTesting

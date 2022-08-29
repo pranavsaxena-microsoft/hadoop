@@ -3,9 +3,11 @@ package org.apache.hadoop.fs.azurebfs.services.abfsInputStreamHelpers;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemException;
 import org.apache.hadoop.fs.azurebfs.contracts.services.ReadRequestParameters;
 import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
+import org.apache.hadoop.fs.azurebfs.services.AbfsConnectionMode;
 import org.apache.hadoop.fs.azurebfs.services.AbfsInputStreamContext;
 import org.apache.hadoop.fs.azurebfs.services.AbfsRestOperation;
 import org.apache.hadoop.fs.azurebfs.services.ThreadBasedMessageQueue;
+import org.apache.hadoop.fs.azurebfs.services.abfsInputStreamHelpers.exceptions.BlockHelperException;
 import org.apache.hadoop.fs.azurebfs.services.abfsInputStreamHelpers.exceptions.RequestBlockException;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 
@@ -14,6 +16,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Callable;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class FastpathRestAbfsInputStreamHelper
     implements AbfsInputStreamHelper {
@@ -25,6 +30,8 @@ public class FastpathRestAbfsInputStreamHelper
   private static List<ReadAheadByteInfo> readAheadByteInfoList
       = new ArrayList<>();
 
+
+  private static final Logger LOG = LoggerFactory.getLogger(FastpathRestAbfsInputStreamHelper.class);
 
   public FastpathRestAbfsInputStreamHelper(AbfsInputStreamHelper abfsInputStreamHelper) {
     nextHelper = new FastpathRimbaudAbfsInputStreamHelper(this);
@@ -89,10 +96,17 @@ public class FastpathRestAbfsInputStreamHelper
       final AbfsRestOperation op = abfsClient.read(path, bytes, sasToken,
           readRequestParameters, tracingContext, callable);
       return op;
-    } catch (IOException e) {
-      if (e.getClass() == AzureBlobFileSystemException.class) {
-        throw new RequestBlockException(e);
+    } catch (AzureBlobFileSystemException e) {
+      if (readRequestParameters.isOptimizedRestConnection()) {
+        LOG.debug("Fallback: From OptimizedREST to Vanilla REST");
+        tracingContext.setConnectionMode(
+            AbfsConnectionMode.REST_CONN);
+        readRequestParameters.getAbfsSessionData()
+            .setConnectionMode(
+                AbfsConnectionMode.REST_CONN);
+        throw new BlockHelperException(e);
       }
+
       throw e;
     }
   }

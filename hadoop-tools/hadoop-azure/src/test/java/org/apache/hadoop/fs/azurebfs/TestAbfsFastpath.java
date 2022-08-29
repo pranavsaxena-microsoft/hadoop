@@ -252,7 +252,7 @@ public class TestAbfsFastpath extends AbstractAbfsIntegrationTest {
     Assert.assertTrue(((MockAbfsInputStream) inStream).helpersUsed.get(
         FastpathRestAbfsInputStreamHelper.class.getName()) == 1);
     Assert.assertTrue(((MockAbfsInputStream) inStream).helpersUsed.get(
-        RestAbfsInputStreamHelper.class.getName()) == 1);
+        RestAbfsInputStreamHelper.class.getName()) == 2);
   }
   @Test
   public void testIfSessionTokenInCurrentResponseUsedInNextRequestFpRest()

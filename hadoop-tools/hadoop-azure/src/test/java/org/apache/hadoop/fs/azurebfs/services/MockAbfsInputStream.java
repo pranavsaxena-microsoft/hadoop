@@ -150,7 +150,7 @@ public class MockAbfsInputStream extends AbfsInputStream {
       final AbfsInputStreamHelper helper) throws AzureBlobFileSystemException {
     final String helperClassName = helper.getClass().getName();
     Integer currentCount = helpersUsed.get(helperClassName);
-    currentCount = (currentCount == null) ? 0 : (currentCount + 1);
+    currentCount = (currentCount == null) ? 1 : (currentCount + 1);
     helpersUsed.put(helperClassName, currentCount);
     return super.executeRead(path, b, sasToken, readRequestParameters,
         tracingContext, helper);
