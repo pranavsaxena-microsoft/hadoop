@@ -67,6 +67,8 @@ public enum AbfsStatistic {
   //Network statistics.
   CONNECTIONS_MADE("connections_made",
       "Total number of times a connection was made with the data store."),
+  ABFS_READ_AHEAD_CACHE_HIT_COUNTER("abfs_read_ahead_cache_hit_counter",
+      "Total number of times a readAheadGetBlock was cache-hit"),
   SEND_REQUESTS("send_requests",
       "Total number of times http requests were sent to the data store."),
   GET_RESPONSES("get_responses",

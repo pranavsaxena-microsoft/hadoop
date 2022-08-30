@@ -27,6 +27,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.UUID;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.hadoop.fs.azurebfs.AbfsStatistic;
 import org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations;
 import org.apache.hadoop.thirdparty.com.google.common.annotations.VisibleForTesting;
 import org.apache.hadoop.thirdparty.com.google.common.base.Preconditions;
@@ -532,6 +533,9 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
         if (streamStatistics != null) {
           streamStatistics.readAheadBytesRead(receivedBytes);
         }
+        client.getAbfsCounters()
+            .incrementCounter(AbfsStatistic.ABFS_READ_AHEAD_CACHE_HIT_COUNTER,
+                1);
         return receivedBytes;
       }
 
