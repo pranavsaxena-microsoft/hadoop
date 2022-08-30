@@ -119,7 +119,7 @@ final class ReadBufferManager {
    * @param requestedLength The length to read
    */
   void queueReadAhead(final AbfsInputStream stream, final long requestedOffset, final int requestedLength,
-                      TracingContext tracingContext) {
+                      TracingContext tracingContext, final AbfsInputStreamRequestContext abfsInputStreamRequestContext) {
     if (LOGGER.isTraceEnabled()) {
       LOGGER.trace("Start Queueing readAhead for {} offset {} length {}",
           stream.getPath(), requestedOffset, requestedLength);
@@ -141,6 +141,7 @@ final class ReadBufferManager {
       buffer.setStatus(ReadBufferStatus.NOT_AVAILABLE);
       buffer.setLatch(new CountDownLatch(1));
       buffer.setTracingContext(tracingContext);
+      buffer.setAbfsInputStreamRequestContext(abfsInputStreamRequestContext);
 
       Integer bufferIndex = freeList.pop();  // will return a value, since we have checked size > 0 already
 

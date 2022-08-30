@@ -361,4 +361,39 @@ public class TestAbfsFastpath extends AbstractAbfsIntegrationTest {
     assertAbfsStatistics(ABFS_READ_AHEAD_CACHE_HIT_COUNTER, 2, metricMap);
   }
 
+  @Test
+  public void testFpRestPreFetchCappedToReadAheadDepth()
+      throws IOException, InterruptedException {
+    AzureBlobFileSystem fs = getAbfsFileSystem(2,
+        DEFAULT_FASTPATH_READ_BUFFER_SIZE, 3);
+    AbfsInputStream inStream = createTestfileAndGetInputStream(fs,
+        this.methodName.getMethodName(), 4 * DEFAULT_FASTPATH_READ_BUFFER_SIZE);
+    ((MockAbfsInputStream) inStream).setSessionMode(
+        AbfsConnectionMode.OPTIMIZED_REST_ON_FASTPATH_CONN_FAILURE);
+    ((MockAbfsInputStream) inStream).getContext().withDefaultFastpath(false);
+    ((MockAbfsInputStream) inStream).getContext()
+        .withDefaultOptimizedRest(true);
+    ((MockAbfsInputStream) inStream).turnOffForceFastpath();
+    byte[] readBuffer = new byte[DEFAULT_FASTPATH_READ_BUFFER_SIZE];
+    Map<String, Long> metricMap;
+    metricMap = fs.getInstrumentationMap();
+    long expectedConnectionsMade = metricMap.get(
+        CONNECTIONS_MADE.getStatName());
+    long expectedGetResponses = metricMap.get(GET_RESPONSES.getStatName());
+    // read will attempt over fastpath, but will fail with exception => 1+conn 0+getresp
+    // will attempt on http connection => 1+conn 1+getrsp
+    inStream.read(readBuffer, 0, DEFAULT_FASTPATH_READ_BUFFER_SIZE);
+    inStream.seek(3*DEFAULT_FASTPATH_READ_BUFFER_SIZE);
+    inStream.read(readBuffer, 0, DEFAULT_FASTPATH_READ_BUFFER_SIZE);
+    //As preFetch is switchedOn, read for first block(4MB) request will lead to preFetch of next two immediate blocks.
+    expectedConnectionsMade += 4;
+    expectedGetResponses += 4;
+    metricMap = fs.getInstrumentationMap();
+    assertAbfsStatistics(CONNECTIONS_MADE,
+        expectedConnectionsMade, metricMap);
+    assertAbfsStatistics(GET_RESPONSES,
+        expectedGetResponses, metricMap);
+    assertAbfsStatistics(ABFS_READ_AHEAD_CACHE_HIT_COUNTER, 1, metricMap);
+  }
+
 }

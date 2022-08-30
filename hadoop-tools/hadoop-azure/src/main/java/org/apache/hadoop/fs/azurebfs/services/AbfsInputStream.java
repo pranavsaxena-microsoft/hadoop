@@ -223,7 +223,12 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
     if (streamStatistics != null) {
       streamStatistics.readOperationStarted();
     }
-    int bytesRead = readRemote(position, buffer, offset, length, tracingContext);
+    AbfsInputStreamRequestContext abfsInputStreamRequestContext
+        = new AbfsInputStreamRequestContext();
+    abfsInputStreamRequestContext.setStartOffset((long) offset);
+    abfsInputStreamRequestContext.setLen((long) length);
+    int bytesRead = readRemote(position, buffer, offset, length, tracingContext,
+        abfsInputStreamRequestContext);
     if (statistics != null) {
       statistics.incrementBytesRead(bytesRead);
     }
@@ -262,6 +267,10 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
       streamStatistics.readOperationStarted();
     }
     incrementReadOps();
+    AbfsInputStreamRequestContext abfsInputStreamRequestContext
+        = new AbfsInputStreamRequestContext();
+    abfsInputStreamRequestContext.setStartOffset(fCursor);
+    abfsInputStreamRequestContext.setLen((long)len);
     do {
 
       // limit is the maximum amount of data present in buffer.
@@ -286,11 +295,11 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
         bCursor = 0;
       }
       if (shouldReadFully()) {
-        lastReadBytes = readFileCompletely(b, currentOff, currentLen);
+        lastReadBytes = readFileCompletely(b, currentOff, currentLen, abfsInputStreamRequestContext);
       } else if (shouldReadLastBlock()) {
-        lastReadBytes = readLastBlock(b, currentOff, currentLen);
+        lastReadBytes = readLastBlock(b, currentOff, currentLen, abfsInputStreamRequestContext);
       } else {
-        lastReadBytes = readOneBlock(b, currentOff, currentLen);
+        lastReadBytes = readOneBlock(b, currentOff, currentLen, abfsInputStreamRequestContext);
       }
       if (lastReadBytes > 0) {
         currentOff += lastReadBytes;
@@ -315,7 +324,7 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
         && this.fCursor >= footerStart;
   }
 
-  private int readOneBlock(final byte[] b, final int off, final int len) throws IOException {
+  private int readOneBlock(final byte[] b, final int off, final int len, final AbfsInputStreamRequestContext abfsInputStreamRequestContext) throws IOException {
     if (len == 0) {
       return 0;
     }
@@ -339,17 +348,17 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
       }
 
       if (alwaysReadBufferSize) {
-        bytesRead = readInternal(fCursor, buffer, 0, bufferSize, false);
+        bytesRead = readInternal(fCursor, buffer, 0, bufferSize, false, abfsInputStreamRequestContext);
       } else {
         // Enable readAhead when reading sequentially
         if (-1 == fCursorAfterLastRead || fCursorAfterLastRead == fCursor || b.length >= bufferSize) {
           LOG.debug("Sequential read with read ahead size of {}", bufferSize);
-          bytesRead = readInternal(fCursor, buffer, 0, bufferSize, false);
+          bytesRead = readInternal(fCursor, buffer, 0, bufferSize, false, abfsInputStreamRequestContext);
         } else {
           // Enabling read ahead for random reads as well to reduce number of remote calls.
           int lengthWithReadAhead = Math.min(b.length + readAheadRange, bufferSize);
           LOG.debug("Random read with read ahead size of {}", lengthWithReadAhead);
-          bytesRead = readInternal(fCursor, buffer, 0, lengthWithReadAhead, true);
+          bytesRead = readInternal(fCursor, buffer, 0, lengthWithReadAhead, true, abfsInputStreamRequestContext);
         }
       }
       if (firstRead) {
@@ -367,7 +376,10 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
     return copyToUserBuffer(b, off, len);
   }
 
-  private int readFileCompletely(final byte[] b, final int off, final int len)
+  private int readFileCompletely(final byte[] b,
+      final int off,
+      final int len,
+      final AbfsInputStreamRequestContext abfsInputStreamRequestContext)
       throws IOException {
     if (len == 0) {
       return 0;
@@ -379,10 +391,11 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
     // data need to be copied to user buffer from index bCursor, bCursor has
     // to be the current fCusor
     bCursor = (int) fCursor;
-    return optimisedRead(b, off, len, 0, contentLength);
+    return optimisedRead(b, off, len, 0, contentLength,
+        abfsInputStreamRequestContext);
   }
 
-  private int readLastBlock(final byte[] b, final int off, final int len)
+  private int readLastBlock(final byte[] b, final int off, final int len, final AbfsInputStreamRequestContext abfsInputStreamRequestContext)
       throws IOException {
     if (len == 0) {
       return 0;
@@ -398,11 +411,11 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
     bCursor = (int) (fCursor - lastBlockStart);
     // 0 if contentlength is < buffersize
     long actualLenToRead = min(bufferSize, contentLength);
-    return optimisedRead(b, off, len, lastBlockStart, actualLenToRead);
+    return optimisedRead(b, off, len, lastBlockStart, actualLenToRead, abfsInputStreamRequestContext);
   }
 
   private int optimisedRead(final byte[] b, final int off, final int len,
-      final long readFrom, final long actualLen) throws IOException {
+      final long readFrom, final long actualLen, final AbfsInputStreamRequestContext abfsInputStreamRequestContext) throws IOException {
     fCursor = readFrom;
     int totalBytesRead = 0;
     int lastBytesRead = 0;
@@ -411,7 +424,7 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
       for (int i = 0;
            i < MAX_OPTIMIZED_READ_ATTEMPTS && fCursor < contentLength; i++) {
         lastBytesRead = readInternal(fCursor, buffer, limit,
-            (int) actualLen - limit, true);
+            (int) actualLen - limit, true, abfsInputStreamRequestContext);
         if (lastBytesRead > 0) {
           totalBytesRead += lastBytesRead;
           limit += lastBytesRead;
@@ -422,7 +435,7 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
     } catch (IOException e) {
       LOG.debug("Optimized read failed. Defaulting to readOneBlock {}", e);
       restorePointerState();
-      return readOneBlock(b, off, len);
+      return readOneBlock(b, off, len, abfsInputStreamRequestContext);
     } finally {
       firstRead = false;
     }
@@ -435,7 +448,7 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
     //  bCursor that means the user requested data has not been read.
     if (fCursor < contentLength && bCursor > limit) {
       restorePointerState();
-      return readOneBlock(b, off, len);
+      return readOneBlock(b, off, len, abfsInputStreamRequestContext);
     }
     return copyToUserBuffer(b, off, len);
   }
@@ -495,8 +508,13 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
     return bytesToRead;
   }
 
-  private int readInternal(final long position, final byte[] b, final int offset, final int length,
-                           final boolean bypassReadAhead) throws IOException {
+  private int readInternal(final long position,
+      final byte[] b,
+      final int offset,
+      final int length,
+      final boolean bypassReadAhead,
+      final AbfsInputStreamRequestContext abfsInputStreamRequestContext)
+      throws IOException {
     if (readAheadEnabled && !bypassReadAhead) {
       // try reading from read-ahead
       if (offset != 0) {
@@ -513,23 +531,25 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
       LOG.debug("read ahead enabled issuing readheads num = {}", numReadAheads);
       TracingContext readAheadTracingContext = new TracingContext(tracingContext);
       readAheadTracingContext.setPrimaryRequestID();
-      while (numReadAheads > 0 && nextOffset < contentLength) {
-        LOG.debug("issuing read ahead requestedOffset = {} requested size {}",
-            nextOffset, nextSize);
-        AbfsInputStreamHelper abfsInputStreamHelper = abfsInputStreamHelperStart;
-        while(abfsInputStreamHelper.shouldGoNext(context)) {
-          abfsInputStreamHelper = abfsInputStreamHelper.getNext();
-        }
-        if(!abfsInputStreamHelper.explicitPreFetchReadAllowed()) {
-          break;
-        }
-        ReadBufferManager.getBufferManager().queueReadAhead(this, nextOffset, (int) nextSize,
-                new TracingContext(readAheadTracingContext));
-        nextOffset = nextOffset + nextSize;
-        numReadAheads--;
-        // From next round onwards should be of readahead block size.
-        nextSize = min((long) readAheadBlockSize, contentLength - nextOffset);
+      AbfsInputStreamHelper abfsInputStreamHelper = abfsInputStreamHelperStart;
+      while(abfsInputStreamHelper.shouldGoNext(context)) {
+        abfsInputStreamHelper = abfsInputStreamHelper.getNext();
       }
+      if(abfsInputStreamHelper.explicitPreFetchReadAllowed()) {
+        while (numReadAheads > 0 && nextOffset < contentLength) {
+          LOG.debug("issuing read ahead requestedOffset = {} requested size {}",
+              nextOffset, nextSize);
+          ReadBufferManager.getBufferManager().queueReadAhead(this, nextOffset, (int) nextSize,
+              new TracingContext(readAheadTracingContext));
+          nextOffset = nextOffset + nextSize;
+          numReadAheads--;
+          // From next round onwards should be of readahead block size.
+          nextSize = min((long) readAheadBlockSize, contentLength - nextOffset);
+        }
+      } else {
+        abfsInputStreamRequestContext.setMaxReadAhead(numReadAheads);
+      }
+
 
       // try reading from buffers first
       receivedBytes = ReadBufferManager.getBufferManager().getBlock(this, position, length, b);
@@ -547,15 +567,21 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
       }
 
       // got nothing from read-ahead, do our own read now
-      receivedBytes = readRemote(position, b, offset, length, new TracingContext(tracingContext));
+      receivedBytes = readRemote(position, b, offset, length, new TracingContext(tracingContext), abfsInputStreamRequestContext);
       return receivedBytes;
     } else {
       LOG.debug("read ahead disabled, reading remote");
-      return readRemote(position, b, offset, length, new TracingContext(tracingContext));
+      return readRemote(position, b, offset, length, new TracingContext(tracingContext), abfsInputStreamRequestContext);
     }
   }
 
-  int readRemote(long position, byte[] b, int offset, int length, TracingContext readThreadTracingContext) throws IOException {
+  int readRemote(long position,
+      byte[] b,
+      int offset,
+      int length,
+      TracingContext readThreadTracingContext,
+      AbfsInputStreamRequestContext abfsInputStreamRequestContext)
+      throws IOException {
     if (position < 0) {
       throw new IllegalArgumentException("attempting to read from negative offset");
     }
