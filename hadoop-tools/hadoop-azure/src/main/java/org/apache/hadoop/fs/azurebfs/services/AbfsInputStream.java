@@ -31,6 +31,7 @@ import org.apache.hadoop.fs.azurebfs.services.abfsInputStreamHelpers.AbfsInputSt
 import org.apache.hadoop.fs.azurebfs.services.abfsInputStreamHelpers.RestAbfsInputStreamHelper;
 import org.apache.hadoop.fs.azurebfs.services.abfsInputStreamHelpers.exceptions.BlockHelperException;
 import org.apache.hadoop.fs.azurebfs.services.abfsInputStreamHelpers.exceptions.RequestBlockException;
+import org.apache.hadoop.fs.azurebfs.AbfsStatistic;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -539,6 +540,9 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
         if (streamStatistics != null) {
           streamStatistics.readAheadBytesRead(receivedBytes);
         }
+        client.getAbfsCounters()
+            .incrementCounter(AbfsStatistic.ABFS_READ_AHEAD_CACHE_HIT_COUNTER,
+                1);
         return receivedBytes;
       }
 
