@@ -440,7 +440,7 @@ public class ITestAbfsInputStreamSmallFileReads extends ITestAbfsInputStream {
           .doCallRealMethod()
           .when(abfsInputStream)
           .readRemote(anyLong(), any(), anyInt(), anyInt(),
-              any(TracingContext.class));
+              any(TracingContext.class), any(AbfsInputStreamRequestContext.class));
 
       iStream = new FSDataInputStream(abfsInputStream);
       seek(iStream, seekPos);
@@ -507,7 +507,7 @@ public class ITestAbfsInputStreamSmallFileReads extends ITestAbfsInputStream {
           .doCallRealMethod()
           .when(abfsInputStream)
           .readRemote(anyLong(), any(), anyInt(), anyInt(),
-              any(TracingContext.class));
+              any(TracingContext.class), any(AbfsInputStreamRequestContext.class));
 
       iStream = new FSDataInputStream(abfsInputStream);
       seek(iStream, seekPos);

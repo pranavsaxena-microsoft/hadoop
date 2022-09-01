@@ -226,6 +226,7 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
     AbfsInputStreamRequestContext abfsInputStreamRequestContext
         = new AbfsInputStreamRequestContext();
     abfsInputStreamRequestContext.setStartOffset((long) offset);
+    abfsInputStreamRequestContext.setCurrentOffset((long) offset);
     abfsInputStreamRequestContext.setLen((long) length);
     int bytesRead = readRemote(position, buffer, offset, length, tracingContext,
         abfsInputStreamRequestContext);
@@ -270,6 +271,7 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
     AbfsInputStreamRequestContext abfsInputStreamRequestContext
         = new AbfsInputStreamRequestContext();
     abfsInputStreamRequestContext.setStartOffset(fCursor);
+    abfsInputStreamRequestContext.setCurrentOffset(fCursor);
     abfsInputStreamRequestContext.setLen((long)len);
     do {
 
@@ -535,6 +537,9 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
       while(abfsInputStreamHelper.shouldGoNext(context)) {
         abfsInputStreamHelper = abfsInputStreamHelper.getNext();
       }
+      abfsInputStreamRequestContext.setBufferSize((long) bufferSize);
+      abfsInputStreamRequestContext.setAbfsInputStream(this);
+      abfsInputStreamRequestContext.setContentLength(contentLength);
       if(abfsInputStreamHelper.explicitPreFetchReadAllowed()) {
         while (numReadAheads > 0 && nextOffset < contentLength) {
           LOG.debug("issuing read ahead requestedOffset = {} requested size {}",
@@ -615,7 +620,8 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
       ReadRequestParameters reqParams = new ReadRequestParameters(position,
           offset, length, tolerateOobAppends ? "*" : eTag,
           sessionData);
-      op =  executeRead(path, b, cachedSasToken.get(), reqParams, readThreadTracingContext);
+      op = executeRead(path, b, cachedSasToken.get(), reqParams,
+          readThreadTracingContext, abfsInputStreamRequestContext);
       cachedSasToken.update(op.getSasToken());
       if (abfsSession != null && sessionData != null) {
         abfsSession.checkAndUpdateAbfsSession(op, sessionData);
@@ -650,7 +656,7 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
       byte[] b,
       String sasToken,
       ReadRequestParameters readRequestParameters,
-      TracingContext tracingContext) throws IOException {
+      TracingContext tracingContext, final AbfsInputStreamRequestContext abfsInputStreamRequestContext) throws IOException {
     AbfsInputStreamHelper helper = abfsInputStreamHelperStart;
     while (helper != null && helper.shouldGoNext(context)) {
       helper = helper.getNext();
@@ -658,7 +664,7 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
     while (helper != null) {
       try {
         return executeRead(path, b, sasToken, readRequestParameters,
-            tracingContext, helper);
+            tracingContext, helper, abfsInputStreamRequestContext);
       } catch (IOException e) {
         if (e.getClass() == BlockHelperException.class) {
           helper = helper.getBack();
@@ -680,9 +686,11 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
       final String sasToken,
       final ReadRequestParameters readRequestParameters,
       final TracingContext tracingContext,
-      final AbfsInputStreamHelper helper) throws AzureBlobFileSystemException {
+      final AbfsInputStreamHelper helper,
+      final AbfsInputStreamRequestContext abfsInputStreamRequestContext)
+      throws AzureBlobFileSystemException {
     return helper.operate(path, b, sasToken, readRequestParameters,
-        tracingContext, client, );
+        tracingContext, client, abfsInputStreamRequestContext);
   }
 
 // @VisibleForTesting

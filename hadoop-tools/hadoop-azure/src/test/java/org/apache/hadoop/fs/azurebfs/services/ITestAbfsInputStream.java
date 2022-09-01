@@ -164,7 +164,7 @@ public class ITestAbfsInputStream extends AbstractAbfsIntegrationTest {
           .doCallRealMethod()
           .when(abfsInputStream)
           .readRemote(anyLong(), any(), anyInt(), anyInt(),
-              any(TracingContext.class));
+              any(TracingContext.class), any(AbfsInputStreamRequestContext.class));
 
       iStream = new FSDataInputStream(abfsInputStream);
       verifyBeforeSeek(abfsInputStream);

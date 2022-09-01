@@ -183,13 +183,16 @@ public class TestAbfsInputStream extends
   private void queueReadAheads(AbfsInputStream inputStream) {
     // Mimic AbfsInputStream readAhead queue requests
     ReadBufferManager.getBufferManager()
-        .queueReadAhead(inputStream, 0, ONE_KB, inputStream.getTracingContext());
+        .queueReadAhead(inputStream, 0, ONE_KB, inputStream.getTracingContext(),
+            new AbfsInputStreamRequestContext());
     ReadBufferManager.getBufferManager()
         .queueReadAhead(inputStream, ONE_KB, ONE_KB,
-            inputStream.getTracingContext());
+            inputStream.getTracingContext(),
+            new AbfsInputStreamRequestContext());
     ReadBufferManager.getBufferManager()
         .queueReadAhead(inputStream, TWO_KB, TWO_KB,
-            inputStream.getTracingContext());
+            inputStream.getTracingContext(),
+            new AbfsInputStreamRequestContext());
   }
 
   private void verifyReadCallCount(AbfsClient client, int count) throws
@@ -398,7 +401,7 @@ public class TestAbfsInputStream extends
     // at java.util.Stack.pop(Stack.java:84)
     // at org.apache.hadoop.fs.azurebfs.services.ReadBufferManager.queueReadAhead
     ReadBufferManager.getBufferManager().queueReadAhead(inputStream, 0, ONE_KB,
-        getTestTracingContext(getFileSystem(), true));
+        getTestTracingContext(getFileSystem(), true), new AbfsInputStreamRequestContext());
   }
 
   /**

@@ -132,13 +132,17 @@ public class MockAbfsInputStream extends AbfsInputStream {
     }
   }
 
+  @Override
   protected AbfsRestOperation executeRead(String path,
       byte[] b,
       String sasToken,
       ReadRequestParameters reqParam,
-      TracingContext tracingContext) throws IOException {
+      TracingContext tracingContext,
+      AbfsInputStreamRequestContext abfsInputStreamRequestContext)
+      throws IOException {
     signalErrorConditionToMockClient();
-    return super.executeRead(path, b, sasToken, reqParam, tracingContext);
+    return super.executeRead(path, b, sasToken, reqParam, tracingContext,
+        abfsInputStreamRequestContext);
   }
 
   @Override
@@ -147,13 +151,15 @@ public class MockAbfsInputStream extends AbfsInputStream {
       final String sasToken,
       final ReadRequestParameters readRequestParameters,
       final TracingContext tracingContext,
-      final AbfsInputStreamHelper helper) throws AzureBlobFileSystemException {
+      final AbfsInputStreamHelper helper,
+      AbfsInputStreamRequestContext abfsInputStreamRequestContext)
+      throws AzureBlobFileSystemException {
     final String helperClassName = helper.getClass().getName();
     Integer currentCount = helpersUsed.get(helperClassName);
     currentCount = (currentCount == null) ? 1 : (currentCount + 1);
     helpersUsed.put(helperClassName, currentCount);
     return super.executeRead(path, b, sasToken, readRequestParameters,
-        tracingContext, helper);
+        tracingContext, helper, abfsInputStreamRequestContext);
   }
 
   private void signalErrorConditionToMockClient() {

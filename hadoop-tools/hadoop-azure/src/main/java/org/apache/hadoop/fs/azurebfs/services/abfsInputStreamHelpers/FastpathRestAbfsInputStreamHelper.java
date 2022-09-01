@@ -4,14 +4,18 @@ import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemExc
 import org.apache.hadoop.fs.azurebfs.contracts.services.ReadRequestParameters;
 import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
 import org.apache.hadoop.fs.azurebfs.services.AbfsConnectionMode;
+import org.apache.hadoop.fs.azurebfs.services.AbfsFastpathRestResponseHeaderBlock;
 import org.apache.hadoop.fs.azurebfs.services.AbfsInputStreamContext;
 import org.apache.hadoop.fs.azurebfs.services.AbfsInputStreamRequestContext;
 import org.apache.hadoop.fs.azurebfs.services.AbfsRestOperation;
 import org.apache.hadoop.fs.azurebfs.services.AbfsSessionData;
+import org.apache.hadoop.fs.azurebfs.services.ReadBufferManager;
 import org.apache.hadoop.fs.azurebfs.services.ThreadBasedMessageQueue;
 import org.apache.hadoop.fs.azurebfs.services.abfsInputStreamHelpers.exceptions.BlockHelperException;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -79,9 +83,56 @@ public class FastpathRestAbfsInputStreamHelper
 
         @Override
         public Object call() throws Exception {
-          String sessionToken = (String) ThreadBasedMessageQueue.getData(this);
-          final AbfsSessionData
-          abfsInputStreamRequestContext.setAbfsSessionData(s);
+          AbfsFastpathRestResponseHeaderBlock
+              abfsFastpathRestResponseHeaderBlock
+              = (AbfsFastpathRestResponseHeaderBlock) ThreadBasedMessageQueue.getData(
+              this);
+          final AbfsSessionData currentSessionData
+              = readRequestParameters.getAbfsSessionData();
+          final AbfsSessionData sessionDataForNextRequest = new AbfsSessionData(
+              abfsFastpathRestResponseHeaderBlock.getSessionToken(),
+              OffsetDateTime.parse(
+                  abfsFastpathRestResponseHeaderBlock.getSessionExpiry(),
+                  DateTimeFormatter.RFC_1123_DATE_TIME),
+              currentSessionData.getConnectionMode());
+          abfsInputStreamRequestContext.setAbfsSessionData(
+              sessionDataForNextRequest);
+
+          Long nextSize = Math.min(
+              abfsInputStreamRequestContext.getBufferSize(),
+              (abfsInputStreamRequestContext.getLen()
+                  + abfsInputStreamRequestContext.getStartOffset()) - (
+                  readRequestParameters.getBufferOffset()
+                      + readRequestParameters.getReadLength()));
+
+          if (nextSize == 0) {
+            int readAheadCount
+                = abfsInputStreamRequestContext.getMaxReadAhead();
+            readAheadCount--;
+            if (readAheadCount > 0) {
+              nextSize = Math.min(abfsInputStreamRequestContext.getBufferSize(),
+                  abfsInputStreamRequestContext.getContentLength() - (
+                      readRequestParameters.getBufferOffset()
+                          + readRequestParameters.getReadLength()));
+              abfsInputStreamRequestContext.setMaxReadAhead(readAheadCount);
+              ReadBufferManager.getBufferManager()
+                  .queueReadAhead(
+                      abfsInputStreamRequestContext.getAbfsInputStream(),
+                      readRequestParameters.getBufferOffset()
+                          + readRequestParameters.getReadLength(),
+                      nextSize.intValue(), tracingContext,
+                      abfsInputStreamRequestContext);
+            }
+          } else {
+            ReadBufferManager.getBufferManager()
+                .queueReadAhead(
+                    abfsInputStreamRequestContext.getAbfsInputStream(),
+                    readRequestParameters.getBufferOffset()
+                        + readRequestParameters.getReadLength(),
+                    nextSize.intValue(), tracingContext,
+                    abfsInputStreamRequestContext);
+          }
+          return null;
 
 //          ReadAheadByteInfo readAheadByteInfo = getValidReadAheadByteInfo(
 //              readRequestParameters.getBufferOffset());
