@@ -4,6 +4,7 @@ import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemExc
 import org.apache.hadoop.fs.azurebfs.contracts.services.ReadRequestParameters;
 import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
 import org.apache.hadoop.fs.azurebfs.services.AbfsInputStreamContext;
+import org.apache.hadoop.fs.azurebfs.services.AbfsInputStreamRequestContext;
 import org.apache.hadoop.fs.azurebfs.services.AbfsRestOperation;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 
@@ -51,7 +52,8 @@ public class RestAbfsInputStreamHelper implements AbfsInputStreamHelper {
       String sasToken,
       ReadRequestParameters readRequestParameters,
       TracingContext tracingContext,
-      AbfsClient abfsClient)
+      AbfsClient abfsClient,
+      final AbfsInputStreamRequestContext abfsInputStreamRequestContext)
       throws AzureBlobFileSystemException {
     return abfsClient.read(path, bytes, sasToken, readRequestParameters,
         tracingContext);

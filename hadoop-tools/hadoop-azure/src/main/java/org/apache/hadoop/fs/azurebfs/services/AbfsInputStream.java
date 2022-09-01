@@ -540,7 +540,7 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
           LOG.debug("issuing read ahead requestedOffset = {} requested size {}",
               nextOffset, nextSize);
           ReadBufferManager.getBufferManager().queueReadAhead(this, nextOffset, (int) nextSize,
-              new TracingContext(readAheadTracingContext));
+              new TracingContext(readAheadTracingContext), abfsInputStreamRequestContext);
           nextOffset = nextOffset + nextSize;
           numReadAheads--;
           // From next round onwards should be of readahead block size.
@@ -682,7 +682,7 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
       final TracingContext tracingContext,
       final AbfsInputStreamHelper helper) throws AzureBlobFileSystemException {
     return helper.operate(path, b, sasToken, readRequestParameters,
-        tracingContext, client);
+        tracingContext, client, );
   }
 
 // @VisibleForTesting

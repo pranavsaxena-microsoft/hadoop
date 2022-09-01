@@ -5,13 +5,13 @@ import org.apache.hadoop.fs.azurebfs.contracts.services.ReadRequestParameters;
 import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
 import org.apache.hadoop.fs.azurebfs.services.AbfsConnectionMode;
 import org.apache.hadoop.fs.azurebfs.services.AbfsInputStreamContext;
+import org.apache.hadoop.fs.azurebfs.services.AbfsInputStreamRequestContext;
 import org.apache.hadoop.fs.azurebfs.services.AbfsRestOperation;
+import org.apache.hadoop.fs.azurebfs.services.AbfsSessionData;
 import org.apache.hadoop.fs.azurebfs.services.ThreadBasedMessageQueue;
 import org.apache.hadoop.fs.azurebfs.services.abfsInputStreamHelpers.exceptions.BlockHelperException;
-import org.apache.hadoop.fs.azurebfs.services.abfsInputStreamHelpers.exceptions.RequestBlockException;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -65,7 +65,8 @@ public class FastpathRestAbfsInputStreamHelper
       String sasToken,
       ReadRequestParameters readRequestParameters,
       TracingContext tracingContext,
-      AbfsClient abfsClient)
+      AbfsClient abfsClient,
+      final AbfsInputStreamRequestContext abfsInputStreamRequestContext)
       throws AzureBlobFileSystemException {
     try {
       Callable callable = new Callable() {
@@ -78,19 +79,22 @@ public class FastpathRestAbfsInputStreamHelper
 
         @Override
         public Object call() throws Exception {
-          Object dataOverMessageQueue = ThreadBasedMessageQueue.getData(this);
-          ReadAheadByteInfo readAheadByteInfo = getValidReadAheadByteInfo(
-              readRequestParameters.getBufferOffset());
-          int nextPossibleRetries = 3; // TODO: add via config
-          if (readAheadByteInfo != null) {
-            readAheadByteInfoList.remove(readAheadByteInfo);
-            nextPossibleRetries = readAheadByteInfo.readAheadNextPossibleCount
-                - 1;
-          }
-          if (nextPossibleRetries != 0) {
-            pushForReadAhead();//TODO: will add element in readAheadByteInfolist; populate inside ReadBufferManager
-          }
-          return null;
+          String sessionToken = (String) ThreadBasedMessageQueue.getData(this);
+          final AbfsSessionData
+          abfsInputStreamRequestContext.setAbfsSessionData(s);
+
+//          ReadAheadByteInfo readAheadByteInfo = getValidReadAheadByteInfo(
+//              readRequestParameters.getBufferOffset());
+//          int nextPossibleRetries = 3; // TODO: add via config
+//          if (readAheadByteInfo != null) {
+//            readAheadByteInfoList.remove(readAheadByteInfo);
+//            nextPossibleRetries = readAheadByteInfo.readAheadNextPossibleCount
+//                - 1;
+//          }
+//          if (nextPossibleRetries != 0) {
+//            pushForReadAhead();//TODO: will add element in readAheadByteInfolist; populate inside ReadBufferManager
+//          }
+//          return null;
         }
       };
       final AbfsRestOperation op = abfsClient.read(path, bytes, sasToken,
@@ -120,16 +124,16 @@ public class FastpathRestAbfsInputStreamHelper
     return false;
   }
 
-  private ReadAheadByteInfo getValidReadAheadByteInfo(int requiredOffset) {
-    for (ReadAheadByteInfo readAheadByteInfo : readAheadByteInfoList) {
-      if (((readAheadByteInfo.offsetLastRead + readAheadByteInfo.len) >= (
-          requiredOffset - 1)) &&
-          readAheadByteInfo.offsetLastRead < requiredOffset) {
-        return readAheadByteInfo;
-      }
-    }
-    return null;
-  }
+//  private ReadAheadByteInfo getValidReadAheadByteInfo(int requiredOffset) {
+//    for (ReadAheadByteInfo readAheadByteInfo : readAheadByteInfoList) {
+//      if (((readAheadByteInfo.offsetLastRead + readAheadByteInfo.len) >= (
+//          requiredOffset - 1)) &&
+//          readAheadByteInfo.offsetLastRead < requiredOffset) {
+//        return readAheadByteInfo;
+//      }
+//    }
+//    return null;
+//  }
 
   class ReadAheadByteInfo {
 
