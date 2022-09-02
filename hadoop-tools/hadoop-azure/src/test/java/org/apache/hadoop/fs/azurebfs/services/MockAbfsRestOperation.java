@@ -21,6 +21,7 @@ package org.apache.hadoop.fs.azurebfs.services;
 import java.io.IOException;
 import java.net.URL;
 import java.util.List;
+import java.util.concurrent.Callable;
 
 import org.apache.hadoop.fs.azurebfs.AbfsStatistic;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AbfsRestOperationException;
@@ -72,9 +73,10 @@ public class MockAbfsRestOperation extends AbfsRestOperation {
       int bufferOffset,
       int bufferLength,
       String sasTokenForReuse,
-      ReadRequestParameters readRequestParameters) {
+      ReadRequestParameters readRequestParameters,
+      Callable headerUpDownCallable) {
     super(operationType, client, method, url, requestHeaders, buffer,
-        bufferOffset, bufferLength, sasTokenForReuse);
+        bufferOffset, bufferLength, sasTokenForReuse, headerUpDownCallable);
     this.readRequestParameters = readRequestParameters;
   }
 
@@ -86,8 +88,9 @@ public class MockAbfsRestOperation extends AbfsRestOperation {
 
   @Override
   protected AbfsHttpConnection getHttpOperation() throws IOException {
-    if(AbfsRestOperationType.OptimizedRead.equals(getOperationType())) {
-      return new MockAbfsHttpConnection(getUrl(), getMethod(), getRequestHeaders());
+    if (AbfsRestOperationType.OptimizedRead.equals(getOperationType())) {
+      return new MockAbfsHttpConnection(getUrl(), getMethod(),
+          getRequestHeaders(), getHeaderUpDownCallable());
     }
     return super.getHttpOperation();
   }

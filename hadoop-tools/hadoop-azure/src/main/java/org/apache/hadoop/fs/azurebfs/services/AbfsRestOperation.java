@@ -105,6 +105,11 @@ public class AbfsRestOperation {
     return requestHeaders;
   }
 
+  @VisibleForTesting
+  protected Callable getHeaderUpDownCallable() {
+    return this.headerUpDownCallable;
+  }
+
   public boolean isARetriedRequest() {
     return (retryCount > 0);
   }

@@ -36,10 +36,14 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import org.apache.hadoop.classification.VisibleForTesting;
 import org.apache.hadoop.security.ssl.DelegatingSSLSocketFactory;
 import org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants;
 import org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations;
 import org.apache.hadoop.fs.azurebfs.contracts.services.ListResultSchema;
+
+import static org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations.X_MS_FASTPATH_SESSION_DATA;
+import static org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations.X_MS_FASTPATH_SESSION_EXPIRY;
 
 public class AbfsHttpConnection extends AbfsHttpOperation {
 
@@ -98,6 +102,11 @@ public class AbfsHttpConnection extends AbfsHttpOperation {
 
   public HttpURLConnection getConnection() {
     return connection;
+  }
+
+  @VisibleForTesting
+  protected void setConnection(final HttpURLConnection httpURLConnection) {
+    this.connection = httpURLConnection;
   }
 
   public ListResultSchema getListResultSchema() {
@@ -183,7 +192,14 @@ public class AbfsHttpConnection extends AbfsHttpOperation {
     }
 
     setStatusCode(this.connection.getResponseCode());
-    ThreadBasedMessageQueue.push(headerUpDownCallable, "DATA");
+    AbfsFastpathRestResponseHeaderBlock abfsFastpathRestResponseHeaderBlock
+        = new AbfsFastpathRestResponseHeaderBlock();
+    abfsFastpathRestResponseHeaderBlock.setSessionToken(
+        getResponseHeader(X_MS_FASTPATH_SESSION_DATA));
+    abfsFastpathRestResponseHeaderBlock.setSessionExpiry(
+        getResponseHeader(X_MS_FASTPATH_SESSION_EXPIRY));
+    ThreadBasedMessageQueue.push(headerUpDownCallable,
+        abfsFastpathRestResponseHeaderBlock);
     try {
       headerUpDownCallable.call();
     } catch (Exception e) {
@@ -194,6 +210,13 @@ public class AbfsHttpConnection extends AbfsHttpOperation {
       setRecvResponseTimeMs(elapsedTimeMs(startTime));
     }
 
+    readDataAndSetHeaders(buffer, offset, length, startTime);
+  }
+
+  protected void readDataAndSetHeaders(final byte[] buffer,
+      final int offset,
+      final int length,
+      long startTime) throws IOException {
     setStatusDescription(this.connection.getResponseMessage());
 
     setRequestId(this.connection.getHeaderField(
@@ -274,7 +297,8 @@ public class AbfsHttpConnection extends AbfsHttpOperation {
         throw ex;
       } finally {
         if (isTraceEnabled()) {
-          setRecvResponseTimeMs(getRecvResponseTimeMs() + elapsedTimeMs(startTime));
+          setRecvResponseTimeMs(getRecvResponseTimeMs() + elapsedTimeMs(
+              startTime));
         }
 
         setBytesReceived(totalBytesRead);

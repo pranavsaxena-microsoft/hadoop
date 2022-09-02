@@ -613,10 +613,14 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
       }
 
       LOG.trace("Trigger client.read for path={} position={} offset={} length={}", path, position, offset, length);
-
-      AbfsSessionData sessionData = (abfsSession == null)
-          ? null
-          : abfsSession.getCurrentSessionData();
+      AbfsSessionData sessionData;
+      if(abfsInputStreamRequestContext != null && abfsInputStreamRequestContext.getAbfsSessionData() != null) {
+        sessionData = abfsInputStreamRequestContext.getAbfsSessionData();
+      } else {
+        sessionData = (abfsSession == null)
+            ? null
+            : abfsSession.getCurrentSessionData();
+      }
       ReadRequestParameters reqParams = new ReadRequestParameters(position,
           offset, length, tolerateOobAppends ? "*" : eTag,
           sessionData);

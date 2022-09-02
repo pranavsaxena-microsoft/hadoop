@@ -103,7 +103,7 @@ public class MockAbfsClient extends AbfsClient {
       final MockAbfsRestOperation op = new MockAbfsRestOperation(opType, this,
           HTTP_METHOD_GET, url,
           requestHeaders, buffer, reqParams.getBufferOffset(),
-          reqParams.getReadLength(), sasTokenForReuse, reqParams);
+          reqParams.getReadLength(), sasTokenForReuse, reqParams, headerUpDownCallable);
       signalErrorConditionToMockRestOp(op);
       return op;
     }
