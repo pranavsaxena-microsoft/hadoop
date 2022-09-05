@@ -326,6 +326,12 @@ public class TestAbfsFastpath extends AbstractAbfsIntegrationTest {
     assertAbfsStatistics(GET_RESPONSES,
         expectedGetResponses, metricMap);
     assertAbfsStatistics(ABFS_READ_AHEAD_CACHE_HIT_COUNTER, 1, metricMap);
+    Assert.assertTrue(((MockAbfsInputStream) inStream).helpersUsed.get(
+        FastpathRimbaudAbfsInputStreamHelper.class.getName()) == null);
+    Assert.assertTrue(((MockAbfsInputStream) inStream).helpersUsed.get(
+        FastpathRestAbfsInputStreamHelper.class.getName()) == 3);
+    Assert.assertTrue(((MockAbfsInputStream) inStream).helpersUsed.get(
+        RestAbfsInputStreamHelper.class.getName()) == null);
   }
 
   @Test
@@ -359,6 +365,12 @@ public class TestAbfsFastpath extends AbstractAbfsIntegrationTest {
     assertAbfsStatistics(GET_RESPONSES,
         expectedGetResponses, metricMap);
     assertAbfsStatistics(ABFS_READ_AHEAD_CACHE_HIT_COUNTER, 2, metricMap);
+    Assert.assertTrue(((MockAbfsInputStream) inStream).helpersUsed.get(
+        FastpathRimbaudAbfsInputStreamHelper.class.getName()) == null);
+    Assert.assertTrue(((MockAbfsInputStream) inStream).helpersUsed.get(
+        FastpathRestAbfsInputStreamHelper.class.getName()) == 3);
+    Assert.assertTrue(((MockAbfsInputStream) inStream).helpersUsed.get(
+        RestAbfsInputStreamHelper.class.getName()) == null);
   }
 
   @Test
@@ -394,6 +406,12 @@ public class TestAbfsFastpath extends AbstractAbfsIntegrationTest {
     assertAbfsStatistics(GET_RESPONSES,
         expectedGetResponses, metricMap);
     assertAbfsStatistics(ABFS_READ_AHEAD_CACHE_HIT_COUNTER, 0, metricMap);
+    Assert.assertTrue(((MockAbfsInputStream) inStream).helpersUsed.get(
+        FastpathRimbaudAbfsInputStreamHelper.class.getName()) == null);
+    Assert.assertTrue(((MockAbfsInputStream) inStream).helpersUsed.get(
+        FastpathRestAbfsInputStreamHelper.class.getName()) == 4);
+    Assert.assertTrue(((MockAbfsInputStream) inStream).helpersUsed.get(
+        RestAbfsInputStreamHelper.class.getName()) == null);
   }
 
   @Test
@@ -431,6 +449,12 @@ public class TestAbfsFastpath extends AbstractAbfsIntegrationTest {
     assertAbfsStatistics(GET_RESPONSES,
         expectedGetResponses, metricMap);
     assertAbfsStatistics(ABFS_READ_AHEAD_CACHE_HIT_COUNTER, 1, metricMap);
+    Assert.assertTrue(((MockAbfsInputStream) inStream).helpersUsed.get(
+        FastpathRimbaudAbfsInputStreamHelper.class.getName()) == null);
+    Assert.assertTrue(((MockAbfsInputStream) inStream).helpersUsed.get(
+        FastpathRestAbfsInputStreamHelper.class.getName()) == 5);
+    Assert.assertTrue(((MockAbfsInputStream) inStream).helpersUsed.get(
+        RestAbfsInputStreamHelper.class.getName()) == null);
   }
 
 }
