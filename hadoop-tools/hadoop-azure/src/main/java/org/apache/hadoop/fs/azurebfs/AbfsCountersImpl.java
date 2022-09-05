@@ -90,7 +90,8 @@ public class AbfsCountersImpl implements AbfsCounters {
       SERVER_UNAVAILABLE,
       RENAME_RECOVERY,
       METADATA_INCOMPLETE_RENAME_FAILURES,
-      RENAME_PATH_ATTEMPTS
+      RENAME_PATH_ATTEMPTS,
+      ABFS_READ_AHEAD_CACHE_HIT_COUNTER
 
   };
 

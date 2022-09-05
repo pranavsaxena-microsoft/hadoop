@@ -101,8 +101,8 @@ public class FastpathRestAbfsInputStreamHelper
           Long nextSize = Math.min(
               abfsInputStreamRequestContext.getBufferSize(),
               (abfsInputStreamRequestContext.getLen()
-                  + abfsInputStreamRequestContext.getStartOffset()) - (
-                  readRequestParameters.getBufferOffset()
+                  + abfsInputStreamRequestContext.getCurrentOffset()) - (
+                  readRequestParameters.getStoreFilePosition()
                       + readRequestParameters.getReadLength()));
 
           if (nextSize == 0) {
@@ -112,22 +112,28 @@ public class FastpathRestAbfsInputStreamHelper
             if (readAheadCount > 0) {
               nextSize = Math.min(abfsInputStreamRequestContext.getBufferSize(),
                   abfsInputStreamRequestContext.getContentLength() - (
-                      readRequestParameters.getBufferOffset()
+                      readRequestParameters.getStoreFilePosition()
                           + readRequestParameters.getReadLength()));
               abfsInputStreamRequestContext.setMaxReadAhead(readAheadCount);
+              abfsInputStreamRequestContext.setCurrentOffset(
+                  readRequestParameters.getStoreFilePosition()
+                      + readRequestParameters.getReadLength());
               ReadBufferManager.getBufferManager()
                   .queueReadAhead(
                       abfsInputStreamRequestContext.getAbfsInputStream(),
-                      readRequestParameters.getBufferOffset()
+                      readRequestParameters.getStoreFilePosition()
                           + readRequestParameters.getReadLength(),
                       nextSize.intValue(), tracingContext,
                       abfsInputStreamRequestContext);
             }
           } else {
+            abfsInputStreamRequestContext.setCurrentOffset(
+                readRequestParameters.getStoreFilePosition()
+                    + readRequestParameters.getReadLength());
             ReadBufferManager.getBufferManager()
                 .queueReadAhead(
                     abfsInputStreamRequestContext.getAbfsInputStream(),
-                    readRequestParameters.getBufferOffset()
+                    readRequestParameters.getStoreFilePosition()
                         + readRequestParameters.getReadLength(),
                     nextSize.intValue(), tracingContext,
                     abfsInputStreamRequestContext);

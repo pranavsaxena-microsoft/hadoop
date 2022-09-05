@@ -225,8 +225,6 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
     }
     AbfsInputStreamRequestContext abfsInputStreamRequestContext
         = new AbfsInputStreamRequestContext();
-    abfsInputStreamRequestContext.setStartOffset((long) offset);
-    abfsInputStreamRequestContext.setCurrentOffset((long) offset);
     abfsInputStreamRequestContext.setLen((long) length);
     int bytesRead = readRemote(position, buffer, offset, length, tracingContext,
         abfsInputStreamRequestContext);
@@ -270,8 +268,6 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
     incrementReadOps();
     AbfsInputStreamRequestContext abfsInputStreamRequestContext
         = new AbfsInputStreamRequestContext();
-    abfsInputStreamRequestContext.setStartOffset(fCursor);
-    abfsInputStreamRequestContext.setCurrentOffset(fCursor);
     abfsInputStreamRequestContext.setLen((long)len);
     do {
 
@@ -540,6 +536,8 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
       abfsInputStreamRequestContext.setBufferSize((long) bufferSize);
       abfsInputStreamRequestContext.setAbfsInputStream(this);
       abfsInputStreamRequestContext.setContentLength(contentLength);
+      abfsInputStreamRequestContext.setStartOffset(position);
+      abfsInputStreamRequestContext.setCurrentOffset(position);
       if(abfsInputStreamHelper.explicitPreFetchReadAllowed()) {
         while (numReadAheads > 0 && nextOffset < contentLength) {
           LOG.debug("issuing read ahead requestedOffset = {} requested size {}",

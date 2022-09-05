@@ -21,6 +21,8 @@ public class MockAbfsHttpConnection extends AbfsHttpConnection {
 
   public static String lastSessionToken = null;
 
+  private Long lengthRead = 0l;
+
   public MockAbfsHttpConnection(final URL url,
       final String method,
       final List<AbfsHttpHeader> requestHeaders, Callable headerUpdownCallable) throws IOException {
@@ -41,10 +43,15 @@ public class MockAbfsHttpConnection extends AbfsHttpConnection {
     setConnection(mockedHttpConnection);
 
     Mockito.doReturn(200).when(mockedHttpConnection).getResponseCode();
-
+    lengthRead = (long) length;
     super.processResponse(buffer, offset, length);
 
     //setStatusCode(200);
+  }
+
+  @Override
+  public long getBytesReceived() {
+    return lengthRead;
   }
 
   @Override
