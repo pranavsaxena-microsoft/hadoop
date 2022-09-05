@@ -393,7 +393,7 @@ public class TestAbfsFastpath extends AbstractAbfsIntegrationTest {
         expectedConnectionsMade, metricMap);
     assertAbfsStatistics(GET_RESPONSES,
         expectedGetResponses, metricMap);
-    assertAbfsStatistics(ABFS_READ_AHEAD_CACHE_HIT_COUNTER, 1, metricMap);
+    assertAbfsStatistics(ABFS_READ_AHEAD_CACHE_HIT_COUNTER, 0, metricMap);
   }
 
 }

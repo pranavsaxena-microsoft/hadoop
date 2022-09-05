@@ -106,6 +106,9 @@ public class FastpathRestAbfsInputStreamHelper
                       + readRequestParameters.getReadLength()));
 
           if (nextSize == 0) {
+            if(abfsInputStreamRequestContext.getCurrentOffset().compareTo(abfsInputStreamRequestContext.getStartOffset()) != 0) {
+              return null;
+            }
             int readAheadCount
                 = abfsInputStreamRequestContext.getMaxReadAhead();
             readAheadCount--;
@@ -118,6 +121,10 @@ public class FastpathRestAbfsInputStreamHelper
               abfsInputStreamRequestContext.setCurrentOffset(
                   readRequestParameters.getStoreFilePosition()
                       + readRequestParameters.getReadLength());
+              abfsInputStreamRequestContext.setStartOffset(
+                  readRequestParameters.getStoreFilePosition()
+                      + readRequestParameters.getReadLength());
+              abfsInputStreamRequestContext.setLen(nextSize);
               ReadBufferManager.getBufferManager()
                   .queueReadAhead(
                       abfsInputStreamRequestContext.getAbfsInputStream(),
@@ -130,6 +137,8 @@ public class FastpathRestAbfsInputStreamHelper
             abfsInputStreamRequestContext.setCurrentOffset(
                 readRequestParameters.getStoreFilePosition()
                     + readRequestParameters.getReadLength());
+            abfsInputStreamRequestContext.setLen(
+                abfsInputStreamRequestContext.getLen() - nextSize);
             ReadBufferManager.getBufferManager()
                 .queueReadAhead(
                     abfsInputStreamRequestContext.getAbfsInputStream(),
