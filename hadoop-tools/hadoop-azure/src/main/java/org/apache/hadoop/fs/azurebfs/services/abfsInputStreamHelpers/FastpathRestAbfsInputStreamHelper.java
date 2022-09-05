@@ -35,7 +35,8 @@ public class FastpathRestAbfsInputStreamHelper
       = new ArrayList<>();
 
 
-  private static final Logger LOG = LoggerFactory.getLogger(FastpathRestAbfsInputStreamHelper.class);
+  private static final Logger LOG = LoggerFactory.getLogger(
+      FastpathRestAbfsInputStreamHelper.class);
 
   public FastpathRestAbfsInputStreamHelper(AbfsInputStreamHelper abfsInputStreamHelper) {
     nextHelper = new FastpathRimbaudAbfsInputStreamHelper(this);
@@ -106,7 +107,9 @@ public class FastpathRestAbfsInputStreamHelper
                       + readRequestParameters.getReadLength()));
 
           if (nextSize == 0) {
-            if(abfsInputStreamRequestContext.getCurrentOffset().compareTo(abfsInputStreamRequestContext.getStartOffset()) != 0) {
+            if (abfsInputStreamRequestContext.getCurrentOffset()
+                .compareTo(abfsInputStreamRequestContext.getStartOffset())
+                != 0) {
               return null;
             }
             int readAheadCount
