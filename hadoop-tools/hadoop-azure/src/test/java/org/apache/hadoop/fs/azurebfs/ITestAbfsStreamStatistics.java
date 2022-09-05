@@ -29,7 +29,6 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.azurebfs.services.MockAbfsInputStream;
-import org.apache.hadoop.fs.azurebfs.utils.MockFastpathConnection;
 import org.apache.hadoop.io.IOUtils;
 
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_READ_AHEAD_QUEUE_DEPTH;
@@ -53,18 +52,7 @@ public class ITestAbfsStreamStatistics extends AbstractAbfsIntegrationTest {
    *
    */
   @Test
-  public void testMockFastpathAbfsStreamOps() throws Exception {
-    // Run mock test only if feature is set to off
-    Assume.assumeFalse(getDefaultFastpathFeatureStatus());
-    testAbfsStreamOps(true);
-  }
-
-  @Test
   public void testAbfsStreamOps() throws Exception {
-    testAbfsStreamOps(false);
-  }
-
-  public void testAbfsStreamOps(boolean isMockFastpathTest) throws Exception {
     describe("Test to see correct population of read and write operations in "
         + "Abfs");
 
@@ -99,14 +87,7 @@ public class ITestAbfsStreamStatistics extends AbstractAbfsIntegrationTest {
       //Flushing output stream to see content to read
       outForOneOperation.hflush();
       byte[] buff = testReadWriteOps.getBytes();
-      if (isMockFastpathTest) {
-        MockFastpathConnection
-            .registerAppend(buff.length, smallOperationsFile.getName(), buff, 0,
-                buff.length);
-      }
-      inForOneOperation = isMockFastpathTest
-          ? openMockAbfsInputStream(fs, smallOperationsFile)
-          : fs.open(smallOperationsFile);
+      inForOneOperation = fs.open(smallOperationsFile);
       statistics.reset();
       int result = inForOneOperation.read(testReadWriteOps.getBytes(), 0,
           testReadWriteOps.getBytes().length);
@@ -135,16 +116,9 @@ public class ITestAbfsStreamStatistics extends AbstractAbfsIntegrationTest {
     }
 
     //Validating if content is being written in the smallOperationsFile
-    if (isMockFastpathTest) {
-      assertTrue("Mismatch in content validation",
-          validateContent((MockAbfsInputStream) getMockAbfsInputStream(fs,
-              smallOperationsFile),
-              testReadWriteOps.getBytes()));
-    } else {
-      assertTrue("Mismatch in content validation",
-          validateContent(fs, smallOperationsFile,
-              testReadWriteOps.getBytes()));
-    }
+    assertTrue("Mismatch in content validation",
+        validateContent(fs, smallOperationsFile,
+            testReadWriteOps.getBytes()));
 
     FSDataOutputStream outForLargeOperations = null;
     FSDataInputStream inForLargeOperations = null;
@@ -157,11 +131,6 @@ public class ITestAbfsStreamStatistics extends AbstractAbfsIntegrationTest {
       int totalLen = largeValue*buff.length;
       for (int i = 0; i < largeValue; i++) {
         outForLargeOperations.write(testReadWriteOps.getBytes());
-        if (isMockFastpathTest) {
-          MockFastpathConnection
-              .registerAppend(totalLen, largeOperationsFile.getName(), buff, 0,
-                  buff.length);
-        }
 
         //Creating the String for content Validation
         largeOperationsValidationString.append(testReadWriteOps);
@@ -172,9 +141,7 @@ public class ITestAbfsStreamStatistics extends AbstractAbfsIntegrationTest {
       //Test for 1000000 write operations
       assertReadWriteOps("write", largeValue, statistics.getWriteOps());
 
-      inForLargeOperations = isMockFastpathTest
-          ? openMockAbfsInputStream(fs, largeOperationsFile)
-          : fs.open(largeOperationsFile);
+      inForLargeOperations = fs.open(largeOperationsFile);
       for (int i = 0; i < largeValue; i++) {
         inForLargeOperations
             .read(testReadWriteOps.getBytes(), 0,
@@ -197,21 +164,9 @@ public class ITestAbfsStreamStatistics extends AbstractAbfsIntegrationTest {
     }
 
     //Validating if content is being written in largeOperationsFile
-    if (isMockFastpathTest) {
-      assertTrue("Mismatch in content validation",
-          validateContent((MockAbfsInputStream) getMockAbfsInputStream(fs,
-              largeOperationsFile),
-              largeOperationsValidationString.toString().getBytes()));
-    } else {
-      assertTrue("Mismatch in content validation",
-          validateContent(fs, largeOperationsFile,
-              largeOperationsValidationString.toString().getBytes()));
-    }
-
-    if (isMockFastpathTest) {
-      MockFastpathConnection.unregisterAppend(smallOperationsFile.getName());
-      MockFastpathConnection.unregisterAppend(largeOperationsFile.getName());
-    }
+    assertTrue("Mismatch in content validation",
+        validateContent(fs, largeOperationsFile,
+            largeOperationsValidationString.toString().getBytes()));
   }
 
   /**

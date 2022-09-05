@@ -30,8 +30,6 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.hadoop.fs.azurebfs.utils.MockFastpathConnection;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -92,7 +90,6 @@ public class ITestAzureBlobFileSystemRandomRead extends
   @After
   public void tearDown() throws Exception {
     super.teardown();
-    deleteMockFastpathFiles();
   }
 
   @Test
@@ -835,9 +832,6 @@ public class ITestAzureBlobFileSystemRandomRead extends
       int bytesWritten = 0;
       while (bytesWritten < testFileSize) {
         outputStream.write(buffer);
-          MockFastpathConnection
-              .registerAppend((int) testFileSize, testFilePath.getName(),
-                  buffer, 0, buffer.length);
         bytesWritten += buffer.length;
       }
 

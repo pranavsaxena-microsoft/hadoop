@@ -277,17 +277,6 @@ public class AbfsRestOperation {
     this.abfsCounters = client.getAbfsCounters();
   }
 
-  public boolean isAFastpathRequest() {
-    switch (operationType) {
-    case FastpathOpen:
-    case FastpathRead:
-    case FastpathClose:
-      return true;
-    default:
-      return false;
-    }
-  }
-
   /**
    * Execute a AbfsRestOperation. Track the Duration of a request if
    * abfsCounters isn't null.
@@ -357,15 +346,10 @@ public class AbfsRestOperation {
         case Custom:
         case OAuth:
           LOG.debug("Authenticating request with OAuth2 access token");
-          if (isAFastpathRequest()) {
-            httpOperation = getFastpathConnection();
-          } else {
-            httpOperation = getHttpOperation();
-            httpOperation.setHeader(
-                HttpHeaderConfigurations.AUTHORIZATION,
-                client.getAccessToken());
-          }
-
+          httpOperation = getHttpOperation();
+          httpOperation.setHeader(
+              HttpHeaderConfigurations.AUTHORIZATION,
+              client.getAccessToken());
           tracingContext.constructHeader(httpOperation);
           break;
         case SAS:
@@ -403,7 +387,7 @@ public class AbfsRestOperation {
           httpOperation.getRequestHeaders());
       AbfsClientThrottlingIntercept.sendingRequest(operationType, abfsCounters);
 
-      if (hasRequestBody && !isAFastpathRequest()) {
+      if (hasRequestBody) {
         // HttpUrlConnection requires
         ((AbfsHttpConnection) httpOperation).sendRequest(buffer, bufferOffset, bufferLength);
         incrementCounter(AbfsStatistic.SEND_REQUESTS, 1);
@@ -462,13 +446,6 @@ public class AbfsRestOperation {
   @VisibleForTesting
   protected AbfsHttpConnection getHttpOperation() throws IOException {
     return new AbfsHttpConnection(url, method, requestHeaders, headerUpDownCallable);
-  }
-
-  @VisibleForTesting
-  protected AbfsFastpathConnection getFastpathConnection() throws IOException {
-    return new AbfsFastpathConnection(operationType, url, method,
-        client.getAuthType(), client.getAccessToken(), requestHeaders, //TODO: remove oauth?
-        fastpathSessionData);
   }
 
   @VisibleForTesting

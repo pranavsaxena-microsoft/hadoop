@@ -58,7 +58,6 @@ import org.apache.hadoop.fs.azure.metrics.AzureFileSystemInstrumentation;
 import org.apache.hadoop.fs.azurebfs.constants.FileSystemUriSchemes;
 import org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AbfsRestOperationException;
-import org.apache.hadoop.fs.azurebfs.utils.MockFastpathConnection;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 import org.apache.hadoop.fs.azurebfs.utils.TracingHeaderFormat;
 import org.apache.hadoop.fs.azurebfs.utils.UriUtils;
@@ -610,12 +609,5 @@ public abstract class AbstractAbfsIntegrationTest extends
 
   protected void addToTestTearDownCleanupList(Path file) {
     mockFastpathFilesToRegister.add(file.getName());
-  }
-
-    protected void deleteMockFastpathFiles() {
-    Iterator<String> itr = mockFastpathFilesToRegister.iterator();
-    while (itr.hasNext()) {
-      MockFastpathConnection.unregisterAppend(itr.next());
-    }
   }
 }

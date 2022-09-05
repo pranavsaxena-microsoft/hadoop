@@ -23,7 +23,6 @@ import java.net.URL;
 import java.util.List;
 import java.util.concurrent.Callable;
 
-import com.azure.storage.fastpath.exceptions.FastpathRequestException;
 import org.mockito.Mockito;
 
 import org.apache.hadoop.fs.azurebfs.AbfsConfiguration;

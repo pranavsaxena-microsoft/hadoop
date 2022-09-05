@@ -27,7 +27,6 @@ import org.apache.hadoop.fs.azurebfs.AbfsStatistic;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AbfsRestOperationException;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemException;
 import org.apache.hadoop.fs.azurebfs.contracts.services.ReadRequestParameters;
-import org.apache.hadoop.fs.azurebfs.utils.MockFastpathConnection;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 
 import static org.apache.hadoop.fs.azurebfs.constants.TestConfigurationKeys.FS_AZURE_TEST_FASTPATH_MOCK_SO_ENABLED;
@@ -80,12 +79,6 @@ public class MockAbfsRestOperation extends AbfsRestOperation {
     this.readRequestParameters = readRequestParameters;
   }
 
-  protected AbfsFastpathConnection getFastpathConnection() throws IOException {
-    return new MockAbfsFastpathConnection(getOperationType(), getUrl(), getMethod(),
-        getAbfsClient().getAuthType(), getAbfsClient().getAccessToken(), getRequestHeaders(),
-        getFastpathSessionData());
-  }
-
   @Override
   protected AbfsHttpConnection getHttpOperation() throws IOException {
     if (AbfsRestOperationType.OptimizedRead.equals(getOperationType())) {
@@ -95,24 +88,14 @@ public class MockAbfsRestOperation extends AbfsRestOperation {
     return super.getHttpOperation();
   }
 
-  private void setEffectiveMock() {
-    MockFastpathConnection.setTestMock(getAbfsClient().getAbfsConfiguration()
-        .getRawConfiguration()
-        .getBoolean(FS_AZURE_TEST_FASTPATH_MOCK_SO_ENABLED, false));
-  }
-
-  protected void processResponse(AbfsHttpOperation httpOperation) throws IOException {
-    if (isAFastpathRequest()) {
-      setEffectiveMock();
-      signalErrorConditionToMockAbfsFastpathConn((MockAbfsFastpathConnection) httpOperation);
-      ((MockAbfsFastpathConnection) httpOperation).processResponse(getBuffer(), getBufferOffset(), getBufferLength());
-    } else {
-      if(AbfsRestOperationType.OptimizedRead.equals(getOperationType())) {
-        signalErrorConditionToMockAbfsFastpathRestConn(
-            (MockAbfsHttpConnection) httpOperation);
-      }
-      httpOperation.processResponse(getBuffer(), getBufferOffset(), getBufferLength());
+  protected void processResponse(AbfsHttpOperation httpOperation)
+      throws IOException {
+    if (AbfsRestOperationType.OptimizedRead.equals(getOperationType())) {
+      signalErrorConditionToMockAbfsFastpathRestConn(
+          (MockAbfsHttpConnection) httpOperation);
     }
+    httpOperation.processResponse(getBuffer(), getBufferOffset(),
+        getBufferLength());
   }
 
   @Override
@@ -126,20 +109,6 @@ public class MockAbfsRestOperation extends AbfsRestOperation {
       throw new AbfsRestOperationException(500, "500", "500", null);
     }
     super.execute(tracingContext);
-  }
-
-  private void signalErrorConditionToMockAbfsFastpathConn(MockAbfsFastpathConnection httpOperation) {
-    if (errStatusFastpathRimbaud != 0) {
-      httpOperation.induceError(errStatusFastpathRimbaud);
-    }
-
-    if (mockRequestExceptionFastpathRimbaud) {
-      httpOperation.induceRequestException();
-    }
-
-    if (mockConnectionExceptionFastpathRimbaud) {
-      httpOperation.induceConnectionException();
-    }
   }
 
   private void signalErrorConditionToMockAbfsFastpathRestConn(MockAbfsHttpConnection httpOperation) {
