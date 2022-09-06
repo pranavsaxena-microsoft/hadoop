@@ -46,7 +46,6 @@ import org.apache.hadoop.fs.azurebfs.AzureBlobFileSystemStore;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemException;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.TimeoutException;
 import org.apache.hadoop.fs.azurebfs.contracts.services.ReadBufferStatus;
-import org.apache.hadoop.fs.azurebfs.utils.MockFastpathConnection;
 import org.apache.hadoop.fs.azurebfs.utils.TestCachedSASToken;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 import org.apache.hadoop.fs.impl.OpenFileParameters;
@@ -91,7 +90,6 @@ public class TestAbfsInputStream extends
   @After
   public void tearDown() throws Exception {
     super.teardown();
-    deleteMockFastpathFiles();
   }
   private AbfsRestOperation getMockRestOp() {
     AbfsRestOperation op = mock(AbfsRestOperation.class);
@@ -858,13 +856,9 @@ public class TestAbfsInputStream extends
       character = (character == 'z') ? 'a' : (char) ((int) character + 1);
     }
 
-    MockFastpathConnection.unregisterAppend(testFilePath.getName());
-
     try (FSDataOutputStream outputStream = fs.create(testFilePath)) {
       int bytesWritten = 0;
       while (bytesWritten < testFileSize) {
-        MockFastpathConnection.registerAppend((int) testFileSize,
-            testFilePath.getName(), buffer, 0, buffer.length);
         outputStream.write(buffer);
         bytesWritten += buffer.length;
       }
@@ -884,16 +878,5 @@ public class TestAbfsInputStream extends
     // Trigger GC as aggressive recreation of ReadBufferManager buffers
     // by successive tests can lead to OOM based on the dev VM/machine capacity.
     System.gc();
-  }
-
-  public static boolean isFastpathEnabled(AbfsInputStream inStream) {
-    if ((inStream.getAbfsSession() != null)
-      && (inStream.getAbfsSession().getSessionData() != null)
-        && (inStream.getAbfsSession().getSessionData().getConnectionMode()
-            == AbfsConnectionMode.FASTPATH_CONN)) {
-      return true;
-    }
-
-    return false;
   }
 }

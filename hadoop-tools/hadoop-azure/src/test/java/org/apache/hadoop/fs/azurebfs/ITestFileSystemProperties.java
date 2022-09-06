@@ -27,7 +27,6 @@ import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.azurebfs.utils.MockFastpathConnection;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 
 /**
@@ -42,7 +41,6 @@ public class ITestFileSystemProperties extends AbstractAbfsIntegrationTest {
   @After
   public void tearDown() throws Exception {
     super.teardown();
-    deleteMockFastpathFiles();
   }
 
   @Test
@@ -56,8 +54,6 @@ public class ITestFileSystemProperties extends AbstractAbfsIntegrationTest {
       stream.write(TEST_DATA);
     }
     byte[] buffer = new byte[]{(byte) (TEST_DATA & 0xFF)};
-    MockFastpathConnection.registerAppend(buffer.length, testPath.getName(),
-        buffer, 0, buffer.length);
     addToTestTearDownCleanupList(testPath);
     FileStatus fileStatus = fs.getFileStatus(testPath);
     assertEquals(1, fileStatus.getLen());

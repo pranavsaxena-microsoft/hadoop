@@ -39,7 +39,7 @@ public class FastpathRestAbfsInputStreamHelper
       FastpathRestAbfsInputStreamHelper.class);
 
   public FastpathRestAbfsInputStreamHelper(AbfsInputStreamHelper abfsInputStreamHelper) {
-    nextHelper = new FastpathRimbaudAbfsInputStreamHelper(this);
+    nextHelper = null;
     prevHelper = abfsInputStreamHelper;
   }
 

@@ -27,8 +27,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import org.apache.hadoop.fs.azurebfs.utils.MockFastpathConnection;
-
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.Path;
@@ -73,18 +71,11 @@ public class ITestAbfsReadWriteAndSeek extends AbstractAbfsScaleTest {
   }
 
   @Test
-  public void testMockFastpathReadWriteWithDiffBuffSizesAndSeek() throws Exception {
-    // Run mock test only if feature is set to off
-    Assume.assumeFalse(getDefaultFastpathFeatureStatus());
-    testReadWriteAndSeek(size, true);
-  }
-
-  @Test
   public void testReadWriteWithDiffBuffSizesAndSeek() throws Exception {
-    testReadWriteAndSeek(size, false);
+    testReadWriteAndSeek(size);
   }
 
-  private void testReadWriteAndSeek(int bufferSize, boolean isMockFastpathTest) throws Exception {
+  private void testReadWriteAndSeek(int bufferSize) throws Exception {
     final AzureBlobFileSystem fs = getFileSystem();
     final AbfsConfiguration abfsConfiguration = fs.getAbfsStore().getAbfsConfiguration();
     abfsConfiguration.setWriteBufferSize(bufferSize);
@@ -100,34 +91,18 @@ public class ITestAbfsReadWriteAndSeek extends AbstractAbfsScaleTest {
     } finally{
     stream.close();
     }
-    if (isMockFastpathTest) {
-      MockFastpathConnection.registerAppend(b.length, testPath.getName(), b, 0, b.length);
-    }
     IOStatisticsLogging.logIOStatisticsAtLevel(LOG, IOSTATISTICS_LOGGING_LEVEL_INFO, stream);
 
     final byte[] readBuffer = new byte[2 * bufferSize];
     int result = -1;
     IOStatisticsSource statisticsSource = null;
-    boolean isUnsuppFastpathBuffSize = (
-        (bufferSize != DEFAULT_FASTPATH_READ_BUFFER_SIZE)
-            && (fs.getAbfsStore().getAbfsConfiguration().isReadByDefaultOnFastpath()
-            || isMockFastpathTest));
-    try (FSDataInputStream inputStream = isMockFastpathTest
-        ? openMockAbfsInputStream(fs, fs.open(testPath))
-        : fs.open(testPath)) {
+    try (FSDataInputStream inputStream = fs.open(testPath)) {
       statisticsSource = inputStream;
       ((AbfsInputStream) inputStream.getWrappedStream()).registerListener(
           new TracingHeaderValidator(abfsConfiguration.getClientCorrelationId(),
               fs.getFileSystemId(), FSOperationType.READ, true, 0,
               ((AbfsInputStream) inputStream.getWrappedStream())
                   .getStreamID()));
-      if (isUnsuppFastpathBuffSize) {
-        Assertions.assertThat(TestAbfsInputStream.isFastpathEnabled(
-            (AbfsInputStream) (inputStream.getWrappedStream())))
-            .describedAs("Fastpath session should be disabled "
-                + "automatically for unsupported buffer size")
-            .isFalse();
-      }
 
       inputStream.seek(bufferSize);
       result = inputStream.read(readBuffer, bufferSize, bufferSize);
@@ -139,9 +114,6 @@ public class ITestAbfsReadWriteAndSeek extends AbstractAbfsScaleTest {
 
     assertNotEquals("data read in final read()", -1, result);
     assertArrayEquals(readBuffer, b);
-    if (isMockFastpathTest) {
-      MockFastpathConnection.unregisterAppend(testPath.getName());
-    }
   }
 
   @Test

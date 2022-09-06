@@ -62,9 +62,6 @@ public class MockAbfsInputStream extends AbfsInputStream {
   private static final long FILETIME_ONE_MILLISECOND = 10 * 1000;
   private static final int EXPIRY_POS_START = 8;
   private static final int EXPIRY_POS_END = 16;
-  private int errFpRimbaudStatus = 0;
-  private boolean mockFpRimbaudRequestException = false;
-  private boolean mockFpRimbaudConnectionException = false;
   private int errFpRestStatus = 0;
   private boolean mockFpRestRequestException = false;
   private boolean mockFpRestConnectionException = false;
@@ -125,18 +122,6 @@ public class MockAbfsInputStream extends AbfsInputStream {
   }
 
   private void signalErrorConditionToMockClient() {
-    if (errFpRimbaudStatus != 0) {
-      ((MockAbfsClient) getClient()).induceFpRimbaudError(errFpRimbaudStatus);
-    }
-
-    if (mockFpRimbaudRequestException) {
-      ((MockAbfsClient) getClient()).induceFpRimbaudRequestException();
-    }
-
-    if (mockFpRimbaudConnectionException) {
-      ((MockAbfsClient) getClient()).induceFpRimbaudConnectionException();
-    }
-
     if (errFpRestStatus != 0) {
       ((MockAbfsClient) getClient()).induceFpRestError(errFpRestStatus);
     }
@@ -148,26 +133,10 @@ public class MockAbfsInputStream extends AbfsInputStream {
     if (mockFpRestConnectionException) {
       ((MockAbfsClient) getClient()).induceFpRestConnectionException();
     }
-
-    if (disableForceFastpathMock) {
-      ((MockAbfsClient) getClient()).setForceFastpathReadAlways(false);
-    }
   }
 
   public Statistics getFSStatistics() {
     return super.getFSStatistics();
-  }
-
-  public void induceFpRimbaudError(int httpStatus) {
-    errFpRimbaudStatus = httpStatus;
-  }
-
-  public void induceFpRimbaudRequestException() {
-    mockFpRimbaudRequestException = true;
-  }
-
-  public void induceFpRimbaudConnectionException() {
-    mockFpRimbaudConnectionException = true;
   }
 
   public void induceFpRestError(int httpStatus) {
@@ -180,21 +149,6 @@ public class MockAbfsInputStream extends AbfsInputStream {
 
   public void induceFpRestConnectionException() {
     mockFpRestConnectionException = true;
-  }
-
-  public void disableAlwaysOnFastpathTestMock() {
-    disableForceFastpathMock = true;
-    ((MockAbfsClient) getClient()).setForceFastpathReadAlways(false);
-  }
-
-  public void resetAllMockErrStates() {
-    errFpRimbaudStatus = 0;
-    mockFpRimbaudRequestException = false;
-    mockFpRimbaudConnectionException = false;
-  }
-
-  public void turnOffForceFastpath() {
-    ((MockAbfsClient) getClient()).setForceFastpathReadAlways(false);
   }
 
   public static AbfsRestOperation getMockSuccessRestOp(AbfsClient client, byte[] token, Duration tokenDuration)
