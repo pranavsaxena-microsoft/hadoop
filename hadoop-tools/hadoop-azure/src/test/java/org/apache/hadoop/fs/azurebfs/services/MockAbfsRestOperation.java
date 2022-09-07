@@ -33,9 +33,6 @@ import static org.apache.hadoop.fs.azurebfs.constants.TestConfigurationKeys.FS_A
 
 public class MockAbfsRestOperation extends AbfsRestOperation {
 
-  private int errStatusFastpathRimbaud = 0;
-  private boolean mockRequestExceptionFastpathRimbaud = false;
-  private boolean mockConnectionExceptionFastpathRimbaud = false;
   private int errStatusFastpathRest = 0;
   private boolean mockRequestExceptionFastpathRest = false;
   private boolean mockConnectionExceptionFastpathRest = false;
@@ -45,22 +42,8 @@ public class MockAbfsRestOperation extends AbfsRestOperation {
       final AbfsClient client,
       final String method,
       final URL url,
-      final List<AbfsHttpHeader> requestHeaders,
-      final AbfsFastpathSessionData fastpathSessionInfo) {
-    super(operationType, client, method, url, requestHeaders, fastpathSessionInfo);
-  }
-
-  MockAbfsRestOperation(AbfsRestOperationType operationType,
-      AbfsClient client,
-      String method,
-      URL url,
-      List<AbfsHttpHeader> requestHeaders,
-      byte[] buffer,
-      int bufferOffset,
-      int bufferLength,
-      AbfsFastpathSessionData fastpathSessionInfo) {
-    super(operationType, client, method, url, requestHeaders, buffer,
-        bufferOffset, bufferLength, fastpathSessionInfo);
+      final List<AbfsHttpHeader> requestHeaders) {
+    super(operationType, client, method, url, requestHeaders);
   }
 
   MockAbfsRestOperation(AbfsRestOperationType operationType,
@@ -125,17 +108,6 @@ public class MockAbfsRestOperation extends AbfsRestOperation {
     }
   }
 
-  public void induceFpRimbaudError(int httpStatus) {
-    errStatusFastpathRimbaud = httpStatus;
-  }
-
-  public void induceFpRimbaudRequestException() {
-    mockRequestExceptionFastpathRimbaud = true;
-  }
-
-  public void induceFpRimbaudConnectionException() {
-    mockConnectionExceptionFastpathRimbaud = true;
-  }
   public void induceFpRestError(int httpStatus) {
     errStatusFastpathRest = httpStatus;
   }
@@ -146,11 +118,5 @@ public class MockAbfsRestOperation extends AbfsRestOperation {
 
   public void induceFpRestConnectionException() {
     mockConnectionExceptionFastpathRest= true;
-  }
-
-  public void resetAllMockErrStates() {
-    errStatusFastpathRimbaud = 0;
-    mockRequestExceptionFastpathRimbaud = false;
-    mockConnectionExceptionFastpathRimbaud = false;
   }
 }

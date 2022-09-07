@@ -76,8 +76,6 @@ public class AbfsRestOperation {
 
   private AbfsHttpOperation result;
   private AbfsCounters abfsCounters;
-  private AbfsFastpathSessionData fastpathSessionData;
-
   private Callable headerUpDownCallable;
 
   /**
@@ -225,56 +223,6 @@ public class AbfsRestOperation {
     this.bufferLength = bufferLength;
     this.abfsCounters = client.getAbfsCounters();
     this.headerUpDownCallable = headerUpDownCallable;
-  }
-
-  /**
-   * Initializes a new REST operation.
-   *
-   * @param client The Blob FS client.
-   * @param method The HTTP method (PUT, PATCH, POST, GET, HEAD, or DELETE).
-   * @param url The full URL including query string parameters.
-   * @param requestHeaders The HTTP request headers.
-   * @param fastpathSessionData Fastpath session info
-   */
-  AbfsRestOperation(final AbfsRestOperationType operationType,
-      final AbfsClient client,
-      final String method,
-      final URL url,
-      final List<AbfsHttpHeader> requestHeaders,
-      final AbfsFastpathSessionData fastpathSessionData) {
-    this(operationType, client, method, url, requestHeaders);
-    this.fastpathSessionData = fastpathSessionData;
-  }
-
-  /**
-   * Initializes a new REST operation and takes in fastpath session info
-   *
-   * @param operationType The type of the REST operation (Append, ReadFile, etc).
-   * @param client The Blob FS client.
-   * @param method The HTTP method (PUT, PATCH, POST, GET, HEAD, or DELETE).
-   * @param url The full URL including query string parameters.
-   * @param requestHeaders The HTTP request headers.
-   * @param buffer For uploads, this is the request entity body.  For downloads,
-   *               this will hold the response entity body.
-   * @param bufferOffset An offset into the buffer where the data beings.
-   * @param bufferLength The length of the data in the buffer.
-   * @param fastpathSessionData Fastpath session info instance
-   */
-  AbfsRestOperation(AbfsRestOperationType operationType,
-      AbfsClient client,
-      String method,
-      URL url,
-      List<AbfsHttpHeader> requestHeaders,
-      byte[] buffer,
-      int bufferOffset,
-      int bufferLength,
-      AbfsFastpathSessionData fastpathSessionData) {
-    this(operationType, client, method, url, requestHeaders,
-        fastpathSessionData);
-    this.buffer = buffer;
-    this.bufferOffset = bufferOffset;
-    this.bufferLength = bufferLength;
-    this.abfsCounters = client.getAbfsCounters();
   }
 
   /**
@@ -483,11 +431,6 @@ public class AbfsRestOperation {
   @VisibleForTesting
   protected int getBufferLength() {
     return bufferLength;
-  }
-
-  @VisibleForTesting
-  protected AbfsFastpathSessionData getFastpathSessionData() {
-    return fastpathSessionData;
   }
 
   @VisibleForTesting

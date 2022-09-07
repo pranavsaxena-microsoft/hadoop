@@ -53,7 +53,6 @@ import static org.mockito.Mockito.when;
 
 import static org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations.CONTENT_LENGTH;
 import static org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations.X_MS_FASTPATH_SESSION_EXPIRY;
-import static org.apache.hadoop.fs.azurebfs.services.AbfsSession.IO_SESSION_SCOPE.READ_ON_FASTPATH;
 
 public class MockAbfsInputStream extends AbfsInputStream {
   //Diff between Filetime epoch and Unix epoch (in ms)
@@ -86,7 +85,7 @@ public class MockAbfsInputStream extends AbfsInputStream {
       throws IOException {
     super(new MockAbfsClient(client), in.getFSStatistics(), in.getPath(),
         in.getContentLength(),
-        in.getContext().withDefaultFastpath(false).withDefaultOptimizedRest(false),
+        in.getContext().withDefaultOptimizedRest(false),
         in.getETag(),
         in.getTracingContext());
   }

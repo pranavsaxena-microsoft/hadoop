@@ -113,11 +113,7 @@ public final class AbfsHttpConstants {
   public static final char CHAR_EQUALS = '=';
   public static final char CHAR_STAR = '*';
   public static final char CHAR_PLUS = '+';
-
-  public static final String FASTPATH_CORR_INDICATOR = "F";
   public static final String OPTIMIZED_REST_CORR_INDICATOR = "OR";
-  public static final String FASTPATH_REQ_FALLBACK_CORR_INDICATOR = "FRF";
-  public static final String FASTPATH_CONN_FALLBACK_CORR_INDICATOR = "FCF";
   public static final String SSN_UPD_FALLBACK_CORR_INDICATOR = "SUF";
 
   private AbfsHttpConstants() {}

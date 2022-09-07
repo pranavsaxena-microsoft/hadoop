@@ -60,34 +60,21 @@ public class ITestAbfsInputStream extends AbstractAbfsIntegrationTest {
   }
 
   @Test
-  public void testMockFastpathWithNoOptimization() throws Exception {
-    // Run mock test only if feature is set to off
-    Assume.assumeFalse(getDefaultFastpathFeatureStatus());
-    testWithNoOptimization(true);
-  }
-
-  @Test
   public void testWithNoOptimization() throws Exception {
-    testWithNoOptimization(false);
-  }
-
-  public void testWithNoOptimization(boolean isMockFastpathTest) throws Exception {
     for (int i = 2; i <= 7; i++) {
       int fileSize = i * ONE_MB;
       final AzureBlobFileSystem fs = getFileSystem(false, false, fileSize);
       String fileName = methodName.getMethodName() + i;
       byte[] fileContent = getRandomBytesArray(fileSize);
       Path testFilePath = createFileWithContent(fs, fileName, fileContent);
-      testWithNoOptimization(fs, testFilePath, HUNDRED, fileContent, isMockFastpathTest);
+      testWithNoOptimization(fs, testFilePath, HUNDRED, fileContent);
     }
   }
 
   protected void testWithNoOptimization(final FileSystem fs,
-      final Path testFilePath, final int seekPos, final byte[] fileContent, boolean isMockFastpathTest)
+      final Path testFilePath, final int seekPos, final byte[] fileContent)
       throws IOException {
-    FSDataInputStream iStream = isMockFastpathTest
-        ? openMockAbfsInputStream((AzureBlobFileSystem) fs, testFilePath)
-        : fs.open(testFilePath);
+    FSDataInputStream iStream = fs.open(testFilePath);
     try {
       AbfsInputStream abfsInputStream = (AbfsInputStream) iStream
           .getWrappedStream();

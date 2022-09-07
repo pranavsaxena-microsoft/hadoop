@@ -46,8 +46,6 @@ import static org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations.X
 public class AbfsSession {
 
   public enum IO_SESSION_SCOPE {
-    READ_ON_FASTPATH,
-    WRITE_ON_FASTPATH,
     READ_ON_OPTIMIZED_REST,
     WRITE_ON_OPTIMIZED_REST,
     BASE_REST
@@ -74,9 +72,6 @@ public class AbfsSession {
 
   protected AbfsConnectionMode mapSessionScopeToConnMode(IO_SESSION_SCOPE scope) {
     switch(scope) {
-    case READ_ON_FASTPATH:
-    case WRITE_ON_FASTPATH:
-      return AbfsConnectionMode.FASTPATH_CONN;
     case READ_ON_OPTIMIZED_REST:
     case WRITE_ON_OPTIMIZED_REST:
       return AbfsConnectionMode.OPTIMIZED_REST;
@@ -130,10 +125,8 @@ public class AbfsSession {
   protected AbfsRestOperation executeFetchSessionToken()
       throws AzureBlobFileSystemException {
     switch (scope) {
-    case READ_ON_FASTPATH:
     case READ_ON_OPTIMIZED_REST:
       return client.getReadSessionToken(path, eTag, tracingContext);
-    case WRITE_ON_FASTPATH:
     case WRITE_ON_OPTIMIZED_REST:
       return client.getWriteSessionToken(path, tracingContext);
     case BASE_REST:
@@ -265,8 +258,7 @@ public class AbfsSession {
   public void enforceConnectionModeFallbacks(AbfsConnectionMode connectionMode) {
     // Fastpath connection and session refresh failures are not recoverable,
     // update connection mode if that happens
-    if ((connectionMode == AbfsConnectionMode.OPTIMIZED_REST_ON_FASTPATH_CONN_FAILURE)
-        || (connectionMode == AbfsConnectionMode.REST_ON_SESSION_UPD_FAILURE)
+    if ((connectionMode == AbfsConnectionMode.REST_ON_SESSION_UPD_FAILURE)
         || (connectionMode == AbfsConnectionMode.REST_CONN)) {
       LOG.debug(
           "{}: Switching to error connection mode : {}",

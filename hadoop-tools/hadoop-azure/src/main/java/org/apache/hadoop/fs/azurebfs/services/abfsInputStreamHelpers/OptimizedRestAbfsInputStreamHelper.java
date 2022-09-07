@@ -24,7 +24,7 @@ import java.util.concurrent.Callable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class FastpathRestAbfsInputStreamHelper
+public class OptimizedRestAbfsInputStreamHelper
     implements AbfsInputStreamHelper {
 
   private AbfsInputStreamHelper nextHelper;
@@ -36,17 +36,16 @@ public class FastpathRestAbfsInputStreamHelper
 
 
   private static final Logger LOG = LoggerFactory.getLogger(
-      FastpathRestAbfsInputStreamHelper.class);
+      OptimizedRestAbfsInputStreamHelper.class);
 
-  public FastpathRestAbfsInputStreamHelper(AbfsInputStreamHelper abfsInputStreamHelper) {
+  public OptimizedRestAbfsInputStreamHelper(AbfsInputStreamHelper abfsInputStreamHelper) {
     nextHelper = null;
     prevHelper = abfsInputStreamHelper;
   }
 
   @Override
   public boolean shouldGoNext(final AbfsInputStreamContext abfsInputStreamContext) {
-    return (abfsInputStreamContext.isDefaultConnectionOnFastpath()
-        && nextHelper != null);
+    return false;
   }
 
   @Override

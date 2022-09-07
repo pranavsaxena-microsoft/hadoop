@@ -119,10 +119,10 @@ public final class FileSystemConfigurations {
   public static final boolean DEFAULT_READ_OPTIMIZED_REST = false;
   public static final boolean DEFAULT_WRITE_OPTIMIZED_REST = false;
 
-  public static final int DEFAULT_FASTPATH_READ_BUFFER_SIZE = 4 * ONE_MB;
+  public static final int DEFAULT_OPTIMIZED_READ_BUFFER_SIZE = 4 * ONE_MB;
 
-  public static final int THRICE_DEFAULT_FASTPATH_READ_BUFFER_SIZE = 3
-      * DEFAULT_FASTPATH_READ_BUFFER_SIZE;
+  public static final int THRICE_DEFAULT_OPTIMIZED_READ_BUFFER_SIZE = 3
+      * DEFAULT_OPTIMIZED_READ_BUFFER_SIZE;
 
   /**
    * Limit of queued block upload operations before writes

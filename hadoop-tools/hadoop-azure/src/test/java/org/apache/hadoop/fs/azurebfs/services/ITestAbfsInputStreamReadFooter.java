@@ -53,33 +53,17 @@ public class ITestAbfsInputStreamReadFooter extends ITestAbfsInputStream {
   }
 
   @Test
-  public void testMockFastpathOnlyOneServerCallIsMadeWhenTheConfIsTrue() throws Exception {
-    // Run mock test only if feature is set to off
-    Assume.assumeFalse(getDefaultFastpathFeatureStatus());
-    testNumBackendCalls(true, true);
-  }
-
-  @Test
   public void testOnlyOneServerCallIsMadeWhenTheConfIsTrue() throws Exception {
-    testNumBackendCalls(true, false);
-  }
-
-  @Test
-  public void testMockFastpathMultipleServerCallsAreMadeWhenTheConfIsFalse()
-      throws Exception {
-    // Run mock test only if feature is set to off
-    Assume.assumeFalse(getDefaultFastpathFeatureStatus());
-    testNumBackendCalls(false, true);
+    testNumBackendCalls(true);
   }
 
   @Test
   public void testMultipleServerCallsAreMadeWhenTheConfIsFalse()
       throws Exception {
-    testNumBackendCalls(false, false);
+    testNumBackendCalls(false);
   }
 
-  private void testNumBackendCalls(boolean optimizeFooterRead,
-      boolean isMockFastpathTest)
+  private void testNumBackendCalls(boolean optimizeFooterRead)
       throws Exception {
     String fileNamePrefix = methodName.getMethodName() + java.util.UUID.randomUUID().toString() + "_";
     for (int i = 1; i <= 4; i++) {
@@ -91,9 +75,6 @@ public class ITestAbfsInputStreamReadFooter extends ITestAbfsInputStream {
       Path testFilePath = createFileWithContent(fs, fileName, fileContent);
       int length = AbfsInputStream.FOOTER_SIZE;
       FSDataInputStream iStream = fs.open(testFilePath);
-      if (isMockFastpathTest) {
-        iStream = openMockAbfsInputStream(fs, iStream);
-      }
 
       byte[] buffer = new byte[length];
 
@@ -123,35 +104,13 @@ public class ITestAbfsInputStreamReadFooter extends ITestAbfsInputStream {
   }
 
   @Test
-  public void testMockFastpathSeekToBeginAndReadWithConfTrue() throws Exception {
-    // Run mock test only if feature is set to off
-    Assume.assumeFalse(getDefaultFastpathFeatureStatus());
-    testSeekToBeginAndReadWithConfTrue(true);
-  }
-
-  @Test
   public void testSeekToBeginAndReadWithConfTrue() throws Exception {
-    testSeekToBeginAndReadWithConfTrue(false);
-  }
-
-  public void testSeekToBeginAndReadWithConfTrue(boolean isMockFastpathTest) throws Exception {
-    testSeekAndReadWithConf(true, SeekTo.BEGIN, isMockFastpathTest);
-  }
-
-  @Test
-  public void testMockFastpathSeekToBeginAndReadWithConfFalse() throws Exception {
-    // Run mock test only if feature is set to off
-    Assume.assumeFalse(getDefaultFastpathFeatureStatus());
-    testSeekToBeginAndReadWithConfFalse(true);
+    testSeekAndReadWithConf(true, SeekTo.BEGIN);
   }
 
   @Test
   public void testSeekToBeginAndReadWithConfFalse() throws Exception {
-    testSeekToBeginAndReadWithConfFalse(false);
-  }
-
-  public void testSeekToBeginAndReadWithConfFalse(boolean isMockFastpathTest) throws Exception {
-    testSeekAndReadWithConf(false, SeekTo.BEGIN, isMockFastpathTest);
+    testSeekAndReadWithConf(false, SeekTo.BEGIN);
   }
 
   @Test
