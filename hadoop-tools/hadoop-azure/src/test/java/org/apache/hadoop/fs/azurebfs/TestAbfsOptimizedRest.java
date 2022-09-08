@@ -98,7 +98,7 @@ public class TestAbfsOptimizedRest extends AbstractAbfsIntegrationTest {
   }
 
   @Test
-  public void testFastpathRimbaudAndRestConnectionFailure() throws IOException {
+  public void testOptimizedRestConnectionFailure() throws IOException {
     AzureBlobFileSystem fs = getAbfsFileSystem(2,
         DEFAULT_OPTIMIZED_READ_BUFFER_SIZE, 0);
     AbfsInputStream inStream = createTestfileAndGetInputStream(fs,

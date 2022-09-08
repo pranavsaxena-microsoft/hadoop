@@ -165,8 +165,7 @@ public class TestAbfsInputStream extends
   public  AbfsInputStreamContext getInStmContext(int readAheadQueueDepth,
       int readBufferSize,
       boolean alwaysReadBufferSize,
-      int readAheadBlockSize,
-      boolean isFastpathEnabled) {
+      int readAheadBlockSize) {
     AbfsInputStreamContext inputStreamContext = new AbfsInputStreamContext(-1);
     inputStreamContext.withReadBufferSize(readBufferSize)
         .withReadAheadQueueDepth(readAheadQueueDepth)

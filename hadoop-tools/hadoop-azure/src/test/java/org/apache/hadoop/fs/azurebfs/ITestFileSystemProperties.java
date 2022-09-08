@@ -44,33 +44,7 @@ public class ITestFileSystemProperties extends AbstractAbfsIntegrationTest {
   }
 
   @Test
-  public void testMockFastpathReadWriteBytesToFileAndEnsureThreadPoolCleanup()
-      throws Exception {
-    // Run mock test only if feature is set to off
-    Assume.assumeFalse(getDefaultFastpathFeatureStatus());
-    final AzureBlobFileSystem fs = getFileSystem();
-    Path testPath = new Path(TEST_PATH + "_mock");
-    try(FSDataOutputStream stream = fs.create(testPath)) {
-      stream.write(TEST_DATA);
-    }
-    byte[] buffer = new byte[]{(byte) (TEST_DATA & 0xFF)};
-    addToTestTearDownCleanupList(testPath);
-    FileStatus fileStatus = fs.getFileStatus(testPath);
-    assertEquals(1, fileStatus.getLen());
-
-    try(FSDataInputStream inputStream =  openMockAbfsInputStream(fs, testPath)) {
-      int i = inputStream.read();
-      assertEquals(TEST_DATA, i);
-    }
-  }
-
-  @Test
   public void testReadWriteBytesToFileAndEnsureThreadPoolCleanup() throws Exception {
-    testReadWriteBytesToFileAndEnsureThreadPoolCleanup(false);
-  }
-
-  public void testReadWriteBytesToFileAndEnsureThreadPoolCleanup(boolean isMockFastpathTest)
-      throws Exception {
     final AzureBlobFileSystem fs = getFileSystem();
     Path testPath = path(TEST_PATH);
     try(FSDataOutputStream stream = fs.create(testPath)) {
@@ -80,9 +54,7 @@ public class ITestFileSystemProperties extends AbstractAbfsIntegrationTest {
     FileStatus fileStatus = fs.getFileStatus(testPath);
     assertEquals(1, fileStatus.getLen());
 
-    try(FSDataInputStream inputStream = isMockFastpathTest
-        ? openMockAbfsInputStream(fs, testPath)
-        : fs.open(testPath, 4 * 1024 * 1024)) {
+    try(FSDataInputStream inputStream = fs.open(testPath, 4 * 1024 * 1024)) {
       int i = inputStream.read();
       assertEquals(TEST_DATA, i);
     }
