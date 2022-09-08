@@ -847,7 +847,6 @@ public class TestAbfsInputStream extends
       }
     }
 
-    addToTestTearDownCleanupList(testFilePath.getName());
     Assertions.assertThat(fs.getFileStatus(testFilePath).getLen())
         .describedAs("File not created of expected size")
         .isEqualTo(testFileSize);

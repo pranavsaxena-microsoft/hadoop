@@ -4,7 +4,7 @@ import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemExc
 import org.apache.hadoop.fs.azurebfs.contracts.services.ReadRequestParameters;
 import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
 import org.apache.hadoop.fs.azurebfs.services.AbfsConnectionMode;
-import org.apache.hadoop.fs.azurebfs.services.AbfsFastpathRestResponseHeaderBlock;
+import org.apache.hadoop.fs.azurebfs.services.AbfsOptimizedRestResponseHeaderBlock;
 import org.apache.hadoop.fs.azurebfs.services.AbfsInputStreamContext;
 import org.apache.hadoop.fs.azurebfs.services.AbfsInputStreamRequestContext;
 import org.apache.hadoop.fs.azurebfs.services.AbfsRestOperation;
@@ -83,16 +83,16 @@ public class OptimizedRestAbfsInputStreamHelper
 
         @Override
         public Object call() throws Exception {
-          AbfsFastpathRestResponseHeaderBlock
-              abfsFastpathRestResponseHeaderBlock
-              = (AbfsFastpathRestResponseHeaderBlock) ThreadBasedMessageQueue.getData(
+          AbfsOptimizedRestResponseHeaderBlock
+              abfsOptimizedRestResponseHeaderBlock
+              = (AbfsOptimizedRestResponseHeaderBlock) ThreadBasedMessageQueue.getData(
               this);
           final AbfsSessionData currentSessionData
               = readRequestParameters.getAbfsSessionData();
           final AbfsSessionData sessionDataForNextRequest = new AbfsSessionData(
-              abfsFastpathRestResponseHeaderBlock.getSessionToken(),
+              abfsOptimizedRestResponseHeaderBlock.getSessionToken(),
               OffsetDateTime.parse(
-                  abfsFastpathRestResponseHeaderBlock.getSessionExpiry(),
+                  abfsOptimizedRestResponseHeaderBlock.getSessionExpiry(),
                   DateTimeFormatter.RFC_1123_DATE_TIME),
               currentSessionData.getConnectionMode());
           abfsInputStreamRequestContext.setAbfsSessionData(

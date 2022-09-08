@@ -40,7 +40,6 @@ public class MockAbfsClient extends AbfsClient {
   private int errFpRestStatus = 0;
   private boolean mockFpRestRequestException = false;
   private boolean mockFpRestConnectionException = false;
-  private boolean forceFastpathReadAlways = true;
 
   public MockAbfsClient(final URL baseUrl,
       final SharedKeyCredentials sharedKeyCredentials,

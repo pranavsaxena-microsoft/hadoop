@@ -740,7 +740,6 @@ public class ITestAzureBlobFileSystemRandomRead extends
         bytesWritten += buffer.length;
       }
 
-      addToTestTearDownCleanupList(testFilePath);
       LOG.info("Closing stream {}", outputStream);
       ContractTestUtils.NanoTimer closeTimer
               = new ContractTestUtils.NanoTimer();

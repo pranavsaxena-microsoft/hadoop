@@ -29,13 +29,11 @@ import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemExc
 import org.apache.hadoop.fs.azurebfs.contracts.services.ReadRequestParameters;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 
-import static org.apache.hadoop.fs.azurebfs.constants.TestConfigurationKeys.FS_AZURE_TEST_FASTPATH_MOCK_SO_ENABLED;
-
 public class MockAbfsRestOperation extends AbfsRestOperation {
 
-  private int errStatusFastpathRest = 0;
-  private boolean mockRequestExceptionFastpathRest = false;
-  private boolean mockConnectionExceptionFastpathRest = false;
+  private int errStatusOptimizedRest = 0;
+  private boolean mockRequestExceptionOptimizedRest = false;
+  private boolean mockConnectionExceptionOptimizedRest = false;
   private ReadRequestParameters readRequestParameters;
 
   MockAbfsRestOperation(final AbfsRestOperationType operationType,
@@ -74,7 +72,7 @@ public class MockAbfsRestOperation extends AbfsRestOperation {
   protected void processResponse(AbfsHttpOperation httpOperation)
       throws IOException {
     if (AbfsRestOperationType.OptimizedRead.equals(getOperationType())) {
-      signalErrorConditionToMockAbfsFastpathRestConn(
+      signalErrorConditionToMockAbfsOptimizedRestConn(
           (MockAbfsHttpConnection) httpOperation);
     }
     httpOperation.processResponse(getBuffer(), getBufferOffset(),
@@ -86,7 +84,7 @@ public class MockAbfsRestOperation extends AbfsRestOperation {
       throws AzureBlobFileSystemException {
     if (readRequestParameters != null &&
         readRequestParameters.isOptimizedRestConnection() &&
-        mockConnectionExceptionFastpathRest) {
+        mockConnectionExceptionOptimizedRest) {
       getAbfsClient().getAbfsCounters()
           .incrementCounter(AbfsStatistic.CONNECTIONS_MADE, 1);
       throw new AbfsRestOperationException(500, "500", "500", null);
@@ -94,29 +92,29 @@ public class MockAbfsRestOperation extends AbfsRestOperation {
     super.execute(tracingContext);
   }
 
-  private void signalErrorConditionToMockAbfsFastpathRestConn(MockAbfsHttpConnection httpOperation) {
-    if (errStatusFastpathRest != 0) {
-      httpOperation.induceError(errStatusFastpathRest);
+  private void signalErrorConditionToMockAbfsOptimizedRestConn(MockAbfsHttpConnection httpOperation) {
+    if (errStatusOptimizedRest != 0) {
+      httpOperation.induceError(errStatusOptimizedRest);
     }
 
-    if (mockRequestExceptionFastpathRest) {
+    if (mockRequestExceptionOptimizedRest) {
       httpOperation.induceRequestException();
     }
 
-    if (mockConnectionExceptionFastpathRest) {
+    if (mockConnectionExceptionOptimizedRest) {
       httpOperation.induceConnectionException();
     }
   }
 
   public void induceFpRestError(int httpStatus) {
-    errStatusFastpathRest = httpStatus;
+    errStatusOptimizedRest = httpStatus;
   }
 
   public void induceFpRestRequestException() {
-    mockRequestExceptionFastpathRest = true;
+    mockRequestExceptionOptimizedRest = true;
   }
 
   public void induceFpRestConnectionException() {
-    mockConnectionExceptionFastpathRest= true;
+    mockConnectionExceptionOptimizedRest = true;
   }
 }

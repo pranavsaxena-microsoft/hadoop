@@ -529,8 +529,6 @@ public class ITestSmallWriteOptimization extends AbstractAbfsScaleTest {
       startOffset += writeSize;
       writeLoopCount--;
     }
-
-    addToTestTearDownCleanupList(testFilePath);
     dataSizeWritten = startOffset - dataSizeWritten;
     return dataSizeWritten;
   }

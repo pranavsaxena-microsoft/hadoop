@@ -188,8 +188,6 @@ public class ITestAbfsInputStream extends AbstractAbfsIntegrationTest {
       oStream.write(fileContent);
       oStream.flush();
     }
-    addToTestTearDownCleanupList(testFilePath);
-
     return testFilePath;
   }
 

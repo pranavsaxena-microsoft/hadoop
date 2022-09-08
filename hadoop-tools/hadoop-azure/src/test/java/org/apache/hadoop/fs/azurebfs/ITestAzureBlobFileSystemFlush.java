@@ -96,8 +96,6 @@ public class ITestAzureBlobFileSystemFlush extends AbstractAbfsScaleTest {
           Thread.sleep(10);
         }
       }
-
-      addToTestTearDownCleanupList(testFilePath);
     }
 
     final byte[] r = new byte[TEST_BUFFER_SIZE];
@@ -129,7 +127,6 @@ public class ITestAzureBlobFileSystemFlush extends AbstractAbfsScaleTest {
       }
     }
 
-    addToTestTearDownCleanupList(testFilePath);
 
     final byte[] r = new byte[TEST_BUFFER_SIZE];
     try (FSDataInputStream inputStream = fs.open(testFilePath, 4 * ONE_MB)) {
@@ -268,7 +265,6 @@ public class ITestAzureBlobFileSystemFlush extends AbstractAbfsScaleTest {
 
       // Flush commits the data so it can be read.
       stream.flush();
-      addToTestTearDownCleanupList(testFilePath);
 
       // Verify that the data can be read if disableOutputStreamFlush is
       // false; and otherwise cannot be read.
@@ -287,7 +283,6 @@ public class ITestAzureBlobFileSystemFlush extends AbstractAbfsScaleTest {
 
     try (FSDataOutputStream stream = getStreamAfterWrite(fs, testFilePath, buffer, true)) {
       stream.hflush();
-      addToTestTearDownCleanupList(testFilePath);
       validate(fs, testFilePath, buffer, true);
     }
   }
@@ -304,7 +299,6 @@ public class ITestAzureBlobFileSystemFlush extends AbstractAbfsScaleTest {
 
     try (FSDataOutputStream stream = getStreamAfterWrite(fs, testFilePath, buffer, false)) {
       stream.hflush();
-      addToTestTearDownCleanupList(testFilePath);
       /* For Appendlob flush is not needed to update data on server */
       validate(fs, testFilePath, buffer, isAppendBlob);
     }
@@ -318,7 +312,6 @@ public class ITestAzureBlobFileSystemFlush extends AbstractAbfsScaleTest {
 
     try (FSDataOutputStream stream = getStreamAfterWrite(fs, testFilePath, buffer, true)) {
       stream.hsync();
-      addToTestTearDownCleanupList(testFilePath);
       validate(fs, testFilePath, buffer, true);
     }
   }
@@ -386,7 +379,6 @@ public class ITestAzureBlobFileSystemFlush extends AbstractAbfsScaleTest {
     }
     try (FSDataOutputStream stream = getStreamAfterWrite(fs, testFilePath, buffer, false)) {
       stream.hsync();
-      addToTestTearDownCleanupList(testFilePath);
       /* For Appendlob flush is not needed to update data on server */
       validate(fs, testFilePath, buffer, isAppendBlob);
     }

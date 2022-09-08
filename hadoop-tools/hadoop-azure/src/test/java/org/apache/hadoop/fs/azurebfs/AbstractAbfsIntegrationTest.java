@@ -98,7 +98,6 @@ public abstract class AbstractAbfsIntegrationTest extends
   private static final int SHORTENED_GUID_LEN = 12;
 
   private AuthType authType;
-  private List<String> mockFastpathFilesToRegister = new ArrayList<String>();
 
   protected AbstractAbfsIntegrationTest() throws Exception {
     fileSystemName = TEST_CONTAINER_PREFIX + UUID.randomUUID().toString();
@@ -569,13 +568,5 @@ public abstract class AbstractAbfsIntegrationTest extends
     MockAbfsInputStream inputStream = (MockAbfsInputStream) mockStore.openFileForRead(qualifiedPath,
         opt, fs.getFsStatistics(), getTestTracingContext(fs, false));
     return inputStream;
-  }
-
-  protected void addToTestTearDownCleanupList(String fileName) {
-    mockFastpathFilesToRegister.add(fileName);
-  }
-
-  protected void addToTestTearDownCleanupList(Path file) {
-    mockFastpathFilesToRegister.add(file.getName());
   }
 }

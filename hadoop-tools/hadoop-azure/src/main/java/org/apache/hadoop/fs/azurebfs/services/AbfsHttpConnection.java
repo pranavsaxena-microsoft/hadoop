@@ -192,14 +192,14 @@ public class AbfsHttpConnection extends AbfsHttpOperation {
     }
 
     setStatusCode(this.connection.getResponseCode());
-    AbfsFastpathRestResponseHeaderBlock abfsFastpathRestResponseHeaderBlock
-        = new AbfsFastpathRestResponseHeaderBlock();
-    abfsFastpathRestResponseHeaderBlock.setSessionToken(
+    AbfsOptimizedRestResponseHeaderBlock abfsOptimizedRestResponseHeaderBlock
+        = new AbfsOptimizedRestResponseHeaderBlock();
+    abfsOptimizedRestResponseHeaderBlock.setSessionToken(
         getResponseHeader(X_MS_FASTPATH_SESSION_DATA));
-    abfsFastpathRestResponseHeaderBlock.setSessionExpiry(
+    abfsOptimizedRestResponseHeaderBlock.setSessionExpiry(
         getResponseHeader(X_MS_FASTPATH_SESSION_EXPIRY));
     ThreadBasedMessageQueue.push(headerUpDownCallable,
-        abfsFastpathRestResponseHeaderBlock);
+        abfsOptimizedRestResponseHeaderBlock);
     try {
       headerUpDownCallable.call();
     } catch (Exception e) {

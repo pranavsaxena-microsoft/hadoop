@@ -64,7 +64,6 @@ public class MockAbfsInputStream extends AbfsInputStream {
   private int errFpRestStatus = 0;
   private boolean mockFpRestRequestException = false;
   private boolean mockFpRestConnectionException = false;
-  private boolean disableForceFastpathMock = false;
   public Map<String, Integer> helpersUsed = new HashMap<>();
 
   public MockAbfsInputStream(final MockAbfsClient mockClient,
