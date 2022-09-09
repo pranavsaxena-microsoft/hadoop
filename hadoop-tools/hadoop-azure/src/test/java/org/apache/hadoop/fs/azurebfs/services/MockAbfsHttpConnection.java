@@ -10,6 +10,7 @@ import java.util.concurrent.Callable;
 import org.junit.Assert;
 import org.mockito.Mockito;
 
+import static org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations.RANGE;
 import static org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations.X_MS_FASTPATH_SESSION_DATA;
 import static org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations.X_MS_FASTPATH_SESSION_EXPIRY;
 
@@ -23,6 +24,8 @@ public class MockAbfsHttpConnection extends AbfsHttpConnection {
 
   private Long lengthRead = 0l;
 
+  private static Long lastOffsetRead = 0l;
+
   public MockAbfsHttpConnection(final URL url,
       final String method,
       final List<AbfsHttpHeader> requestHeaders, Callable headerUpdownCallable) throws IOException {
@@ -34,10 +37,16 @@ public class MockAbfsHttpConnection extends AbfsHttpConnection {
       final int offset,
       final int length)
       throws IOException {
+    final String range = getRequestHeader(RANGE);
+    Assert.assertNotNull(range);
     if (lastSessionToken != null && !lastSessionToken.equalsIgnoreCase(
         getRequestHeader(X_MS_FASTPATH_SESSION_DATA))) {
-      Assert.assertTrue(false);
+      if(Long.parseLong(range.split("-")[0].split("=")[1]) == (lastOffsetRead + 1)) {
+        Assert.assertTrue(false);
+      }
     }
+    lastOffsetRead = Long.parseLong(range.split("-")[1]);
+
     lastSessionToken = UUID.randomUUID().toString();
     HttpURLConnection mockedHttpConnection = Mockito.spy(getConnection());
     setConnection(mockedHttpConnection);

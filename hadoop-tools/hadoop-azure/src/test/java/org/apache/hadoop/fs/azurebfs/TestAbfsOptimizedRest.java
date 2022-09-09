@@ -191,7 +191,6 @@ public class TestAbfsOptimizedRest extends AbstractAbfsIntegrationTest {
     // input stream will have switched to http permanentely due to conn failure
     // next read direct on http => 1+conn 1+getrsp
     inStream.seek(DEFAULT_OPTIMIZED_READ_BUFFER_SIZE);
-    Thread.sleep(10000l);
     inStream.read(readBuffer, 0, DEFAULT_OPTIMIZED_READ_BUFFER_SIZE);
     //As preFetch is switchedOn, read for first request will lead to preFetch of next two immediate blocks.
     expectedConnectionsMade += 3;
@@ -245,6 +244,9 @@ public class TestAbfsOptimizedRest extends AbstractAbfsIntegrationTest {
   @Test
   public void testFpRestPreFetchCappedToReadAheadDepth()
       throws IOException, InterruptedException {
+    for(int i =0; i<10;i++) {
+
+    }
     AzureBlobFileSystem fs = getAbfsFileSystem(2,
         DEFAULT_OPTIMIZED_READ_BUFFER_SIZE, 3);
     AbfsInputStream inStream = createTestfileAndGetInputStream(fs,
@@ -262,8 +264,7 @@ public class TestAbfsOptimizedRest extends AbstractAbfsIntegrationTest {
     // read will attempt over fastpath, but will fail with exception => 1+conn 0+getresp
     // will attempt on http connection => 1+conn 1+getrsp
     inStream.read(readBuffer, 0, DEFAULT_OPTIMIZED_READ_BUFFER_SIZE);
-    inStream.seek(3*DEFAULT_OPTIMIZED_READ_BUFFER_SIZE);
-    Thread.sleep(10000);
+    inStream.seek(3*DEFAULT_OPTIMIZED_READ_BUFFER_SIZE + 1);
     inStream.read(readBuffer, 0, DEFAULT_OPTIMIZED_READ_BUFFER_SIZE);
     //As preFetch is switchedOn, read for first block(4MB) request will lead to preFetch of next two immediate blocks.
     expectedConnectionsMade += 4;
@@ -299,10 +300,9 @@ public class TestAbfsOptimizedRest extends AbstractAbfsIntegrationTest {
     // read will attempt over fastpath, but will fail with exception => 1+conn 0+getresp
     // will attempt on http connection => 1+conn 1+getrsp
     inStream.read(readBuffer, 0, DEFAULT_OPTIMIZED_READ_BUFFER_SIZE);
-    inStream.seek(3*DEFAULT_OPTIMIZED_READ_BUFFER_SIZE);
+    inStream.seek(3*DEFAULT_OPTIMIZED_READ_BUFFER_SIZE + 1);
     inStream.read(readBuffer, 0, DEFAULT_OPTIMIZED_READ_BUFFER_SIZE);
     inStream.seek(4*DEFAULT_OPTIMIZED_READ_BUFFER_SIZE);
-    Thread.sleep(10000);
     inStream.read(readBuffer, 0, DEFAULT_OPTIMIZED_READ_BUFFER_SIZE);
     //As preFetch is switchedOn, read for first block(4MB) request will lead to preFetch of next two immediate blocks.
     expectedConnectionsMade += 5;
