@@ -42,6 +42,7 @@ import org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys;
 import static org.apache.hadoop.fs.azurebfs.AbfsStatistic.BYTES_SENT;
 import static org.apache.hadoop.fs.azurebfs.AbfsStatistic.CONNECTIONS_MADE;
 import static org.apache.hadoop.fs.azurebfs.AbfsStatistic.SEND_REQUESTS;
+import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.AZURE_READ_SMALL_FILES_COMPLETELY;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.DEFAULT_AZURE_ENABLE_SMALL_WRITE_OPTIMIZATION;
 import static org.apache.hadoop.fs.azurebfs.constants.TestConfigurationKeys.FS_AZURE_TEST_APPENDBLOB_ENABLED;
 
@@ -141,7 +142,7 @@ public class ITestSmallWriteOptimization extends AbstractAbfsScaleTest {
                 false, false, 2 * TEST_BUFFER_SIZE, TEST_BUFFER_SIZE, 1, false
             },
             {   "OptmOFF_CloseTest_EmptyFile_BufferSizeWrite",
-                false, true, 0, TEST_BUFFER_SIZE, 1, false, false
+                false, true, 0, TEST_BUFFER_SIZE, 1, false
             },
             {   "OptmOFF_CloseTest_NonEmptyFile_BufferSizeWrite",
                 false, true, 2 * TEST_BUFFER_SIZE, TEST_BUFFER_SIZE, 1, false
@@ -212,19 +213,19 @@ public class ITestSmallWriteOptimization extends AbstractAbfsScaleTest {
                 true, false, 2 * TEST_BUFFER_SIZE, TEST_BUFFER_SIZE, 3, false
             },
             {   "OptmON_CloseTest_EmptyFile_MultiBufferSizeWrite",
-                true, true, 0, TEST_BUFFER_SIZE, 3, false, false
+                true, true, 0, TEST_BUFFER_SIZE, 3, false
             },
             {   "OptmON_CloseTest_NonEmptyFile_MultiBufferSizeWrite",
                 true, true, 2 * TEST_BUFFER_SIZE, TEST_BUFFER_SIZE, 3, false
             },
             {   "OptmOFF_FlushCloseTest_EmptyFile_MultiBufferSizeWrite",
-                false, false, 0, TEST_BUFFER_SIZE, 3, false, false
+                false, false, 0, TEST_BUFFER_SIZE, 3, false
             },
             {   "OptmOFF_FlushCloseTest_NonEmptyFile_MultiBufferSizeWrite",
                 false, false, 2 * TEST_BUFFER_SIZE, TEST_BUFFER_SIZE, 3, false
             },
             {   "OptmOFF_CloseTest_EmptyFile_MultiBufferSizeWrite",
-                false, true, 0, TEST_BUFFER_SIZE, 3, false, false
+                false, true, 0, TEST_BUFFER_SIZE, 3, false
             },
             {   "OptmOFF_CloseTest_NonEmptyFile_MultiBufferSizeWrite",
                 false, true, 2 * TEST_BUFFER_SIZE, TEST_BUFFER_SIZE, 3, false
@@ -278,19 +279,19 @@ public class ITestSmallWriteOptimization extends AbstractAbfsScaleTest {
                 true, false, 2 * TEST_BUFFER_SIZE, 0, 1, false
             },
             {   "OptmON_CloseTest_EmptyFile_0ByteWrite",
-                true, true, 0, 0, 1, false, false
+                true, true, 0, 0, 1, false
             },
             {   "OptmON_CloseTest_NonEmptyFile_0ByteWrite",
                 true, true, 2 * TEST_BUFFER_SIZE, 0, 1, false
             },
             {   "OptmOFF_FlushCloseTest_EmptyFile_0ByteWrite",
-                false, false, 0, 0, 1, false, false
+                false, false, 0, 0, 1, false
             },
             {   "OptmOFF_FlushCloseTest_NonEmptyFile_0ByteWrite",
                 false, false, 2 * TEST_BUFFER_SIZE, 0, 1, false
             },
             {   "OptmOFF_CloseTest_EmptyFile_0ByteWrite",
-                false, true, 0, 0, 1, false, false
+                false, true, 0, 0, 1, false
             },
             {   "OptmOFF_CloseTest_NonEmptyFile_0ByteWrite",
                 false, true, 2 * TEST_BUFFER_SIZE, 0, 1, false
