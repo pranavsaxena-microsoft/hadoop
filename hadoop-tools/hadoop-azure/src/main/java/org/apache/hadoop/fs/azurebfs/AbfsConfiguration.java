@@ -129,10 +129,6 @@ public class AbfsConfiguration{
       DefaultValue = DEFAULT_READ_AHEAD_RANGE)
   private int readAheadRange;
 
-  @BooleanConfigurationValidatorAnnotation(ConfigurationKey = FS_AZURE_READ_DEFAULT_FASTPATH,
-      DefaultValue = DEFAULT_READ_FASTPATH)
-  private boolean readByDefaultOnFastpath;
-
   @BooleanConfigurationValidatorAnnotation(ConfigurationKey = FS_AZURE_READ_DEFAULT_OPTIMIZED_REST,
           DefaultValue = DEFAULT_READ_OPTIMIZED_REST)
   private boolean readByDefaultOnOptimizedRest;
@@ -633,26 +629,9 @@ public class AbfsConfiguration{
     return this.readBufferSize;
   }
 
-  public boolean isReadByDefaultOnFastpath() {
-    if ((getAuthType() == AuthType.OAuth) && readByDefaultOnFastpath) {
-      return true;
-    }
-
-    return false;
-  }
-
   public boolean isReadByDefaultOnOptimizedRest()
           throws InvalidConfigurationValueException {
     if ((getAuthType() == AuthType.OAuth) && readByDefaultOnOptimizedRest) {
-      if (readByDefaultOnFastpath) {
-        String errorMsg = "Both " + FS_AZURE_READ_DEFAULT_FASTPATH + " and "
-            + FS_AZURE_READ_DEFAULT_OPTIMIZED_REST
-            + " can not be enabled at same time";
-        LOG.debug(errorMsg);
-        throw new InvalidConfigurationValueException(
-            FS_AZURE_READ_DEFAULT_OPTIMIZED_REST, errorMsg);
-      }
-
       return true;
     }
 
@@ -1137,10 +1116,5 @@ public class AbfsConfiguration{
   @VisibleForTesting
   public void setEnableAbfsListIterator(boolean enableAbfsListIterator) {
     this.enableAbfsListIterator = enableAbfsListIterator;
-  }
-
-  @VisibleForTesting
-  public void setReadByDefaultOnFastpath(boolean readByDefaultOnFastpath) {
-    this.readByDefaultOnFastpath = readByDefaultOnFastpath;
   }
 }

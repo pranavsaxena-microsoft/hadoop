@@ -53,33 +53,17 @@ public class ITestAbfsInputStreamReadFooter extends ITestAbfsInputStream {
   }
 
   @Test
-  public void testMockFastpathOnlyOneServerCallIsMadeWhenTheConfIsTrue() throws Exception {
-    // Run mock test only if feature is set to off
-    Assume.assumeFalse(getDefaultFastpathFeatureStatus());
-    testNumBackendCalls(true, true);
-  }
-
-  @Test
   public void testOnlyOneServerCallIsMadeWhenTheConfIsTrue() throws Exception {
-    testNumBackendCalls(true, false);
-  }
-
-  @Test
-  public void testMockFastpathMultipleServerCallsAreMadeWhenTheConfIsFalse()
-      throws Exception {
-    // Run mock test only if feature is set to off
-    Assume.assumeFalse(getDefaultFastpathFeatureStatus());
-    testNumBackendCalls(false, true);
+    testNumBackendCalls(true);
   }
 
   @Test
   public void testMultipleServerCallsAreMadeWhenTheConfIsFalse()
       throws Exception {
-    testNumBackendCalls(false, false);
+    testNumBackendCalls(false);
   }
 
-  private void testNumBackendCalls(boolean optimizeFooterRead,
-      boolean isMockFastpathTest)
+  private void testNumBackendCalls(boolean optimizeFooterRead)
       throws Exception {
     String fileNamePrefix = methodName.getMethodName() + java.util.UUID.randomUUID().toString() + "_";
     for (int i = 1; i <= 4; i++) {
@@ -91,9 +75,6 @@ public class ITestAbfsInputStreamReadFooter extends ITestAbfsInputStream {
       Path testFilePath = createFileWithContent(fs, fileName, fileContent);
       int length = AbfsInputStream.FOOTER_SIZE;
       FSDataInputStream iStream = fs.open(testFilePath);
-      if (isMockFastpathTest) {
-        iStream = openMockAbfsInputStream(fs, iStream);
-      }
 
       byte[] buffer = new byte[length];
 
@@ -123,167 +104,58 @@ public class ITestAbfsInputStreamReadFooter extends ITestAbfsInputStream {
   }
 
   @Test
-  public void testMockFastpathSeekToBeginAndReadWithConfTrue() throws Exception {
-    // Run mock test only if feature is set to off
-    Assume.assumeFalse(getDefaultFastpathFeatureStatus());
-    testSeekToBeginAndReadWithConfTrue(true);
-  }
-
-  @Test
   public void testSeekToBeginAndReadWithConfTrue() throws Exception {
-    testSeekToBeginAndReadWithConfTrue(false);
-  }
-
-  public void testSeekToBeginAndReadWithConfTrue(boolean isMockFastpathTest) throws Exception {
-    testSeekAndReadWithConf(true, SeekTo.BEGIN, isMockFastpathTest);
-  }
-
-  @Test
-  public void testMockFastpathSeekToBeginAndReadWithConfFalse() throws Exception {
-    // Run mock test only if feature is set to off
-    Assume.assumeFalse(getDefaultFastpathFeatureStatus());
-    testSeekToBeginAndReadWithConfFalse(true);
+    testSeekAndReadWithConf(true, SeekTo.BEGIN);
   }
 
   @Test
   public void testSeekToBeginAndReadWithConfFalse() throws Exception {
-    testSeekToBeginAndReadWithConfFalse(false);
-  }
-
-  public void testSeekToBeginAndReadWithConfFalse(boolean isMockFastpathTest) throws Exception {
-    testSeekAndReadWithConf(false, SeekTo.BEGIN, isMockFastpathTest);
-  }
-
-  @Test
-  public void testMockFastpathSeekToBeforeFooterAndReadWithConfTrue() throws Exception {
-    // Run mock test only if feature is set to off
-    Assume.assumeFalse(getDefaultFastpathFeatureStatus());
-    testSeekToBeforeFooterAndReadWithConfTrue(true);
+    testSeekAndReadWithConf(false, SeekTo.BEGIN);
   }
 
   @Test
   public void testSeekToBeforeFooterAndReadWithConfTrue() throws Exception {
-    testSeekToBeforeFooterAndReadWithConfTrue(false);
-  }
-
-  public void testSeekToBeforeFooterAndReadWithConfTrue(boolean isMockFastpathTest) throws Exception {
-    testSeekAndReadWithConf(true, SeekTo.BEFORE_FOOTER_START, isMockFastpathTest);
-  }
-
-  @Test
-  public void testMockFastpathSeekToBeforeFooterAndReadWithConfFalse() throws Exception {
-    // Run mock test only if feature is set to off
-    Assume.assumeFalse(getDefaultFastpathFeatureStatus());
-    testSeekToBeforeFooterAndReadWithConfFalse(true);
+    testSeekAndReadWithConf(true, SeekTo.BEFORE_FOOTER_START);
   }
 
   @Test
   public void testSeekToBeforeFooterAndReadWithConfFalse() throws Exception {
-    testSeekToBeforeFooterAndReadWithConfFalse(false);
-  }
 
-  public void testSeekToBeforeFooterAndReadWithConfFalse(boolean isMockFastpathTest) throws Exception {
-    testSeekAndReadWithConf(false, SeekTo.BEFORE_FOOTER_START, isMockFastpathTest);
-  }
-
-  @Test
-  public void testMockFastpathSeekToFooterAndReadWithConfTrue() throws Exception {
-    // Run mock test only if feature is set to off
-    Assume.assumeFalse(getDefaultFastpathFeatureStatus());
-    testSeekToFooterAndReadWithConfTrue(true);
+    testSeekAndReadWithConf(false, SeekTo.BEFORE_FOOTER_START);
   }
 
   @Test
   public void testSeekToFooterAndReadWithConfTrue() throws Exception {
-    testSeekToFooterAndReadWithConfTrue(false);
-  }
-
-  public void testSeekToFooterAndReadWithConfTrue(boolean isMockFastpathTest) throws Exception {
-    testSeekAndReadWithConf(true, SeekTo.AT_FOOTER_START, isMockFastpathTest);
-  }
-
-  @Test
-  public void testMockFastpathSeekToFooterAndReadWithConfFalse() throws Exception {
-    // Run mock test only if feature is set to off
-    Assume.assumeFalse(getDefaultFastpathFeatureStatus());
-    testSeekToFooterAndReadWithConfFalse(true);
+    testSeekAndReadWithConf(true, SeekTo.AT_FOOTER_START);
   }
 
   @Test
   public void testSeekToFooterAndReadWithConfFalse() throws Exception {
-    testSeekToFooterAndReadWithConfFalse(false);
-  }
-
-  public void testSeekToFooterAndReadWithConfFalse(boolean isMockFastpathTest) throws Exception {
-    testSeekAndReadWithConf(false, SeekTo.AT_FOOTER_START, isMockFastpathTest);
-  }
-
-  @Test
-  public void testMockFastpathSeekToAfterFooterAndReadWithConfTrue() throws Exception {
-    // Run mock test only if feature is set to off
-    Assume.assumeFalse(getDefaultFastpathFeatureStatus());
-    testSeekToAfterFooterAndReadWithConfTrue(true);
+    testSeekAndReadWithConf(false, SeekTo.AT_FOOTER_START);
   }
 
   @Test
   public void testSeekToAfterFooterAndReadWithConfTrue() throws Exception {
-    testSeekToAfterFooterAndReadWithConfTrue(false);
-  }
-
-  public void testSeekToAfterFooterAndReadWithConfTrue(boolean isMockFastpathTest) throws Exception {
-    testSeekAndReadWithConf(true, SeekTo.AFTER_FOOTER_START, isMockFastpathTest);
-  }
-
-  @Test
-  public void testMockFastpathSeekToToAfterFooterAndReadWithConfFalse() throws Exception {
-    // Run mock test only if feature is set to off
-    Assume.assumeFalse(getDefaultFastpathFeatureStatus());
-    testSeekToToAfterFooterAndReadWithConfFalse(true);
+    testSeekAndReadWithConf(true, SeekTo.AFTER_FOOTER_START);
   }
 
   @Test
   public void testSeekToToAfterFooterAndReadWithConfFalse() throws Exception {
-    testSeekToToAfterFooterAndReadWithConfFalse(false);
-  }
-
-  public void testSeekToToAfterFooterAndReadWithConfFalse(boolean isMockFastpathTest) throws Exception {
-    testSeekAndReadWithConf(false, SeekTo.AFTER_FOOTER_START, isMockFastpathTest);
-  }
-
-  @Test
-  public void testMockFastpathSeekToEndAndReadWithConfTrue() throws Exception {
-    // Run mock test only if feature is set to off
-    Assume.assumeFalse(getDefaultFastpathFeatureStatus());
-    testSeekToEndAndReadWithConfTrue(true);
+    testSeekAndReadWithConf(false, SeekTo.AFTER_FOOTER_START);
   }
 
   @Test
   public void testSeekToEndAndReadWithConfTrue() throws Exception {
-    testSeekToEndAndReadWithConfTrue(false);
-  }
-
-  public void testSeekToEndAndReadWithConfTrue(boolean isMockFastpathTest) throws Exception {
-    testSeekAndReadWithConf(true, SeekTo.END, isMockFastpathTest);
-  }
-
-  @Test
-  public void testMockFastpathSeekToEndAndReadWithConfFalse() throws Exception {
-    // Run mock test only if feature is set to off
-    Assume.assumeFalse(getDefaultFastpathFeatureStatus());
-    testSeekToEndAndReadWithConfFalse(true);
+    testSeekAndReadWithConf(true, SeekTo.END);
   }
 
   @Test
   public void testSeekToEndAndReadWithConfFalse() throws Exception {
-    testSeekToEndAndReadWithConfFalse(false);
-  }
-
-  public void testSeekToEndAndReadWithConfFalse(boolean isMockFastpathTest) throws Exception {
-    testSeekAndReadWithConf(false, SeekTo.END, isMockFastpathTest);
+    testSeekAndReadWithConf(false, SeekTo.END);
   }
 
   private void testSeekAndReadWithConf(boolean optimizeFooterRead,
-      SeekTo seekTo, boolean isMockFastpathTest) throws Exception {
+      SeekTo seekTo) throws Exception {
     String fileNamePrefix = methodName.getMethodName() + java.util.UUID.randomUUID().toString();
     for (int i = 2; i <= 6; i++) {
       int fileSize = i * ONE_MB;
@@ -293,7 +165,7 @@ public class ITestAbfsInputStreamReadFooter extends ITestAbfsInputStream {
       byte[] fileContent = getRandomBytesArray(fileSize);
       Path testFilePath = createFileWithContent(fs, fileName, fileContent);
       seekReadAndTest(fs, testFilePath, seekPos(seekTo, fileSize), HUNDRED,
-          fileContent, isMockFastpathTest);
+          fileContent);
     }
   }
 
@@ -315,15 +187,11 @@ public class ITestAbfsInputStreamReadFooter extends ITestAbfsInputStream {
   }
 
   private void seekReadAndTest(final FileSystem fs, final Path testFilePath,
-      final int seekPos, final int length, final byte[] fileContent,
-      boolean isMockFastpathTest)
+      final int seekPos, final int length, final byte[] fileContent)
       throws IOException, NoSuchFieldException, IllegalAccessException {
     AbfsConfiguration conf = getAbfsStore(fs).getAbfsConfiguration();
     long actualContentLength = fileContent.length;
     FSDataInputStream iStream = fs.open(testFilePath);
-    if (isMockFastpathTest) {
-      iStream = openMockAbfsInputStream((AzureBlobFileSystem) fs, iStream);
-    }
 
       AbfsInputStream abfsInputStream = (AbfsInputStream) iStream
           .getWrappedStream();
@@ -437,18 +305,7 @@ public class ITestAbfsInputStreamReadFooter extends ITestAbfsInputStream {
   }
 
   @Test
-  public void testMockFastpathPartialReadWithSomeDat() throws Exception {
-    // Run mock test only if feature is set to off
-    Assume.assumeFalse(getDefaultFastpathFeatureStatus());
-    testPartialReadWithSomeDat(true);
-  }
-
-  @Test
   public void testPartialReadWithSomeDat() throws Exception {
-    testPartialReadWithSomeDat(false);
-  }
-
-  public void testPartialReadWithSomeDat(boolean isMockFastpathTest) throws Exception {
     String fileNamePrefix = methodName.getMethodName() + java.util.UUID.randomUUID().toString();
     for (int i = 3; i <= 6; i++) {
       int fileSize = i * ONE_MB;
@@ -458,18 +315,15 @@ public class ITestAbfsInputStreamReadFooter extends ITestAbfsInputStream {
       Path testFilePath = createFileWithContent(fs, fileName, fileContent);
       testPartialReadWithSomeDat(fs, testFilePath,
           fileSize - AbfsInputStream.FOOTER_SIZE, AbfsInputStream.FOOTER_SIZE,
-          fileContent, isMockFastpathTest);
+          fileContent);
     }
   }
 
   private void testPartialReadWithSomeDat(final FileSystem fs,
       final Path testFilePath, final int seekPos, final int length,
-      final byte[] fileContent, boolean isMockFastpathTest)
+      final byte[] fileContent)
       throws IOException, NoSuchFieldException, IllegalAccessException {
     FSDataInputStream iStream = fs.open(testFilePath);
-    if (isMockFastpathTest) {
-      iStream = openMockAbfsInputStream((AzureBlobFileSystem) fs, iStream);
-    }
 
     try {
       AbfsInputStream abfsInputStream = (AbfsInputStream) iStream

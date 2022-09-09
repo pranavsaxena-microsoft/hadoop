@@ -13,7 +13,7 @@ public class RestAbfsInputStreamHelper implements AbfsInputStreamHelper {
   private AbfsInputStreamHelper nextHelper;
 
   public RestAbfsInputStreamHelper() {
-    nextHelper = new FastpathRestAbfsInputStreamHelper(this);
+    nextHelper = new OptimizedRestAbfsInputStreamHelper(this);
   }
 
   @Override
@@ -21,8 +21,7 @@ public class RestAbfsInputStreamHelper implements AbfsInputStreamHelper {
     if (abfsInputStreamContext == null) {
       return false;
     }
-    return ((abfsInputStreamContext.isDefaultConnectionOnFastpath()
-        || abfsInputStreamContext.isDefaultConnectionOnOptimizedRest())
+    return (abfsInputStreamContext.isDefaultConnectionOnOptimizedRest()
         && nextHelper != null);
   }
 

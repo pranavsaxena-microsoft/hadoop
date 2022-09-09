@@ -22,8 +22,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.hadoop.util.Preconditions;
 
-import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.DEFAULT_FASTPATH_READ_BUFFER_SIZE;
-
 /**
  * Class to hold extra input stream configs.
  */
@@ -50,8 +48,6 @@ public class AbfsInputStreamContext extends AbfsStreamContext {
   private boolean optimizeFooterRead;
 
   private boolean bufferedPreadDisabled;
-
-  private boolean defaultConnectionOnFastpath;
 
   private boolean defaultConnectionOnOptimizedRest;
 
@@ -120,12 +116,6 @@ public class AbfsInputStreamContext extends AbfsStreamContext {
     return this;
   }
 
-  public AbfsInputStreamContext withDefaultFastpath(
-      final boolean isFastpathDefault) {
-    this.defaultConnectionOnFastpath = isFastpathDefault;
-    return this;
-  }
-
   public AbfsInputStreamContext withDefaultOptimizedRest(
           final boolean isOptimizedRestDefault) {
     this.defaultConnectionOnOptimizedRest = isOptimizedRestDefault;
@@ -185,20 +175,6 @@ public class AbfsInputStreamContext extends AbfsStreamContext {
 
   public boolean isBufferedPreadDisabled() {
     return bufferedPreadDisabled;
-  }
-
-  public boolean isDefaultConnectionOnFastpath() {
-    if ((defaultConnectionOnFastpath)
-        && ((readBufferSize != DEFAULT_FASTPATH_READ_BUFFER_SIZE)
-        || (readAheadBlockSize != DEFAULT_FASTPATH_READ_BUFFER_SIZE))) {
-      LOG.debug("fs.azure.read.request.size[={}] or "
-          + "fs.azure.read.readahead.blocksize[={}] is configured "
-          + "different to allowed buffer size of Fastpath. Disabling "
-          + "Fastpath.", readBufferSize, readAheadBlockSize);
-      return false;
-    }
-
-    return defaultConnectionOnFastpath;
   }
 
   public boolean isDefaultConnectionOnOptimizedRest() {

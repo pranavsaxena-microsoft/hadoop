@@ -30,8 +30,6 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.hadoop.fs.azurebfs.utils.MockFastpathConnection;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -92,29 +90,19 @@ public class ITestAzureBlobFileSystemRandomRead extends
   @After
   public void tearDown() throws Exception {
     super.teardown();
-    deleteMockFastpathFiles();
   }
 
-  @Test
-  public void testMockFastpathBasicRead() throws Exception {
-    // Run mock test only if feature is set to off
-    Assume.assumeFalse(getDefaultFastpathFeatureStatus());
-    Path testPath = path(TEST_FILE_PREFIX + "_testBasicRead_mock");
-    testBasicRead(testPath, true);
-  }
 
   @Test
   public void testBasicRead() throws Exception {
     Path testPath = path(TEST_FILE_PREFIX + "_testBasicRead");
-    testBasicRead(testPath, false);
+    testBasicRead(testPath);
   }
 
-  public void testBasicRead(Path testPath, boolean isMockFastpathTest) throws Exception {
-    assumeHugeFileExists(testPath, isMockFastpathTest);
+  public void testBasicRead(Path testPath) throws Exception {
+    assumeHugeFileExists(testPath);
 
-    try (FSDataInputStream inputStream = isMockFastpathTest
-        ? openMockAbfsInputStream(this.getFileSystem(), testPath)
-        : this.getFileSystem().open(testPath)) {
+    try (FSDataInputStream inputStream = this.getFileSystem().open(testPath)) {
       byte[] buffer = new byte[3 * MEGABYTE];
 
       // forward seek and read a kilobyte into first kilobyte of bufferV2
@@ -141,7 +129,7 @@ public class ITestAzureBlobFileSystemRandomRead extends
     Assume.assumeFalse("This test does not support namespace enabled account",
         getIsNamespaceEnabled(getFileSystem()));
     Path testPath = path(TEST_FILE_PREFIX + "_testRandomRead");
-    assumeHugeFileExists(testPath, false);
+    assumeHugeFileExists(testPath);
 
     try (
             FSDataInputStream inputStreamV1
@@ -197,26 +185,17 @@ public class ITestAzureBlobFileSystemRandomRead extends
    * Validates the implementation of Seekable.seekToNewSource
    * @throws IOException
    */
-  @Test
-  public void testMockFastpathSeekToNewSource() throws Exception {
-    // Run mock test only if feature is set to off
-    Assume.assumeFalse(getDefaultFastpathFeatureStatus());
-    Path testPath = path(TEST_FILE_PREFIX + "_testSeekToNewSource_mock");
-    testSeekToNewSource(testPath, true);
-  }
 
   @Test
   public void testSeekToNewSource() throws Exception {
     Path testPath = path(TEST_FILE_PREFIX + "_testSeekToNewSource");
-    testSeekToNewSource(testPath, false);
+    testSeekToNewSource(testPath);
   }
 
-  public void testSeekToNewSource(Path testPath, boolean isMockFastpathTest) throws Exception {
-    assumeHugeFileExists(testPath, isMockFastpathTest);
+  public void testSeekToNewSource(Path testPath) throws Exception {
+    assumeHugeFileExists(testPath);
 
-    try (FSDataInputStream inputStream = isMockFastpathTest
-        ? openMockAbfsInputStream(this.getFileSystem(), testPath)
-        :  this.getFileSystem().open(testPath)) {
+    try (FSDataInputStream inputStream = this.getFileSystem().open(testPath)) {
       assertFalse(inputStream.seekToNewSource(0));
     }
   }
@@ -226,26 +205,17 @@ public class ITestAzureBlobFileSystemRandomRead extends
    * network I/O for AbfsInputStream
    * @throws Exception
    */
-  @Test
-  public void testMockFastpathSkipBounds() throws Exception {
-    // Run mock test only if feature is set to off
-    Assume.assumeFalse(getDefaultFastpathFeatureStatus());
-    Path testPath = path(TEST_FILE_PREFIX + "_testSkipBounds_mock");
-    testSkipBounds(testPath, true);
-  }
 
   @Test
   public void testSkipBounds() throws Exception {
     Path testPath = path(TEST_FILE_PREFIX + "_testSkipBounds");
-    testSkipBounds(testPath, false);
+    testSkipBounds(testPath);
   }
 
-  public void testSkipBounds(Path testPath, boolean isMockFastpathTest) throws Exception {
-    long testFileLength = assumeHugeFileExists(testPath, isMockFastpathTest);
+  public void testSkipBounds(Path testPath) throws Exception {
+    long testFileLength = assumeHugeFileExists(testPath);
 
-    try (FSDataInputStream inputStream = isMockFastpathTest
-        ? openMockAbfsInputStream(this.getFileSystem(), testPath)
-        : this.getFileSystem().open(testPath)) {
+    try (FSDataInputStream inputStream = this.getFileSystem().open(testPath)) {
       ContractTestUtils.NanoTimer timer = new ContractTestUtils.NanoTimer();
 
       long skipped = inputStream.skip(-1);
@@ -281,26 +251,16 @@ public class ITestAzureBlobFileSystemRandomRead extends
    * network I/O for forward seek.
    * @throws Exception
    */
-  @Test
-  public void testMockFastpathValidateSeekBounds() throws Exception {
-    // Run mock test only if feature is set to off
-    Assume.assumeFalse(getDefaultFastpathFeatureStatus());
-    Path testPath = path(TEST_FILE_PREFIX + "_testValidateSeekBounds_mock");
-    testValidateSeekBounds(testPath, true);
-  }
-
-  @Test
+    @Test
   public void testValidateSeekBounds() throws Exception {
     Path testPath = path(TEST_FILE_PREFIX + "_testValidateSeekBounds");
-    testValidateSeekBounds(testPath, false);
+    testValidateSeekBounds(testPath);
   }
 
-  public void testValidateSeekBounds(Path testPath, boolean isMockFastpathTest) throws Exception {
-    long testFileLength = assumeHugeFileExists(testPath, isMockFastpathTest);
+  public void testValidateSeekBounds(Path testPath) throws Exception {
+    long testFileLength = assumeHugeFileExists(testPath);
 
-    try (FSDataInputStream inputStream = isMockFastpathTest
-        ? openMockAbfsInputStream(this.getFileSystem(), testPath)
-        : this.getFileSystem().open(testPath)) {
+    try (FSDataInputStream inputStream = this.getFileSystem().open(testPath)) {
       ContractTestUtils.NanoTimer timer = new ContractTestUtils.NanoTimer();
 
       inputStream.seek(0);
@@ -346,29 +306,17 @@ public class ITestAzureBlobFileSystemRandomRead extends
    * and InputStream.available.
    * @throws Exception
    */
-  @Test
-  public void testMockFastpathSeekAndAvailableAndPosition() throws Exception {
-    // Run mock test only if feature is set to off
-    Assume.assumeFalse(getDefaultFastpathFeatureStatus());
-    Path testPath = path(TEST_FILE_PREFIX
-        + "_testSeekAndAvailableAndPosition_mock");
-    testSeekAndAvailableAndPosition(true, testPath);
-  }
-
-  @Test
+    @Test
   public void testSeekAndAvailableAndPosition() throws Exception {
     Path testPath = path(
         TEST_FILE_PREFIX + "_testSeekAndAvailableAndPosition");
-    testSeekAndAvailableAndPosition(false, testPath);
+    testSeekAndAvailableAndPosition(testPath);
   }
 
-  public void testSeekAndAvailableAndPosition(boolean isMockFastpathTest,
-      Path testPath) throws Exception {
-    long testFileLength = assumeHugeFileExists(testPath, isMockFastpathTest);
+  public void testSeekAndAvailableAndPosition(Path testPath) throws Exception {
+    long testFileLength = assumeHugeFileExists(testPath);
 
-    try (FSDataInputStream inputStream = isMockFastpathTest
-        ? openMockAbfsInputStream(this.getFileSystem(), testPath)
-        : this.getFileSystem().open(testPath)) {
+    try (FSDataInputStream inputStream = this.getFileSystem().open(testPath)) {
       byte[] expected1 = {(byte) 'a', (byte) 'b', (byte) 'c'};
       byte[] expected2 = {(byte) 'd', (byte) 'e', (byte) 'f'};
       byte[] expected3 = {(byte) 'b', (byte) 'c', (byte) 'd'};
@@ -429,27 +377,16 @@ public class ITestAzureBlobFileSystemRandomRead extends
    * and InputStream.available.
    * @throws IOException
    */
-  @Test
-  public void testMockFastpathSkipAndAvailableAndPosition() throws Exception {
-    // Run mock test only if feature is set to off
-    Assume.assumeFalse(getDefaultFastpathFeatureStatus());
-    Path testPath = path(TEST_FILE_PREFIX
-        + "_testSkipAndAvailableAndPosition_mock");
-    testSkipAndAvailableAndPosition(testPath, true);
-  }
-
-  @Test
+    @Test
   public void testSkipAndAvailableAndPosition() throws Exception {
     Path testPath = path(TEST_FILE_PREFIX + "_testSkipAndAvailableAndPosition");
-    testSkipAndAvailableAndPosition(testPath, false);
+    testSkipAndAvailableAndPosition(testPath);
   }
 
-  public void testSkipAndAvailableAndPosition(Path testPath, boolean isMockFastpathTest) throws Exception {
-    long testFileLength = assumeHugeFileExists(testPath, isMockFastpathTest);
+  public void testSkipAndAvailableAndPosition(Path testPath) throws Exception {
+    long testFileLength = assumeHugeFileExists(testPath);
 
-    try (FSDataInputStream inputStream = isMockFastpathTest
-        ? openMockAbfsInputStream(this.getFileSystem(), testPath)
-        : this.getFileSystem().open(testPath)) {
+    try (FSDataInputStream inputStream = this.getFileSystem().open(testPath)) {
       byte[] expected1 = {(byte) 'a', (byte) 'b', (byte) 'c'};
       byte[] expected2 = {(byte) 'd', (byte) 'e', (byte) 'f'};
       byte[] expected3 = {(byte) 'b', (byte) 'c', (byte) 'd'};
@@ -510,25 +447,14 @@ public class ITestAzureBlobFileSystemRandomRead extends
    * @throws IOException
    */
   @Test
-  public void testMockFastpathSequentialReadAfterReverseSeekPerformance()
-      throws Exception {
-    // Run mock test only if feature is set to off
-    Assume.assumeFalse(getDefaultFastpathFeatureStatus());
-    Path testPath = path(TEST_FILE_PREFIX
-        + "_testSequentialReadAfterReverseSeekPerformance_mock");
-    testSequentialReadAfterReverseSeekPerformance(true, testPath);
-  }
-
-  @Test
   public void testSequentialReadAfterReverseSeekPerformance()
       throws Exception {
     Path testPath = path(TEST_FILE_PREFIX + "_testSequentialReadAfterReverseSeekPerformance");
-    testSequentialReadAfterReverseSeekPerformance(false, testPath);
+    testSequentialReadAfterReverseSeekPerformance(testPath);
   }
 
-  public void testSequentialReadAfterReverseSeekPerformance(
-      boolean isMockFastpathTest, Path testPath) throws Exception {
-    assumeHugeFileExists(testPath, isMockFastpathTest);
+  public void testSequentialReadAfterReverseSeekPerformance(Path testPath) throws Exception {
+    assumeHugeFileExists(testPath);
 
     final int maxAttempts = 10;
     final double maxAcceptableRatio = 1.01;
@@ -536,9 +462,9 @@ public class ITestAzureBlobFileSystemRandomRead extends
     double ratio = Double.MAX_VALUE;
     for (int i = 0; i < maxAttempts && ratio >= maxAcceptableRatio; i++) {
       beforeSeekElapsedMs = sequentialRead(ABFS, testPath,
-              this.getFileSystem(), false, isMockFastpathTest);
+              this.getFileSystem(), false);
       afterSeekElapsedMs = sequentialRead(ABFS, testPath,
-              this.getFileSystem(), true, isMockFastpathTest);
+              this.getFileSystem(), true);
       ratio = afterSeekElapsedMs / beforeSeekElapsedMs;
       LOG.info((String.format(
               "beforeSeekElapsedMs=%1$d, afterSeekElapsedMs=%2$d, ratio=%3$.2f",
@@ -562,7 +488,7 @@ public class ITestAzureBlobFileSystemRandomRead extends
     Assume.assumeFalse("This test does not support namespace enabled account",
         getIsNamespaceEnabled(getFileSystem()));
     Path testPath = path(TEST_FILE_PREFIX + "_testRandomReadPerformance");
-    assumeHugeFileExists(testPath, false);
+    assumeHugeFileExists(testPath);
 
     final AzureBlobFileSystem abFs = this.getFileSystem();
     final NativeAzureFileSystem wasbFs = this.getWasbFileSystem();
@@ -602,24 +528,12 @@ public class ITestAzureBlobFileSystemRandomRead extends
    * @throws Throwable
    */
   @Test
-  public void testMockFastpathAlwaysReadBufferSizeConfig() throws Throwable {
-    // Run mock test only if feature is set to off
-    Assume.assumeFalse(getDefaultFastpathFeatureStatus());
+  public void testAlwaysReadBufferSizeConfig() throws Throwable {
+    testAlwaysReadBufferSizeConfig(false);
     testAlwaysReadBufferSizeConfig(true);
   }
 
-  @Test
-  public void testAlwaysReadBufferSizeConfig() throws Throwable {
-    testAlwaysReadBufferSizeConfig(false);
-  }
-
-  public void testAlwaysReadBufferSizeConfig(boolean isMockFastpathTest) throws Throwable {
-    testAlwaysReadBufferSizeConfig(false, isMockFastpathTest);
-    testAlwaysReadBufferSizeConfig(true, isMockFastpathTest);
-  }
-
-  public void testAlwaysReadBufferSizeConfig(boolean alwaysReadBufferSizeConfigValue,
-      boolean isMockFastpathTest)
+  public void testAlwaysReadBufferSizeConfig(boolean alwaysReadBufferSizeConfigValue)
       throws Throwable {
     final AzureBlobFileSystem currentFs = getFileSystem();
     Configuration config = new Configuration(this.getRawConfiguration());
@@ -631,7 +545,7 @@ public class ITestAzureBlobFileSystemRandomRead extends
         + UUID.randomUUID().toString());
 
     final AzureBlobFileSystem fs = createTestFile(testFile, 16 * MEGABYTE,
-        1 * MEGABYTE, config, isMockFastpathTest);
+        1 * MEGABYTE, config);
     String eTag = fs.getAbfsClient()
         .getPathStatus(testFile.toUri().getPath(), false,
             getTestTracingContext(fs, false))
@@ -640,14 +554,10 @@ public class ITestAzureBlobFileSystemRandomRead extends
 
     TestAbfsInputStream testInputStream = new TestAbfsInputStream();
     AbfsInputStreamContext context = testInputStream.getInStmContext(DISABLED_READAHEAD_DEPTH, FOUR_MB,
-        alwaysReadBufferSizeConfigValue, FOUR_MB, getDefaultFastpathFeatureStatus());
+        alwaysReadBufferSizeConfigValue, FOUR_MB);
     AbfsInputStream inputStream = testInputStream.getAbfsInputStream(
         fs.getAbfsClient(),
         testFile.getName(), ALWAYS_READ_BUFFER_SIZE_TEST_FILE_SIZE, eTag, context);
-
-    if (isMockFastpathTest) {
-      inputStream = new MockAbfsInputStream(fs.getAbfsClient(), inputStream);
-    }
 
     long connectionsAtStart = fs.getInstrumentationMap()
         .get(GET_RESPONSES.getStatName());
@@ -664,11 +574,7 @@ public class ITestAzureBlobFileSystemRandomRead extends
 
     // first read
     // if alwaysReadBufferSize is off, this is a sequential read
-    if (isMockFastpathTest) {
-      ((MockAbfsInputStream) inputStream).read(byteBuffer5, 0, FIVE_BYTES);
-    } else {
-      inputStream.read(byteBuffer5, 0, FIVE_BYTES);
-    }
+    inputStream.read(byteBuffer5, 0, FIVE_BYTES);
 
     newReqCount++;
     newDataSizeRead += FOUR_MB;
@@ -712,16 +618,13 @@ public class ITestAzureBlobFileSystemRandomRead extends
   private long sequentialRead(String version,
                               Path testPath,
                               FileSystem fs,
-                              boolean afterReverseSeek,
-                              boolean isMockFastpathTest) throws IOException {
+                              boolean afterReverseSeek) throws IOException {
     byte[] buffer = new byte[SEQUENTIAL_READ_BUFFER_SIZE];
     long totalBytesRead = 0;
     long bytesRead = 0;
 
     long testFileLength = fs.getFileStatus(testPath).getLen();
-    try(FSDataInputStream inputStream = isMockFastpathTest
-        ? openMockAbfsInputStream((AzureBlobFileSystem) fs, testPath)
-        : fs.open(testPath)) {
+    try(FSDataInputStream inputStream = fs.open(testPath)) {
       if (afterReverseSeek) {
         while (bytesRead > 0 && totalBytesRead < 4 * MEGABYTE) {
           bytesRead = inputStream.read(buffer);
@@ -753,7 +656,7 @@ public class ITestAzureBlobFileSystemRandomRead extends
   }
 
   private long randomRead(int version, Path testPath, FileSystem fs) throws Exception {
-    assumeHugeFileExists(testPath, false);
+    assumeHugeFileExists(testPath);
     final long minBytesToRead = 2 * MEGABYTE;
     Random random = new Random();
     byte[] buffer = new byte[8 * KILOBYTE];
@@ -791,18 +694,17 @@ public class ITestAzureBlobFileSystemRandomRead extends
     return bytes / 1000.0 * 8 / milliseconds;
   }
 
-  private long createTestFile(Path testPath, boolean isMockFastpathTest) throws Exception {
+  private long createTestFile(Path testPath) throws Exception {
     createTestFile(testPath,
         TEST_FILE_SIZE,
         MEGABYTE,
-        null,
-        isMockFastpathTest);
+        null);
 
     return TEST_FILE_SIZE;
   }
 
   private AzureBlobFileSystem createTestFile(Path testFilePath, long testFileSize,
-      int createBufferSize, Configuration config, boolean isMockFastpathTest) throws Exception {
+      int createBufferSize, Configuration config) throws Exception {
     AzureBlobFileSystem fs;
 
     if (config == null) {
@@ -835,13 +737,9 @@ public class ITestAzureBlobFileSystemRandomRead extends
       int bytesWritten = 0;
       while (bytesWritten < testFileSize) {
         outputStream.write(buffer);
-          MockFastpathConnection
-              .registerAppend((int) testFileSize, testFilePath.getName(),
-                  buffer, 0, buffer.length);
         bytesWritten += buffer.length;
       }
 
-      addToTestTearDownCleanupList(testFilePath);
       LOG.info("Closing stream {}", outputStream);
       ContractTestUtils.NanoTimer closeTimer
               = new ContractTestUtils.NanoTimer();
@@ -852,8 +750,8 @@ public class ITestAzureBlobFileSystemRandomRead extends
     return fs;
   }
 
-  private long assumeHugeFileExists(Path testPath, boolean isMockFastpathTest) throws Exception{
-    long fileSize = createTestFile(testPath, isMockFastpathTest);
+  private long assumeHugeFileExists(Path testPath) throws Exception{
+    long fileSize = createTestFile(testPath);
     FileSystem fs = this.getFileSystem();
     ContractTestUtils.assertPathExists(this.getFileSystem(), "huge file not created", testPath);
     FileStatus status = fs.getFileStatus(testPath);

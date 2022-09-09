@@ -251,9 +251,8 @@ public final class ConfigurationKeys {
   public static final String FS_AZURE_BUFFERED_PREAD_DISABLE = "fs.azure.buffered.pread.disable";
 
   /**
-   * Config control to enable alternate store connection using Fastpath
+   * Config control to enable alternate store connection using Optimized Read
    */
-  public static final String FS_AZURE_READ_DEFAULT_FASTPATH = "fs.azure.read.default.fastpath";
   public static final String FS_AZURE_READ_DEFAULT_OPTIMIZED_REST = "fs.azure.read.default.optimized.rest";
   public static final String FS_AZURE_WRITE_DEFAULT_OPTIMIZED_REST = "fs.azure.write.default.optimized.rest";
 

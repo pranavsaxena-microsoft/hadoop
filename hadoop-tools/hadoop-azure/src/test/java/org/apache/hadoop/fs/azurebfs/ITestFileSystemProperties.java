@@ -27,7 +27,6 @@ import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.azurebfs.utils.MockFastpathConnection;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 
 /**
@@ -42,39 +41,10 @@ public class ITestFileSystemProperties extends AbstractAbfsIntegrationTest {
   @After
   public void tearDown() throws Exception {
     super.teardown();
-    deleteMockFastpathFiles();
-  }
-
-  @Test
-  public void testMockFastpathReadWriteBytesToFileAndEnsureThreadPoolCleanup()
-      throws Exception {
-    // Run mock test only if feature is set to off
-    Assume.assumeFalse(getDefaultFastpathFeatureStatus());
-    final AzureBlobFileSystem fs = getFileSystem();
-    Path testPath = new Path(TEST_PATH + "_mock");
-    try(FSDataOutputStream stream = fs.create(testPath)) {
-      stream.write(TEST_DATA);
-    }
-    byte[] buffer = new byte[]{(byte) (TEST_DATA & 0xFF)};
-    MockFastpathConnection.registerAppend(buffer.length, testPath.getName(),
-        buffer, 0, buffer.length);
-    addToTestTearDownCleanupList(testPath);
-    FileStatus fileStatus = fs.getFileStatus(testPath);
-    assertEquals(1, fileStatus.getLen());
-
-    try(FSDataInputStream inputStream =  openMockAbfsInputStream(fs, testPath)) {
-      int i = inputStream.read();
-      assertEquals(TEST_DATA, i);
-    }
   }
 
   @Test
   public void testReadWriteBytesToFileAndEnsureThreadPoolCleanup() throws Exception {
-    testReadWriteBytesToFileAndEnsureThreadPoolCleanup(false);
-  }
-
-  public void testReadWriteBytesToFileAndEnsureThreadPoolCleanup(boolean isMockFastpathTest)
-      throws Exception {
     final AzureBlobFileSystem fs = getFileSystem();
     Path testPath = path(TEST_PATH);
     try(FSDataOutputStream stream = fs.create(testPath)) {
@@ -84,9 +54,7 @@ public class ITestFileSystemProperties extends AbstractAbfsIntegrationTest {
     FileStatus fileStatus = fs.getFileStatus(testPath);
     assertEquals(1, fileStatus.getLen());
 
-    try(FSDataInputStream inputStream = isMockFastpathTest
-        ? openMockAbfsInputStream(fs, testPath)
-        : fs.open(testPath, 4 * 1024 * 1024)) {
+    try(FSDataInputStream inputStream = fs.open(testPath, 4 * 1024 * 1024)) {
       int i = inputStream.read();
       assertEquals(TEST_DATA, i);
     }

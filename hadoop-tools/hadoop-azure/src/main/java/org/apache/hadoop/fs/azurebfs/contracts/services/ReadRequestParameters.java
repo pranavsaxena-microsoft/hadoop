@@ -68,12 +68,6 @@ public class ReadRequestParameters {
     }
   }
 
-  public boolean isFastpathConnection() {
-    return ((sessionData != null)
-        && (AbfsConnectionMode.isFastpathConnection(
-        sessionData.getConnectionMode())));
-  }
-
   public boolean isOptimizedRestConnection() {
     return ((sessionData != null)
         && (AbfsConnectionMode.isOptimizedRestConnection(

@@ -1,6 +1,6 @@
 package org.apache.hadoop.fs.azurebfs.services;
 
-public class AbfsFastpathRestResponseHeaderBlock {
+public class AbfsOptimizedRestResponseHeaderBlock {
   private String sessionToken;
   private String sessionExpiry;
 
