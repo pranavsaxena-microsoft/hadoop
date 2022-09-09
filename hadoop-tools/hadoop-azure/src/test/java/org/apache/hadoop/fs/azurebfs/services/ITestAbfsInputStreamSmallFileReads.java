@@ -219,13 +219,6 @@ public class ITestAbfsInputStreamSmallFileReads extends ITestAbfsInputStream {
             : readBufferSize;
 
       }
-      expectedBCursor = length;
-      expectedFCursor = (fileContentLength < (seekPos + readBufferSize))
-          ? fileContentLength
-          : (seekPos + readBufferSize);
-      expectedLimit = (fileContentLength < (seekPos + readBufferSize))
-          ? (fileContentLength - seekPos)
-          : readBufferSize;
       assertEquals(expectedFCursor, abfsInputStream.getFCursor());
       assertEquals(expectedFCursor, abfsInputStream.getFCursorAfterLastRead());
       assertEquals(expectedBCursor, abfsInputStream.getBCursor());
