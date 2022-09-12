@@ -46,6 +46,10 @@ import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.O
 
 public class ITestReadBufferManager extends AbstractAbfsIntegrationTest {
 
+  public static void main(String[] args) {
+
+  }
+
     public ITestReadBufferManager() throws Exception {
     }
 
