@@ -27,6 +27,10 @@ import java.util.concurrent.Future;
 import java.util.UUID;
 
 import org.apache.hadoop.classification.VisibleForTesting;
+import org.apache.hadoop.fs.azurebfs.services.abfsStreamHelpers.AbfsOutputStreamHelper;
+import org.apache.hadoop.fs.azurebfs.services.abfsStreamHelpers.IOStreamHelper;
+import org.apache.hadoop.fs.azurebfs.services.abfsStreamHelpers.exceptions.BlockHelperException;
+import org.apache.hadoop.fs.azurebfs.services.abfsStreamHelpers.exceptions.RequestBlockException;
 import org.apache.hadoop.util.Preconditions;
 import org.apache.hadoop.thirdparty.com.google.common.util.concurrent.ListeningExecutorService;
 import org.apache.hadoop.thirdparty.com.google.common.util.concurrent.MoreExecutors;
@@ -128,8 +132,11 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
   /** Executor service to carry out the parallel upload requests. */
   private final ListeningExecutorService executorService;
 
+  private final AbfsOutputStreamContext context;
+
   public AbfsOutputStream(AbfsOutputStreamContext abfsOutputStreamContext)
       throws IOException {
+    this.context = abfsOutputStreamContext;
     this.client = abfsOutputStreamContext.getClient();
     this.statistics = abfsOutputStreamContext.getStatistics();
     this.path = abfsOutputStreamContext.getPath();
@@ -347,12 +354,10 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
              * mode - If it's append, flush or flush_close.
              * leaseId - The AbfsLeaseId for this request.
              */
-            //TODO: Check if sessionData object has to come.
             AppendRequestParameters reqParams = new AppendRequestParameters(
-                offset, 0, bytesLength, mode, false, leaseId, null);
-            AbfsRestOperation op =
-                client.append(path, blockUploadData.toByteArray(), reqParams,
-                    cachedSasToken.get(), new TracingContext(tracingContext));
+                offset, 0, bytesLength, mode, false, leaseId, getAbfsSessionData());
+            AbfsRestOperation op = executeWrite(path, blockUploadData.toByteArray(), reqParams,
+                cachedSasToken.get(), new TracingContext(tracingContext));
             cachedSasToken.update(op.getSasToken());
             perfInfo.registerResult(op.getResult());
             perfInfo.registerSuccess(true);
@@ -594,9 +599,8 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
     AbfsPerfTracker tracker = client.getAbfsPerfTracker();
     try (AbfsPerfInfo perfInfo = new AbfsPerfInfo(tracker,
             "writeCurrentBufferToService", "append")) {
-      AbfsSessionData abfsSessionData = ((abfsSession  == null)
-          ? null
-          : abfsSession.getCurrentSessionData());
+      AbfsSessionData abfsSessionData
+          = getAbfsSessionData();
       AppendRequestParameters reqParams = new AppendRequestParameters(offset, 0,
           bytesLength, APPEND_MODE, true, leaseId, abfsSessionData);
       AbfsRestOperation op = executeWrite(path, uploadData.toByteArray(), reqParams, cachedSasToken.get(),
@@ -613,6 +617,13 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
     } finally {
       IOUtils.close(uploadData);
     }
+  }
+
+  private AbfsSessionData getAbfsSessionData() {
+    AbfsSessionData abfsSessionData = ((abfsSession  == null)
+        ? null
+        : abfsSession.getCurrentSessionData());
+    return abfsSessionData;
   }
 
   private synchronized void waitForAppendsToComplete() throws IOException {
@@ -701,14 +712,46 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
     }
   }
 
-  @VisibleForTesting
-  protected AbfsRestOperation executeWrite(final String path,
+  private AbfsRestOperation executeWrite(final String path,
       final byte[] buffer,
       AppendRequestParameters reqParams,
       final String cachedSasToken,
-      TracingContext tracingContext) throws AzureBlobFileSystemException {
-    return client.append(path, buffer, reqParams, cachedSasToken,
-        new TracingContext(tracingContext));
+      TracingContext tracingContext) throws IOException {
+    AbfsOutputStreamHelper outputStreamHelper = IOStreamHelper.getOutputStreamHelper();
+    while(outputStreamHelper != null && outputStreamHelper.shouldGoNext(context)) {
+      outputStreamHelper = outputStreamHelper.getNext();
+    }
+    while (outputStreamHelper != null) {
+      try {
+        return executeWrite(path, buffer, reqParams, cachedSasToken,
+            tracingContext,
+            outputStreamHelper);
+      } catch (IOException e) {
+        if (e.getClass() == BlockHelperException.class) {
+          outputStreamHelper = outputStreamHelper.getBack();
+          outputStreamHelper.setNextAsInvalid();
+          continue;
+        }
+        if (e.getClass() == RequestBlockException.class) {
+          outputStreamHelper = outputStreamHelper.getBack();
+          continue;
+        }
+        throw e;
+      }
+    }
+    throw new IOException("No Communication technology could help");
+  }
+
+  @VisibleForTesting
+  protected AbfsRestOperation executeWrite(final String path,
+      final byte[] buffer,
+      final AppendRequestParameters reqParams,
+      final String cachedSasToken,
+      final TracingContext tracingContext,
+      final AbfsOutputStreamHelper outputStreamHelper)
+      throws AzureBlobFileSystemException {
+    return outputStreamHelper.operate(path, buffer, reqParams, cachedSasToken,
+        tracingContext);
   }
 
   private static class WriteOperation {

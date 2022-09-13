@@ -27,10 +27,10 @@ import java.util.UUID;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.classification.VisibleForTesting;
 import org.apache.hadoop.fs.azurebfs.contracts.services.ReadRequestParameters;
-import org.apache.hadoop.fs.azurebfs.services.abfsInputStreamHelpers.AbfsInputStreamHelper;
-import org.apache.hadoop.fs.azurebfs.services.abfsInputStreamHelpers.RestAbfsInputStreamHelper;
-import org.apache.hadoop.fs.azurebfs.services.abfsInputStreamHelpers.exceptions.BlockHelperException;
-import org.apache.hadoop.fs.azurebfs.services.abfsInputStreamHelpers.exceptions.RequestBlockException;
+import org.apache.hadoop.fs.azurebfs.services.abfsStreamHelpers.AbfsInputStreamHelper;
+import org.apache.hadoop.fs.azurebfs.services.abfsStreamHelpers.IOStreamHelper;
+import org.apache.hadoop.fs.azurebfs.services.abfsStreamHelpers.exceptions.BlockHelperException;
+import org.apache.hadoop.fs.azurebfs.services.abfsStreamHelpers.exceptions.RequestBlockException;
 import org.apache.hadoop.fs.azurebfs.AbfsStatistic;
 
 import org.slf4j.Logger;
@@ -72,8 +72,7 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
   private int readAheadBlockSize;
   private final AbfsClient client;
   private final Statistics statistics;
-  private final String path;
-  private final long contentLength;
+  private final String path;  private final long contentLength;
   private final int bufferSize; // default buffer size
   private final int readAheadQueueDepth;         // initialized in constructor
   private final String eTag;                  // eTag of the path when InputStream are created
@@ -127,7 +126,7 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
    */
   private long nextReadPos;
   private AbfsSession abfsSession = null;
-  private AbfsInputStreamHelper abfsInputStreamHelperStart = new RestAbfsInputStreamHelper();
+  private AbfsInputStreamHelper abfsInputStreamHelperStart = IOStreamHelper.getInputStreamHelper();
 
   public AbfsInputStream(
           final AbfsClient client,

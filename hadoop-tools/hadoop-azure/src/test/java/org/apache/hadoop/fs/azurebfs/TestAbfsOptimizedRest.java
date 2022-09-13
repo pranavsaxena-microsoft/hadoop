@@ -30,8 +30,8 @@ import org.junit.rules.TestName;
 
 import org.apache.hadoop.fs.azurebfs.services.AbfsConnectionMode;
 import org.apache.hadoop.fs.azurebfs.services.MockAbfsHttpConnection;
-import org.apache.hadoop.fs.azurebfs.services.abfsInputStreamHelpers.OptimizedRestAbfsInputStreamHelper;
-import org.apache.hadoop.fs.azurebfs.services.abfsInputStreamHelpers.RestAbfsInputStreamHelper;
+import org.apache.hadoop.fs.azurebfs.services.abfsStreamHelpers.abfsInputStreamHelperImpl.OptimizedRestAbfsInputStreamHelper;
+import org.apache.hadoop.fs.azurebfs.services.abfsStreamHelpers.abfsInputStreamHelperImpl.RestAbfsInputStreamHelper;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;

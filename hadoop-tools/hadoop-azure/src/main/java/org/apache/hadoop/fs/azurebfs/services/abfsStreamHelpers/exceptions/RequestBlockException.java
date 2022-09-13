@@ -1,4 +1,4 @@
-package org.apache.hadoop.fs.azurebfs.services.abfsInputStreamHelpers.exceptions;
+package org.apache.hadoop.fs.azurebfs.services.abfsStreamHelpers.exceptions;
 
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemException;
 

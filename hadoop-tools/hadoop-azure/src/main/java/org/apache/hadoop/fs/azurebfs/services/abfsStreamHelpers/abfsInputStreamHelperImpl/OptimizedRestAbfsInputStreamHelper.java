@@ -1,4 +1,4 @@
-package org.apache.hadoop.fs.azurebfs.services.abfsInputStreamHelpers;
+package org.apache.hadoop.fs.azurebfs.services.abfsStreamHelpers.abfsInputStreamHelperImpl;
 
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemException;
 import org.apache.hadoop.fs.azurebfs.contracts.services.ReadRequestParameters;
@@ -11,7 +11,8 @@ import org.apache.hadoop.fs.azurebfs.services.AbfsRestOperation;
 import org.apache.hadoop.fs.azurebfs.services.AbfsSessionData;
 import org.apache.hadoop.fs.azurebfs.services.ReadBufferManager;
 import org.apache.hadoop.fs.azurebfs.services.ThreadBasedMessageQueue;
-import org.apache.hadoop.fs.azurebfs.services.abfsInputStreamHelpers.exceptions.BlockHelperException;
+import org.apache.hadoop.fs.azurebfs.services.abfsStreamHelpers.AbfsInputStreamHelper;
+import org.apache.hadoop.fs.azurebfs.services.abfsStreamHelpers.exceptions.BlockHelperException;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 
 import java.time.OffsetDateTime;

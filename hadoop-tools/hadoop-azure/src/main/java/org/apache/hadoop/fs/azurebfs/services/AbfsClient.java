@@ -37,8 +37,6 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.hadoop.fs.azurebfs.services.abfsInputStreamHelpers.exceptions.BlockHelperException;
-import org.apache.hadoop.fs.azurebfs.services.abfsInputStreamHelpers.exceptions.RequestBlockException;
 import org.apache.hadoop.classification.VisibleForTesting;
 import org.apache.hadoop.fs.store.LogExactlyOnce;
 import org.apache.hadoop.util.Preconditions;
