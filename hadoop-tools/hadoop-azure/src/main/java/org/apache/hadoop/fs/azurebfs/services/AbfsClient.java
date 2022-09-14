@@ -243,13 +243,7 @@ public class AbfsClient implements Closeable {
       break;
 
     case ENCRYPTION_CONTEXT:
-      for(AbfsHttpHeader header : requestHeaders) {
-        if(X_MS_VERSION.equalsIgnoreCase(header.getName())) {
-          requestHeaders.remove(header);
-          requestHeaders.add(new AbfsHttpHeader(X_MS_VERSION, "2021-04-10")); // will be default once server change deployed
-          break;
-        }
-      }
+      replaceXMsVersion(requestHeaders);
       if (isCreateFileRequest) {
         // get new context for create file request
         requestHeaders.add(new AbfsHttpHeader(X_MS_ENCRYPTION_CONTEXT,
@@ -296,6 +290,16 @@ public class AbfsClient implements Closeable {
     requestHeaders.add(new AbfsHttpHeader(X_MS_ENCRYPTION_KEY_SHA256, encodedKeySHA256));
     requestHeaders.add(new AbfsHttpHeader(X_MS_ENCRYPTION_ALGORITHM,
         SERVER_SIDE_ENCRYPTION_ALGORITHM));
+  }
+
+  private void replaceXMsVersion(List<AbfsHttpHeader> requestHeaders) {
+    for(AbfsHttpHeader header : requestHeaders) {
+      if(X_MS_VERSION.equalsIgnoreCase(header.getName())) {
+        requestHeaders.remove(header);
+        requestHeaders.add(new AbfsHttpHeader(X_MS_VERSION, "2021-04-10")); // will be default once server change deployed
+        break;
+      }
+    }
   }
 
   AbfsUriQueryBuilder createDefaultUriQueryBuilder() {
@@ -871,6 +875,7 @@ public class AbfsClient implements Closeable {
       final boolean includeProperties, TracingContext tracingContext)
       throws IOException {
     final List<AbfsHttpHeader> requestHeaders = createDefaultHeaders();
+    replaceXMsVersion(requestHeaders);
 
     final AbfsUriQueryBuilder abfsUriQueryBuilder = createDefaultUriQueryBuilder();
     String operation = SASTokenProvider.GET_PROPERTIES_OPERATION;
