@@ -130,7 +130,6 @@ public class AbfsClient implements Closeable {
 
     if (encryptionContextProvider != null) {
       this.encryptionContextProvider = encryptionContextProvider;
-      xMsVersion = "2021-04-10"; // will be default once server change deployed
       encryptionType = EncryptionType.ENCRYPTION_CONTEXT;
     } else if (abfsConfiguration.getEncodedClientProvidedEncryptionKey() != null) {
       clientProvidedEncryptionKey =
@@ -244,6 +243,13 @@ public class AbfsClient implements Closeable {
       break;
 
     case ENCRYPTION_CONTEXT:
+      for(AbfsHttpHeader header : requestHeaders) {
+        if(X_MS_VERSION.equalsIgnoreCase(header.getName())) {
+          requestHeaders.remove(header);
+          requestHeaders.add(new AbfsHttpHeader(X_MS_VERSION, "2021-04-10")); // will be default once server change deployed
+          break;
+        }
+      }
       if (isCreateFileRequest) {
         // get new context for create file request
         requestHeaders.add(new AbfsHttpHeader(X_MS_ENCRYPTION_CONTEXT,

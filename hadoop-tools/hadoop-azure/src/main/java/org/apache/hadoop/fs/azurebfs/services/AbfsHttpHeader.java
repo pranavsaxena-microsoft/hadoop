@@ -37,4 +37,33 @@ public class AbfsHttpHeader {
   public String getValue() {
     return value;
   }
+
+  @Override
+  public boolean equals(Object o) {
+    if(o == null) {
+      return false;
+    }
+    if(o.getClass() == AbfsHttpHeader.class) {
+      return false;
+    }
+    if(getName() != null) {
+      if(!getName().equals(((AbfsHttpHeader)o).getName())) {
+        return false;
+      }
+    } else {
+      if(((AbfsHttpHeader)o).getName() != null) {
+        return false;
+      }
+    }
+    if(getValue() != null) {
+      if(!getValue().equalsIgnoreCase(((AbfsHttpHeader)o).getValue())) {
+        return false;
+      }
+    } else {
+      if(((AbfsHttpHeader)o).getValue() != null) {
+        return false;
+      }
+    }
+    return true;
+  }
 }
