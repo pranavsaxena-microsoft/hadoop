@@ -43,7 +43,7 @@ public class AbfsHttpHeader {
     if(o == null) {
       return false;
     }
-    if(o.getClass() == AbfsHttpHeader.class) {
+    if(o.getClass() != AbfsHttpHeader.class) {
       return false;
     }
     if(getName() != null) {
