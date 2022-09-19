@@ -25,4 +25,6 @@ public interface AbfsOutputStreamHelper {
       throws AzureBlobFileSystemException;
 
   public void setNextAsValid();
+
+  public Boolean isAbfsSessionRequired();
 }

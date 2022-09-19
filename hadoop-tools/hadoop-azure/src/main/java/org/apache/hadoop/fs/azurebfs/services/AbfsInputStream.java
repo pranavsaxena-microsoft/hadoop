@@ -824,14 +824,14 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
 
   @Override
   public synchronized void close() throws IOException {
-    if (abfsSession != null) {
-      abfsSession.close();
-      abfsSession.stopSessionUpdate();
-    }
     LOG.debug("Closing {}", this);
     closed = true;
     buffer = null; // de-reference the buffer so it can be GC'ed sooner
     ReadBufferManager.getBufferManager().purgeBuffersForStream(this);
+    if (abfsSession != null) {
+      abfsSession.close();
+      abfsSession.stopSessionUpdate();
+    }
   }
 
   /**

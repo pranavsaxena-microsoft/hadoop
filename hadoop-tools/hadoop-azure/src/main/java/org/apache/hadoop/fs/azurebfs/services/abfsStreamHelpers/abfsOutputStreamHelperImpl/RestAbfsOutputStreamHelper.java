@@ -44,6 +44,11 @@ public class RestAbfsOutputStreamHelper implements AbfsOutputStreamHelper {
   }
 
   @Override
+  public Boolean isAbfsSessionRequired() {
+    return false;
+  }
+
+  @Override
   public AbfsRestOperation operate(final String path,
       final byte[] buffer,
       final AppendRequestParameters reqParams,

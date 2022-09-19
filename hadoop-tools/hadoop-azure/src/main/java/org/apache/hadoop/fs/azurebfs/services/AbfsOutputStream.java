@@ -177,8 +177,7 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
     this.outputStreamId = createOutputStreamId();
 
     this.tracingContext = new TracingContext(abfsOutputStreamContext.getTracingContext());
-    abfsSession = createAbfsSession(
-        abfsOutputStreamContext.isDefaultConnectionOnOptimizedRest());
+    abfsSession = createAbfsSession(abfsOutputStreamContext);
     this.tracingContext.setStreamID(outputStreamId);
     this.tracingContext.setOperation(FSOperationType.WRITE);
     this.blockFactory = abfsOutputStreamContext.getBlockFactory();
@@ -192,8 +191,12 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
     return StringUtils.right(UUID.randomUUID().toString(), STREAM_ID_LEN);
   }
 
-  protected AbfsSession createAbfsSession(boolean isDefaultOptimizedRest) {
-    if (isDefaultOptimizedRest) {
+  protected AbfsSession createAbfsSession(final AbfsOutputStreamContext abfsOutputStreamContext) {
+    AbfsOutputStreamHelper abfsOutputStreamHelper = IOStreamHelper.getOutputStreamHelper();
+    while(abfsOutputStreamHelper.shouldGoNext(abfsOutputStreamContext)) {
+      abfsOutputStreamHelper = abfsOutputStreamHelper.getNext();
+    }
+    if (abfsOutputStreamHelper.isAbfsSessionRequired()) {
       AbfsSession abfsSession = new AbfsSession(WRITE_ON_OPTIMIZED_REST,
           client, path, tracingContext);
       if (abfsSession.isValid()) {

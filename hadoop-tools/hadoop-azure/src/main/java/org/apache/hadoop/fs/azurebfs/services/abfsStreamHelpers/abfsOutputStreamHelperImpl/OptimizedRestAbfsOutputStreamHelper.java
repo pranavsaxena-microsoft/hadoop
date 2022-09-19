@@ -20,6 +20,10 @@ public class OptimizedRestAbfsOutputStreamHelper
 
   private AbfsOutputStreamHelper prevHelper;
 
+  @Override
+  public Boolean isAbfsSessionRequired() {
+    return true;
+  }
 
   private static final Logger LOG = LoggerFactory.getLogger(
       OptimizedRestAbfsOutputStreamHelper.class);
