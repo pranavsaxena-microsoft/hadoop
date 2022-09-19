@@ -69,6 +69,7 @@ public class AbfsSession {
   protected String eTag;
   protected TracingContext tracingContext;
   protected AbfsClient client;
+  private Boolean sessionUpdateToBeStopped = false;
 
   protected AbfsConnectionMode mapSessionScopeToConnMode(IO_SESSION_SCOPE scope) {
     switch(scope) {
@@ -80,6 +81,10 @@ public class AbfsSession {
     }
 
     return AbfsConnectionMode.REST_CONN;
+  }
+
+  void stopSessionUpdate() {
+    sessionUpdateToBeStopped = true;
   }
 
   public AbfsSession(final IO_SESSION_SCOPE scope, final AbfsClient client,
@@ -106,6 +111,10 @@ public class AbfsSession {
         sessionData.getConnectionMode())) {
       // no need to refresh or schedule another,
       // connMode out of fastpath or optimized read flow
+      return false;
+    }
+
+    if(sessionUpdateToBeStopped) {
       return false;
     }
 

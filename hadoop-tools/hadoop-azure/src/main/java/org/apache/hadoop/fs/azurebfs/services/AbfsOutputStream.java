@@ -537,6 +537,7 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
       if (hasActiveBlock()) {
         clearActiveBlock();
       }
+      abfsSession.stopSessionUpdate();
     }
     LOG.debug("Closing AbfsOutputStream : {}", this);
   }
