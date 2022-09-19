@@ -5,9 +5,12 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemException;
 import org.apache.hadoop.fs.azurebfs.contracts.services.AppendRequestParameters;
+import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
+import org.apache.hadoop.fs.azurebfs.services.AbfsConnectionMode;
 import org.apache.hadoop.fs.azurebfs.services.AbfsOutputStreamContext;
 import org.apache.hadoop.fs.azurebfs.services.AbfsRestOperation;
 import org.apache.hadoop.fs.azurebfs.services.abfsStreamHelpers.AbfsOutputStreamHelper;
+import org.apache.hadoop.fs.azurebfs.services.abfsStreamHelpers.exceptions.BlockHelperException;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 
 public class OptimizedRestAbfsOutputStreamHelper
@@ -36,8 +39,20 @@ public class OptimizedRestAbfsOutputStreamHelper
       final byte[] buffer,
       final AppendRequestParameters reqParams,
       final String cachedSasToken,
-      final TracingContext tracingContext) throws AzureBlobFileSystemException {
-    return null;
+      final TracingContext tracingContext, final AbfsClient abfsClient)
+      throws AzureBlobFileSystemException {
+    try {
+      return abfsClient.append(path, buffer, reqParams, cachedSasToken,
+          tracingContext);
+    } catch (AzureBlobFileSystemException ex) {
+      LOG.debug("Fallback: From OptimizedREST to Vanilla REST");
+      tracingContext.setConnectionMode(
+          AbfsConnectionMode.REST_CONN);
+      reqParams.getAbfsSessionData()
+          .setConnectionMode(
+              AbfsConnectionMode.REST_CONN);
+      throw new BlockHelperException(ex);
+    }
   }
 
   @Override

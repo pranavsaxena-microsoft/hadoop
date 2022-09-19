@@ -354,10 +354,14 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
              * mode - If it's append, flush or flush_close.
              * leaseId - The AbfsLeaseId for this request.
              */
+            final AbfsSessionData abfsSessionData = getAbfsSessionData();
             AppendRequestParameters reqParams = new AppendRequestParameters(
-                offset, 0, bytesLength, mode, false, leaseId, getAbfsSessionData());
+                offset, 0, bytesLength, mode, false, leaseId, abfsSessionData);
             AbfsRestOperation op = executeWrite(path, blockUploadData.toByteArray(), reqParams,
                 cachedSasToken.get(), new TracingContext(tracingContext));
+            if (abfsSession != null && abfsSessionData != null) {
+              abfsSession.checkAndUpdateAbfsSession(op, abfsSessionData);
+            }
             cachedSasToken.update(op.getSasToken());
             perfInfo.registerResult(op.getResult());
             perfInfo.registerSuccess(true);
@@ -605,6 +609,9 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
           bytesLength, APPEND_MODE, true, leaseId, abfsSessionData);
       AbfsRestOperation op = executeWrite(path, uploadData.toByteArray(), reqParams, cachedSasToken.get(),
               new TracingContext(tracingContext));
+      if (abfsSession != null && abfsSessionData != null) {
+        abfsSession.checkAndUpdateAbfsSession(op, abfsSessionData);
+      }
       cachedSasToken.update(op.getSasToken());
       outputStreamStatistics.uploadSuccessful(bytesLength);
 
@@ -751,7 +758,7 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
       final AbfsOutputStreamHelper outputStreamHelper)
       throws AzureBlobFileSystemException {
     return outputStreamHelper.operate(path, buffer, reqParams, cachedSasToken,
-        tracingContext);
+        tracingContext, client);
   }
 
   private static class WriteOperation {

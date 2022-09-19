@@ -2,6 +2,7 @@ package org.apache.hadoop.fs.azurebfs.services.abfsStreamHelpers.abfsOutputStrea
 
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemException;
 import org.apache.hadoop.fs.azurebfs.contracts.services.AppendRequestParameters;
+import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
 import org.apache.hadoop.fs.azurebfs.services.AbfsOutputStreamContext;
 import org.apache.hadoop.fs.azurebfs.services.AbfsRestOperation;
 import org.apache.hadoop.fs.azurebfs.services.abfsStreamHelpers.AbfsOutputStreamHelper;
@@ -40,7 +41,7 @@ public class RestAbfsOutputStreamHelper implements AbfsOutputStreamHelper {
       final byte[] buffer,
       final AppendRequestParameters reqParams,
       final String cachedSasToken,
-      final TracingContext tracingContext) throws AzureBlobFileSystemException {
-    return null;
+      final TracingContext tracingContext, final AbfsClient abfsClient) throws AzureBlobFileSystemException {
+    return abfsClient.append(path, buffer, reqParams, cachedSasToken, tracingContext);
   }
 }
