@@ -23,4 +23,6 @@ public interface AbfsOutputStreamHelper {
       final String cachedSasToken,
       TracingContext tracingContext, final AbfsClient abfsClient)
       throws AzureBlobFileSystemException;
+
+  public void setNextAsValid();
 }

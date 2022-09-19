@@ -12,6 +12,7 @@ import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 public class RestAbfsInputStreamHelper implements AbfsInputStreamHelper {
 
   private AbfsInputStreamHelper nextHelper;
+  private Boolean isNextHelperValid = true;
 
   public RestAbfsInputStreamHelper() {
     nextHelper = new OptimizedRestAbfsInputStreamHelper(this);
@@ -23,7 +24,12 @@ public class RestAbfsInputStreamHelper implements AbfsInputStreamHelper {
       return false;
     }
     return (abfsInputStreamContext.isDefaultConnectionOnOptimizedRest()
-        && nextHelper != null);
+        && nextHelper != null && isNextHelperValid);
+  }
+
+  @Override
+  public void setNextAsValid() {
+    isNextHelperValid = true;
   }
 
   @Override
@@ -38,7 +44,12 @@ public class RestAbfsInputStreamHelper implements AbfsInputStreamHelper {
 
   @Override
   public void setNextAsInvalid() {
-    nextHelper = null;
+    isNextHelperValid = false;
+  }
+
+  @Override
+  public Boolean isAbfsSessionRequired() {
+    return false;
   }
 
   @Override

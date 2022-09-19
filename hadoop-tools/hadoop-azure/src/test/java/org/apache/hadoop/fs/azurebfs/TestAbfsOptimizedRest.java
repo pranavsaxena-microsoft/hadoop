@@ -30,6 +30,7 @@ import org.junit.rules.TestName;
 
 import org.apache.hadoop.fs.azurebfs.services.AbfsConnectionMode;
 import org.apache.hadoop.fs.azurebfs.services.MockAbfsHttpConnection;
+import org.apache.hadoop.fs.azurebfs.services.abfsStreamHelpers.IOStreamHelper;
 import org.apache.hadoop.fs.azurebfs.services.abfsStreamHelpers.abfsInputStreamHelperImpl.OptimizedRestAbfsInputStreamHelper;
 import org.apache.hadoop.fs.azurebfs.services.abfsStreamHelpers.abfsInputStreamHelperImpl.RestAbfsInputStreamHelper;
 
@@ -66,6 +67,8 @@ public class TestAbfsOptimizedRest extends AbstractAbfsIntegrationTest {
   @After
   public void afterTest() {
     MockAbfsHttpConnection.refreshLastSessionToken();
+    IOStreamHelper.getInputStreamHelper().setNextAsValid();
+    IOStreamHelper.getOutputStreamHelper().setNextAsValid();
   }
 
   public TestAbfsOptimizedRest() throws Exception {
@@ -359,9 +362,7 @@ public class TestAbfsOptimizedRest extends AbstractAbfsIntegrationTest {
         expectedConnectionsMade, metricMap);
     assertAbfsStatistics(GET_RESPONSES,
         expectedGetResponses, metricMap);
-    Assert.assertTrue(((MockAbfsInputStream) inStream).getAbfsSession()
-        .getCurrentSessionData()
-        .getConnectionMode() == AbfsConnectionMode.REST_CONN);
+    Assert.assertNull(((MockAbfsInputStream) inStream).getAbfsSession());
   }
 
 }

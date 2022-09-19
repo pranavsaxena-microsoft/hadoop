@@ -11,6 +11,7 @@ import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 public class RestAbfsOutputStreamHelper implements AbfsOutputStreamHelper {
 
   private AbfsOutputStreamHelper nextHelper;
+  private Boolean isNextHelperIsValid = true;
 
   public RestAbfsOutputStreamHelper() {
     nextHelper = new OptimizedRestAbfsOutputStreamHelper(this);
@@ -28,12 +29,18 @@ public class RestAbfsOutputStreamHelper implements AbfsOutputStreamHelper {
 
   @Override
   public void setNextAsInvalid() {
-    nextHelper = null;
+    isNextHelperIsValid = false;
   }
 
   @Override
   public boolean shouldGoNext(final AbfsOutputStreamContext abfsOutputStreamContext) {
-    return false;
+    return (abfsOutputStreamContext.isDefaultConnectionOnOptimizedRest()
+        && nextHelper != null && isNextHelperIsValid);
+  }
+
+  @Override
+  public void setNextAsValid() {
+    isNextHelperIsValid = true;
   }
 
   @Override

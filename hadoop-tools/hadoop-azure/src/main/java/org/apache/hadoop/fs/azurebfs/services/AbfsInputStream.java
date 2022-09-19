@@ -180,7 +180,11 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
 
   protected AbfsSession createAbfsSession(AbfsInputStreamContext context) {
     AbfsSession session = null;
-    if (context.isDefaultConnectionOnOptimizedRest()) {
+    AbfsInputStreamHelper inputStreamHelper = IOStreamHelper.getInputStreamHelper();
+    while(inputStreamHelper.shouldGoNext(context)) {
+      inputStreamHelper = inputStreamHelper.getNext();
+    }
+    if (inputStreamHelper.isAbfsSessionRequired()) {
       session = new AbfsSession(READ_ON_OPTIMIZED_REST, client, path, eTag, tracingContext);
     }
 

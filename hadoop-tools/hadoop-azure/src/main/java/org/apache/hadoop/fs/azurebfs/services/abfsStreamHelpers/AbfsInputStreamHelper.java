@@ -28,4 +28,8 @@ public interface AbfsInputStreamHelper {
       throws AzureBlobFileSystemException;
 
   public Boolean explicitPreFetchReadAllowed();
+
+  public Boolean isAbfsSessionRequired();
+
+  public void setNextAsValid();
 }

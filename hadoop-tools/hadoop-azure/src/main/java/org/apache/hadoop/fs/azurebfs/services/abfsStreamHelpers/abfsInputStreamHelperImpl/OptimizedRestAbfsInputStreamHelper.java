@@ -35,6 +35,15 @@ public class OptimizedRestAbfsInputStreamHelper
   private static List<ReadAheadByteInfo> readAheadByteInfoList
       = new ArrayList<>();
 
+  @Override
+  public void setNextAsValid() {
+
+  }
+
+  @Override
+  public Boolean isAbfsSessionRequired() {
+    return true;
+  }
 
   private static final Logger LOG = LoggerFactory.getLogger(
       OptimizedRestAbfsInputStreamHelper.class);

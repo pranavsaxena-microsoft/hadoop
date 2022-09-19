@@ -56,6 +56,10 @@ public class OptimizedRestAbfsOutputStreamHelper
   }
 
   @Override
+  public void setNextAsValid() {
+  }
+
+  @Override
   public AbfsOutputStreamHelper getNext() {
     return nextHelper;
   }
