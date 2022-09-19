@@ -209,6 +209,11 @@ public class MockAbfsInputStream extends AbfsInputStream {
   }
 
   @Override
+  public AbfsSession getAbfsSession() {
+    return super.getAbfsSession();
+  }
+
+  @Override
   public AbfsInputStreamContext getContext() {
     return super.getContext();
   }

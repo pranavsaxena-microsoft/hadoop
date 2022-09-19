@@ -176,10 +176,9 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
     }
     this.outputStreamId = createOutputStreamId();
 
+    this.tracingContext = new TracingContext(abfsOutputStreamContext.getTracingContext());
     abfsSession = createAbfsSession(
         abfsOutputStreamContext.isDefaultConnectionOnOptimizedRest());
-
-    this.tracingContext = new TracingContext(abfsOutputStreamContext.getTracingContext());
     this.tracingContext.setStreamID(outputStreamId);
     this.tracingContext.setOperation(FSOperationType.WRITE);
     this.blockFactory = abfsOutputStreamContext.getBlockFactory();
@@ -537,7 +536,9 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
       if (hasActiveBlock()) {
         clearActiveBlock();
       }
-      abfsSession.stopSessionUpdate();
+      if(abfsSession != null) {
+        abfsSession.stopSessionUpdate();
+      }
     }
     LOG.debug("Closing AbfsOutputStream : {}", this);
   }
