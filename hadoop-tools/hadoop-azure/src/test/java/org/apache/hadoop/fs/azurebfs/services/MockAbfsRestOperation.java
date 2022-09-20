@@ -36,6 +36,7 @@ public class MockAbfsRestOperation extends AbfsRestOperation {
   private boolean mockRequestExceptionOptimizedRest = false;
   private boolean mockConnectionExceptionOptimizedRest = false;
   private ReadRequestParameters readRequestParameters;
+  private AppendRequestParameters appendRequestParameters;
 
   MockAbfsRestOperation(final AbfsRestOperationType operationType,
       final AbfsClient client,
@@ -69,14 +70,17 @@ public class MockAbfsRestOperation extends AbfsRestOperation {
       byte[] buffer,
       int bufferOffset,
       int bufferLength,
-      String sasTokenForReuse) {
+      String sasTokenForReuse,
+      AppendRequestParameters appendRequestParameters) {
     super(operationType, client, method, url, requestHeaders, buffer,
         bufferOffset, bufferLength, sasTokenForReuse);
+    this.appendRequestParameters = appendRequestParameters;
   }
 
   @Override
   protected AbfsHttpConnection getHttpOperation() throws IOException {
-    if (AbfsRestOperationType.OptimizedRead.equals(getOperationType())) {
+    if (AbfsRestOperationType.OptimizedRead.equals(getOperationType())
+        || AbfsRestOperationType.OptimizedAppend.equals(getOperationType()) || AbfsRestOperationType.Append.equals(getOperationType())) {
       return new MockAbfsHttpConnection(getUrl(), getMethod(),
           getRequestHeaders(), getHeaderUpDownCallable());
     }
@@ -97,14 +101,24 @@ public class MockAbfsRestOperation extends AbfsRestOperation {
   @Override
   public void execute(final TracingContext tracingContext)
       throws AzureBlobFileSystemException {
-    if (readRequestParameters != null &&
-        readRequestParameters.isOptimizedRestConnection() &&
-        mockConnectionExceptionOptimizedRest) {
+    if (isMockConnErrorActiveForRead() || isMockConnErrorActiveForWrite()) {
       getAbfsClient().getAbfsCounters()
           .incrementCounter(AbfsStatistic.CONNECTIONS_MADE, 1);
       throw new AbfsRestOperationException(500, "500", "500", null);
     }
     super.execute(tracingContext);
+  }
+
+  private boolean isMockConnErrorActiveForRead() {
+    return readRequestParameters != null &&
+        readRequestParameters.isOptimizedRestConnection() &&
+        mockConnectionExceptionOptimizedRest;
+  }
+
+  private boolean isMockConnErrorActiveForWrite() {
+    return appendRequestParameters != null
+        && appendRequestParameters.isOptimizedRestConnection()
+        && mockConnectionExceptionOptimizedRest;
   }
 
   private void signalErrorConditionToMockAbfsOptimizedRestConn(MockAbfsHttpConnection httpOperation) {

@@ -36,6 +36,12 @@ import org.apache.hadoop.fs.azurebfs.services.MockAbfsClient;
 import org.apache.hadoop.fs.azurebfs.services.MockAbfsInputStream;
 import org.apache.hadoop.fs.azurebfs.services.MockAbfsOutputStream;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
+import org.apache.hadoop.fs.store.BlockUploadStatistics;
+import org.apache.hadoop.fs.store.DataBlocks;
+
+import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.DATA_BLOCKS_BUFFER;
+import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_BLOCK_UPLOAD_BUFFER_DIR;
+import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.DATA_BLOCKS_BUFFER_DEFAULT;
 
 public class MockAzureBlobFileSystemStore extends AzureBlobFileSystemStore {
 
@@ -46,6 +52,9 @@ public class MockAzureBlobFileSystemStore extends AzureBlobFileSystemStore {
       throws IOException {
     super(new AzureBlobFileSystemStoreBuilder()
         .withAbfsCounters(abfsCounters)
+        .withBlockFactory(DataBlocks.createFactory(FS_AZURE_BLOCK_UPLOAD_BUFFER_DIR,
+            configuration, configuration.getTrimmed(DATA_BLOCKS_BUFFER,
+                DATA_BLOCKS_BUFFER_DEFAULT)))
         .withUri(uri)
         .withConfiguration(configuration)
         .withSecureScheme(isSecureScheme));
@@ -80,7 +89,7 @@ public class MockAzureBlobFileSystemStore extends AzureBlobFileSystemStore {
         populateAbfsOutputStreamContext(
             false,
             null,
-            getClient(),
+            new MockAbfsClient(getClient()),
             statistics,
             path.getName(),
             0,

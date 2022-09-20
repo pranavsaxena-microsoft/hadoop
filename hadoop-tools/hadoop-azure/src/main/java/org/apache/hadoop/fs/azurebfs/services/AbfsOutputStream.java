@@ -22,6 +22,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.Future;
 import java.util.UUID;
@@ -337,7 +338,7 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
     outputStreamStatistics.writeCurrentBuffer();
     DataBlocks.BlockUploadData blockUploadData = blockToUpload.startUpload();
     final Future<Void> job =
-        executorService.submit(() -> {
+        executorServiceSubmit(() -> {
           AbfsPerfTracker tracker =
               client.getAbfsPerfTracker();
           try (AbfsPerfInfo perfInfo = new AbfsPerfInfo(tracker,
@@ -377,6 +378,10 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
 
     // Try to shrink the queue
     shrinkWriteOperationQueue();
+  }
+
+  protected Future<Void> executorServiceSubmit(final Callable callable) {
+    return executorService.submit(callable);
   }
 
   /**

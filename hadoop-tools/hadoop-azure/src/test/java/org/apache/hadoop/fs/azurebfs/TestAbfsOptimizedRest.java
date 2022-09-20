@@ -29,6 +29,7 @@ import org.junit.Test;
 import org.junit.rules.TestName;
 
 import org.apache.hadoop.fs.azurebfs.services.AbfsConnectionMode;
+import org.apache.hadoop.fs.azurebfs.services.AbfsOutputStream;
 import org.apache.hadoop.fs.azurebfs.services.MockAbfsHttpConnection;
 import org.apache.hadoop.fs.azurebfs.services.MockAbfsOutputStream;
 import org.apache.hadoop.fs.azurebfs.services.abfsStreamHelpers.IOStreamHelper;
@@ -43,8 +44,11 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.azurebfs.services.AbfsInputStream;
 import org.apache.hadoop.fs.azurebfs.services.AuthType;
 import org.apache.hadoop.fs.azurebfs.services.MockAbfsInputStream;
+import org.apache.hadoop.fs.azurebfs.services.abfsStreamHelpers.abfsOutputStreamHelperImpl.OptimizedRestAbfsOutputStreamHelper;
+import org.apache.hadoop.fs.azurebfs.services.abfsStreamHelpers.abfsOutputStreamHelperImpl.RestAbfsOutputStreamHelper;
 
 import static org.apache.hadoop.fs.azurebfs.AbfsStatistic.ABFS_READ_AHEAD_CACHE_HIT_COUNTER;
+import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.AZURE_WRITE_BUFFER_SIZE;
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_WRITE_DEFAULT_OPTIMIZED_REST;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.DEFAULT_OPTIMIZED_READ_BUFFER_SIZE;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.THRICE_DEFAULT_OPTIMIZED_READ_BUFFER_SIZE;
@@ -84,6 +88,7 @@ public class TestAbfsOptimizedRest extends AbstractAbfsIntegrationTest {
     Configuration config = this.getRawConfiguration();
     config.setInt(AZURE_MAX_IO_RETRIES, maxReqRetryCount);
     config.setInt(AZURE_READ_BUFFER_SIZE, bufferSize);
+    config.setInt(AZURE_WRITE_BUFFER_SIZE, bufferSize);
     config.setInt(FS_AZURE_READ_AHEAD_QUEUE_DEPTH, readAheadDepth);
     for(String configStr : booleanConfigsToBeTrue) {
       config.setBoolean(configStr, true);
@@ -103,6 +108,16 @@ public class TestAbfsOptimizedRest extends AbstractAbfsIntegrationTest {
       outStream.write(writeBuffer);
     }
     return getMockAbfsInputStream(fs, testPath);
+  }
+
+  private MockAbfsOutputStream createTestFileAndGetOutputStream(final AzureBlobFileSystem fs, final String methodName, int fileSize) throws IOException {
+    final byte[] writeBuffer = new byte[fileSize];
+    new Random().nextBytes(writeBuffer);
+    Path testPath = new Path(methodName);
+    try (FSDataOutputStream outStream = fs.create(testPath)) {
+      outStream.write(writeBuffer);
+    }
+    return getMockAbfsOutputStream(fs, testPath);
   }
 
   @Test
@@ -370,7 +385,7 @@ public class TestAbfsOptimizedRest extends AbstractAbfsIntegrationTest {
   public void testNewAbfsSessionBehaviourDependOnPreviousSessionObjectForWrite() throws IOException {
     AzureBlobFileSystem fs = getAbfsFileSystem(2,
         DEFAULT_OPTIMIZED_READ_BUFFER_SIZE, 0, FS_AZURE_WRITE_DEFAULT_OPTIMIZED_REST);
-    MockAbfsOutputStream outputStream = getMockAbfsOutputStream(fs, new Path(this.methodName.getMethodName()));
+    MockAbfsOutputStream outputStream = createTestFileAndGetOutputStream(fs, this.methodName.getMethodName(), DEFAULT_OPTIMIZED_READ_BUFFER_SIZE);
     outputStream.induceFpConnectionException();
     byte[] writeBuffer = new byte[DEFAULT_OPTIMIZED_READ_BUFFER_SIZE];
     Map<String, Long> metricMap;
@@ -384,23 +399,20 @@ public class TestAbfsOptimizedRest extends AbstractAbfsIntegrationTest {
     outputStream.write(writeBuffer, 0, DEFAULT_OPTIMIZED_READ_BUFFER_SIZE);
 
     Assert.assertTrue(outputStream.helpersUsed.get(
-        OptimizedRestAbfsInputStreamHelper.class.getName()) == 1);
+        OptimizedRestAbfsOutputStreamHelper.class.getName()) == 1);
     Assert.assertTrue(outputStream.helpersUsed.get(
-        RestAbfsInputStreamHelper.class.getName()) == 1);
+        RestAbfsOutputStreamHelper.class.getName()) == 1);
 
-    outputStream = getMockAbfsOutputStream(fs, new Path(this.methodName.getMethodName()));
-
-
-
-    //First request will take 3 conn (rimbaud + rest++ + rest), second request
-    // will take only one conn.
-    expectedConnectionsMade = (expectedConnectionsMade*2) + 2;
-    expectedGetResponses = (expectedGetResponses * 2) + 1;
+    expectedConnectionsMade = expectedConnectionsMade + 2;
+    expectedGetResponses = expectedGetResponses + 1;
     metricMap = fs.getInstrumentationMap();
     assertAbfsStatistics(CONNECTIONS_MADE,
         expectedConnectionsMade, metricMap);
     assertAbfsStatistics(GET_RESPONSES,
         expectedGetResponses, metricMap);
+
+    outputStream = getMockAbfsOutputStream(fs, new Path(this.methodName.getMethodName()));
+
     Assert.assertNull(outputStream.getAbfsSession());
   }
 

@@ -111,12 +111,12 @@ public class MockAbfsClient extends AbfsClient {
       final URL url) {
     if(AbfsRestOperationType.OptimizedAppend.equals(opType)) {
       final MockAbfsRestOperation op = new MockAbfsRestOperation(opType, this, HTTP_METHOD_PUT, url, requestHeaders, buffer,
-          reqParams.getoffset(), reqParams.getLength(), sasTokenForReuse);
+          reqParams.getoffset(), reqParams.getLength(), sasTokenForReuse, reqParams);
       signalErrorConditionToMockRestOp(op);
       return op;
     }
-    return super.getAbfsPutRestOperation(buffer, reqParams, requestHeaders,
-        opType, sasTokenForReuse, url);
+    return new MockAbfsRestOperation(opType, this, HTTP_METHOD_PUT, url, requestHeaders, buffer,
+        reqParams.getoffset(), reqParams.getLength(), sasTokenForReuse, reqParams);
   }
 
   //  protected AbfsRestOperation executeFastpathRead(String path,
@@ -194,14 +194,34 @@ public class MockAbfsClient extends AbfsClient {
   }
 
   @Override
+  public AbfsRestOperation getWriteSessionToken(final String path,
+      final TracingContext tracingContext) throws AzureBlobFileSystemException {
+    final MockAbfsRestOperation op = Mockito.mock(MockAbfsRestOperation.class);
+    final AbfsHttpOperation abfsHttpOperation = Mockito.mock(AbfsHttpOperation.class);
+
+    Mockito.doReturn(abfsHttpOperation).when(op).getResult();
+    Mockito.doReturn("sessionToken").when(abfsHttpOperation).getResponseHeader(
+        HttpHeaderConfigurations.X_MS_FASTPATH_SESSION_DATA);
+    Mockito.doReturn("Mon, 3 Jun 2024 11:05:30 GMT")
+        .when(abfsHttpOperation).getResponseHeader(X_MS_FASTPATH_SESSION_EXPIRY);
+    Mockito.doAnswer(invoke -> {
+      byte[] buffer = invoke.getArgument(0);
+      for(int i=0; i < buffer.length; i++) {
+        buffer[i] = 0;
+      }
+      return null;
+    }).when(abfsHttpOperation).getResponseContentBuffer(Mockito.any());
+    Mockito.doReturn("10").when(abfsHttpOperation).getResponseHeader(
+        HttpHeaderConfigurations.CONTENT_LENGTH);
+    return op;
+  }
+
+  @Override
   public AbfsRestOperation getReadSessionToken(final String path,
       final String eTag,
       final TracingContext tracingContext) throws AzureBlobFileSystemException {
     final MockAbfsRestOperation op = Mockito.mock(MockAbfsRestOperation.class);
     final AbfsHttpOperation abfsHttpOperation = Mockito.mock(AbfsHttpOperation.class);
-
-
-
 
     Mockito.doReturn(abfsHttpOperation).when(op).getResult();
     Mockito.doReturn("sessionToken").when(abfsHttpOperation).getResponseHeader(

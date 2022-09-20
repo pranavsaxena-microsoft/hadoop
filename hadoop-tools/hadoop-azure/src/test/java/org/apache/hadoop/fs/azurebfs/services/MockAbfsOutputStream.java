@@ -3,6 +3,9 @@ package org.apache.hadoop.fs.azurebfs.services;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Future;
 
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemException;
 import org.apache.hadoop.fs.azurebfs.contracts.services.AppendRequestParameters;
@@ -51,5 +54,17 @@ public class MockAbfsOutputStream extends AbfsOutputStream {
 
   public AbfsSession getAbfsSession() {
     return super.getAbfsSession();
+  }
+
+  @Override
+  protected Future<Void> executorServiceSubmit(final Callable callable) {
+    CompletableFuture<Void> future = new CompletableFuture<>();
+    try {
+      callable.call();
+      future.complete(null);
+    } catch (Exception e) {
+      future.completeExceptionally(e);
+    }
+    return future;
   }
 }

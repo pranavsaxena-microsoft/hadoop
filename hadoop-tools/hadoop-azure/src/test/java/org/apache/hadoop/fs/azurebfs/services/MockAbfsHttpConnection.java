@@ -37,15 +37,20 @@ public class MockAbfsHttpConnection extends AbfsHttpConnection {
       final int offset,
       final int length)
       throws IOException {
-    final String range = getRequestHeader(RANGE);
-    Assert.assertNotNull(range);
-    if (lastSessionToken != null && !lastSessionToken.equalsIgnoreCase(
-        getRequestHeader(X_MS_FASTPATH_SESSION_DATA)) && AbfsRestOperationType.OptimizedRead.equals(getOpType())) {
-      if(Long.parseLong(range.split("-")[0].split("=")[1]) == (lastOffsetRead + 1)) {
-        Assert.assertTrue(false);
+    if (getOpType() == AbfsRestOperationType.OptimizedRead
+        || getOpType() == AbfsRestOperationType.ReadFile) {
+      final String range = getRequestHeader(RANGE);
+      Assert.assertNotNull(range);
+      if (lastSessionToken != null && !lastSessionToken.equalsIgnoreCase(
+          getRequestHeader(X_MS_FASTPATH_SESSION_DATA))
+          && AbfsRestOperationType.OptimizedRead.equals(getOpType())) {
+        if (Long.parseLong(range.split("-")[0].split("=")[1]) == (lastOffsetRead
+            + 1)) {
+          Assert.assertTrue(false);
+        }
       }
+      lastOffsetRead = Long.parseLong(range.split("-")[1]);
     }
-    lastOffsetRead = Long.parseLong(range.split("-")[1]);
 
     lastSessionToken = UUID.randomUUID().toString();
     HttpURLConnection mockedHttpConnection = Mockito.spy(getConnection());
