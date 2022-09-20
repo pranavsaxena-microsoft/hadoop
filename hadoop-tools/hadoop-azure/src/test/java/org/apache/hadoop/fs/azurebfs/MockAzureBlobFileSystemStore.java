@@ -19,17 +19,22 @@
 package org.apache.hadoop.fs.azurebfs;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.net.URI;
 import org.junit.Assert;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
 import org.apache.hadoop.fs.azurebfs.services.AbfsCounters;
 import org.apache.hadoop.fs.azurebfs.services.AbfsInputStreamContext;
+import org.apache.hadoop.fs.azurebfs.services.AbfsLease;
+import org.apache.hadoop.fs.azurebfs.services.AbfsOutputStream;
 import org.apache.hadoop.fs.azurebfs.services.MockAbfsClient;
 import org.apache.hadoop.fs.azurebfs.services.MockAbfsInputStream;
+import org.apache.hadoop.fs.azurebfs.services.MockAbfsOutputStream;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 
 public class MockAzureBlobFileSystemStore extends AzureBlobFileSystemStore {
@@ -64,5 +69,21 @@ public class MockAzureBlobFileSystemStore extends AzureBlobFileSystemStore {
     }
 
     return null;
+  }
+
+  @Override
+  public OutputStream openFileForWrite(final Path path,
+      final FileSystem.Statistics statistics,
+      final boolean overwrite,
+      final TracingContext tracingContext) throws IOException {
+    return new MockAbfsOutputStream(
+        populateAbfsOutputStreamContext(
+            false,
+            null,
+            getClient(),
+            statistics,
+            path.getName(),
+            0,
+            tracingContext));
   }
 }

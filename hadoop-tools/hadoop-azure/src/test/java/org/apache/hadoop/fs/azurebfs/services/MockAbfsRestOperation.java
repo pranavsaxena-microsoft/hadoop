@@ -26,6 +26,7 @@ import java.util.concurrent.Callable;
 import org.apache.hadoop.fs.azurebfs.AbfsStatistic;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AbfsRestOperationException;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemException;
+import org.apache.hadoop.fs.azurebfs.contracts.services.AppendRequestParameters;
 import org.apache.hadoop.fs.azurebfs.contracts.services.ReadRequestParameters;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 
@@ -60,6 +61,19 @@ public class MockAbfsRestOperation extends AbfsRestOperation {
     this.readRequestParameters = readRequestParameters;
   }
 
+  MockAbfsRestOperation(AbfsRestOperationType operationType,
+      AbfsClient client,
+      String method,
+      URL url,
+      List<AbfsHttpHeader> requestHeaders,
+      byte[] buffer,
+      int bufferOffset,
+      int bufferLength,
+      String sasTokenForReuse) {
+    super(operationType, client, method, url, requestHeaders, buffer,
+        bufferOffset, bufferLength, sasTokenForReuse);
+  }
+
   @Override
   protected AbfsHttpConnection getHttpOperation() throws IOException {
     if (AbfsRestOperationType.OptimizedRead.equals(getOperationType())) {
@@ -71,7 +85,8 @@ public class MockAbfsRestOperation extends AbfsRestOperation {
 
   protected void processResponse(AbfsHttpOperation httpOperation)
       throws IOException {
-    if (AbfsRestOperationType.OptimizedRead.equals(getOperationType())) {
+    if (AbfsRestOperationType.OptimizedRead.equals(getOperationType())
+        || AbfsRestOperationType.OptimizedAppend.equals(getOperationType())) {
       signalErrorConditionToMockAbfsOptimizedRestConn(
           (MockAbfsHttpConnection) httpOperation);
     }

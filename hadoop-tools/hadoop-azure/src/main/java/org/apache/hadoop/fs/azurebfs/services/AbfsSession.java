@@ -249,7 +249,8 @@ public class AbfsSession {
   public void checkAndUpdateAbfsSession(final AbfsRestOperation op,
       final AbfsSessionData lastReqSessionData) {
     AbfsConnectionMode lastReqConnMode = lastReqSessionData.getConnectionMode();
-    if (AbfsConnectionMode.isOptimizedRestConnection(lastReqConnMode)) {
+    if (AbfsConnectionMode.isOptimizedRestConnection(lastReqConnMode)
+        && scope == IO_SESSION_SCOPE.READ_ON_OPTIMIZED_REST) {
       String renewedSessionToken = op.getResult()
           .getResponseHeader(X_MS_FASTPATH_SESSION_DATA);
       if (!renewedSessionToken.isEmpty()) {

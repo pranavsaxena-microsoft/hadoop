@@ -40,7 +40,7 @@ public class MockAbfsHttpConnection extends AbfsHttpConnection {
     final String range = getRequestHeader(RANGE);
     Assert.assertNotNull(range);
     if (lastSessionToken != null && !lastSessionToken.equalsIgnoreCase(
-        getRequestHeader(X_MS_FASTPATH_SESSION_DATA))) {
+        getRequestHeader(X_MS_FASTPATH_SESSION_DATA)) && AbfsRestOperationType.OptimizedRead.equals(getOpType())) {
       if(Long.parseLong(range.split("-")[0].split("=")[1]) == (lastOffsetRead + 1)) {
         Assert.assertTrue(false);
       }

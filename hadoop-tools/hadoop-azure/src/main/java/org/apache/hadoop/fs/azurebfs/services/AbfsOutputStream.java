@@ -766,6 +766,10 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
         tracingContext, client);
   }
 
+  protected AbfsSession getAbfsSession() {
+    return abfsSession;
+  }
+
   private static class WriteOperation {
     private final Future<Void> task;
     private final long startOffset;
@@ -838,6 +842,11 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
   @VisibleForTesting
   public boolean hasLease() {
     return lease != null;
+  }
+
+  @VisibleForTesting
+  protected AbfsClient getClient() {
+    return client;
   }
 
   /**

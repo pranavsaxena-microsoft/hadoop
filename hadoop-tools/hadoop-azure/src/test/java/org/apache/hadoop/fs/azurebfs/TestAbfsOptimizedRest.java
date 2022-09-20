@@ -30,6 +30,7 @@ import org.junit.rules.TestName;
 
 import org.apache.hadoop.fs.azurebfs.services.AbfsConnectionMode;
 import org.apache.hadoop.fs.azurebfs.services.MockAbfsHttpConnection;
+import org.apache.hadoop.fs.azurebfs.services.MockAbfsOutputStream;
 import org.apache.hadoop.fs.azurebfs.services.abfsStreamHelpers.IOStreamHelper;
 import org.apache.hadoop.fs.azurebfs.services.abfsStreamHelpers.abfsInputStreamHelperImpl.OptimizedRestAbfsInputStreamHelper;
 import org.apache.hadoop.fs.azurebfs.services.abfsStreamHelpers.abfsInputStreamHelperImpl.RestAbfsInputStreamHelper;
@@ -327,10 +328,10 @@ public class TestAbfsOptimizedRest extends AbstractAbfsIntegrationTest {
   }
 
   @Test
-  public void testNewAbfsSessionBehaviourDependOnPreviousSessionObject()
+  public void testNewAbfsSessionBehaviourDependOnPreviousSessionObjectForRead()
       throws IOException {
     AzureBlobFileSystem fs = getAbfsFileSystem(2,
-        DEFAULT_OPTIMIZED_READ_BUFFER_SIZE, 0, FS_AZURE_WRITE_DEFAULT_OPTIMIZED_REST);
+        DEFAULT_OPTIMIZED_READ_BUFFER_SIZE, 0);
     AbfsInputStream inStream = createTestfileAndGetInputStream(fs,
         this.methodName.getMethodName(),
         4 * DEFAULT_OPTIMIZED_READ_BUFFER_SIZE);
@@ -363,6 +364,44 @@ public class TestAbfsOptimizedRest extends AbstractAbfsIntegrationTest {
     assertAbfsStatistics(GET_RESPONSES,
         expectedGetResponses, metricMap);
     Assert.assertNull(((MockAbfsInputStream) inStream).getAbfsSession());
+  }
+
+  @Test
+  public void testNewAbfsSessionBehaviourDependOnPreviousSessionObjectForWrite() throws IOException {
+    AzureBlobFileSystem fs = getAbfsFileSystem(2,
+        DEFAULT_OPTIMIZED_READ_BUFFER_SIZE, 0, FS_AZURE_WRITE_DEFAULT_OPTIMIZED_REST);
+    MockAbfsOutputStream outputStream = getMockAbfsOutputStream(fs, new Path(this.methodName.getMethodName()));
+    outputStream.induceFpConnectionException();
+    byte[] writeBuffer = new byte[DEFAULT_OPTIMIZED_READ_BUFFER_SIZE];
+    Map<String, Long> metricMap;
+    metricMap = fs.getInstrumentationMap();
+    long expectedConnectionsMade = metricMap.get(
+        CONNECTIONS_MADE.getStatName());
+    long expectedGetResponses = metricMap.get(GET_RESPONSES.getStatName());
+    // read will attempt over fastpath, but will fail with exception => 1+conn 0+getresp
+    // will attempt on http connection => 1+conn 1+getrsp
+
+    outputStream.write(writeBuffer, 0, DEFAULT_OPTIMIZED_READ_BUFFER_SIZE);
+
+    Assert.assertTrue(outputStream.helpersUsed.get(
+        OptimizedRestAbfsInputStreamHelper.class.getName()) == 1);
+    Assert.assertTrue(outputStream.helpersUsed.get(
+        RestAbfsInputStreamHelper.class.getName()) == 1);
+
+    outputStream = getMockAbfsOutputStream(fs, new Path(this.methodName.getMethodName()));
+
+
+
+    //First request will take 3 conn (rimbaud + rest++ + rest), second request
+    // will take only one conn.
+    expectedConnectionsMade = (expectedConnectionsMade*2) + 2;
+    expectedGetResponses = (expectedGetResponses * 2) + 1;
+    metricMap = fs.getInstrumentationMap();
+    assertAbfsStatistics(CONNECTIONS_MADE,
+        expectedConnectionsMade, metricMap);
+    assertAbfsStatistics(GET_RESPONSES,
+        expectedGetResponses, metricMap);
+    Assert.assertNull(outputStream.getAbfsSession());
   }
 
 }

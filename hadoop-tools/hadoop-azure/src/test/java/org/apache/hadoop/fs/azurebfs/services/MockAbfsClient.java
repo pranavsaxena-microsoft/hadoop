@@ -28,12 +28,14 @@ import org.mockito.Mockito;
 import org.apache.hadoop.fs.azurebfs.AbfsConfiguration;
 import org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemException;
+import org.apache.hadoop.fs.azurebfs.contracts.services.AppendRequestParameters;
 import org.apache.hadoop.fs.azurebfs.contracts.services.ReadRequestParameters;
 import org.apache.hadoop.fs.azurebfs.extensions.SASTokenProvider;
 import org.apache.hadoop.fs.azurebfs.oauth2.AccessTokenProvider;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.HTTP_METHOD_GET;
+import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.HTTP_METHOD_PUT;
 import static org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations.X_MS_FASTPATH_SESSION_EXPIRY;
 
 public class MockAbfsClient extends AbfsClient {
@@ -100,8 +102,24 @@ public class MockAbfsClient extends AbfsClient {
         sasTokenForReuse, url, opType, headerUpDownCallable);
   }
 
+  @Override
+  protected AbfsRestOperation getAbfsPutRestOperation(final byte[] buffer,
+      final AppendRequestParameters reqParams,
+      final List<AbfsHttpHeader> requestHeaders,
+      final AbfsRestOperationType opType,
+      final String sasTokenForReuse,
+      final URL url) {
+    if(AbfsRestOperationType.OptimizedAppend.equals(opType)) {
+      final MockAbfsRestOperation op = new MockAbfsRestOperation(opType, this, HTTP_METHOD_PUT, url, requestHeaders, buffer,
+          reqParams.getoffset(), reqParams.getLength(), sasTokenForReuse);
+      signalErrorConditionToMockRestOp(op);
+      return op;
+    }
+    return super.getAbfsPutRestOperation(buffer, reqParams, requestHeaders,
+        opType, sasTokenForReuse, url);
+  }
 
-//  protected AbfsRestOperation executeFastpathRead(String path,
+  //  protected AbfsRestOperation executeFastpathRead(String path,
 //      ReadRequestParameters reqParams,
 //      URL url,
 //      List<AbfsHttpHeader> requestHeaders,

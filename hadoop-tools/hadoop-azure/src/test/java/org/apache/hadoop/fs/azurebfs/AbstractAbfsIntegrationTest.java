@@ -40,6 +40,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.azurebfs.services.MockAbfsOutputStream;
 import org.apache.hadoop.fs.impl.OpenFileParameters;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.azurebfs.constants.FSOperationType;
@@ -577,5 +578,19 @@ public abstract class AbstractAbfsIntegrationTest extends
     MockAbfsInputStream inputStream = (MockAbfsInputStream) mockStore.openFileForRead(qualifiedPath,
         opt, fs.getFsStatistics(), getTestTracingContext(fs, false));
     return inputStream;
+  }
+
+  public MockAbfsOutputStream getMockAbfsOutputStream(AzureBlobFileSystem fs,
+      Path testFilePath) throws IOException {
+    Configuration conf = fs.getConf();
+    fs = (AzureBlobFileSystem) FileSystem.get(fs.getUri(), conf);
+    Path qualifiedPath = makeQualified(testFilePath);
+    AzureBlobFileSystemStore store = fs.getAbfsStore();
+    MockAzureBlobFileSystemStore mockStore = new MockAzureBlobFileSystemStore(
+        fs.getUri(), fs.isSecureScheme(), fs.getConf(),
+        store.getAbfsCounters());
+
+    return (MockAbfsOutputStream) mockStore.openFileForWrite(qualifiedPath, fs.getFsStatistics(), true,
+        getTestTracingContext(fs, false));
   }
 }

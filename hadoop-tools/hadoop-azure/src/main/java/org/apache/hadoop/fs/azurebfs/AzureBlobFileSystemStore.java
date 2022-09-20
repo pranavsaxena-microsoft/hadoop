@@ -680,7 +680,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
    * @param tracingContext instance of TracingContext for this AbfsOutputStream.
    * @return AbfsOutputStreamContext instance with the desired parameters.
    */
-  private AbfsOutputStreamContext populateAbfsOutputStreamContext(
+  protected AbfsOutputStreamContext populateAbfsOutputStreamContext(
       boolean isAppendBlob,
       AbfsLease lease,
       AbfsClient client,
