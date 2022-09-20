@@ -397,14 +397,15 @@ public class TestAbfsOptimizedRest extends AbstractAbfsIntegrationTest {
     // will attempt on http connection => 1+conn 1+getrsp
 
     outputStream.write(writeBuffer, 0, DEFAULT_OPTIMIZED_READ_BUFFER_SIZE);
+    outputStream.write(writeBuffer, 0, DEFAULT_OPTIMIZED_READ_BUFFER_SIZE);
 
     Assert.assertTrue(outputStream.helpersUsed.get(
         OptimizedRestAbfsOutputStreamHelper.class.getName()) == 1);
     Assert.assertTrue(outputStream.helpersUsed.get(
-        RestAbfsOutputStreamHelper.class.getName()) == 1);
+        RestAbfsOutputStreamHelper.class.getName()) == 2);
 
-    expectedConnectionsMade = expectedConnectionsMade + 2;
-    expectedGetResponses = expectedGetResponses + 1;
+    expectedConnectionsMade = expectedConnectionsMade + 3;
+    expectedGetResponses = expectedGetResponses + 2;
     metricMap = fs.getInstrumentationMap();
     assertAbfsStatistics(CONNECTIONS_MADE,
         expectedConnectionsMade, metricMap);
