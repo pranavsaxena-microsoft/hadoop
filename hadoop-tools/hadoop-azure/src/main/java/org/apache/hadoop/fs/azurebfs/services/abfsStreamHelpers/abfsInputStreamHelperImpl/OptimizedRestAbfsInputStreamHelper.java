@@ -1,3 +1,21 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.hadoop.fs.azurebfs.services.abfsStreamHelpers.abfsInputStreamHelperImpl;
 
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemException;
@@ -31,9 +49,6 @@ public class OptimizedRestAbfsInputStreamHelper
   private AbfsInputStreamHelper nextHelper;
 
   private AbfsInputStreamHelper prevHelper;
-
-  private static List<ReadAheadByteInfo> readAheadByteInfoList
-      = new ArrayList<>();
 
   @Override
   public void setNextAsValid() {
@@ -160,19 +175,6 @@ public class OptimizedRestAbfsInputStreamHelper
                     abfsInputStreamRequestContext);
           }
           return null;
-
-//          ReadAheadByteInfo readAheadByteInfo = getValidReadAheadByteInfo(
-//              readRequestParameters.getBufferOffset());
-//          int nextPossibleRetries = 3; // TODO: add via config
-//          if (readAheadByteInfo != null) {
-//            readAheadByteInfoList.remove(readAheadByteInfo);
-//            nextPossibleRetries = readAheadByteInfo.readAheadNextPossibleCount
-//                - 1;
-//          }
-//          if (nextPossibleRetries != 0) {
-//            pushForReadAhead();//TODO: will add element in readAheadByteInfolist; populate inside ReadBufferManager
-//          }
-//          return null;
         }
       };
       final AbfsRestOperation op = abfsClient.read(path, bytes, sasToken,
@@ -193,32 +195,8 @@ public class OptimizedRestAbfsInputStreamHelper
     }
   }
 
-  private void pushForReadAhead() {
-  }
-
-
   @Override
   public Boolean explicitPreFetchReadAllowed() {
     return false;
-  }
-
-//  private ReadAheadByteInfo getValidReadAheadByteInfo(int requiredOffset) {
-//    for (ReadAheadByteInfo readAheadByteInfo : readAheadByteInfoList) {
-//      if (((readAheadByteInfo.offsetLastRead + readAheadByteInfo.len) >= (
-//          requiredOffset - 1)) &&
-//          readAheadByteInfo.offsetLastRead < requiredOffset) {
-//        return readAheadByteInfo;
-//      }
-//    }
-//    return null;
-//  }
-
-  class ReadAheadByteInfo {
-
-    public Long offsetLastRead;
-
-    public Long len;
-
-    public int readAheadNextPossibleCount;
   }
 }

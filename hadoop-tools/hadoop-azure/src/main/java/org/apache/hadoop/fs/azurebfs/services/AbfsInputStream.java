@@ -693,13 +693,6 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
         tracingContext, client, abfsInputStreamRequestContext);
   }
 
-// @VisibleForTesting
-//  protected AbfsRestOperation executeRead(String path, byte[] b, String sasToken,
-//      ReadRequestParameters reqParam, TracingContext context)
-//      throws AzureBlobFileSystemException {
-//    return client.read(path, b, sasToken, reqParam, context);
-//  }
-
   /**
    * Increment Read Operations.
    */

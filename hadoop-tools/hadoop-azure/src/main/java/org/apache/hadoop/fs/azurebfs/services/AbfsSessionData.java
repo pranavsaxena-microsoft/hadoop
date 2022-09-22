@@ -63,14 +63,6 @@ public class AbfsSessionData {
     return connectionMode;
   }
 
-//  public String getFastpathFileHandle() {
-//    return fastpathFileHandle;
-//  }
-//
-//  public void setFastpathFileHandle(final String fileHandle) {
-//    this.fastpathFileHandle = fileHandle;
-//  }
-
   public boolean isValidSession() {
     return ((connectionMode != AbfsConnectionMode.REST_CONN)
         && (connectionMode != AbfsConnectionMode.REST_ON_SESSION_UPD_FAILURE)
@@ -99,16 +91,4 @@ public class AbfsSessionData {
   public void setSessionToken(String sessionToken) {
     this.sessionToken = sessionToken;
   }
-
-//  public void setFastpathFileHandle(final String fileHandle,
-//      final AbfsConnectionMode connMode) {
-//    this.fastpathFileHandle = fileHandle;
-//    this.connectionMode = connMode;
-//  }
-
-//  @VisibleForTesting
-//  void updateSessionToken(String token, OffsetDateTime expiry) {
-//    sessionToken  = token;
-//    sessionTokenExpiry = expiry;
-//  }
 }
