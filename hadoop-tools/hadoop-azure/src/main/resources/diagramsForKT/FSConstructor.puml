@@ -8,6 +8,8 @@ alt config.defaultFS == ABFS
   FileSystem -> AzureBlobFileSystem: initialise((config)
   AzureBlobFileSystem -> AzureBlobFileSystem: new AzureBlobFileSystemStoreBuilder(config))
   AzureBlobFileSystem -> AzureBlobFileSystemStore: constructor(azureBlobFileSystemStoreBuilder)
+  AzureBlobFileSystemStore -> AbfsClient: constructor(config)
+  AbfsClient -> AzureBlobFileSystemStore: client
   AzureBlobFileSystemStore -> AzureBlobFileSystem: abfsStore
   alt config.getCreateRemoteFileSystemDuringInitialization == false
     AzureBlobFileSystem -> FileSystem
