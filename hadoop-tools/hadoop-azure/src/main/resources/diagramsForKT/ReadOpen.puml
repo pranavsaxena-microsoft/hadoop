@@ -3,9 +3,17 @@
 
 autonumber
 
-Alice -> Bob: Authentication Request
-Bob --> Alice: Authentication Response
-
-Alice -> Bob: Another authentication Request
-Alice <-- Bob: another authentication Response
+Developer -> AzureBlobFileSystem: open(path)
+AzureBlobFileSystem -> AzureBlobFileSystemStore: openFileForRead(path)
+AzureBlobFileSystemStore -> AbfsClient: getPathStatus();
+AbfsClient -> FE: getpathStatus()
+FE -> AbfsClient: httpResponse
+AbfsClient -> AzureBlobFileSystemStore: op = AbfsHttpOperation(httpResponse)
+AzureBlobFileSystemStore -> AzureBlobFileSystemStore: resourceType =op.getResponseHeader\n(X_MS_RESOURCE_TYPE)
+AzureBlobFileSystemStore -> AzureBlobFileSystemStore: contentLen = op.getResponseHeader\n(CONTENT_LENGTH)
+AzureBlobFileSystemStore -> AzureBlobFileSystemStore: etag = op.getResponseHeader\n(ETAG)
+AzureBlobFileSystemStore -> AbfsInputStream: constructor(resourceType, contentLen, etag, path, client);
+AbfsInputStream -> AzureBlobFileSystemStore: abfsInputStream
+AzureBlobFileSystemStore -> AzureBlobFileSystem: abfsInputStream;
+AzureBlobFileSystem -> Developer: abfsInputStream
 @enduml
