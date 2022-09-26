@@ -2,10 +2,19 @@
 'https://plantuml.com/sequence-diagram
 
 autonumber
-
-Alice -> Bob: Authentication Request
-Bob --> Alice: Authentication Response
-
-Alice -> Bob: Another authentication Request
-Alice <-- Bob: another authentication Response
+Developer -> AbfsOutputStream : write(data, offset, len)
+AbfsOutputStream -> AbfsOutputStream: dataBlock = createDataBlock()
+AbfsOutputStream -> AbfsOutputStream: written =dataBlock.write(data, offset, length)\n/*dataBlock is a way to keep uploads in async.\nEach datablock has a defined-length.\nDatablock will be uploaded only if its full*/
+AbfsOutputStream -> AbfsOutputStream: remainingCapacity = dataBlock.remaining()
+alt written < len
+  AbfsOutputStream -> AbfsClient: appendAsync(dataBlock)
+  AbfsOutputStream -> AbfsOutputStream: write(data, offset + written, len -written)
+else remainingCapacity == 0
+  AbfsOutputStream -> AbfsClient: appendAsync(dataBlock)
+end
+Developer -> AbfsOutputStream: close()
+alt AbfsOutputStream.hasActiveBlock()
+  AbfsOutputStream -> AbfsOutputStream: activeBlock = getActiveBlock
+  AbfsOutputStream -> AbfsClient: appendAsync(activeBlock)
+end
 @enduml

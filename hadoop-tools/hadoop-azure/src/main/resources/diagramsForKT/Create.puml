@@ -1,0 +1,16 @@
+@startuml
+'https://plantuml.com/sequence-diagram
+
+autonumber
+
+Developer -> AzureBlobFileSystem: create(path)
+AzureBlobFileSystem -> AzureBlobFileSystemStore: createFile(path)
+AzureBlobFileSystemStore -> AbfsClient: createPath(path)
+AbfsClient -> FE: createPathAPI
+FE -> AbfsClient: response
+AbfsClient -> AzureBlobFileSystemStore: response
+AzureBlobFileSystemStore -> AzureBlobFileSystem: response
+AzureBlobFileSystemStore -> AbfsOutputStream: constructor(client, path)
+AbfsOutputStream -> AzureBlobFileSystemStore: abfsOutputStream
+AzureBlobFileSystemStore -> Developer: abfsOutputStream
+@enduml
