@@ -1,0 +1,12 @@
+@startuml
+'https://plantuml.com/sequence-diagram
+
+autonumber
+ReadBufferManager -> ReadBufferManager: readAheadQueue = new LinkedList()\ninProgressList = new LinkedList();\ncompletedReadList = new LinkedList()
+loop configurableParallelReadAllowed
+  ReadBufferManager -> ReadBufferManager: thread = spawnNewThread()
+  ReadBufferManager -> ReadBufferWorker: constructor
+  ReadBufferManager <- ReadBufferWorker: readBufferWorker
+  ReadBufferManager -> ReadBufferManager: thread.start(readBufferWorker)
+end
+@enduml

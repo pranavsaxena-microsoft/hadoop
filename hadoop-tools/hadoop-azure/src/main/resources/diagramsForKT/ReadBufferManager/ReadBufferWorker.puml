@@ -1,0 +1,18 @@
+@startuml
+'https://plantuml.com/sequence-diagram
+
+autonumber
+loop till thread is alive:
+  ReadBufferWorker -> ReadBufferManager: getNextBlockToRead()
+  ReadBufferManager -> ReadBufferManager: readAheadBuffer = \nreadAheadQueue.remove()
+  ReadBufferManager -> ReadBufferManager: inProgressList.add(readAheadBuffer))
+  ReadBufferManager -> ReadBufferWorker: readAheadBuffer
+  ReadBufferWorker -> ReadBufferWorker: abfsInputStream =\nreadAheadBuffer.stream
+  ReadBufferWorker -> AbfsInputStream: readRemote(readAheadBuffer)
+  AbfsInputStream -> ReadBufferWorker: bytesRead
+  ReadBufferWorker -> ReadBufferManager: doneReading(readAheadBuffer))
+  ReadBufferManager -> ReadBufferManager: inProgressList.remove((readAheadBuffer)
+  ReadBufferManager -> ReadBufferManager: completedList.add((readAheadBuffer)
+  ReadBufferManager -> ReadBufferWorker
+end
+@enduml
