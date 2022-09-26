@@ -1,0 +1,30 @@
+@startuml
+'https://plantuml.com/sequence-diagram
+
+autonumber
+
+Developer -> FileSystem: initialise(config);
+alt config.defaultFS == ABFS
+  FileSystem -> AzureBlobFileSystem: initialise((config)
+  AzureBlobFileSystem -> AzureBlobFileSystem: new AzureBlobFileSystemStoreBuilder(config))
+  AzureBlobFileSystem -> AzureBlobFileSystemStore: constructor(azureBlobFileSystemStoreBuilder)
+  AzureBlobFileSystemStore -> AzureBlobFileSystem: abfsStore
+  alt config.getCreateRemoteFileSystemDuringInitialization == false
+    AzureBlobFileSystem -> FileSystem
+    FileSystem -> Developer
+  end
+  AzureBlobFileSystem -> AzureBlobFileSystemStore: getFileStatus()
+'  need to give impl
+  AzureBlobFileSystemStore -> AzureBlobFileSystem: fileStatus
+  alt fileStatus == null
+    AzureBlobFileSystem -> AzureBlobFileSystemStore: createFileSystem();
+    AzureBlobFileSystemStore -> AbfsClient: createFileSystem
+    AbfsClient -> FE: createFileSystemAPI
+    FE -> AbfsClient: output
+    AbfsClient -> AzureBlobFileSystemStore: output
+    AzureBlobFileSystemStore -> AzureBlobFileSystem: output
+  end
+  AzureBlobFileSystem -> FileSystem
+  FileSystem -> Developer
+end
+@enduml
