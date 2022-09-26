@@ -3,9 +3,25 @@
 
 autonumber
 
-Alice -> Bob: Authentication Request
-Bob --> Alice: Authentication Response
-
-Alice -> Bob: Another authentication Request
-Alice <-- Bob: another authentication Response
+Developer -> AbfsInputStream: read(buffer, offset, len)
+loop bytesToRead > 0
+  AbfsInputStream -> AbfsInputStream: readAheadAllowed =\nconfig.getReadAhead()
+  AbfsInputStream -> AbfsInputStream: nextSize =\ncomputeNextSizeToRead()
+  loop readAheadAllowed > 0 && nextSize > 0
+    AbfsInputStream -> ReadBufferManager: queueReadAhead()
+    AbfsInputStream -> AbfsInputStream: readAheadAllowed--;\nnextSize = \ncomputeNextSizeToRead();
+  end
+  AbfsInputStream -> ReadBufferManager: readBytes = getBlock()
+  AbfsInputStream -> AbfsInputStream: bytesReadResult = 0;
+  alt readBytes > 0
+      AbfsInputStream -> AbfsInputStream: bytesReadResult = readBytes;
+  else readBytes == 0
+      AbfsInputStream -> AbfsClient: read()
+      AbfsClient -> FE: readAPI
+      FE -> AbfsClient: httpResponse
+      AbfsClient -> AbfsInputStream: op = AbfsHttpOperation(httpResponse)
+      AbfsInputStream -> AbfsInputStream: bytesReadResult = op.getBytesReceived()
+  end
+  AbfsInputStream -> AbfsInputStream: bytesToRead -= bytesReadResult
+end
 @enduml
