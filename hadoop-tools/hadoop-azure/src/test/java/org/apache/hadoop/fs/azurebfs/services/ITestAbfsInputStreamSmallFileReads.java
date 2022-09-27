@@ -21,6 +21,7 @@ package org.apache.hadoop.fs.azurebfs.services;
 import java.io.IOException;
 import java.util.Map;
 
+import org.junit.Assume;
 import org.junit.Test;
 
 import org.apache.hadoop.fs.azurebfs.AbfsConfiguration;
@@ -65,31 +66,30 @@ public class ITestAbfsInputStreamSmallFileReads extends ITestAbfsInputStream {
       byte[] fileContent = getRandomBytesArray(fileSize);
       Path testFilePath = createFileWithContent(fs, fileName, fileContent);
       int length = ONE_KB;
-      try (FSDataInputStream iStream = fs.open(testFilePath)) {
-        byte[] buffer = new byte[length];
+      FSDataInputStream iStream = fs.open(testFilePath);
+      byte[] buffer = new byte[length];
 
-        Map<String, Long> metricMap = getInstrumentationMap(fs);
-        long requestsMadeBeforeTest = metricMap
-            .get(CONNECTIONS_MADE.getStatName());
+      Map<String, Long> metricMap = getInstrumentationMap(fs);
+      long requestsMadeBeforeTest = metricMap
+          .get(CONNECTIONS_MADE.getStatName());
 
-        iStream.seek(seekPos(SeekTo.END, fileSize, length));
-        iStream.read(buffer, 0, length);
+      iStream.seek(seekPos(SeekTo.END, fileSize, length));
+      iStream.read(buffer, 0, length);
 
-        iStream.seek(seekPos(SeekTo.MIDDLE, fileSize, length));
-        iStream.read(buffer, 0, length);
+      iStream.seek(seekPos(SeekTo.MIDDLE, fileSize, length));
+      iStream.read(buffer, 0, length);
 
-        iStream.seek(seekPos(SeekTo.BEGIN, fileSize, length));
-        iStream.read(buffer, 0, length);
+      iStream.seek(seekPos(SeekTo.BEGIN, fileSize, length));
+      iStream.read(buffer, 0, length);
 
-        metricMap = getInstrumentationMap(fs);
-        long requestsMadeAfterTest = metricMap
-            .get(CONNECTIONS_MADE.getStatName());
+      metricMap = getInstrumentationMap(fs);
+      long requestsMadeAfterTest = metricMap
+          .get(CONNECTIONS_MADE.getStatName());
 
-        if (readSmallFilesCompletely) {
-          assertEquals(1, requestsMadeAfterTest - requestsMadeBeforeTest);
-        } else {
-          assertEquals(3, requestsMadeAfterTest - requestsMadeBeforeTest);
-        }
+      if (readSmallFilesCompletely) {
+        assertEquals(1, requestsMadeAfterTest - requestsMadeBeforeTest);
+      } else {
+        assertEquals(3, requestsMadeAfterTest - requestsMadeBeforeTest);
       }
     }
   }
@@ -121,7 +121,7 @@ public class ITestAbfsInputStreamSmallFileReads extends ITestAbfsInputStream {
     testSeekAndReadWithConf(SeekTo.END, 2, 4, true);
   }
 
-  @Test
+   @Test
   public void testSeekToEndAndReadSmallFileWithConfFalse() throws Exception {
     testSeekAndReadWithConf(SeekTo.END, 2, 4, false);
   }
@@ -217,6 +217,7 @@ public class ITestAbfsInputStreamSmallFileReads extends ITestAbfsInputStream {
         expectedLimit = (fileContentLength < (seekPos + readBufferSize))
             ? (fileContentLength - seekPos)
             : readBufferSize;
+
       }
       assertEquals(expectedFCursor, abfsInputStream.getFCursor());
       assertEquals(expectedFCursor, abfsInputStream.getFCursorAfterLastRead());
@@ -244,6 +245,7 @@ public class ITestAbfsInputStreamSmallFileReads extends ITestAbfsInputStream {
       throws IOException {
 
     FSDataInputStream iStream = fs.open(testFilePath);
+
     try {
       AbfsInputStream abfsInputStream = (AbfsInputStream) iStream
           .getWrappedStream();
@@ -253,7 +255,7 @@ public class ITestAbfsInputStreamSmallFileReads extends ITestAbfsInputStream {
           .doCallRealMethod()
           .when(abfsInputStream)
           .readRemote(anyLong(), any(), anyInt(), anyInt(),
-              any(TracingContext.class));
+              any(TracingContext.class), any(AbfsInputStreamRequestContext.class));
 
       iStream = new FSDataInputStream(abfsInputStream);
       seek(iStream, seekPos);
@@ -304,7 +306,7 @@ public class ITestAbfsInputStreamSmallFileReads extends ITestAbfsInputStream {
           .doCallRealMethod()
           .when(abfsInputStream)
           .readRemote(anyLong(), any(), anyInt(), anyInt(),
-              any(TracingContext.class));
+              any(TracingContext.class), any(AbfsInputStreamRequestContext.class));
 
       iStream = new FSDataInputStream(abfsInputStream);
       seek(iStream, seekPos);

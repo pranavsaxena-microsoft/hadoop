@@ -26,7 +26,12 @@ import java.util.UUID;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.classification.VisibleForTesting;
-import org.apache.hadoop.util.Preconditions;
+import org.apache.hadoop.fs.azurebfs.contracts.services.ReadRequestParameters;
+import org.apache.hadoop.fs.azurebfs.services.abfsStreamHelpers.AbfsInputStreamHelper;
+import org.apache.hadoop.fs.azurebfs.services.abfsStreamHelpers.IOStreamHelper;
+import org.apache.hadoop.fs.azurebfs.services.abfsStreamHelpers.exceptions.BlockHelperException;
+import org.apache.hadoop.fs.azurebfs.services.abfsStreamHelpers.exceptions.RequestBlockException;
+import org.apache.hadoop.fs.azurebfs.AbfsStatistic;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,12 +49,14 @@ import org.apache.hadoop.fs.azurebfs.utils.Listener;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 import org.apache.hadoop.fs.statistics.IOStatistics;
 import org.apache.hadoop.fs.statistics.IOStatisticsSource;
+import org.apache.hadoop.util.Preconditions;
 
 import static java.lang.Math.max;
 import static java.lang.Math.min;
 
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.ONE_KB;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.STREAM_ID_LEN;
+import static org.apache.hadoop.fs.azurebfs.services.AbfsSession.IO_SESSION_SCOPE.READ_ON_OPTIMIZED_REST;
 import static org.apache.hadoop.util.StringUtils.toLowerCase;
 
 /**
@@ -57,7 +64,7 @@ import static org.apache.hadoop.util.StringUtils.toLowerCase;
  */
 public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
         StreamCapabilities, IOStatisticsSource {
-  private static final Logger LOG = LoggerFactory.getLogger(AbfsInputStream.class);
+  protected static final Logger LOG = LoggerFactory.getLogger(AbfsInputStream.class);
   //  Footer size is set to qualify for both ORC and parquet files
   public static final int FOOTER_SIZE = 16 * ONE_KB;
   public static final int MAX_OPTIMIZED_READ_ATTEMPTS = 2;
@@ -65,13 +72,12 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
   private int readAheadBlockSize;
   private final AbfsClient client;
   private final Statistics statistics;
-  private final String path;
-  private final long contentLength;
+  private final String path;  private final long contentLength;
   private final int bufferSize; // default buffer size
   private final int readAheadQueueDepth;         // initialized in constructor
   private final String eTag;                  // eTag of the path when InputStream are created
   private final boolean tolerateOobAppends; // whether tolerate Oob Appends
-  private final boolean readAheadEnabled; // whether enable readAhead;
+  private boolean readAheadEnabled; // whether enable readAhead;
   private final String inputStreamId;
   private final boolean alwaysReadBufferSize;
   /*
@@ -119,6 +125,8 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
    * lazy seek to decide whether to seek on the next read or not.
    */
   private long nextReadPos;
+  private AbfsSession abfsSession = null;
+  private AbfsInputStreamHelper abfsInputStreamHelperStart = IOStreamHelper.getInputStreamHelper();
 
   public AbfsInputStream(
           final AbfsClient client,
@@ -147,7 +155,6 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
     this.streamStatistics = abfsInputStreamContext.getStreamStatistics();
     this.inputStreamId = createInputStreamId();
     this.tracingContext = new TracingContext(tracingContext);
-    this.tracingContext.setOperation(FSOperationType.READ);
     this.tracingContext.setStreamID(inputStreamId);
     this.context = abfsInputStreamContext;
     readAheadBlockSize = abfsInputStreamContext.getReadAheadBlockSize();
@@ -155,9 +162,12 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
     // Propagate the config values to ReadBufferManager so that the first instance
     // to initialize can set the readAheadBlockSize
     ReadBufferManager.setReadBufferManagerConfigs(readAheadBlockSize);
+    abfsSession = createAbfsSession(abfsInputStreamContext);
+
     if (streamStatistics != null) {
       ioStatistics = streamStatistics.getIOStatistics();
     }
+    this.tracingContext.setOperation(FSOperationType.READ);
   }
 
   public String getPath() {
@@ -166,6 +176,23 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
 
   private String createInputStreamId() {
     return StringUtils.right(UUID.randomUUID().toString(), STREAM_ID_LEN);
+  }
+
+  protected AbfsSession createAbfsSession(AbfsInputStreamContext context) {
+    AbfsSession session = null;
+    AbfsInputStreamHelper inputStreamHelper = IOStreamHelper.getInputStreamHelper();
+    while(inputStreamHelper.shouldGoNext(context)) {
+      inputStreamHelper = inputStreamHelper.getNext();
+    }
+    if (inputStreamHelper.isAbfsSessionRequired()) {
+      session = new AbfsSession(READ_ON_OPTIMIZED_REST, client, path, eTag, tracingContext);
+    }
+
+    if ((session != null) && session.isValid()) {
+      return session;
+    }
+
+    return null;
   }
 
   @Override
@@ -193,7 +220,11 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
     if (streamStatistics != null) {
       streamStatistics.readOperationStarted();
     }
-    int bytesRead = readRemote(position, buffer, offset, length, tracingContext);
+    AbfsInputStreamRequestContext abfsInputStreamRequestContext
+        = new AbfsInputStreamRequestContext();
+    abfsInputStreamRequestContext.setLen((long) length);
+    int bytesRead = readRemote(position, buffer, offset, length, tracingContext,
+        abfsInputStreamRequestContext);
     if (statistics != null) {
       statistics.incrementBytesRead(bytesRead);
     }
@@ -232,6 +263,9 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
       streamStatistics.readOperationStarted();
     }
     incrementReadOps();
+    AbfsInputStreamRequestContext abfsInputStreamRequestContext
+        = new AbfsInputStreamRequestContext();
+    abfsInputStreamRequestContext.setLen((long)len);
     do {
 
       // limit is the maximum amount of data present in buffer.
@@ -256,11 +290,11 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
         bCursor = 0;
       }
       if (shouldReadFully()) {
-        lastReadBytes = readFileCompletely(b, currentOff, currentLen);
+        lastReadBytes = readFileCompletely(b, currentOff, currentLen, abfsInputStreamRequestContext);
       } else if (shouldReadLastBlock()) {
-        lastReadBytes = readLastBlock(b, currentOff, currentLen);
+        lastReadBytes = readLastBlock(b, currentOff, currentLen, abfsInputStreamRequestContext);
       } else {
-        lastReadBytes = readOneBlock(b, currentOff, currentLen);
+        lastReadBytes = readOneBlock(b, currentOff, currentLen, abfsInputStreamRequestContext);
       }
       if (lastReadBytes > 0) {
         currentOff += lastReadBytes;
@@ -285,7 +319,7 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
         && this.fCursor >= footerStart;
   }
 
-  private int readOneBlock(final byte[] b, final int off, final int len) throws IOException {
+  private int readOneBlock(final byte[] b, final int off, final int len, final AbfsInputStreamRequestContext abfsInputStreamRequestContext) throws IOException {
     if (len == 0) {
       return 0;
     }
@@ -309,17 +343,17 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
       }
 
       if (alwaysReadBufferSize) {
-        bytesRead = readInternal(fCursor, buffer, 0, bufferSize, false);
+        bytesRead = readInternal(fCursor, buffer, 0, bufferSize, false, abfsInputStreamRequestContext);
       } else {
         // Enable readAhead when reading sequentially
         if (-1 == fCursorAfterLastRead || fCursorAfterLastRead == fCursor || b.length >= bufferSize) {
           LOG.debug("Sequential read with read ahead size of {}", bufferSize);
-          bytesRead = readInternal(fCursor, buffer, 0, bufferSize, false);
+          bytesRead = readInternal(fCursor, buffer, 0, bufferSize, false, abfsInputStreamRequestContext);
         } else {
           // Enabling read ahead for random reads as well to reduce number of remote calls.
           int lengthWithReadAhead = Math.min(b.length + readAheadRange, bufferSize);
           LOG.debug("Random read with read ahead size of {}", lengthWithReadAhead);
-          bytesRead = readInternal(fCursor, buffer, 0, lengthWithReadAhead, true);
+          bytesRead = readInternal(fCursor, buffer, 0, lengthWithReadAhead, true, abfsInputStreamRequestContext);
         }
       }
       if (firstRead) {
@@ -337,7 +371,10 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
     return copyToUserBuffer(b, off, len);
   }
 
-  private int readFileCompletely(final byte[] b, final int off, final int len)
+  private int readFileCompletely(final byte[] b,
+      final int off,
+      final int len,
+      final AbfsInputStreamRequestContext abfsInputStreamRequestContext)
       throws IOException {
     if (len == 0) {
       return 0;
@@ -349,10 +386,11 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
     // data need to be copied to user buffer from index bCursor, bCursor has
     // to be the current fCusor
     bCursor = (int) fCursor;
-    return optimisedRead(b, off, len, 0, contentLength);
+    return optimisedRead(b, off, len, 0, contentLength,
+        abfsInputStreamRequestContext);
   }
 
-  private int readLastBlock(final byte[] b, final int off, final int len)
+  private int readLastBlock(final byte[] b, final int off, final int len, final AbfsInputStreamRequestContext abfsInputStreamRequestContext)
       throws IOException {
     if (len == 0) {
       return 0;
@@ -368,11 +406,11 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
     bCursor = (int) (fCursor - lastBlockStart);
     // 0 if contentlength is < buffersize
     long actualLenToRead = min(bufferSize, contentLength);
-    return optimisedRead(b, off, len, lastBlockStart, actualLenToRead);
+    return optimisedRead(b, off, len, lastBlockStart, actualLenToRead, abfsInputStreamRequestContext);
   }
 
   private int optimisedRead(final byte[] b, final int off, final int len,
-      final long readFrom, final long actualLen) throws IOException {
+      final long readFrom, final long actualLen, final AbfsInputStreamRequestContext abfsInputStreamRequestContext) throws IOException {
     fCursor = readFrom;
     int totalBytesRead = 0;
     int lastBytesRead = 0;
@@ -381,7 +419,7 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
       for (int i = 0;
            i < MAX_OPTIMIZED_READ_ATTEMPTS && fCursor < contentLength; i++) {
         lastBytesRead = readInternal(fCursor, buffer, limit,
-            (int) actualLen - limit, true);
+            (int) actualLen - limit, true, abfsInputStreamRequestContext);
         if (lastBytesRead > 0) {
           totalBytesRead += lastBytesRead;
           limit += lastBytesRead;
@@ -392,7 +430,7 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
     } catch (IOException e) {
       LOG.debug("Optimized read failed. Defaulting to readOneBlock {}", e);
       restorePointerState();
-      return readOneBlock(b, off, len);
+      return readOneBlock(b, off, len, abfsInputStreamRequestContext);
     } finally {
       firstRead = false;
     }
@@ -405,7 +443,7 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
     //  bCursor that means the user requested data has not been read.
     if (fCursor < contentLength && bCursor > limit) {
       restorePointerState();
-      return readOneBlock(b, off, len);
+      return readOneBlock(b, off, len, abfsInputStreamRequestContext);
     }
     return copyToUserBuffer(b, off, len);
   }
@@ -465,8 +503,19 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
     return bytesToRead;
   }
 
-  private int readInternal(final long position, final byte[] b, final int offset, final int length,
-                           final boolean bypassReadAhead) throws IOException {
+  private int readInternal(final long position,
+      final byte[] b,
+      final int offset,
+      final int length,
+      final boolean bypassReadAhead,
+      final AbfsInputStreamRequestContext abfsInputStreamRequestContext)
+      throws IOException {
+    abfsInputStreamRequestContext.setBufferSize((long) bufferSize);
+    abfsInputStreamRequestContext.setAbfsInputStream(this);
+    abfsInputStreamRequestContext.setContentLength(contentLength);
+    abfsInputStreamRequestContext.setStartOffset(position);
+    abfsInputStreamRequestContext.setCurrentOffset(position);
+
     if (readAheadEnabled && !bypassReadAhead) {
       // try reading from read-ahead
       if (offset != 0) {
@@ -483,16 +532,25 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
       LOG.debug("read ahead enabled issuing readheads num = {}", numReadAheads);
       TracingContext readAheadTracingContext = new TracingContext(tracingContext);
       readAheadTracingContext.setPrimaryRequestID();
-      while (numReadAheads > 0 && nextOffset < contentLength) {
-        LOG.debug("issuing read ahead requestedOffset = {} requested size {}",
-            nextOffset, nextSize);
-        ReadBufferManager.getBufferManager().queueReadAhead(this, nextOffset, (int) nextSize,
-                new TracingContext(readAheadTracingContext));
-        nextOffset = nextOffset + nextSize;
-        numReadAheads--;
-        // From next round onwards should be of readahead block size.
-        nextSize = min((long) readAheadBlockSize, contentLength - nextOffset);
+      AbfsInputStreamHelper abfsInputStreamHelper = abfsInputStreamHelperStart;
+      while(abfsInputStreamHelper.shouldGoNext(context)) {
+        abfsInputStreamHelper = abfsInputStreamHelper.getNext();
       }
+      if(abfsInputStreamHelper.explicitPreFetchReadAllowed()) {
+        while (numReadAheads > 0 && nextOffset < contentLength) {
+          LOG.debug("issuing read ahead requestedOffset = {} requested size {}",
+              nextOffset, nextSize);
+          ReadBufferManager.getBufferManager().queueReadAhead(this, nextOffset, (int) nextSize,
+              new TracingContext(readAheadTracingContext), abfsInputStreamRequestContext);
+          nextOffset = nextOffset + nextSize;
+          numReadAheads--;
+          // From next round onwards should be of readahead block size.
+          nextSize = min((long) readAheadBlockSize, contentLength - nextOffset);
+        }
+      } else {
+        abfsInputStreamRequestContext.setMaxReadAhead(numReadAheads);
+      }
+
 
       // try reading from buffers first
       receivedBytes = ReadBufferManager.getBufferManager().getBlock(this, position, length, b);
@@ -503,19 +561,28 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
         if (streamStatistics != null) {
           streamStatistics.readAheadBytesRead(receivedBytes);
         }
+        client.getAbfsCounters()
+            .incrementCounter(AbfsStatistic.ABFS_READ_AHEAD_CACHE_HIT_COUNTER,
+                1);
         return receivedBytes;
       }
 
       // got nothing from read-ahead, do our own read now
-      receivedBytes = readRemote(position, b, offset, length, new TracingContext(tracingContext));
+      receivedBytes = readRemote(position, b, offset, length, new TracingContext(tracingContext), abfsInputStreamRequestContext);
       return receivedBytes;
     } else {
       LOG.debug("read ahead disabled, reading remote");
-      return readRemote(position, b, offset, length, new TracingContext(tracingContext));
+      return readRemote(position, b, offset, length, new TracingContext(tracingContext), abfsInputStreamRequestContext);
     }
   }
 
-  int readRemote(long position, byte[] b, int offset, int length, TracingContext tracingContext) throws IOException {
+  int readRemote(long position,
+      byte[] b,
+      int offset,
+      int length,
+      TracingContext readThreadTracingContext,
+      AbfsInputStreamRequestContext abfsInputStreamRequestContext)
+      throws IOException {
     if (position < 0) {
       throw new IllegalArgumentException("attempting to read from negative offset");
     }
@@ -540,10 +607,26 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
       if (streamStatistics != null) {
         streamStatistics.remoteReadOperation();
       }
+
       LOG.trace("Trigger client.read for path={} position={} offset={} length={}", path, position, offset, length);
-      op = client.read(path, position, b, offset, length,
-          tolerateOobAppends ? "*" : eTag, cachedSasToken.get(), tracingContext);
+      AbfsSessionData sessionData;
+      if(abfsInputStreamRequestContext != null && abfsInputStreamRequestContext.getAbfsSessionData() != null) {
+        sessionData = abfsInputStreamRequestContext.getAbfsSessionData();
+      } else {
+        sessionData = (abfsSession == null)
+            ? null
+            : abfsSession.getCurrentSessionData();
+      }
+      ReadRequestParameters reqParams = new ReadRequestParameters(position,
+          offset, length, tolerateOobAppends ? "*" : eTag,
+          sessionData);
+      op = executeRead(path, b, cachedSasToken.get(), reqParams,
+          readThreadTracingContext, abfsInputStreamRequestContext);
       cachedSasToken.update(op.getSasToken());
+      if (abfsSession != null && sessionData != null) {
+        abfsSession.checkAndUpdateAbfsSession(op, sessionData);
+      }
+//      op = executeRead(path, b, cachedSasToken.get(), readThreadTracingContext);
       LOG.debug("issuing HTTP GET request params position = {} b.length = {} "
           + "offset = {} length = {}", position, b.length, offset, length);
       perfInfo.registerResult(op.getResult()).registerSuccess(true);
@@ -567,6 +650,47 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
     LOG.debug("HTTP request read bytes = {}", bytesRead);
     bytesFromRemoteRead += bytesRead;
     return (int) bytesRead;
+  }
+
+  protected AbfsRestOperation executeRead(String path,
+      byte[] b,
+      String sasToken,
+      ReadRequestParameters readRequestParameters,
+      TracingContext tracingContext, final AbfsInputStreamRequestContext abfsInputStreamRequestContext) throws IOException {
+    AbfsInputStreamHelper helper = abfsInputStreamHelperStart;
+    while (helper != null && helper.shouldGoNext(context)) {
+      helper = helper.getNext();
+    }
+    while (helper != null) {
+      try {
+        return executeRead(path, b, sasToken, readRequestParameters,
+            tracingContext, helper, abfsInputStreamRequestContext);
+      } catch (IOException e) {
+        if (e.getClass() == BlockHelperException.class) {
+          helper = helper.getBack();
+          helper.setNextAsInvalid();
+          continue;
+        }
+        if (e.getClass() == RequestBlockException.class) {
+          helper = helper.getBack();
+          continue;
+        }
+        throw e;
+      }
+    }
+    throw new IOException("No Communication technology could help");
+  }
+
+  protected AbfsRestOperation executeRead(final String path,
+      final byte[] b,
+      final String sasToken,
+      final ReadRequestParameters readRequestParameters,
+      final TracingContext tracingContext,
+      final AbfsInputStreamHelper helper,
+      final AbfsInputStreamRequestContext abfsInputStreamRequestContext)
+      throws AzureBlobFileSystemException {
+    return helper.operate(path, b, sasToken, readRequestParameters,
+        tracingContext, client, abfsInputStreamRequestContext);
   }
 
   /**
@@ -697,6 +821,10 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
     closed = true;
     buffer = null; // de-reference the buffer so it can be GC'ed sooner
     ReadBufferManager.getBufferManager().purgeBuffersForStream(this);
+    if (abfsSession != null) {
+      abfsSession.close();
+      abfsSession.stopSessionUpdate();
+    }
   }
 
   /**
@@ -849,5 +977,46 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
   @VisibleForTesting
   long getLimit() {
     return this.limit;
+  }
+
+  @VisibleForTesting
+  long getContentLength() {
+    return this.contentLength;
+  }
+
+  @VisibleForTesting
+  AbfsInputStreamContext getContext() {
+    return this.context;
+  }
+
+  @VisibleForTesting
+  String getETag() {
+    return this.eTag;
+  }
+
+  @VisibleForTesting
+  Statistics getFSStatistics() {
+    return this.statistics;
+  }
+
+  @VisibleForTesting
+  AbfsSession getAbfsSession() {
+    return this.abfsSession;
+  }
+
+  @VisibleForTesting
+  void setAbfsSession(AbfsSession abfsSession) {
+    if ((abfsSession != null) && (
+        abfsSession.getCurrentSessionData() != null)) {
+      tracingContext.setConnectionMode(
+          abfsSession.getCurrentSessionData().getConnectionMode());
+    }
+
+    this.abfsSession = abfsSession;
+  }
+
+  @VisibleForTesting
+  protected AbfsClient getClient() {
+    return client;
   }
 }

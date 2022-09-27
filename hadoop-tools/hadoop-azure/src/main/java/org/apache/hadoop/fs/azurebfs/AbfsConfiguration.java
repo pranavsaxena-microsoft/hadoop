@@ -129,6 +129,14 @@ public class AbfsConfiguration{
       DefaultValue = DEFAULT_READ_AHEAD_RANGE)
   private int readAheadRange;
 
+  @BooleanConfigurationValidatorAnnotation(ConfigurationKey = FS_AZURE_READ_DEFAULT_OPTIMIZED_REST,
+          DefaultValue = DEFAULT_READ_OPTIMIZED_REST)
+  private boolean readByDefaultOnOptimizedRest;
+
+  @BooleanConfigurationValidatorAnnotation(ConfigurationKey = FS_AZURE_WRITE_DEFAULT_OPTIMIZED_REST,
+      DefaultValue = DEFAULT_WRITE_OPTIMIZED_REST)
+  private boolean writeByDefaultOnOptimizedRest;
+
   @IntegerConfigurationValidatorAnnotation(ConfigurationKey = AZURE_MIN_BACKOFF_INTERVAL,
       DefaultValue = DEFAULT_MIN_BACKOFF_INTERVAL)
   private int minBackoffInterval;
@@ -621,6 +629,24 @@ public class AbfsConfiguration{
     return this.readBufferSize;
   }
 
+  public boolean isReadByDefaultOnOptimizedRest()
+          throws InvalidConfigurationValueException {
+    if ((getAuthType() == AuthType.OAuth) && readByDefaultOnOptimizedRest) {
+      return true;
+    }
+
+    return false;
+  }
+
+  public boolean isWriteByDefaultOnOptimizedRest()
+      throws InvalidConfigurationValueException {
+    if ((getAuthType() == AuthType.OAuth) && writeByDefaultOnOptimizedRest) {
+      return true;
+    }
+
+    return false;
+  }
+
   public int getMinBackoffIntervalMilliseconds() {
     return this.minBackoffInterval;
   }
@@ -700,7 +726,7 @@ public class AbfsConfiguration{
   public boolean getCreateRemoteFileSystemDuringInitialization() {
     // we do not support creating the filesystem when AuthType is SAS
     return this.createRemoteFileSystemDuringInitialization
-        && this.getAuthType(this.accountName) != AuthType.SAS;
+        && this.getAuthType() != AuthType.SAS;
   }
 
   public boolean getSkipUserGroupMetadataDuringInitialization() {
@@ -759,7 +785,7 @@ public class AbfsConfiguration{
     return getEnum(FS_AZURE_TRACINGHEADER_FORMAT, TracingHeaderFormat.ALL_ID_FORMAT);
   }
 
-  public AuthType getAuthType(String accountName) {
+  public AuthType getAuthType() {
     return getEnum(FS_AZURE_ACCOUNT_AUTH_TYPE_PROPERTY_NAME, AuthType.SharedKey);
   }
 
@@ -1091,5 +1117,4 @@ public class AbfsConfiguration{
   public void setEnableAbfsListIterator(boolean enableAbfsListIterator) {
     this.enableAbfsListIterator = enableAbfsListIterator;
   }
-
 }

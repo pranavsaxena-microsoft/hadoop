@@ -46,6 +46,7 @@ class ReadBuffer {
   private boolean isAnyByteConsumed = false;
 
   private IOException errException = null;
+  private AbfsInputStreamRequestContext abfsInputStreamRequestContext = null;
 
   public AbfsInputStream getStream() {
     return stream;
@@ -85,6 +86,14 @@ class ReadBuffer {
 
   public void setRequestedLength(int requestedLength) {
     this.requestedLength = requestedLength;
+  }
+
+  AbfsInputStreamRequestContext getAbfsInputStreamRequestContext() {
+    return abfsInputStreamRequestContext;
+  }
+
+  void setAbfsInputStreamRequestContext(final AbfsInputStreamRequestContext abfsInputStreamRequestContext) {
+    this.abfsInputStreamRequestContext = abfsInputStreamRequestContext;
   }
 
   public byte[] getBuffer() {

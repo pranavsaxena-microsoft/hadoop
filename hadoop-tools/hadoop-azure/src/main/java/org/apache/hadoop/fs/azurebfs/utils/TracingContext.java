@@ -23,12 +23,17 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+
+import org.apache.hadoop.classification.VisibleForTesting;
 import org.apache.hadoop.fs.azurebfs.constants.FSOperationType;
 import org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations;
 import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
+import org.apache.hadoop.fs.azurebfs.services.AbfsConnectionMode;
 import org.apache.hadoop.fs.azurebfs.services.AbfsHttpOperation;
 
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.EMPTY_STRING;
+import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.OPTIMIZED_REST_CORR_INDICATOR;
+import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.SSN_UPD_FALLBACK_CORR_INDICATOR;
 
 /**
  * The TracingContext class to correlate Store requests using unique
@@ -62,6 +67,7 @@ public class TracingContext {
   private Listener listener = null;  // null except when testing
   //final concatenated ID list set into x-ms-client-request-id header
   private String header = EMPTY_STRING;
+  private AbfsConnectionMode connectionMode = AbfsConnectionMode.REST_CONN;
 
   private static final Logger LOG = LoggerFactory.getLogger(AbfsClient.class);
   public static final int MAX_CLIENT_CORRELATION_ID_LENGTH = 72;
@@ -109,6 +115,7 @@ public class TracingContext {
     this.retryCount = 0;
     this.primaryRequestId = originalTracingContext.primaryRequestId;
     this.format = originalTracingContext.format;
+    this.connectionMode = originalTracingContext.connectionMode;
     if (originalTracingContext.listener != null) {
       this.listener = originalTracingContext.listener.getClone();
     }
@@ -143,6 +150,10 @@ public class TracingContext {
     this.retryCount = retryCount;
   }
 
+  public void setConnectionMode(AbfsConnectionMode connectionMode) {
+    this.connectionMode = connectionMode;
+  }
+
   public void setListener(Listener listener) {
     this.listener = listener;
   }
@@ -160,7 +171,7 @@ public class TracingContext {
       header =
           clientCorrelationID + ":" + clientRequestId + ":" + fileSystemID + ":"
               + primaryRequestId + ":" + streamID + ":" + opType + ":"
-              + retryCount;
+              + retryCount + ":" + getConnectionModeIndicator(connectionMode);
       break;
     case TWO_ID_FORMAT:
       header = clientCorrelationID + ":" + clientRequestId;
@@ -171,7 +182,7 @@ public class TracingContext {
     if (listener != null) { //for testing
       listener.callTracingHeaderValidator(header, format);
     }
-    httpOperation.setRequestProperty(HttpHeaderConfigurations.X_MS_CLIENT_REQUEST_ID, header);
+    httpOperation.setHeader(HttpHeaderConfigurations.X_MS_CLIENT_REQUEST_ID, header);
   }
 
   /**
@@ -182,4 +193,19 @@ public class TracingContext {
     return header;
   }
 
+  private static String getConnectionModeIndicator(AbfsConnectionMode connectionMode) {
+    switch(connectionMode) {
+    case OPTIMIZED_REST:
+      return OPTIMIZED_REST_CORR_INDICATOR;
+    case REST_ON_SESSION_UPD_FAILURE:
+      return SSN_UPD_FALLBACK_CORR_INDICATOR;
+    default: // REST_CONN - Day 0 default
+      return EMPTY_STRING;
+    }
+  }
+
+  @VisibleForTesting
+  public AbfsConnectionMode getConnectionMode() {
+    return connectionMode;
+  }
 }

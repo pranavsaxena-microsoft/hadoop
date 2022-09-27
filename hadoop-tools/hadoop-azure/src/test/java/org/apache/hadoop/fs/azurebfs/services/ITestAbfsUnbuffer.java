@@ -20,6 +20,8 @@ package org.apache.hadoop.fs.azurebfs.services;
 
 import java.io.IOException;
 
+import org.junit.After;
+import org.junit.Assume;
 import org.junit.Test;
 
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -33,6 +35,8 @@ import org.apache.hadoop.fs.contract.ContractTestUtils;
  * Validates that the underlying stream's buffer is null.
  */
 public class ITestAbfsUnbuffer extends AbstractAbfsIntegrationTest {
+  private static final int TEST_DATASET_LEN = 16;
+  private static final int TEST_DATASET_MODULO = 26;
 
   private Path dest;
 
@@ -42,15 +46,28 @@ public class ITestAbfsUnbuffer extends AbstractAbfsIntegrationTest {
   @Override
   public void setup() throws Exception {
     super.setup();
-    dest = path("ITestAbfsUnbuffer");
+  }
 
-    byte[] data = ContractTestUtils.dataset(16, 'a', 26);
-    ContractTestUtils.writeDataset(getFileSystem(), dest, data, data.length,
-            16, true);
+  @After
+  public void tearDown() throws Exception {
+    super.teardown();
   }
 
   @Test
   public void testUnbuffer() throws IOException {
+    writeData();
+    testUnbufferAssertions();
+  }
+
+  public void writeData() throws IOException {
+    dest = path("ITestAbfsUnbuffer");
+
+    byte[] data = ContractTestUtils.dataset(TEST_DATASET_LEN, 'a', TEST_DATASET_MODULO);
+    ContractTestUtils
+        .writeDataset(getFileSystem(), dest, data, data.length, data.length, true);
+  }
+
+  public void testUnbufferAssertions() throws IOException {
     // Open file, read half the data, and then call unbuffer
     try (FSDataInputStream inputStream = getFileSystem().open(dest)) {
       assertTrue("unexpected stream type "

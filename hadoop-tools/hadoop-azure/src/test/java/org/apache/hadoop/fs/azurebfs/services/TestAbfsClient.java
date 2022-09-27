@@ -67,28 +67,31 @@ public final class TestAbfsClient {
   private final Pattern userAgentStringPattern;
 
   public TestAbfsClient(){
+    StringBuilder regExQuote = new StringBuilder();
+    regExQuote.append(APN_VERSION);
+    regExQuote.append(SINGLE_WHITE_SPACE);
+    regExQuote.append(CLIENT_VERSION);
+    regExQuote.append(SINGLE_WHITE_SPACE);
+    regExQuote.append("(");
+    regExQuote.append(System.getProperty(JAVA_VENDOR)
+        .replaceAll(SINGLE_WHITE_SPACE, EMPTY_STRING));
+    regExQuote.append(SINGLE_WHITE_SPACE);
+    regExQuote.append("JavaJRE");
+    regExQuote.append(SINGLE_WHITE_SPACE);
+    regExQuote.append(System.getProperty(JAVA_VERSION));
+    regExQuote.append(SEMICOLON);
+    regExQuote.append(SINGLE_WHITE_SPACE);
+    regExQuote.append(System.getProperty(OS_NAME)
+        .replaceAll(SINGLE_WHITE_SPACE, EMPTY_STRING));
+    regExQuote.append(SINGLE_WHITE_SPACE);
+    regExQuote.append(System.getProperty(OS_VERSION));
+    regExQuote.append(FORWARD_SLASH);
+    regExQuote.append(System.getProperty(OS_ARCH));
+    regExQuote.append(SEMICOLON);
+    String regExConstant = Pattern.quote(regExQuote.toString());
+
     StringBuilder regEx = new StringBuilder();
-    regEx.append("^");
-    regEx.append(APN_VERSION);
-    regEx.append(SINGLE_WHITE_SPACE);
-    regEx.append(CLIENT_VERSION);
-    regEx.append(SINGLE_WHITE_SPACE);
-    regEx.append("\\(");
-    regEx.append(System.getProperty(JAVA_VENDOR)
-        .replaceAll(SINGLE_WHITE_SPACE, EMPTY_STRING));
-    regEx.append(SINGLE_WHITE_SPACE);
-    regEx.append("JavaJRE");
-    regEx.append(SINGLE_WHITE_SPACE);
-    regEx.append(System.getProperty(JAVA_VERSION));
-    regEx.append(SEMICOLON);
-    regEx.append(SINGLE_WHITE_SPACE);
-    regEx.append(System.getProperty(OS_NAME)
-        .replaceAll(SINGLE_WHITE_SPACE, EMPTY_STRING));
-    regEx.append(SINGLE_WHITE_SPACE);
-    regEx.append(System.getProperty(OS_VERSION));
-    regEx.append(FORWARD_SLASH);
-    regEx.append(System.getProperty(OS_ARCH));
-    regEx.append(SEMICOLON);
+    regEx.append(regExConstant);
     regEx.append("([a-zA-Z].*; )?");      // Regex for sslProviderName
     regEx.append("([a-zA-Z].*; )?");      // Regex for tokenProvider
     regEx.append(" ?");
@@ -250,8 +253,7 @@ public final class TestAbfsClient {
   public static AbfsClient createTestClientFromCurrentContext(
       AbfsClient baseAbfsClientInstance,
       AbfsConfiguration abfsConfig) throws IOException {
-    AuthType currentAuthType = abfsConfig.getAuthType(
-        abfsConfig.getAccountName());
+    AuthType currentAuthType = abfsConfig.getAuthType();
 
     AbfsPerfTracker tracker = new AbfsPerfTracker("test",
         abfsConfig.getAccountName(),
@@ -283,8 +285,7 @@ public final class TestAbfsClient {
 
   public static AbfsClient getMockAbfsClient(AbfsClient baseAbfsClientInstance,
       AbfsConfiguration abfsConfig) throws Exception {
-    AuthType currentAuthType = abfsConfig.getAuthType(
-        abfsConfig.getAccountName());
+    AuthType currentAuthType = abfsConfig.getAuthType();
 
     org.junit.Assume.assumeTrue(
         (currentAuthType == AuthType.SharedKey)
@@ -303,9 +304,14 @@ public final class TestAbfsClient {
 
     when(client.createDefaultUriQueryBuilder()).thenCallRealMethod();
     when(client.createRequestUrl(any(), any())).thenCallRealMethod();
+    when(client.createRequestUrl(any(), any(), any())).thenCallRealMethod();
     when(client.getAccessToken()).thenCallRealMethod();
     when(client.getSharedKeyCredentials()).thenCallRealMethod();
     when(client.createDefaultHeaders()).thenCallRealMethod();
+    when(client.getBaseUrl()).thenCallRealMethod();
+    when(client.getAbfsConfiguration()).thenCallRealMethod();
+    when(client.getTokenProvider()).thenCallRealMethod();
+    when(client.getAbfsClientContext()).thenCallRealMethod();
 
     // override baseurl
     client = TestAbfsClient.setAbfsClientField(client, "abfsConfiguration",
@@ -314,6 +320,9 @@ public final class TestAbfsClient {
     // override baseurl
     client = TestAbfsClient.setAbfsClientField(client, "baseUrl",
         baseAbfsClientInstance.getBaseUrl());
+
+    client = TestAbfsClient.setAbfsClientField(client, "abfsClientContext",
+        baseAbfsClientInstance.getAbfsClientContext());
 
     // override auth provider
     if (currentAuthType == AuthType.SharedKey) {

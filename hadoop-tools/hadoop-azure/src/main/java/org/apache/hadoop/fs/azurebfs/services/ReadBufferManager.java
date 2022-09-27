@@ -38,7 +38,7 @@ import org.apache.hadoop.classification.VisibleForTesting;
 /**
  * The Read Buffer Manager for Rest AbfsClient.
  */
-final class ReadBufferManager {
+public final class ReadBufferManager {
   private static final Logger LOGGER = LoggerFactory.getLogger(ReadBufferManager.class);
   private static final int ONE_KB = 1024;
   private static final int ONE_MB = ONE_KB * ONE_KB;
@@ -59,7 +59,7 @@ final class ReadBufferManager {
   private static ReadBufferManager bufferManager; // singleton, initialized in static initialization block
   private static final ReentrantLock LOCK = new ReentrantLock();
 
-  static ReadBufferManager getBufferManager() {
+  public static ReadBufferManager getBufferManager() {
     if (bufferManager == null) {
       LOCK.lock();
       try {
@@ -118,8 +118,8 @@ final class ReadBufferManager {
    * @param requestedOffset The offset in the file which shoukd be read
    * @param requestedLength The length to read
    */
-  void queueReadAhead(final AbfsInputStream stream, final long requestedOffset, final int requestedLength,
-                      TracingContext tracingContext) {
+  public void queueReadAhead(final AbfsInputStream stream, final long requestedOffset, final int requestedLength,
+                      TracingContext tracingContext, final AbfsInputStreamRequestContext abfsInputStreamRequestContext) {
     if (LOGGER.isTraceEnabled()) {
       LOGGER.trace("Start Queueing readAhead for {} offset {} length {}",
           stream.getPath(), requestedOffset, requestedLength);
@@ -141,6 +141,7 @@ final class ReadBufferManager {
       buffer.setStatus(ReadBufferStatus.NOT_AVAILABLE);
       buffer.setLatch(new CountDownLatch(1));
       buffer.setTracingContext(tracingContext);
+      buffer.setAbfsInputStreamRequestContext(abfsInputStreamRequestContext);
 
       Integer bufferIndex = freeList.pop();  // will return a value, since we have checked size > 0 already
 

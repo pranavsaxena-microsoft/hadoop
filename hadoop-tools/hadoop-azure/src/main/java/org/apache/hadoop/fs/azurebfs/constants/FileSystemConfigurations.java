@@ -41,7 +41,7 @@ public final class FileSystemConfigurations {
   public static final int DEFAULT_MIN_BACKOFF_INTERVAL = 3 * 1000;  // 3s
   public static final int DEFAULT_MAX_BACKOFF_INTERVAL = 30 * 1000;  // 30s
   public static final int DEFAULT_BACKOFF_INTERVAL = 3 * 1000;  // 3s
-  public static final int DEFAULT_MAX_RETRY_ATTEMPTS = 30;
+  public static final int DEFAULT_MAX_RETRY_ATTEMPTS = 3;
   public static final int DEFAULT_CUSTOM_TOKEN_FETCH_RETRY_COUNT = 3;
 
   // Retry parameter defaults.
@@ -52,6 +52,7 @@ public final class FileSystemConfigurations {
 
   public static final int ONE_KB = 1024;
   public static final int ONE_MB = ONE_KB * ONE_KB;
+  public static final int FOUR_MB = 4 * ONE_MB;
 
   // Default upload and download buffer size
   public static final int DEFAULT_WRITE_BUFFER_SIZE = 8 * ONE_MB;  // 8 MB
@@ -114,6 +115,13 @@ public final class FileSystemConfigurations {
 
   public static final int STREAM_ID_LEN = 12;
   public static final boolean DEFAULT_ENABLE_ABFS_LIST_ITERATOR = true;
+  public static final boolean DEFAULT_READ_OPTIMIZED_REST = false;
+  public static final boolean DEFAULT_WRITE_OPTIMIZED_REST = false;
+
+  public static final int DEFAULT_OPTIMIZED_READ_BUFFER_SIZE = 4 * ONE_MB;
+
+  public static final int THRICE_DEFAULT_OPTIMIZED_READ_BUFFER_SIZE = 3
+      * DEFAULT_OPTIMIZED_READ_BUFFER_SIZE;
 
   /**
    * Limit of queued block upload operations before writes

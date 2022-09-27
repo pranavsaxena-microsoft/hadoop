@@ -25,12 +25,15 @@ import java.util.Map;
 import java.io.IOException;
 
 import org.assertj.core.api.Assertions;
+import org.junit.After;
 import org.junit.Assume;
 import org.junit.runners.Parameterized;
 import org.junit.runner.RunWith;
 import org.junit.Test;
 
+
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -39,6 +42,7 @@ import org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys;
 import static org.apache.hadoop.fs.azurebfs.AbfsStatistic.BYTES_SENT;
 import static org.apache.hadoop.fs.azurebfs.AbfsStatistic.CONNECTIONS_MADE;
 import static org.apache.hadoop.fs.azurebfs.AbfsStatistic.SEND_REQUESTS;
+import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.AZURE_READ_SMALL_FILES_COMPLETELY;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.DEFAULT_AZURE_ENABLE_SMALL_WRITE_OPTIMIZATION;
 import static org.apache.hadoop.fs.azurebfs.constants.TestConfigurationKeys.FS_AZURE_TEST_APPENDBLOB_ENABLED;
 
@@ -294,6 +298,12 @@ public class ITestSmallWriteOptimization extends AbstractAbfsScaleTest {
             },
         });
   }
+
+  @After
+  public void tearDown() throws Exception {
+    super.teardown();
+  }
+
   public ITestSmallWriteOptimization() throws Exception {
     super();
   }
@@ -367,7 +377,7 @@ public class ITestSmallWriteOptimization extends AbstractAbfsScaleTest {
     FSDataOutputStream opStream;
 
     if (startingFileSize > 0) {
-      writeBufferCursor += createFileWithStartingTestSize(fs, writeBuffer, writeBufferCursor, testPath,
+      writeBufferCursor += createFileWithStartingTestSize(totalFileSize, fs, writeBuffer, writeBufferCursor, testPath,
           startingFileSize);
       opStream = fs.append(testPath);
     } else {
@@ -386,8 +396,9 @@ public class ITestSmallWriteOptimization extends AbstractAbfsScaleTest {
 
     while (testIteration > 0) {
       // trigger recurringWriteSize appends over numOfWrites
-      writeBufferCursor += executeWritePattern(opStream, writeBuffer,
-          writeBufferCursor, numOfWrites, recurringWriteSize);
+      writeBufferCursor += executeWritePattern(testPath, totalDataToBeAppended,
+          opStream, writeBuffer, writeBufferCursor, numOfWrites,
+          recurringWriteSize);
 
       int numOfBuffersWrittenToStore = (int) Math.floor(
           dataWrittenPerIteration / writeBufferSize);
@@ -455,11 +466,11 @@ public class ITestSmallWriteOptimization extends AbstractAbfsScaleTest {
     validateStoreAppends(fs, testPath, totalFileSize, writeBuffer);
   }
 
-  private int createFileWithStartingTestSize(AzureBlobFileSystem fs, byte[] writeBuffer,
+  private int createFileWithStartingTestSize(int totalFileSize, AzureBlobFileSystem fs, byte[] writeBuffer,
       int writeBufferCursor, Path testPath, int startingFileSize)
       throws IOException {
     FSDataOutputStream opStream = fs.create(testPath);
-    writeBufferCursor += executeWritePattern(opStream,
+    writeBufferCursor += executeWritePattern(testPath, totalFileSize, opStream,
         writeBuffer,
         writeBufferCursor,
         1,
@@ -486,7 +497,9 @@ public class ITestSmallWriteOptimization extends AbstractAbfsScaleTest {
         .isEqualTo(totalFileSize);
 
     byte[] fileReadFromStore = new byte[totalFileSize];
-    fs.open(testPath).read(fileReadFromStore, 0, totalFileSize);
+    FSDataInputStream in = fs.open(testPath);
+
+    in.read(fileReadFromStore, 0, totalFileSize);
 
     assertArrayEquals("Test file content incorrect", bufferWritten,
         fileReadFromStore);
@@ -503,7 +516,8 @@ public class ITestSmallWriteOptimization extends AbstractAbfsScaleTest {
     assertAbfsStatistics(BYTES_SENT, expectedBytesSent, metricMap);
   }
 
-  private int executeWritePattern(FSDataOutputStream opStream,
+  private int executeWritePattern(Path testFilePath, int totalSize,
+      FSDataOutputStream opStream,
       byte[] buffer,
       int startOffset,
       int writeLoopCount,
@@ -516,7 +530,6 @@ public class ITestSmallWriteOptimization extends AbstractAbfsScaleTest {
       startOffset += writeSize;
       writeLoopCount--;
     }
-
     dataSizeWritten = startOffset - dataSizeWritten;
     return dataSizeWritten;
   }

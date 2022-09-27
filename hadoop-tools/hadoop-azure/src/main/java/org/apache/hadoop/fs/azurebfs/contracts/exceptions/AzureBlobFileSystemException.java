@@ -41,6 +41,10 @@ public abstract class AzureBlobFileSystemException extends IOException {
     super(message, innerThrowable);
   }
 
+  public AzureBlobFileSystemException(final Throwable throwable) {
+    super(throwable);
+  }
+
   @Override
   public String toString() {
     if (this.getMessage() == null && this.getCause() == null) {

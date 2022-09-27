@@ -18,15 +18,20 @@
 
 package org.apache.hadoop.fs.azurebfs;
 
+import org.apache.hadoop.conf.Configuration;
+import org.junit.Assume;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.azurebfs.services.MockAbfsInputStream;
 import org.apache.hadoop.io.IOUtils;
+
+import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_READ_AHEAD_QUEUE_DEPTH;
 
 /**
  * Test Abfs Stream.
@@ -51,9 +56,14 @@ public class ITestAbfsStreamStatistics extends AbstractAbfsIntegrationTest {
     describe("Test to see correct population of read and write operations in "
         + "Abfs");
 
-    final AzureBlobFileSystem fs = getFileSystem();
+    Configuration configuration = getRawConfiguration();
+    configuration.set(FS_AZURE_READ_AHEAD_QUEUE_DEPTH, "0");
+    final AzureBlobFileSystem fs =
+        (AzureBlobFileSystem) FileSystem.newInstance(configuration);
+
     Path smallOperationsFile = path("testOneReadWriteOps");
     Path largeOperationsFile = path("testLargeReadWriteOps");
+
     FileSystem.Statistics statistics = fs.getFsStatistics();
     String testReadWriteOps = "test this";
     statistics.reset();
@@ -76,6 +86,7 @@ public class ITestAbfsStreamStatistics extends AbstractAbfsIntegrationTest {
 
       //Flushing output stream to see content to read
       outForOneOperation.hflush();
+      byte[] buff = testReadWriteOps.getBytes();
       inForOneOperation = fs.open(smallOperationsFile);
       statistics.reset();
       int result = inForOneOperation.read(testReadWriteOps.getBytes(), 0,
@@ -116,6 +127,8 @@ public class ITestAbfsStreamStatistics extends AbstractAbfsIntegrationTest {
       outForLargeOperations = fs.create(largeOperationsFile);
       statistics.reset();
       int largeValue = LARGE_NUMBER_OF_OPS;
+      byte[] buff = testReadWriteOps.getBytes();
+      int totalLen = largeValue*buff.length;
       for (int i = 0; i < largeValue; i++) {
         outForLargeOperations.write(testReadWriteOps.getBytes());
 
@@ -149,11 +162,11 @@ public class ITestAbfsStreamStatistics extends AbstractAbfsIntegrationTest {
       IOUtils.cleanupWithLogger(LOG, inForLargeOperations,
           outForLargeOperations);
     }
+
     //Validating if content is being written in largeOperationsFile
     assertTrue("Mismatch in content validation",
         validateContent(fs, largeOperationsFile,
             largeOperationsValidationString.toString().getBytes()));
-
   }
 
   /**

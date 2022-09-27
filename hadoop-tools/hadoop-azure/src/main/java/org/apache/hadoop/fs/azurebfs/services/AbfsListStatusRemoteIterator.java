@@ -40,7 +40,6 @@ import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 
 public class AbfsListStatusRemoteIterator
     implements RemoteIterator<FileStatus> {
-
   private static final Logger LOG = LoggerFactory
       .getLogger(AbfsListStatusRemoteIterator.class);
 
@@ -75,6 +74,7 @@ public class AbfsListStatusRemoteIterator
     if (currIterator.hasNext()) {
       return true;
     }
+
     currIterator = getNextIterator();
     return currIterator.hasNext();
   }

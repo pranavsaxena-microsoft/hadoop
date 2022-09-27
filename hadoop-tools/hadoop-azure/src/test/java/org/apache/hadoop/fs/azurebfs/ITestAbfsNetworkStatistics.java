@@ -23,6 +23,7 @@ import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.junit.Assume;
 import org.junit.Test;
 
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -206,9 +207,9 @@ public class ITestAbfsNetworkStatistics extends AbstractAbfsIntegrationTest {
     try {
       // Creating a File and writing some bytes in it.
       out = fs.create(getResponsePath);
-      out.write(testResponseString.getBytes());
+      byte[] buff = testResponseString.getBytes();
+      out.write(buff);
       out.hflush();
-
       // Set metric baseline
       metricMap = fs.getInstrumentationMap();
       long bytesWrittenToFile = testResponseString.getBytes().length;
@@ -219,10 +220,12 @@ public class ITestAbfsNetworkStatistics extends AbstractAbfsIntegrationTest {
       // --------------------------------------------------------------------
       // Operation: Create AbfsInputStream
       in = fs.open(getResponsePath);
+      // In case of REST and fastpath
       // Network stats calculation: For Creating AbfsInputStream:
       // 1 GetFileStatus request to fetch file size = 1 connection and 1 get response
       expectedConnectionsMade++;
       expectedGetResponses++;
+
       // --------------------------------------------------------------------
 
       // Operation: Read
@@ -255,6 +258,7 @@ public class ITestAbfsNetworkStatistics extends AbstractAbfsIntegrationTest {
       // test method testAbfsHttpSendStatistics]
       StringBuilder largeBuffer = new StringBuilder();
       out = fs.create(getResponsePath);
+      byte[] b = testResponseString.getBytes();
 
       for (int i = 0; i < WRITE_OPERATION_LOOP_COUNT; i++) {
         out.write(testResponseString.getBytes());
@@ -269,10 +273,13 @@ public class ITestAbfsNetworkStatistics extends AbstractAbfsIntegrationTest {
       // --------------------------------------------------------------------
       // Operation: Create AbfsInputStream
       in = fs.open(getResponsePath);
+
+      // In case of REST and fastpath
       // Network stats calculation: For Creating AbfsInputStream:
-      // 1 GetFileStatus for file size = 1 connection and 1 get response
+      // 1 GetFileStatus request to fetch file size = 1 connection and 1 get response
       expectedConnectionsMade++;
       expectedGetResponses++;
+
       // --------------------------------------------------------------------
 
       // Operation: Read

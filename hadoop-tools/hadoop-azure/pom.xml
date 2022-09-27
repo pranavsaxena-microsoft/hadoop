@@ -147,7 +147,6 @@
       <artifactId>hadoop-common</artifactId>
       <scope>provided</scope>
     </dependency>
-
     
     <dependency>
       <groupId>org.apache.httpcomponents</groupId>
@@ -555,6 +554,9 @@
                     <include>**/azurebfs/Test*.java</include>
                     <include>**/azurebfs/**/Test*.java</include>
                   </includes>
+                  <excludes>
+                    <exclude>**/azurebfs/ITestAbfsStreamStatistics*.java</exclude>
+                  </excludes>
                 </configuration>
               </execution>
             </executions>
@@ -651,6 +653,9 @@
                     <include>**/azurebfs/ITestAbfsStreamStatistics*.java</include>
                     <include>**/azurebfs/commit/*.java</include>
                   </includes>
+                  <excludes>
+                    <exclude>**/azurebfs/ITestAbfsStreamStatistics*.java</exclude>
+                  </excludes>
                 </configuration>
               </execution>
             </executions>

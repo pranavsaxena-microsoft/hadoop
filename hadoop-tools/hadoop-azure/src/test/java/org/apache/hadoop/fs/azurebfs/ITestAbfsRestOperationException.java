@@ -19,7 +19,6 @@
 package org.apache.hadoop.fs.azurebfs;
 
 import java.io.IOException;
-
 import org.assertj.core.api.Assertions;
 import org.junit.Assert;
 import org.junit.Test;

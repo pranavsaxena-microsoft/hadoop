@@ -26,7 +26,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import org.junit.Assume;
 import org.junit.Test;
+
 
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -85,6 +87,8 @@ public class ITestAzureBlobFileSystemE2EScale extends
     assertEquals(testWriteBufferSize * operationCount, fileStatus.getLen());
   }
 
+
+
   @Test
   public void testReadWriteHeavyBytesToFileWithStatistics() throws Exception {
     final AzureBlobFileSystem fs = getFileSystem();
@@ -101,6 +105,7 @@ public class ITestAzureBlobFileSystemE2EScale extends
       new Random().nextBytes(sourceData);
       stream.write(sourceData);
     }
+
 
     final byte[] remoteData = new byte[testBufferSize];
     int bytesRead;

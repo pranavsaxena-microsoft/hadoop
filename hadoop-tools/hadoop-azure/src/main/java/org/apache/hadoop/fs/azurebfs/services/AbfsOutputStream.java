@@ -22,11 +22,16 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.Future;
 import java.util.UUID;
 
 import org.apache.hadoop.classification.VisibleForTesting;
+import org.apache.hadoop.fs.azurebfs.services.abfsStreamHelpers.AbfsOutputStreamHelper;
+import org.apache.hadoop.fs.azurebfs.services.abfsStreamHelpers.IOStreamHelper;
+import org.apache.hadoop.fs.azurebfs.services.abfsStreamHelpers.exceptions.BlockHelperException;
+import org.apache.hadoop.fs.azurebfs.services.abfsStreamHelpers.exceptions.RequestBlockException;
 import org.apache.hadoop.util.Preconditions;
 import org.apache.hadoop.thirdparty.com.google.common.util.concurrent.ListeningExecutorService;
 import org.apache.hadoop.thirdparty.com.google.common.util.concurrent.MoreExecutors;
@@ -55,9 +60,11 @@ import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.S
 import static org.apache.hadoop.fs.azurebfs.services.AbfsErrors.ERR_WRITE_WITHOUT_LEASE;
 import static org.apache.hadoop.fs.impl.StoreImplementationUtils.isProbeForSyncable;
 import static org.apache.hadoop.io.IOUtils.wrapException;
+
 import static org.apache.hadoop.fs.azurebfs.contracts.services.AppendRequestParameters.Mode.APPEND_MODE;
 import static org.apache.hadoop.fs.azurebfs.contracts.services.AppendRequestParameters.Mode.FLUSH_CLOSE_MODE;
 import static org.apache.hadoop.fs.azurebfs.contracts.services.AppendRequestParameters.Mode.FLUSH_MODE;
+import static org.apache.hadoop.fs.azurebfs.services.AbfsSession.IO_SESSION_SCOPE.WRITE_ON_OPTIMIZED_REST;
 import static org.apache.hadoop.util.Preconditions.checkState;
 
 /**
@@ -109,6 +116,7 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
 
   private static final Logger LOG =
       LoggerFactory.getLogger(AbfsOutputStream.class);
+  private AbfsSession abfsSession = null;
 
   /** Factory for blocks. */
   private final DataBlocks.BlockFactory blockFactory;
@@ -125,8 +133,11 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
   /** Executor service to carry out the parallel upload requests. */
   private final ListeningExecutorService executorService;
 
+  private final AbfsOutputStreamContext context;
+
   public AbfsOutputStream(AbfsOutputStreamContext abfsOutputStreamContext)
       throws IOException {
+    this.context = abfsOutputStreamContext;
     this.client = abfsOutputStreamContext.getClient();
     this.statistics = abfsOutputStreamContext.getStatistics();
     this.path = abfsOutputStreamContext.getPath();
@@ -161,11 +172,15 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
         MoreExecutors.listeningDecorator(abfsOutputStreamContext.getExecutorService());
     this.cachedSasToken = new CachedSASToken(
         abfsOutputStreamContext.getSasTokenRenewPeriodForStreamsInSeconds());
+    if (outputStreamStatistics != null) {
+      this.ioStatistics = outputStreamStatistics.getIOStatistics();
+    }
     this.outputStreamId = createOutputStreamId();
+
     this.tracingContext = new TracingContext(abfsOutputStreamContext.getTracingContext());
+    abfsSession = createAbfsSession(abfsOutputStreamContext);
     this.tracingContext.setStreamID(outputStreamId);
     this.tracingContext.setOperation(FSOperationType.WRITE);
-    this.ioStatistics = outputStreamStatistics.getIOStatistics();
     this.blockFactory = abfsOutputStreamContext.getBlockFactory();
     this.blockSize = bufferSize;
     // create that first block. This guarantees that an open + close sequence
@@ -175,6 +190,22 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
 
   private String createOutputStreamId() {
     return StringUtils.right(UUID.randomUUID().toString(), STREAM_ID_LEN);
+  }
+
+  protected AbfsSession createAbfsSession(final AbfsOutputStreamContext abfsOutputStreamContext) {
+    AbfsOutputStreamHelper abfsOutputStreamHelper = IOStreamHelper.getOutputStreamHelper();
+    while(abfsOutputStreamHelper.shouldGoNext(abfsOutputStreamContext)) {
+      abfsOutputStreamHelper = abfsOutputStreamHelper.getNext();
+    }
+    if (abfsOutputStreamHelper.isAbfsSessionRequired()) {
+      AbfsSession abfsSession = new AbfsSession(WRITE_ON_OPTIMIZED_REST,
+          client, path, tracingContext);
+      if (abfsSession.isValid()) {
+        return abfsSession;
+      }
+    }
+
+    return null;
   }
 
   /**
@@ -307,7 +338,7 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
     outputStreamStatistics.writeCurrentBuffer();
     DataBlocks.BlockUploadData blockUploadData = blockToUpload.startUpload();
     final Future<Void> job =
-        executorService.submit(() -> {
+        executorServiceSubmit(() -> {
           AbfsPerfTracker tracker =
               client.getAbfsPerfTracker();
           try (AbfsPerfInfo perfInfo = new AbfsPerfInfo(tracker,
@@ -326,11 +357,14 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
              * mode - If it's append, flush or flush_close.
              * leaseId - The AbfsLeaseId for this request.
              */
+            final AbfsSessionData abfsSessionData = getAbfsSessionData();
             AppendRequestParameters reqParams = new AppendRequestParameters(
-                offset, 0, bytesLength, mode, false, leaseId);
-            AbfsRestOperation op =
-                client.append(path, blockUploadData.toByteArray(), reqParams,
-                    cachedSasToken.get(), new TracingContext(tracingContext));
+                offset, 0, bytesLength, mode, false, leaseId, abfsSessionData);
+            AbfsRestOperation op = executeWrite(path, blockUploadData.toByteArray(), reqParams,
+                cachedSasToken.get(), new TracingContext(tracingContext));
+            if (abfsSession != null && abfsSessionData != null) {
+              abfsSession.checkAndUpdateAbfsSession(op, abfsSessionData);
+            }
             cachedSasToken.update(op.getSasToken());
             perfInfo.registerResult(op.getResult());
             perfInfo.registerSuccess(true);
@@ -344,6 +378,10 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
 
     // Try to shrink the queue
     shrinkWriteOperationQueue();
+  }
+
+  protected Future<Void> executorServiceSubmit(final Callable callable) {
+    return executorService.submit(callable);
   }
 
   /**
@@ -506,6 +544,9 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
       if (hasActiveBlock()) {
         clearActiveBlock();
       }
+      if(abfsSession != null) {
+        abfsSession.stopSessionUpdate();
+      }
     }
     LOG.debug("Closing AbfsOutputStream : {}", this);
   }
@@ -571,11 +612,16 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
     position += bytesLength;
     AbfsPerfTracker tracker = client.getAbfsPerfTracker();
     try (AbfsPerfInfo perfInfo = new AbfsPerfInfo(tracker,
-        "writeCurrentBufferToService", "append")) {
+            "writeCurrentBufferToService", "append")) {
+      AbfsSessionData abfsSessionData
+          = getAbfsSessionData();
       AppendRequestParameters reqParams = new AppendRequestParameters(offset, 0,
-          bytesLength, APPEND_MODE, true, leaseId);
-      AbfsRestOperation op = client.append(path, uploadData.toByteArray(), reqParams,
-          cachedSasToken.get(), new TracingContext(tracingContext));
+          bytesLength, APPEND_MODE, true, leaseId, abfsSessionData);
+      AbfsRestOperation op = executeWrite(path, uploadData.toByteArray(), reqParams, cachedSasToken.get(),
+              new TracingContext(tracingContext));
+      if (abfsSession != null && abfsSessionData != null) {
+        abfsSession.checkAndUpdateAbfsSession(op, abfsSessionData);
+      }
       cachedSasToken.update(op.getSasToken());
       outputStreamStatistics.uploadSuccessful(bytesLength);
 
@@ -588,6 +634,13 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
     } finally {
       IOUtils.close(uploadData);
     }
+  }
+
+  private AbfsSessionData getAbfsSessionData() {
+    AbfsSessionData abfsSessionData = ((abfsSession  == null)
+        ? null
+        : abfsSession.getCurrentSessionData());
+    return abfsSessionData;
   }
 
   private synchronized void waitForAppendsToComplete() throws IOException {
@@ -676,6 +729,52 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
     }
   }
 
+  private AbfsRestOperation executeWrite(final String path,
+      final byte[] buffer,
+      AppendRequestParameters reqParams,
+      final String cachedSasToken,
+      TracingContext tracingContext) throws IOException {
+    AbfsOutputStreamHelper outputStreamHelper = IOStreamHelper.getOutputStreamHelper();
+    while(outputStreamHelper != null && outputStreamHelper.shouldGoNext(context)) {
+      outputStreamHelper = outputStreamHelper.getNext();
+    }
+    while (outputStreamHelper != null) {
+      try {
+        return executeWrite(path, buffer, reqParams, cachedSasToken,
+            tracingContext,
+            outputStreamHelper);
+      } catch (IOException e) {
+        if (e.getClass() == BlockHelperException.class) {
+          outputStreamHelper = outputStreamHelper.getBack();
+          outputStreamHelper.setNextAsInvalid();
+          continue;
+        }
+        if (e.getClass() == RequestBlockException.class) {
+          outputStreamHelper = outputStreamHelper.getBack();
+          continue;
+        }
+        throw e;
+      }
+    }
+    throw new IOException("No Communication technology could help");
+  }
+
+  @VisibleForTesting
+  protected AbfsRestOperation executeWrite(final String path,
+      final byte[] buffer,
+      final AppendRequestParameters reqParams,
+      final String cachedSasToken,
+      final TracingContext tracingContext,
+      final AbfsOutputStreamHelper outputStreamHelper)
+      throws AzureBlobFileSystemException {
+    return outputStreamHelper.operate(path, buffer, reqParams, cachedSasToken,
+        tracingContext, client);
+  }
+
+  protected AbfsSession getAbfsSession() {
+    return abfsSession;
+  }
+
   private static class WriteOperation {
     private final Future<Void> task;
     private final long startOffset;
@@ -748,6 +847,11 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
   @VisibleForTesting
   public boolean hasLease() {
     return lease != null;
+  }
+
+  @VisibleForTesting
+  protected AbfsClient getClient() {
+    return client;
   }
 
   /**

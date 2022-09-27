@@ -149,9 +149,9 @@ public final class TestAbfsOutputStream {
     out.hsync();
 
     AppendRequestParameters firstReqParameters = new AppendRequestParameters(
-        0, 0, WRITE_SIZE, APPEND_MODE, false, null);
+        0, 0, WRITE_SIZE, APPEND_MODE, false, null, null);
     AppendRequestParameters secondReqParameters = new AppendRequestParameters(
-        WRITE_SIZE, 0, 2 * WRITE_SIZE, APPEND_MODE, false, null);
+        WRITE_SIZE, 0, 2 * WRITE_SIZE, APPEND_MODE, false, null, null);
 
     verify(client, times(1)).append(
         eq(PATH), any(byte[].class), refEq(firstReqParameters), any(),
@@ -203,9 +203,9 @@ public final class TestAbfsOutputStream {
     out.close();
 
     AppendRequestParameters firstReqParameters = new AppendRequestParameters(
-        0, 0, BUFFER_SIZE, APPEND_MODE, false, null);
+        0, 0, BUFFER_SIZE, APPEND_MODE, false, null, null);
     AppendRequestParameters secondReqParameters = new AppendRequestParameters(
-        BUFFER_SIZE, 0, 5*WRITE_SIZE-BUFFER_SIZE, APPEND_MODE, false, null);
+        BUFFER_SIZE, 0, 5*WRITE_SIZE-BUFFER_SIZE, APPEND_MODE, false, null, null);
 
     verify(client, times(1)).append(
         eq(PATH), any(byte[].class), refEq(firstReqParameters), any(),
@@ -277,9 +277,9 @@ public final class TestAbfsOutputStream {
     out.close();
 
     AppendRequestParameters firstReqParameters = new AppendRequestParameters(
-        0, 0, BUFFER_SIZE, APPEND_MODE, false, null);
+        0, 0, BUFFER_SIZE, APPEND_MODE, false, null, null);
     AppendRequestParameters secondReqParameters = new AppendRequestParameters(
-        BUFFER_SIZE, 0, BUFFER_SIZE, APPEND_MODE, false, null);
+        BUFFER_SIZE, 0, BUFFER_SIZE, APPEND_MODE, false, null, null);
 
     verify(client, times(1)).append(
         eq(PATH), any(byte[].class), refEq(firstReqParameters), any(), any(TracingContext.class));
@@ -350,9 +350,9 @@ public final class TestAbfsOutputStream {
     Thread.sleep(1000);
 
     AppendRequestParameters firstReqParameters = new AppendRequestParameters(
-        0, 0, BUFFER_SIZE, APPEND_MODE, false, null);
+        0, 0, BUFFER_SIZE, APPEND_MODE, false, null, null);
     AppendRequestParameters secondReqParameters = new AppendRequestParameters(
-        BUFFER_SIZE, 0, BUFFER_SIZE, APPEND_MODE, false, null);
+        BUFFER_SIZE, 0, BUFFER_SIZE, APPEND_MODE, false, null, null);
 
     verify(client, times(1)).append(
         eq(PATH), any(byte[].class), refEq(firstReqParameters), any(), any(TracingContext.class));
@@ -405,9 +405,9 @@ public final class TestAbfsOutputStream {
     Thread.sleep(1000);
 
     AppendRequestParameters firstReqParameters = new AppendRequestParameters(
-        0, 0, BUFFER_SIZE, APPEND_MODE, true, null);
+        0, 0, BUFFER_SIZE, APPEND_MODE, true, null, null);
     AppendRequestParameters secondReqParameters = new AppendRequestParameters(
-        BUFFER_SIZE, 0, BUFFER_SIZE, APPEND_MODE, true, null);
+        BUFFER_SIZE, 0, BUFFER_SIZE, APPEND_MODE, true, null, null);
 
     verify(client, times(1)).append(
         eq(PATH), any(byte[].class), refEq(firstReqParameters), any(), any(TracingContext.class));
@@ -464,9 +464,9 @@ public final class TestAbfsOutputStream {
     out.hflush();
 
     AppendRequestParameters firstReqParameters = new AppendRequestParameters(
-        0, 0, BUFFER_SIZE, APPEND_MODE, false, null);
+        0, 0, BUFFER_SIZE, APPEND_MODE, false, null, null);
     AppendRequestParameters secondReqParameters = new AppendRequestParameters(
-        BUFFER_SIZE, 0, BUFFER_SIZE, APPEND_MODE, false, null);
+        BUFFER_SIZE, 0, BUFFER_SIZE, APPEND_MODE, false, null, null);
 
     verify(client, times(1)).append(
         eq(PATH), any(byte[].class), refEq(firstReqParameters), any(), any(TracingContext.class));
@@ -535,9 +535,9 @@ public final class TestAbfsOutputStream {
     Thread.sleep(1000);
 
     AppendRequestParameters firstReqParameters = new AppendRequestParameters(
-        0, 0, BUFFER_SIZE, APPEND_MODE, false, null);
+        0, 0, BUFFER_SIZE, APPEND_MODE, false, null, null);
     AppendRequestParameters secondReqParameters = new AppendRequestParameters(
-        BUFFER_SIZE, 0, BUFFER_SIZE, APPEND_MODE, false, null);
+        BUFFER_SIZE, 0, BUFFER_SIZE, APPEND_MODE, false, null, null);
 
     verify(client, times(1)).append(
         eq(PATH), any(byte[].class), refEq(firstReqParameters), any(), any(TracingContext.class));

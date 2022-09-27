@@ -73,7 +73,7 @@ public class TracingHeaderValidator implements Listener {
   }
 
   private void validateTracingHeader(String tracingContextHeader) {
-    String[] idList = tracingContextHeader.split(":");
+    String[] idList = tracingContextHeader.split(":", -1);
     validateBasicFormat(idList);
     if (format != TracingHeaderFormat.ALL_ID_FORMAT) {
       return;
@@ -93,7 +93,7 @@ public class TracingHeaderValidator implements Listener {
   private void validateBasicFormat(String[] idList) {
     if (format == TracingHeaderFormat.ALL_ID_FORMAT) {
       Assertions.assertThat(idList)
-          .describedAs("header should have 7 elements").hasSize(7);
+          .describedAs("header should have 8 elements").hasSize(8);
     } else if (format == TracingHeaderFormat.TWO_ID_FORMAT) {
       Assertions.assertThat(idList)
           .describedAs("header should have 2 elements").hasSize(2);

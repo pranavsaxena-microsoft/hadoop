@@ -21,6 +21,7 @@ package org.apache.hadoop.fs.azurebfs.services;
 import java.io.IOException;
 import java.util.Map;
 
+import org.junit.Assume;
 import org.junit.Test;
 
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -64,39 +65,40 @@ public class ITestAbfsInputStreamReadFooter extends ITestAbfsInputStream {
 
   private void testNumBackendCalls(boolean optimizeFooterRead)
       throws Exception {
+    String fileNamePrefix = methodName.getMethodName() + java.util.UUID.randomUUID().toString() + "_";
     for (int i = 1; i <= 4; i++) {
       int fileSize = i * ONE_MB;
       final AzureBlobFileSystem fs = getFileSystem(optimizeFooterRead,
           fileSize);
-      String fileName = methodName.getMethodName() + i;
+      String fileName = fileNamePrefix + i;
       byte[] fileContent = getRandomBytesArray(fileSize);
       Path testFilePath = createFileWithContent(fs, fileName, fileContent);
       int length = AbfsInputStream.FOOTER_SIZE;
-      try (FSDataInputStream iStream = fs.open(testFilePath)) {
-        byte[] buffer = new byte[length];
+      FSDataInputStream iStream = fs.open(testFilePath);
 
-        Map<String, Long> metricMap = getInstrumentationMap(fs);
-        long requestsMadeBeforeTest = metricMap
-            .get(CONNECTIONS_MADE.getStatName());
+      byte[] buffer = new byte[length];
 
-        iStream.seek(fileSize - 8);
-        iStream.read(buffer, 0, length);
+      Map<String, Long> metricMap = getInstrumentationMap(fs);
+      long requestsMadeBeforeTest = metricMap
+          .get(CONNECTIONS_MADE.getStatName());
 
-        iStream.seek(fileSize - (TEN * ONE_KB));
-        iStream.read(buffer, 0, length);
+      iStream.seek(fileSize - 8);
+      iStream.read(buffer, 0, length);
 
-        iStream.seek(fileSize - (TWENTY * ONE_KB));
-        iStream.read(buffer, 0, length);
+      iStream.seek(fileSize - (TEN * ONE_KB));
+      iStream.read(buffer, 0, length);
 
-        metricMap = getInstrumentationMap(fs);
-        long requestsMadeAfterTest = metricMap
-            .get(CONNECTIONS_MADE.getStatName());
+      iStream.seek(fileSize - (TWENTY * ONE_KB));
+      iStream.read(buffer, 0, length);
 
-        if (optimizeFooterRead) {
-          assertEquals(1, requestsMadeAfterTest - requestsMadeBeforeTest);
-        } else {
-          assertEquals(3, requestsMadeAfterTest - requestsMadeBeforeTest);
-        }
+      metricMap = getInstrumentationMap(fs);
+      long requestsMadeAfterTest = metricMap
+          .get(CONNECTIONS_MADE.getStatName());
+
+      if (optimizeFooterRead) {
+        assertEquals(1, requestsMadeAfterTest - requestsMadeBeforeTest);
+      } else {
+        assertEquals(3, requestsMadeAfterTest - requestsMadeBeforeTest);
       }
     }
   }
@@ -118,6 +120,7 @@ public class ITestAbfsInputStreamReadFooter extends ITestAbfsInputStream {
 
   @Test
   public void testSeekToBeforeFooterAndReadWithConfFalse() throws Exception {
+
     testSeekAndReadWithConf(false, SeekTo.BEFORE_FOOTER_START);
   }
 
@@ -153,11 +156,12 @@ public class ITestAbfsInputStreamReadFooter extends ITestAbfsInputStream {
 
   private void testSeekAndReadWithConf(boolean optimizeFooterRead,
       SeekTo seekTo) throws Exception {
+    String fileNamePrefix = methodName.getMethodName() + java.util.UUID.randomUUID().toString();
     for (int i = 2; i <= 6; i++) {
       int fileSize = i * ONE_MB;
       final AzureBlobFileSystem fs = getFileSystem(optimizeFooterRead,
           fileSize);
-      String fileName = methodName.getMethodName() + i;
+      String fileName = fileNamePrefix + i;
       byte[] fileContent = getRandomBytesArray(fileSize);
       Path testFilePath = createFileWithContent(fs, fileName, fileContent);
       seekReadAndTest(fs, testFilePath, seekPos(seekTo, fileSize), HUNDRED,
@@ -187,9 +191,11 @@ public class ITestAbfsInputStreamReadFooter extends ITestAbfsInputStream {
       throws IOException, NoSuchFieldException, IllegalAccessException {
     AbfsConfiguration conf = getAbfsStore(fs).getAbfsConfiguration();
     long actualContentLength = fileContent.length;
-    try (FSDataInputStream iStream = fs.open(testFilePath)) {
+    FSDataInputStream iStream = fs.open(testFilePath);
+
       AbfsInputStream abfsInputStream = (AbfsInputStream) iStream
           .getWrappedStream();
+
       long bufferSize = abfsInputStream.getBufferSize();
       seek(iStream, seekPos);
       byte[] buffer = new byte[length];
@@ -243,36 +249,45 @@ public class ITestAbfsInputStreamReadFooter extends ITestAbfsInputStream {
       }
       assertContentReadCorrectly(fileContent, from, (int) abfsInputStream.getLimit(),
           abfsInputStream.getBuffer(), testFilePath);
-    }
   }
 
   @Test
   public void testPartialReadWithNoData()
       throws Exception {
+    testPartialReadWithNoData(false);
+  }
+
+  public void testPartialReadWithNoData(boolean isMockFastpathTest)
+      throws Exception {
+    String fileNamePrefix = methodName.getMethodName() + java.util.UUID.randomUUID().toString();
     for (int i = 2; i <= 6; i++) {
       int fileSize = i * ONE_MB;
       final AzureBlobFileSystem fs = getFileSystem(true, fileSize);
-      String fileName = methodName.getMethodName() + i;
+      String fileName = fileNamePrefix + i;
       byte[] fileContent = getRandomBytesArray(fileSize);
       Path testFilePath = createFileWithContent(fs, fileName, fileContent);
       testPartialReadWithNoData(fs, testFilePath,
           fileSize - AbfsInputStream.FOOTER_SIZE, AbfsInputStream.FOOTER_SIZE,
-          fileContent);
+          fileContent, isMockFastpathTest);
     }
   }
 
   private void testPartialReadWithNoData(final FileSystem fs,
       final Path testFilePath, final int seekPos, final int length,
-      final byte[] fileContent)
+      final byte[] fileContent, boolean isMockFastpathTest)
       throws IOException, NoSuchFieldException, IllegalAccessException {
     FSDataInputStream iStream = fs.open(testFilePath);
+    if (isMockFastpathTest) {
+      iStream = openMockAbfsInputStream((AzureBlobFileSystem) fs, iStream);
+    }
+
     try {
       AbfsInputStream abfsInputStream = (AbfsInputStream) iStream
           .getWrappedStream();
       abfsInputStream = spy(abfsInputStream);
       doReturn(10).doReturn(10).doCallRealMethod().when(abfsInputStream)
           .readRemote(anyLong(), any(), anyInt(), anyInt(),
-              any(TracingContext.class));
+              any(TracingContext.class), any(AbfsInputStreamRequestContext.class));
 
       iStream = new FSDataInputStream(abfsInputStream);
       seek(iStream, seekPos);
@@ -290,12 +305,12 @@ public class ITestAbfsInputStreamReadFooter extends ITestAbfsInputStream {
   }
 
   @Test
-  public void testPartialReadWithSomeDat()
-      throws Exception {
+  public void testPartialReadWithSomeDat() throws Exception {
+    String fileNamePrefix = methodName.getMethodName() + java.util.UUID.randomUUID().toString();
     for (int i = 3; i <= 6; i++) {
       int fileSize = i * ONE_MB;
       final AzureBlobFileSystem fs = getFileSystem(true, fileSize);
-      String fileName = methodName.getMethodName() + i;
+      String fileName = fileNamePrefix + i;
       byte[] fileContent = getRandomBytesArray(fileSize);
       Path testFilePath = createFileWithContent(fs, fileName, fileContent);
       testPartialReadWithSomeDat(fs, testFilePath,
@@ -309,6 +324,7 @@ public class ITestAbfsInputStreamReadFooter extends ITestAbfsInputStream {
       final byte[] fileContent)
       throws IOException, NoSuchFieldException, IllegalAccessException {
     FSDataInputStream iStream = fs.open(testFilePath);
+
     try {
       AbfsInputStream abfsInputStream = (AbfsInputStream) iStream
           .getWrappedStream();
@@ -322,7 +338,7 @@ public class ITestAbfsInputStreamReadFooter extends ITestAbfsInputStream {
       doReturn(10).doReturn(secondReturnSize).doCallRealMethod()
           .when(abfsInputStream)
           .readRemote(anyLong(), any(), anyInt(), anyInt(),
-              any(TracingContext.class));
+              any(TracingContext.class), any(AbfsInputStreamRequestContext.class));
 
       iStream = new FSDataInputStream(abfsInputStream);
       seek(iStream, seekPos);

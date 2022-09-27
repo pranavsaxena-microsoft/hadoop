@@ -71,7 +71,7 @@ class ReadBufferWorker implements Runnable {
               // read-ahead buffer size, make sure a valid length is passed
               // for remote read
               Math.min(buffer.getRequestedLength(), buffer.getBuffer().length),
-                  buffer.getTracingContext());
+                  buffer.getTracingContext(), buffer.getAbfsInputStreamRequestContext());
 
           bufferManager.doneReading(buffer, ReadBufferStatus.AVAILABLE, bytesRead);  // post result back to ReadBufferManager
         } catch (IOException ex) {

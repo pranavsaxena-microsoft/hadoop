@@ -20,13 +20,18 @@ package org.apache.hadoop.fs.azurebfs.services;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.concurrent.ExecutionException;
+import java.util.Optional;
 
+import org.junit.After;
+import org.junit.Assume;
 import org.junit.Rule;
 import org.junit.rules.TestName;
 import org.junit.Test;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FutureDataInputStreamBuilder;
+import org.apache.hadoop.fs.impl.OpenFileParameters;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.azurebfs.AbstractAbfsIntegrationTest;
 import org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys;
@@ -45,6 +50,11 @@ public class ITestAbfsPositionedRead extends AbstractAbfsIntegrationTest {
   public ITestAbfsPositionedRead() throws Exception {
   }
 
+  @After
+  public void tearDown() throws Exception {
+    super.teardown();
+  }
+
   @Test
   public void testPositionedRead() throws IOException {
     describe("Testing positioned reads in AbfsInputStream");
@@ -54,55 +64,55 @@ public class ITestAbfsPositionedRead extends AbstractAbfsIntegrationTest {
     ContractTestUtils.writeDataset(getFileSystem(), dest, data, data.length,
         TEST_FILE_DATA_SIZE, true);
     int bytesToRead = 10;
-    try (FSDataInputStream inputStream = getFileSystem().open(dest)) {
-      assertTrue(
-          "unexpected stream type "
-              + inputStream.getWrappedStream().getClass().getSimpleName(),
-          inputStream.getWrappedStream() instanceof AbfsInputStream);
-      byte[] readBuffer = new byte[bytesToRead];
-      int readPos = 0;
-      Assertions
-          .assertThat(inputStream.read(readPos, readBuffer, 0, bytesToRead))
-          .describedAs(
-              "AbfsInputStream pread did not read the correct number of bytes")
-          .isEqualTo(bytesToRead);
-      Assertions.assertThat(readBuffer)
-          .describedAs("AbfsInputStream pread did not read correct data")
-          .containsExactly(
-              Arrays.copyOfRange(data, readPos, readPos + bytesToRead));
-      // Read only 10 bytes from offset 0. But by default it will do the seek
-      // and read where the entire 100 bytes get read into the
-      // AbfsInputStream buffer.
-      Assertions
-          .assertThat(Arrays.copyOfRange(
-              ((AbfsInputStream) inputStream.getWrappedStream()).getBuffer(), 0,
-              TEST_FILE_DATA_SIZE))
-          .describedAs(
-              "AbfsInputStream pread did not read more data into its buffer")
-          .containsExactly(data);
-      // Check statistics
-      assertStatistics(inputStream.getIOStatistics(), bytesToRead, 1, 1,
-          TEST_FILE_DATA_SIZE);
+    FSDataInputStream inputStream = getFileSystem().open(dest);
 
-      readPos = 50;
-      Assertions
-          .assertThat(inputStream.read(readPos, readBuffer, 0, bytesToRead))
-          .describedAs(
-              "AbfsInputStream pread did not read the correct number of bytes")
-          .isEqualTo(bytesToRead);
-      Assertions.assertThat(readBuffer)
-          .describedAs("AbfsInputStream pread did not read correct data")
-          .containsExactly(
-              Arrays.copyOfRange(data, readPos, readPos + bytesToRead));
-      // Check statistics
-      assertStatistics(inputStream.getIOStatistics(), 2 * bytesToRead, 2, 1,
-          TEST_FILE_DATA_SIZE);
-      // Did positioned read from pos 0 and then 50 but the stream pos should
-      // remain at 0.
-      Assertions.assertThat(inputStream.getPos())
-          .describedAs("AbfsInputStream positioned reads moved stream position")
-          .isEqualTo(0);
-    }
+    assertTrue(
+        "unexpected stream type "
+            + inputStream.getWrappedStream().getClass().getSimpleName(),
+        inputStream.getWrappedStream() instanceof AbfsInputStream);
+    byte[] readBuffer = new byte[bytesToRead];
+    int readPos = 0;
+    Assertions
+        .assertThat(inputStream.read(readPos, readBuffer, 0, bytesToRead))
+        .describedAs(
+            "AbfsInputStream pread did not read the correct number of bytes")
+        .isEqualTo(bytesToRead);
+    Assertions.assertThat(readBuffer)
+        .describedAs("AbfsInputStream pread did not read correct data")
+        .containsExactly(
+            Arrays.copyOfRange(data, readPos, readPos + bytesToRead));
+    // Read only 10 bytes from offset 0. But by default it will do the seek
+    // and read where the entire 100 bytes get read into the
+    // AbfsInputStream buffer.
+    Assertions
+        .assertThat(Arrays.copyOfRange(
+            ((AbfsInputStream) inputStream.getWrappedStream()).getBuffer(), 0,
+            TEST_FILE_DATA_SIZE))
+        .describedAs(
+            "AbfsInputStream pread did not read more data into its buffer")
+        .containsExactly(data);
+    // Check statistics
+    assertStatistics(inputStream.getIOStatistics(), bytesToRead, 1, 1,
+        TEST_FILE_DATA_SIZE);
+
+    readPos = TEST_FILE_DATA_SIZE / 2;
+    Assertions
+        .assertThat(inputStream.read(readPos, readBuffer, 0, bytesToRead))
+        .describedAs(
+            "AbfsInputStream pread did not read the correct number of bytes")
+        .isEqualTo(bytesToRead);
+    Assertions.assertThat(readBuffer)
+        .describedAs("AbfsInputStream pread did not read correct data")
+        .containsExactly(
+            Arrays.copyOfRange(data, readPos, readPos + bytesToRead));
+    // Check statistics
+    assertStatistics(inputStream.getIOStatistics(), 2 * bytesToRead, 2, 1,
+        TEST_FILE_DATA_SIZE);
+    // Did positioned read from pos 0 and then 50 but the stream pos should
+    // remain at 0.
+    Assertions.assertThat(inputStream.getPos())
+        .describedAs("AbfsInputStream positioned reads moved stream position")
+        .isEqualTo(0);
   }
 
   private void assertStatistics(IOStatistics ioStatistics,
@@ -137,10 +147,16 @@ public class ITestAbfsPositionedRead extends AbstractAbfsIntegrationTest {
     byte[] data = ContractTestUtils.dataset(TEST_FILE_DATA_SIZE, 'a', 'z');
     ContractTestUtils.writeDataset(getFileSystem(), dest, data, data.length,
         TEST_FILE_DATA_SIZE, true);
+
     FutureDataInputStreamBuilder builder = getFileSystem().openFile(dest);
     builder.opt(ConfigurationKeys.FS_AZURE_BUFFERED_PREAD_DISABLE, true);
     FSDataInputStream inputStream = null;
     try {
+
+      Configuration conf = getFileSystem().getConf();
+      conf.setBoolean(ConfigurationKeys.FS_AZURE_BUFFERED_PREAD_DISABLE, true);
+      OpenFileParameters param = new OpenFileParameters();
+      Optional<OpenFileParameters> opt = Optional.ofNullable(param.withOptions(conf));
       inputStream = builder.build().get();
     } catch (IllegalArgumentException | UnsupportedOperationException
         | InterruptedException | ExecutionException e) {

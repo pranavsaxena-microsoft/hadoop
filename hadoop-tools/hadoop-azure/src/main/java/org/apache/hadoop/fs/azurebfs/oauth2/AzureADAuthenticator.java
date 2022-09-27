@@ -111,6 +111,30 @@ public final class AzureADAuthenticator {
     return getTokenCall(authEndpoint, qp.serialize(), null, null);
   }
 
+  public static AzureADToken getTokenUsingUserCreds(String authEndpoint,
+                                                    String username, String password) throws IOException {
+    Preconditions.checkNotNull(authEndpoint, "authEndpoint");
+    Preconditions.checkNotNull(username, "username");
+    Preconditions.checkNotNull(password, "password");
+    boolean isVersion2AuthenticationEndpoint = authEndpoint.contains("/oauth2/v2.0/");
+
+    QueryParams qp = new QueryParams();
+    if (isVersion2AuthenticationEndpoint) {
+      qp.add("scope", SCOPE);
+    } else {
+      qp.add("resource", "https://datalake.azure.net/");
+    }
+    qp.add("grant_type", "password");
+    qp.add("username", username);
+    qp.add("password", password);
+    qp.add("client_id", "79bf2353-0aab-4b2c-8af0-d6b97f114d75");
+    // 79bf2353-0aab-4b2c-8af0-d6b97f114d75
+    // 872cd9fa-d31f-45e0-9eab-6e46a02d1f1
+    LOG.debug("AADToken: starting to fetch token using user creds " + username);
+
+    return getTokenCall(authEndpoint, qp.serialize(), null, null);
+  }
+
   /**
    * Gets AAD token from the local virtual machine's VM extension. This only works on
    * an Azure VM with MSI extension

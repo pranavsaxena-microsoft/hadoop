@@ -54,6 +54,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.hadoop.fs.azurebfs.contracts.exceptions.InvalidConfigurationValueException;
 import org.apache.hadoop.classification.VisibleForTesting;
 import org.apache.hadoop.util.Preconditions;
 import org.apache.hadoop.thirdparty.com.google.common.base.Strings;
@@ -234,7 +235,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     this.azureAtomicRenameDirSet = new HashSet<>(Arrays.asList(
         abfsConfiguration.getAzureAtomicRenameDirs().split(AbfsHttpConstants.COMMA)));
     updateInfiniteLeaseDirs();
-    this.authType = abfsConfiguration.getAuthType(accountName);
+    this.authType = abfsConfiguration.getAuthType();
     boolean usingOauth = (authType == AuthType.OAuth);
     boolean useHttps = (usingOauth || abfsConfiguration.isHttpsAlwaysUsed()) ? true : abfsStoreBuilder.isSecureScheme;
     this.abfsPerfTracker = new AbfsPerfTracker(fileSystemName, accountName, this.abfsConfiguration);
@@ -679,14 +680,14 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
    * @param tracingContext instance of TracingContext for this AbfsOutputStream.
    * @return AbfsOutputStreamContext instance with the desired parameters.
    */
-  private AbfsOutputStreamContext populateAbfsOutputStreamContext(
+  protected AbfsOutputStreamContext populateAbfsOutputStreamContext(
       boolean isAppendBlob,
       AbfsLease lease,
       AbfsClient client,
       FileSystem.Statistics statistics,
       String path,
       long position,
-      TracingContext tracingContext) {
+      TracingContext tracingContext) throws InvalidConfigurationValueException {
     int bufferSize = abfsConfiguration.getWriteBufferSize();
     if (isAppendBlob && bufferSize > FileSystemConfigurations.APPENDBLOB_MAX_WRITE_BUFFER_SIZE) {
       bufferSize = FileSystemConfigurations.APPENDBLOB_MAX_WRITE_BUFFER_SIZE;
@@ -701,6 +702,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
             .withWriteMaxConcurrentRequestCount(abfsConfiguration.getWriteMaxConcurrentRequestCount())
             .withMaxWriteRequestsToQueue(abfsConfiguration.getMaxWriteRequestsToQueue())
             .withLease(lease)
+            .withDefaultOptimizedRest(abfsConfiguration.isWriteByDefaultOnOptimizedRest())
             .withBlockFactory(blockFactory)
             .withBlockOutputActiveBlocks(blockOutputActiveBlocks)
             .withClient(client)
@@ -792,15 +794,28 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       perfInfo.registerSuccess(true);
 
       // Add statistics for InputStream
-      return new AbfsInputStream(client, statistics, relativePath,
-          contentLength, populateAbfsInputStreamContext(
-          parameters.map(OpenFileParameters::getOptions)),
+      return createAbfsInputStreamInstance(client, statistics,
+              relativePath, contentLength,
+              populateAbfsInputStreamContext(
+                  parameters.map(OpenFileParameters::getOptions)),
           eTag, tracingContext);
     }
   }
 
-  private AbfsInputStreamContext populateAbfsInputStreamContext(
-      Optional<Configuration> options) {
+  @VisibleForTesting
+  protected AbfsInputStream createAbfsInputStreamInstance(final AbfsClient client,
+      final FileSystem.Statistics statistics,
+      final String path,
+      final long contentLength,
+      final AbfsInputStreamContext abfsInputStreamContext,
+      final String eTag,
+      TracingContext tracingContext) {
+    return new AbfsInputStream(client, statistics, path, contentLength,
+        abfsInputStreamContext, eTag, tracingContext);
+  }
+
+  private AbfsInputStreamContext populateAbfsInputStreamContext(Optional<Configuration> options)
+      throws InvalidConfigurationValueException {
     boolean bufferedPreadDisabled = options
         .map(c -> c.getBoolean(FS_AZURE_BUFFERED_PREAD_DISABLE, false))
         .orElse(false);
@@ -816,6 +831,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
                 abfsConfiguration.shouldReadBufferSizeAlways())
             .withReadAheadBlockSize(abfsConfiguration.getReadAheadBlockSize())
             .withBufferedPreadDisabled(bufferedPreadDisabled)
+            .withDefaultOptimizedRest(abfsConfiguration.isReadByDefaultOnOptimizedRest())
             .build();
   }
 
@@ -1104,7 +1120,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
             tracingContext);
         perfInfo.registerResult(op.getResult());
         continuation = op.getResult().getResponseHeader(HttpHeaderConfigurations.X_MS_CONTINUATION);
-        ListResultSchema retrievedSchema = op.getResult().getListResultSchema();
+        ListResultSchema retrievedSchema = op.getListResultSchema();
         if (retrievedSchema == null) {
           throw new AbfsRestOperationException(
                   AzureServiceErrorCode.PATH_NOT_FOUND.getStatusCode(),
@@ -1951,6 +1967,10 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     return true;
   }
 
+  @VisibleForTesting
+  AbfsCounters getAbfsCounters() {
+    return this.abfsCounters;
+  }
   /**
    * Get the etag header from a response, stripping any quotations.
    * see: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/ETag

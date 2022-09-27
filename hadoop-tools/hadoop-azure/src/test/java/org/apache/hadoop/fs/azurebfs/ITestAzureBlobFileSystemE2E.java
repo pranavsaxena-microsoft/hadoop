@@ -64,7 +64,7 @@ public class ITestAzureBlobFileSystemE2E extends AbstractAbfsIntegrationTest {
     final Path testFilePath = path(methodName.getMethodName());
     testWriteOneByteToFile(testFilePath);
     try(FSDataInputStream inputStream = fs.open(testFilePath,
-        TEST_DEFAULT_BUFFER_SIZE)) {
+            TEST_DEFAULT_BUFFER_SIZE)) {
       assertEquals(TEST_BYTE, inputStream.read());
     }
   }
@@ -88,14 +88,14 @@ public class ITestAzureBlobFileSystemE2E extends AbstractAbfsIntegrationTest {
 
     try (FSDataInputStream readStream = fs.open(testFilePath)) {
       assertEquals(readBufferSize,
-          readStream.read(bytesToRead, 0, readBufferSize));
+              readStream.read(bytesToRead, 0, readBufferSize));
       try (FSDataOutputStream writeStream = fs.create(testFilePath)) {
         writeStream.write(b);
         writeStream.flush();
       }
 
       assertEquals(readBufferSize,
-          readStream.read(bytesToRead, 0, readBufferSize));
+              readStream.read(bytesToRead, 0, readBufferSize));
     }
   }
 

@@ -37,6 +37,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.azurebfs.contracts.services.ListResultEntrySchema;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AbfsRestOperationException;
 import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
+import org.apache.hadoop.fs.azurebfs.services.AbfsHttpConnection;
 import org.apache.hadoop.fs.azurebfs.services.AbfsRestOperation;
 
 import static org.apache.hadoop.fs.CommonConfigurationKeysPublic.FS_DEFAULT_NAME_KEY;
@@ -137,9 +138,9 @@ public final class ITestAbfsClient extends AbstractAbfsIntegrationTest {
 
   private List<ListResultEntrySchema> listPath(String directory)
       throws IOException {
-    return getFileSystem().getAbfsClient()
+    return ((AbfsHttpConnection) (getFileSystem().getAbfsClient()
         .listPath(directory, false, getListMaxResults(), null,
-            getTestTracingContext(getFileSystem(), true)).getResult()
+            getTestTracingContext(getFileSystem(), true)).getResult()))
         .getListResultSchema().paths();
   }
 

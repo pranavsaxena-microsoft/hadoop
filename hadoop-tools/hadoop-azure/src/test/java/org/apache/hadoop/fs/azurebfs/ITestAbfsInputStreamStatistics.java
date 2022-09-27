@@ -19,18 +19,25 @@
 package org.apache.hadoop.fs.azurebfs;
 
 import java.io.IOException;
+import java.util.Optional;
 
 import org.assertj.core.api.Assertions;
+import org.junit.After;
+import org.junit.Assume;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.hadoop.conf.Configuration;
+
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.azurebfs.services.AbfsInputStream;
 import org.apache.hadoop.fs.azurebfs.services.AbfsInputStreamContext;
 import org.apache.hadoop.fs.azurebfs.services.AbfsInputStreamStatisticsImpl;
 import org.apache.hadoop.fs.azurebfs.services.AbfsOutputStream;
 import org.apache.hadoop.fs.azurebfs.services.AbfsRestOperation;
+import org.apache.hadoop.fs.azurebfs.services.MockAbfsInputStream;
 import org.apache.hadoop.fs.statistics.IOStatistics;
 import org.apache.hadoop.fs.statistics.StoreStatisticNames;
 import org.apache.hadoop.io.IOUtils;
@@ -48,6 +55,11 @@ public class ITestAbfsInputStreamStatistics
   private static final int ONE_KB = 1024;
   private static final int CUSTOM_BLOCK_BUFFER_SIZE = 4 * 1024;
   private byte[] defBuffer = new byte[ONE_MB];
+
+  @After
+  public void tearDown() throws Exception {
+    super.teardown();
+  }
 
   public ITestAbfsInputStreamStatistics() throws Exception {
   }
@@ -113,8 +125,10 @@ public class ITestAbfsInputStreamStatistics
       //Writing a default buffer in a file.
       out.write(defBuffer);
       out.hflush();
+
       in = abfss.openFileForRead(seekStatPath, fs.getFsStatistics(),
           getTestTracingContext(fs, false));
+
 
       /*
        * Writing 1MB buffer to the file, this would make the fCursor(Current
@@ -205,6 +219,7 @@ public class ITestAbfsInputStreamStatistics
        */
       out.write(defBuffer);
       out.hflush();
+
       in = abfss.openFileForRead(readStatPath, fs.getFsStatistics(),
           getTestTracingContext(fs, false));
 
@@ -381,6 +396,20 @@ public class ITestAbfsInputStreamStatistics
   /**
    * Testing time taken by AbfsInputStream to complete a GET request.
    */
+  private AbfsInputStream getMockInputStream(AzureBlobFileSystem fs,
+      Path testFilePath) throws IOException {
+    Path qualifiedPath = makeQualified(testFilePath);
+    AzureBlobFileSystemStore store = fs.getAbfsStore();
+    MockAzureBlobFileSystemStore mockStore = new MockAzureBlobFileSystemStore(
+        fs.getUri(), fs.isSecureScheme(), fs.getConf(),
+        store.getAbfsCounters());
+    MockAbfsInputStream inputStream
+        = (MockAbfsInputStream) mockStore.openFileForRead(qualifiedPath,
+        Optional.empty(), fs.getFsStatistics(),
+        getTestTracingContext(fs, false));
+    return inputStream;
+  }
+
   @Test
   public void testActionHttpGetRequest() throws IOException {
     describe("Test to check the correct value of Time taken by http get "
@@ -395,10 +424,13 @@ public class ITestAbfsInputStreamStatistics
           actionHttpGetRequestPath);
       abfsOutputStream.write('a');
       abfsOutputStream.hflush();
-
+      byte[] b = new byte[1];
+      b[0] = 'a';
       abfsInputStream =
-          abfss.openFileForRead(actionHttpGetRequestPath,
-              fs.getFsStatistics(), getTestTracingContext(fs, false));
+            abfss.openFileForRead(actionHttpGetRequestPath,
+                fs.getFsStatistics(),
+                getTestTracingContext(fs, false));
+
       abfsInputStream.read();
       IOStatistics ioStatistics = extractStatistics(fs);
       LOG.info("AbfsInputStreamStats info: {}",

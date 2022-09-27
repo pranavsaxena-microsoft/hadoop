@@ -49,6 +49,8 @@ public class AbfsInputStreamContext extends AbfsStreamContext {
 
   private boolean bufferedPreadDisabled;
 
+  private boolean defaultConnectionOnOptimizedRest;
+
   public AbfsInputStreamContext(final long sasTokenRenewPeriodForStreamsInSeconds) {
     super(sasTokenRenewPeriodForStreamsInSeconds);
   }
@@ -114,6 +116,12 @@ public class AbfsInputStreamContext extends AbfsStreamContext {
     return this;
   }
 
+  public AbfsInputStreamContext withDefaultOptimizedRest(
+          final boolean isOptimizedRestDefault) {
+    this.defaultConnectionOnOptimizedRest = isOptimizedRestDefault;
+    return this;
+  }
+
   public AbfsInputStreamContext build() {
     if (readBufferSize > readAheadBlockSize) {
       LOG.debug(
@@ -167,5 +175,9 @@ public class AbfsInputStreamContext extends AbfsStreamContext {
 
   public boolean isBufferedPreadDisabled() {
     return bufferedPreadDisabled;
+  }
+
+  public boolean isDefaultConnectionOnOptimizedRest() {
+    return defaultConnectionOnOptimizedRest;
   }
 }

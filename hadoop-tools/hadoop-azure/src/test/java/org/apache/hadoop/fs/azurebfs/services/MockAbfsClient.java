@@ -1,0 +1,186 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.hadoop.fs.azurebfs.services;
+
+import java.io.IOException;
+import java.net.URL;
+import java.util.List;
+import java.util.concurrent.Callable;
+
+import org.mockito.Mockito;
+
+import org.apache.hadoop.fs.azurebfs.AbfsConfiguration;
+import org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations;
+import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemException;
+import org.apache.hadoop.fs.azurebfs.contracts.services.AppendRequestParameters;
+import org.apache.hadoop.fs.azurebfs.contracts.services.ReadRequestParameters;
+import org.apache.hadoop.fs.azurebfs.extensions.SASTokenProvider;
+import org.apache.hadoop.fs.azurebfs.oauth2.AccessTokenProvider;
+import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
+
+import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.HTTP_METHOD_GET;
+import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.HTTP_METHOD_PUT;
+import static org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations.X_MS_FASTPATH_SESSION_EXPIRY;
+
+public class MockAbfsClient extends AbfsClient {
+  private int errFpRestStatus = 0;
+  private boolean mockFpRestRequestException = false;
+  private boolean mockFpRestConnectionException = false;
+
+  public MockAbfsClient(final URL baseUrl,
+      final SharedKeyCredentials sharedKeyCredentials,
+      final AbfsConfiguration abfsConfiguration,
+      final AccessTokenProvider tokenProvider,
+      final AbfsClientContext abfsClientContext) throws IOException {
+    super(baseUrl, sharedKeyCredentials, abfsConfiguration, tokenProvider,
+        abfsClientContext);
+  }
+
+  public MockAbfsClient(final URL baseUrl,
+      final SharedKeyCredentials sharedKeyCredentials,
+      final AbfsConfiguration abfsConfiguration,
+      final SASTokenProvider sasTokenProvider,
+      final AbfsClientContext abfsClientContext) throws IOException {
+    super(baseUrl, sharedKeyCredentials, abfsConfiguration, sasTokenProvider,
+        abfsClientContext);
+  }
+
+  public MockAbfsClient(final AbfsClient client) throws IOException {
+    super(client.getBaseUrl(), client.getSharedKeyCredentials(),
+        client.getAbfsConfiguration(), client.getTokenProvider(),
+        client.getAbfsClientContext());
+  }
+
+  @Override
+  protected AbfsRestOperation getAbfsGetRestOperation(final byte[] buffer,
+      final ReadRequestParameters reqParams,
+      final List<AbfsHttpHeader> requestHeaders,
+      final String sasTokenForReuse,
+      final URL url,
+      final AbfsRestOperationType opType, final Callable headerUpDownCallable) {
+    if (AbfsRestOperationType.OptimizedRead.equals(opType)) {
+      final MockAbfsRestOperation op = new MockAbfsRestOperation(opType, this,
+          HTTP_METHOD_GET, url,
+          requestHeaders, buffer, reqParams.getBufferOffset(),
+          reqParams.getReadLength(), sasTokenForReuse, reqParams, headerUpDownCallable);
+      signalErrorConditionToMockRestOp(op);
+      return op;
+    }
+    return super.getAbfsGetRestOperation(buffer, reqParams, requestHeaders,
+        sasTokenForReuse, url, opType, headerUpDownCallable);
+  }
+
+  @Override
+  protected AbfsRestOperation getAbfsPutRestOperation(final byte[] buffer,
+      final AppendRequestParameters reqParams,
+      final List<AbfsHttpHeader> requestHeaders,
+      final AbfsRestOperationType opType,
+      final String sasTokenForReuse,
+      final URL url) {
+    if(AbfsRestOperationType.OptimizedAppend.equals(opType)) {
+      final MockAbfsRestOperation op = new MockAbfsRestOperation(opType, this, HTTP_METHOD_PUT, url, requestHeaders, buffer,
+          reqParams.getoffset(), reqParams.getLength(), sasTokenForReuse, reqParams);
+      signalErrorConditionToMockRestOp(op);
+      return op;
+    }
+    return new MockAbfsRestOperation(opType, this, HTTP_METHOD_PUT, url, requestHeaders, buffer,
+        reqParams.getoffset(), reqParams.getLength(), sasTokenForReuse, reqParams);
+  }
+
+
+  public AbfsCounters getAbfsCounters() {
+    return super.getAbfsCounters();
+  }
+
+  private void signalErrorConditionToMockRestOp(MockAbfsRestOperation op) {
+
+    if (errFpRestStatus != 0) {
+      op.induceFpRestError(errFpRestStatus);
+    }
+
+    if (mockFpRestRequestException) {
+      op.induceFpRestRequestException();
+    }
+
+    if (mockFpRestConnectionException) {
+      op.induceFpRestConnectionException();
+    }
+  }
+
+  public void induceFpRestError(int httpStatus) {
+    errFpRestStatus = httpStatus;
+  }
+
+  public void induceFpRestRequestException() {
+    mockFpRestRequestException = true;
+  }
+
+  public void induceFpRestConnectionException() {
+    mockFpRestConnectionException = true;
+  }
+
+  @Override
+  public AbfsRestOperation getWriteSessionToken(final String path,
+      final TracingContext tracingContext) throws AzureBlobFileSystemException {
+    final MockAbfsRestOperation op = Mockito.mock(MockAbfsRestOperation.class);
+    final AbfsHttpOperation abfsHttpOperation = Mockito.mock(AbfsHttpOperation.class);
+
+    Mockito.doReturn(abfsHttpOperation).when(op).getResult();
+    Mockito.doReturn("sessionToken").when(abfsHttpOperation).getResponseHeader(
+        HttpHeaderConfigurations.X_MS_FASTPATH_SESSION_DATA);
+    Mockito.doReturn("Mon, 3 Jun 2024 11:05:30 GMT")
+        .when(abfsHttpOperation).getResponseHeader(X_MS_FASTPATH_SESSION_EXPIRY);
+    Mockito.doAnswer(invoke -> {
+      byte[] buffer = invoke.getArgument(0);
+      for(int i=0; i < buffer.length; i++) {
+        buffer[i] = 0;
+      }
+      return null;
+    }).when(abfsHttpOperation).getResponseContentBuffer(Mockito.any());
+    Mockito.doReturn("10").when(abfsHttpOperation).getResponseHeader(
+        HttpHeaderConfigurations.CONTENT_LENGTH);
+    return op;
+  }
+
+  @Override
+  public AbfsRestOperation getReadSessionToken(final String path,
+      final String eTag,
+      final TracingContext tracingContext) throws AzureBlobFileSystemException {
+    final MockAbfsRestOperation op = Mockito.mock(MockAbfsRestOperation.class);
+    final AbfsHttpOperation abfsHttpOperation = Mockito.mock(AbfsHttpOperation.class);
+
+    Mockito.doReturn(abfsHttpOperation).when(op).getResult();
+    Mockito.doReturn("sessionToken").when(abfsHttpOperation).getResponseHeader(
+        HttpHeaderConfigurations.X_MS_FASTPATH_SESSION_DATA);
+    Mockito.doReturn("Mon, 3 Jun 2024 11:05:30 GMT")
+        .when(abfsHttpOperation).getResponseHeader(X_MS_FASTPATH_SESSION_EXPIRY);
+    Mockito.doAnswer(invoke -> {
+      byte[] buffer = invoke.getArgument(0);
+      for(int i=0; i < buffer.length; i++) {
+        buffer[i] = 0;
+      }
+      return null;
+    }).when(abfsHttpOperation).getResponseContentBuffer(Mockito.any());
+    Mockito.doReturn("10").when(abfsHttpOperation).getResponseHeader(
+        HttpHeaderConfigurations.CONTENT_LENGTH);
+    return op;
+  }
+
+
+}

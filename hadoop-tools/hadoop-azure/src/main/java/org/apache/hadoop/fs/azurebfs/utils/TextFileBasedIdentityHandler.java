@@ -116,7 +116,7 @@ public class TextFileBasedIdentityHandler implements IdentityHandler {
    * @return Local User name, if no name found or on exception, returns empty string.
    * */
   public synchronized String lookupForLocalUserIdentity(String originalIdentity) throws IOException {
-    if(Strings.isNullOrEmpty(originalIdentity)) {
+    if (Strings.isNullOrEmpty(originalIdentity)) {
       return EMPTY_STRING;
     }
 
@@ -141,7 +141,7 @@ public class TextFileBasedIdentityHandler implements IdentityHandler {
    * @return Local Security group name, if no name found or on exception, returns empty string.
    * */
   public synchronized String lookupForLocalGroupIdentity(String originalIdentity) throws IOException {
-    if(Strings.isNullOrEmpty(originalIdentity)) {
+    if (Strings.isNullOrEmpty(originalIdentity)) {
       return EMPTY_STRING;
     }
 

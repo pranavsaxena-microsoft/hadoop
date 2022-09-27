@@ -38,8 +38,8 @@ import org.apache.hadoop.fs.statistics.IOStatisticsSource;
 import static org.apache.hadoop.fs.CommonConfigurationKeys.IOSTATISTICS_LOGGING_LEVEL_INFO;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.APPENDBLOB_MAX_WRITE_BUFFER_SIZE;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.DEFAULT_READ_BUFFER_SIZE;
-import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.MAX_BUFFER_SIZE;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.MIN_BUFFER_SIZE;
+import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.ONE_MB;
 
 /**
  * Test read, write and seek.
@@ -49,13 +49,15 @@ import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.M
 @RunWith(Parameterized.class)
 public class ITestAbfsReadWriteAndSeek extends AbstractAbfsScaleTest {
   private static final String TEST_PATH = "/testfile";
+  private static final int READ_SIZE_ABOVE_BUFFER_SIZE = 17 * ONE_MB;
 
   @Parameterized.Parameters(name = "Size={0}")
   public static Iterable<Object[]> sizes() {
     return Arrays.asList(new Object[][]{{MIN_BUFFER_SIZE},
         {DEFAULT_READ_BUFFER_SIZE},
         {APPENDBLOB_MAX_WRITE_BUFFER_SIZE},
-        {MAX_BUFFER_SIZE}});
+        {READ_SIZE_ABOVE_BUFFER_SIZE}});
+        //{MAX_BUFFER_SIZE}}); - To be reenabled by https://issues.apache.org/jira/browse/HADOOP-17852
   }
 
   private final int size;
@@ -65,7 +67,7 @@ public class ITestAbfsReadWriteAndSeek extends AbstractAbfsScaleTest {
   }
 
   @Test
-  public void testReadAndWriteWithDifferentBufferSizesAndSeek() throws Exception {
+  public void testReadWriteWithDiffBuffSizesAndSeek() throws Exception {
     testReadWriteAndSeek(size);
   }
 
@@ -88,7 +90,7 @@ public class ITestAbfsReadWriteAndSeek extends AbstractAbfsScaleTest {
     IOStatisticsLogging.logIOStatisticsAtLevel(LOG, IOSTATISTICS_LOGGING_LEVEL_INFO, stream);
 
     final byte[] readBuffer = new byte[2 * bufferSize];
-    int result;
+    int result = -1;
     IOStatisticsSource statisticsSource = null;
     try (FSDataInputStream inputStream = fs.open(testPath)) {
       statisticsSource = inputStream;
@@ -97,15 +99,10 @@ public class ITestAbfsReadWriteAndSeek extends AbstractAbfsScaleTest {
               fs.getFileSystemId(), FSOperationType.READ, true, 0,
               ((AbfsInputStream) inputStream.getWrappedStream())
                   .getStreamID()));
+
       inputStream.seek(bufferSize);
       result = inputStream.read(readBuffer, bufferSize, bufferSize);
       assertNotEquals(-1, result);
-
-      //to test tracingHeader for case with bypassReadAhead == true
-      inputStream.seek(0);
-      byte[] temp = new byte[5];
-      int t = inputStream.read(temp, 0, 1);
-
       inputStream.seek(0);
       result = inputStream.read(readBuffer, 0, bufferSize);
     }

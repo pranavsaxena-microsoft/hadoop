@@ -23,6 +23,7 @@ import java.util.Random;
 import java.util.concurrent.Callable;
 import java.util.UUID;
 
+import org.junit.After;
 import org.junit.Assume;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -40,6 +41,8 @@ import org.apache.hadoop.fs.azure.NativeAzureFileSystem;
 import org.apache.hadoop.fs.contract.ContractTestUtils;
 
 import org.apache.hadoop.fs.azurebfs.services.AbfsInputStream;
+import org.apache.hadoop.fs.azurebfs.services.AbfsInputStreamContext;
+import org.apache.hadoop.fs.azurebfs.services.MockAbfsInputStream;
 import org.apache.hadoop.fs.azurebfs.services.TestAbfsInputStream;
 
 import static org.apache.hadoop.test.LambdaTestUtils.intercept;
@@ -84,9 +87,19 @@ public class ITestAzureBlobFileSystemRandomRead extends
     super();
   }
 
+  @After
+  public void tearDown() throws Exception {
+    super.teardown();
+  }
+
+
   @Test
   public void testBasicRead() throws Exception {
     Path testPath = path(TEST_FILE_PREFIX + "_testBasicRead");
+    testBasicRead(testPath);
+  }
+
+  public void testBasicRead(Path testPath) throws Exception {
     assumeHugeFileExists(testPath);
 
     try (FSDataInputStream inputStream = this.getFileSystem().open(testPath)) {
@@ -172,9 +185,14 @@ public class ITestAzureBlobFileSystemRandomRead extends
    * Validates the implementation of Seekable.seekToNewSource
    * @throws IOException
    */
+
   @Test
   public void testSeekToNewSource() throws Exception {
     Path testPath = path(TEST_FILE_PREFIX + "_testSeekToNewSource");
+    testSeekToNewSource(testPath);
+  }
+
+  public void testSeekToNewSource(Path testPath) throws Exception {
     assumeHugeFileExists(testPath);
 
     try (FSDataInputStream inputStream = this.getFileSystem().open(testPath)) {
@@ -187,9 +205,14 @@ public class ITestAzureBlobFileSystemRandomRead extends
    * network I/O for AbfsInputStream
    * @throws Exception
    */
+
   @Test
   public void testSkipBounds() throws Exception {
     Path testPath = path(TEST_FILE_PREFIX + "_testSkipBounds");
+    testSkipBounds(testPath);
+  }
+
+  public void testSkipBounds(Path testPath) throws Exception {
     long testFileLength = assumeHugeFileExists(testPath);
 
     try (FSDataInputStream inputStream = this.getFileSystem().open(testPath)) {
@@ -228,9 +251,13 @@ public class ITestAzureBlobFileSystemRandomRead extends
    * network I/O for forward seek.
    * @throws Exception
    */
-  @Test
+    @Test
   public void testValidateSeekBounds() throws Exception {
     Path testPath = path(TEST_FILE_PREFIX + "_testValidateSeekBounds");
+    testValidateSeekBounds(testPath);
+  }
+
+  public void testValidateSeekBounds(Path testPath) throws Exception {
     long testFileLength = assumeHugeFileExists(testPath);
 
     try (FSDataInputStream inputStream = this.getFileSystem().open(testPath)) {
@@ -279,9 +306,14 @@ public class ITestAzureBlobFileSystemRandomRead extends
    * and InputStream.available.
    * @throws Exception
    */
-  @Test
+    @Test
   public void testSeekAndAvailableAndPosition() throws Exception {
-    Path testPath = path(TEST_FILE_PREFIX + "_testSeekAndAvailableAndPosition");
+    Path testPath = path(
+        TEST_FILE_PREFIX + "_testSeekAndAvailableAndPosition");
+    testSeekAndAvailableAndPosition(testPath);
+  }
+
+  public void testSeekAndAvailableAndPosition(Path testPath) throws Exception {
     long testFileLength = assumeHugeFileExists(testPath);
 
     try (FSDataInputStream inputStream = this.getFileSystem().open(testPath)) {
@@ -345,9 +377,13 @@ public class ITestAzureBlobFileSystemRandomRead extends
    * and InputStream.available.
    * @throws IOException
    */
-  @Test
+    @Test
   public void testSkipAndAvailableAndPosition() throws Exception {
     Path testPath = path(TEST_FILE_PREFIX + "_testSkipAndAvailableAndPosition");
+    testSkipAndAvailableAndPosition(testPath);
+  }
+
+  public void testSkipAndAvailableAndPosition(Path testPath) throws Exception {
     long testFileLength = assumeHugeFileExists(testPath);
 
     try (FSDataInputStream inputStream = this.getFileSystem().open(testPath)) {
@@ -412,10 +448,14 @@ public class ITestAzureBlobFileSystemRandomRead extends
    */
   @Test
   public void testSequentialReadAfterReverseSeekPerformance()
-          throws Exception {
-    Path testPath = path(
-        TEST_FILE_PREFIX + "_testSequentialReadAfterReverseSeekPerformance");
+      throws Exception {
+    Path testPath = path(TEST_FILE_PREFIX + "_testSequentialReadAfterReverseSeekPerformance");
+    testSequentialReadAfterReverseSeekPerformance(testPath);
+  }
+
+  public void testSequentialReadAfterReverseSeekPerformance(Path testPath) throws Exception {
     assumeHugeFileExists(testPath);
+
     final int maxAttempts = 10;
     final double maxAcceptableRatio = 1.01;
     double beforeSeekElapsedMs = 0, afterSeekElapsedMs = 0;
@@ -513,12 +553,11 @@ public class ITestAzureBlobFileSystemRandomRead extends
         .getResponseHeader(ETAG);
 
     TestAbfsInputStream testInputStream = new TestAbfsInputStream();
-
+    AbfsInputStreamContext context = testInputStream.getInStmContext(DISABLED_READAHEAD_DEPTH, FOUR_MB,
+        alwaysReadBufferSizeConfigValue, FOUR_MB);
     AbfsInputStream inputStream = testInputStream.getAbfsInputStream(
         fs.getAbfsClient(),
-        testFile.getName(), ALWAYS_READ_BUFFER_SIZE_TEST_FILE_SIZE, eTag,
-        DISABLED_READAHEAD_DEPTH, FOUR_MB,
-        alwaysReadBufferSizeConfigValue, FOUR_MB);
+        testFile.getName(), ALWAYS_READ_BUFFER_SIZE_TEST_FILE_SIZE, eTag, context);
 
     long connectionsAtStart = fs.getInstrumentationMap()
         .get(GET_RESPONSES.getStatName());
@@ -536,6 +575,7 @@ public class ITestAzureBlobFileSystemRandomRead extends
     // first read
     // if alwaysReadBufferSize is off, this is a sequential read
     inputStream.read(byteBuffer5, 0, FIVE_BYTES);
+
     newReqCount++;
     newDataSizeRead += FOUR_MB;
 
@@ -546,7 +586,7 @@ public class ITestAzureBlobFileSystemRandomRead extends
 
     // second read beyond that the buffer holds
     // if alwaysReadBufferSize is off, this is a random read. Reads only
-    // incoming buffer size
+    // incoming buffer size + readAheadRange configured
     // else, reads a buffer size
     inputStream.seek(NINE_MB);
     inputStream.read(buffer20b, 0, BYTE);
@@ -554,7 +594,7 @@ public class ITestAzureBlobFileSystemRandomRead extends
     if (alwaysReadBufferSizeConfigValue) {
       newDataSizeRead += FOUR_MB;
     } else {
-      newDataSizeRead += TWENTY_BYTES;
+      newDataSizeRead += TWENTY_BYTES + inputStream.getReadAheadRange();
     }
 
     assertAbfsStatistics(GET_RESPONSES, connectionsAtStart + newReqCount, fs.getInstrumentationMap());
@@ -564,11 +604,11 @@ public class ITestAzureBlobFileSystemRandomRead extends
     // third read adjacent to second but not exactly sequential.
     // if alwaysReadBufferSize is off, this is another random read
     // else second read would have read this too.
-    inputStream.seek(NINE_MB + TWENTY_BYTES + THREE_BYTES);
+    inputStream.seek(NINE_MB + TWENTY_BYTES + + inputStream.getReadAheadRange() + THREE_BYTES);
       inputStream.read(buffer30b, 0, THREE_BYTES);
       if (!alwaysReadBufferSizeConfigValue) {
         newReqCount++;
-        newDataSizeRead += THIRTY_BYTES;
+        newDataSizeRead += THIRTY_BYTES + inputStream.getReadAheadRange();
       }
 
     assertAbfsStatistics(GET_RESPONSES, connectionsAtStart + newReqCount, fs.getInstrumentationMap());
@@ -699,6 +739,7 @@ public class ITestAzureBlobFileSystemRandomRead extends
         outputStream.write(buffer);
         bytesWritten += buffer.length;
       }
+
       LOG.info("Closing stream {}", outputStream);
       ContractTestUtils.NanoTimer closeTimer
               = new ContractTestUtils.NanoTimer();

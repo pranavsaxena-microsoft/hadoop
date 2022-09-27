@@ -47,6 +47,7 @@ public class AbfsOutputStreamContext extends AbfsStreamContext {
 
   private AbfsLease lease;
 
+  private boolean defaultConnectionOnOptimizedRest;
   private DataBlocks.BlockFactory blockFactory;
 
   private int blockOutputActiveBlocks;
@@ -176,6 +177,12 @@ public class AbfsOutputStreamContext extends AbfsStreamContext {
     return this;
   }
 
+  public AbfsOutputStreamContext withDefaultOptimizedRest(
+      final boolean isOptimizedRestDefault) {
+    this.defaultConnectionOnOptimizedRest = isOptimizedRestDefault;
+    return this;
+  }
+
   public int getWriteBufferSize() {
     return writeBufferSize;
   }
@@ -217,6 +224,9 @@ public class AbfsOutputStreamContext extends AbfsStreamContext {
       return null;
     }
     return this.lease.getLeaseID();
+  }
+  public boolean isDefaultConnectionOnOptimizedRest() {
+    return defaultConnectionOnOptimizedRest;
   }
 
   public DataBlocks.BlockFactory getBlockFactory() {

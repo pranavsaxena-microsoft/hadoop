@@ -249,5 +249,12 @@ public final class ConfigurationKeys {
    * @see FileSystem#openFile(org.apache.hadoop.fs.Path)
    */
   public static final String FS_AZURE_BUFFERED_PREAD_DISABLE = "fs.azure.buffered.pread.disable";
+
+  /**
+   * Config control to enable alternate store connection using Optimized Read
+   */
+  public static final String FS_AZURE_READ_DEFAULT_OPTIMIZED_REST = "fs.azure.read.default.optimized.rest";
+  public static final String FS_AZURE_WRITE_DEFAULT_OPTIMIZED_REST = "fs.azure.write.default.optimized.rest";
+
   private ConfigurationKeys() {}
 }

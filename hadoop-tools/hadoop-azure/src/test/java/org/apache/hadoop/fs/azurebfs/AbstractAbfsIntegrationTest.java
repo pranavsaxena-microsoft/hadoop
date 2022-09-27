@@ -20,8 +20,12 @@ package org.apache.hadoop.fs.azurebfs;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Hashtable;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 
@@ -31,17 +35,23 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.commons.lang3.StringUtils;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.azurebfs.services.MockAbfsOutputStream;
+import org.apache.hadoop.fs.impl.OpenFileParameters;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.azurebfs.constants.FSOperationType;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemException;
 import org.apache.hadoop.fs.azurebfs.oauth2.AccessTokenProvider;
 import org.apache.hadoop.fs.azurebfs.security.AbfsDelegationTokenManager;
 import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
+import org.apache.hadoop.fs.azurebfs.services.AbfsInputStream;
 import org.apache.hadoop.fs.azurebfs.services.AbfsOutputStream;
 import org.apache.hadoop.fs.azurebfs.services.AuthType;
+import org.apache.hadoop.fs.azurebfs.services.MockAbfsInputStream;
 import org.apache.hadoop.fs.azurebfs.services.TestAbfsClient;
 import org.apache.hadoop.fs.azure.AzureNativeFileSystemStore;
 import org.apache.hadoop.fs.azure.NativeAzureFileSystem;
@@ -84,10 +94,11 @@ public abstract class AbstractAbfsIntegrationTest extends
   private String fileSystemName;
   private String accountName;
   private String testUrl;
-  private AuthType authType;
   private boolean useConfiguredFileSystem = false;
   private boolean usingFilesystemForSASTests = false;
   private static final int SHORTENED_GUID_LEN = 12;
+
+  private AuthType authType;
 
   protected AbstractAbfsIntegrationTest() throws Exception {
     fileSystemName = TEST_CONTAINER_PREFIX + UUID.randomUUID().toString();
@@ -187,7 +198,7 @@ public abstract class AbstractAbfsIntegrationTest extends
 
     // Only live account without namespace support can run ABFS&WASB
     // compatibility tests
-    if (!isIPAddress && (abfsConfig.getAuthType(accountName) != AuthType.SAS)
+    if (!isIPAddress && (abfsConfig.getAuthType() != AuthType.SAS)
         && !abfs.getIsNamespaceEnabled(getTestTracingContext(
             getFileSystem(), false))) {
       final URI wasbUri = new URI(
@@ -446,6 +457,10 @@ public abstract class AbstractAbfsIntegrationTest extends
     return fs.getAbfsStore();
   }
 
+  public AbfsClient getAbfsClient(final AzureBlobFileSystem fs) {
+    return fs.getAbfsStore().getClient();
+  }
+
   public AbfsClient getAbfsClient(final AzureBlobFileSystemStore abfsStore) {
     return abfsStore.getClient();
   }
@@ -526,5 +541,56 @@ public abstract class AbstractAbfsIntegrationTest extends
     assertEquals("Mismatch in " + statistic.getStatName(), expectedValue,
         (long) metricMap.get(statistic.getStatName()));
     return expectedValue;
+  }
+
+  public FSDataInputStream openMockAbfsInputStream(AzureBlobFileSystem fs,
+      Path testFilePath) throws IOException {
+    return openMockAbfsInputStream(fs, testFilePath, Optional.empty());
+  }
+
+  public FSDataInputStream openMockAbfsInputStream(AzureBlobFileSystem fs,
+      FSDataInputStream in) throws IOException {
+    return new FSDataInputStream(new MockAbfsInputStream(fs.getAbfsClient(),
+        (AbfsInputStream) in.getWrappedStream()));
+  }
+
+  public FSDataInputStream openMockAbfsInputStream(AzureBlobFileSystem fs,
+      Path testFilePath, Optional<OpenFileParameters> opt) throws IOException {
+    return new FSDataInputStream(
+        getMockAbfsInputStream(fs, testFilePath, opt));
+  }
+
+  public AbfsInputStream getMockAbfsInputStream(AzureBlobFileSystem fs,
+      Path testFilePath) throws IOException {
+    return getMockAbfsInputStream(fs, testFilePath, Optional.empty());
+  }
+
+  public AbfsInputStream getMockAbfsInputStream(AzureBlobFileSystem fs,
+      Path testFilePath, Optional<OpenFileParameters> opt) throws IOException {
+    Configuration conf = fs.getConf();
+    conf.setBoolean(FS_AZURE_READ_DEFAULT_OPTIMIZED_REST, true);
+    fs = (AzureBlobFileSystem) FileSystem.get(fs.getUri(), conf);
+    Path qualifiedPath = makeQualified(testFilePath);
+    AzureBlobFileSystemStore store = fs.getAbfsStore();
+    MockAzureBlobFileSystemStore mockStore = new MockAzureBlobFileSystemStore(
+        fs.getUri(), fs.isSecureScheme(), fs.getConf(),
+        store.getAbfsCounters());
+    MockAbfsInputStream inputStream = (MockAbfsInputStream) mockStore.openFileForRead(qualifiedPath,
+        opt, fs.getFsStatistics(), getTestTracingContext(fs, false));
+    return inputStream;
+  }
+
+  public MockAbfsOutputStream getMockAbfsOutputStream(AzureBlobFileSystem fs,
+      Path testFilePath) throws IOException {
+    Configuration conf = fs.getConf();
+    fs = (AzureBlobFileSystem) FileSystem.get(fs.getUri(), conf);
+    Path qualifiedPath = makeQualified(testFilePath);
+    AzureBlobFileSystemStore store = fs.getAbfsStore();
+    MockAzureBlobFileSystemStore mockStore = new MockAzureBlobFileSystemStore(
+        fs.getUri(), fs.isSecureScheme(), fs.getConf(),
+        store.getAbfsCounters());
+
+    return (MockAbfsOutputStream) mockStore.openFileForWrite(qualifiedPath, fs.getFsStatistics(), true,
+        getTestTracingContext(fs, false));
   }
 }

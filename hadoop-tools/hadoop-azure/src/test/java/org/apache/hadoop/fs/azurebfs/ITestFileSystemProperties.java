@@ -19,7 +19,8 @@
 package org.apache.hadoop.fs.azurebfs;
 
 import java.util.Hashtable;
-
+import org.junit.After;
+import org.junit.Assume;
 import org.junit.Test;
 
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -35,6 +36,11 @@ public class ITestFileSystemProperties extends AbstractAbfsIntegrationTest {
   private static final int TEST_DATA = 100;
   private static final String TEST_PATH = "/testfile";
   public ITestFileSystemProperties() throws Exception {
+  }
+
+  @After
+  public void tearDown() throws Exception {
+    super.teardown();
   }
 
   @Test

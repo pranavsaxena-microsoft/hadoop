@@ -18,6 +18,9 @@
 
 package org.apache.hadoop.fs.azurebfs.contracts.services;
 
+import org.apache.hadoop.fs.azurebfs.services.AbfsConnectionMode;
+import org.apache.hadoop.fs.azurebfs.services.AbfsSessionData;
+
 /**
  * Saves the different request parameters for append
  */
@@ -28,25 +31,29 @@ public class AppendRequestParameters {
     FLUSH_CLOSE_MODE
   }
 
+  private static final AbfsConnectionMode DEFAULT_CONNECTION_MODE = AbfsConnectionMode.REST_CONN;
   private final long position;
   private final int offset;
   private final int length;
   private final Mode mode;
   private final boolean isAppendBlob;
   private final String leaseId;
+  private final AbfsSessionData sessionData;
 
   public AppendRequestParameters(final long position,
       final int offset,
       final int length,
       final Mode mode,
       final boolean isAppendBlob,
-      final String leaseId) {
+      final String leaseId,
+      final AbfsSessionData sessionData) {
     this.position = position;
     this.offset = offset;
     this.length = length;
     this.mode = mode;
     this.isAppendBlob = isAppendBlob;
     this.leaseId = leaseId;
+    this.sessionData = sessionData;
   }
 
   public long getPosition() {
@@ -71,5 +78,15 @@ public class AppendRequestParameters {
 
   public String getLeaseId() {
     return this.leaseId;
+  }
+
+  public boolean isOptimizedRestConnection() {
+    return ((sessionData != null)
+        && (AbfsConnectionMode.isOptimizedRestConnection(
+        sessionData.getConnectionMode())));
+  }
+
+  public AbfsSessionData getAbfsSessionData() {
+    return sessionData;
   }
 }

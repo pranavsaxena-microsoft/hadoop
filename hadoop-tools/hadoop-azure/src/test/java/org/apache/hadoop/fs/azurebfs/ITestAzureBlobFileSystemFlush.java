@@ -30,6 +30,7 @@ import java.util.concurrent.Future;
 import java.io.IOException;
 
 import org.apache.hadoop.conf.Configuration;
+
 import org.apache.hadoop.fs.StreamCapabilities;
 import org.apache.hadoop.fs.azurebfs.constants.FSOperationType;
 import org.apache.hadoop.fs.azurebfs.constants.TestConfigurationKeys;
@@ -37,6 +38,8 @@ import org.apache.hadoop.fs.azurebfs.services.AbfsOutputStream;
 import org.apache.hadoop.fs.azurebfs.utils.TracingHeaderValidator;
 import org.hamcrest.core.IsEqual;
 import org.hamcrest.core.IsNot;
+import org.junit.After;
+import org.junit.Assume;
 import org.junit.Test;
 
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -66,9 +69,15 @@ public class ITestAzureBlobFileSystemFlush extends AbstractAbfsScaleTest {
   private static final int TEST_FILE_LENGTH = 1024 * 1024 * 8;
   private static final int WAITING_TIME = 1000;
 
+  @After
+  public void tearDown() throws Exception {
+    super.teardown();
+  }
+
   public ITestAzureBlobFileSystemFlush() throws Exception {
     super();
   }
+
 
   @Test
   public void testAbfsOutputStreamAsyncFlushWithRetainUncommittedData() throws Exception {
@@ -117,6 +126,7 @@ public class ITestAzureBlobFileSystemFlush extends AbstractAbfsScaleTest {
         Thread.sleep(10);
       }
     }
+
 
     final byte[] r = new byte[TEST_BUFFER_SIZE];
     try (FSDataInputStream inputStream = fs.open(testFilePath, 4 * ONE_MB)) {
@@ -259,7 +269,8 @@ public class ITestAzureBlobFileSystemFlush extends AbstractAbfsScaleTest {
       // Verify that the data can be read if disableOutputStreamFlush is
       // false; and otherwise cannot be read.
       /* For Appendlob flush is not needed to update data on server */
-      validate(fs.open(testFilePath), buffer, !disableOutputStreamFlush || isAppendBlob);
+      validate(fs.open(testFilePath),
+          buffer, !disableOutputStreamFlush || isAppendBlob);
     }
   }
 
@@ -292,7 +303,6 @@ public class ITestAzureBlobFileSystemFlush extends AbstractAbfsScaleTest {
       validate(fs, testFilePath, buffer, isAppendBlob);
     }
   }
-
   @Test
   public void testHsyncWithFlushEnabled() throws Exception {
     final AzureBlobFileSystem fs = this.getFileSystem();
@@ -409,7 +419,11 @@ public class ITestAzureBlobFileSystemFlush extends AbstractAbfsScaleTest {
       stream.close();
     }
   }
-  private void validate(FileSystem fs, Path path, byte[] writeBuffer, boolean isEqual) throws IOException {
+
+  private void validate(FileSystem fs,
+      Path path,
+      byte[] writeBuffer,
+      boolean isEqual) throws IOException {
     String filePath = path.toUri().toString();
     try (FSDataInputStream inputStream = fs.open(path)) {
       byte[] readBuffer = new byte[TEST_FILE_LENGTH];
