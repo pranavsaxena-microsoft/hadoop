@@ -46,8 +46,8 @@ public class MockAbfsHttpConnection extends AbfsHttpConnection {
 
   public MockAbfsHttpConnection(final URL url,
       final String method,
-      final List<AbfsHttpHeader> requestHeaders, Callable headerUpdownCallable) throws IOException {
-    super(url, method, requestHeaders, headerUpdownCallable);
+      final List<AbfsHttpHeader> requestHeaders, Callable headerUpdownCallable, Boolean isBinaryDataToBeRead) throws IOException {
+    super(url, method, requestHeaders, headerUpdownCallable, isBinaryDataToBeRead);
   }
 
   @Override

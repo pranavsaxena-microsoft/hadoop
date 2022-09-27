@@ -388,7 +388,10 @@ public class AbfsRestOperation {
 
   @VisibleForTesting
   protected AbfsHttpConnection getHttpOperation() throws IOException {
-    return new AbfsHttpConnection(url, method, requestHeaders, headerUpDownCallable);
+    if(getOperationType() == AbfsRestOperationType.GetReadFastpathSessionToken || getOperationType() == AbfsRestOperationType.GetWriteFastpathSessionToken) {
+      return new AbfsHttpConnection(url, method, requestHeaders, headerUpDownCallable, true);
+    }
+    return new AbfsHttpConnection(url, method, requestHeaders, headerUpDownCallable, false);
   }
 
   @VisibleForTesting

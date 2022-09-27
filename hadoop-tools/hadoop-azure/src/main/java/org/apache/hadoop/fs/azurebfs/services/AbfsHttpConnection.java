@@ -52,6 +52,8 @@ public class AbfsHttpConnection extends AbfsHttpOperation {
 
   private Callable headerUpDownCallable;
 
+  private Boolean isBinaryDataToBeRead = false;
+
   public AbfsHttpConnection(final URL url,
       final String method,
       List<AbfsHttpHeader> requestHeaders) throws IOException {
@@ -62,10 +64,12 @@ public class AbfsHttpConnection extends AbfsHttpOperation {
   public AbfsHttpConnection(final URL url,
                             final String method,
                             List<AbfsHttpHeader> requestHeaders,
-                            Callable headerUpdownCallable) throws IOException {
+                            Callable headerUpdownCallable,
+                            Boolean isBinaryDataToBeRead) throws IOException {
     super(url, method, requestHeaders);
     init(url, method, requestHeaders);
     this.headerUpDownCallable = headerUpdownCallable;
+    this.isBinaryDataToBeRead = isBinaryDataToBeRead;
   }
 
   /**
@@ -259,7 +263,7 @@ public class AbfsHttpConnection extends AbfsHttpOperation {
         if (AbfsHttpConstants.HTTP_METHOD_GET.equals(getMethod())
             && buffer == null) {
           parseListFilesResponse(stream);
-        } else if (AbfsHttpConstants.HTTP_METHOD_POST.equals(getMethod())) {
+        } else if (AbfsHttpConstants.HTTP_METHOD_POST.equals(getMethod()) && isBinaryDataToBeRead) {
           int contentLen = this.connection.getContentLength();
           if (contentLen != 0) {
             try (DataInputStream dis = new DataInputStream(stream)) {

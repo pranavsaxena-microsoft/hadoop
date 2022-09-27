@@ -82,7 +82,7 @@ public class MockAbfsRestOperation extends AbfsRestOperation {
     if (AbfsRestOperationType.OptimizedRead.equals(getOperationType())
         || AbfsRestOperationType.OptimizedAppend.equals(getOperationType()) || AbfsRestOperationType.Append.equals(getOperationType())) {
       return new MockAbfsHttpConnection(getUrl(), getMethod(),
-          getRequestHeaders(), getHeaderUpDownCallable());
+          getRequestHeaders(), getHeaderUpDownCallable(), false);
     }
     return super.getHttpOperation();
   }
