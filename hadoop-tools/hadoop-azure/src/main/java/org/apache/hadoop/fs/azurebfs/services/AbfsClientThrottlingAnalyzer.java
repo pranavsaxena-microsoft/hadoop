@@ -90,7 +90,7 @@ class AbfsClientThrottlingAnalyzer {
         new AbfsOperationMetrics(System.currentTimeMillis()));
     this.timer = new Timer(
         String.format("abfs-timer-client-throttling-analyzer-%s", name), true);
-    this.timer.schedule(new TimerTaskImpl(),
+    this.timer.schedule(new TimerTaskImpl(timer),
         analysisPeriodMs,
         analysisPeriodMs);
   }
@@ -220,6 +220,11 @@ class AbfsClientThrottlingAnalyzer {
    * Timer callback implementation for periodically analyzing metrics.
    */
   class TimerTaskImpl extends TimerTask {
+
+    private Timer timer;
+    public TimerTaskImpl(final Timer timer) {
+      this.timer = timer;
+    }
     private AtomicInteger doingWork = new AtomicInteger(0);
 
     /**
@@ -244,6 +249,9 @@ class AbfsClientThrottlingAnalyzer {
           oldMetrics.endTime = now;
           sleepDuration = analyzeMetricsAndUpdateSleepDuration(oldMetrics,
               sleepDuration);
+
+          timer.cancel();
+
         }
       } finally {
         if (doWork) {
