@@ -33,6 +33,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.hadoop.classification.VisibleForTesting;
 import org.apache.hadoop.fs.azurebfs.AbfsStatistic;
 import org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants;
+import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AbfsFastpathException;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AbfsRestOperationException;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemException;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.InvalidAbfsRestOperationException;
@@ -75,6 +76,8 @@ public class AbfsRestOperation {
 
   private AbfsHttpOperation result;
   private AbfsCounters abfsCounters;
+  private AbfsFastpathSessionData fastpathSessionData;
+
   private Callable headerUpDownCallable;
 
   /**
@@ -225,6 +228,67 @@ public class AbfsRestOperation {
   }
 
   /**
+   * Initializes a new REST operation.
+   *
+   * @param client The Blob FS client.
+   * @param method The HTTP method (PUT, PATCH, POST, GET, HEAD, or DELETE).
+   * @param url The full URL including query string parameters.
+   * @param requestHeaders The HTTP request headers.
+   * @param fastpathSessionData Fastpath session info
+   */
+  AbfsRestOperation(final AbfsRestOperationType operationType,
+      final AbfsClient client,
+      final String method,
+      final URL url,
+      final List<AbfsHttpHeader> requestHeaders,
+      final AbfsFastpathSessionData fastpathSessionData) {
+    this(operationType, client, method, url, requestHeaders);
+    this.fastpathSessionData = fastpathSessionData;
+  }
+
+  /**
+   * Initializes a new REST operation and takes in fastpath session info
+   *
+   * @param operationType The type of the REST operation (Append, ReadFile, etc).
+   * @param client The Blob FS client.
+   * @param method The HTTP method (PUT, PATCH, POST, GET, HEAD, or DELETE).
+   * @param url The full URL including query string parameters.
+   * @param requestHeaders The HTTP request headers.
+   * @param buffer For uploads, this is the request entity body.  For downloads,
+   *               this will hold the response entity body.
+   * @param bufferOffset An offset into the buffer where the data beings.
+   * @param bufferLength The length of the data in the buffer.
+   * @param fastpathSessionData Fastpath session info instance
+   */
+  AbfsRestOperation(AbfsRestOperationType operationType,
+      AbfsClient client,
+      String method,
+      URL url,
+      List<AbfsHttpHeader> requestHeaders,
+      byte[] buffer,
+      int bufferOffset,
+      int bufferLength,
+      AbfsFastpathSessionData fastpathSessionData) {
+    this(operationType, client, method, url, requestHeaders,
+        fastpathSessionData);
+    this.buffer = buffer;
+    this.bufferOffset = bufferOffset;
+    this.bufferLength = bufferLength;
+    this.abfsCounters = client.getAbfsCounters();
+  }
+
+  public boolean isAFastpathRequest() {
+    switch (operationType) {
+    case FastpathOpen:
+    case FastpathRead:
+    case FastpathClose:
+      return true;
+    default:
+      return false;
+    }
+  }
+
+  /**
    * Execute a AbfsRestOperation. Track the Duration of a request if
    * abfsCounters isn't null.
    * @param tracingContext TracingContext instance to track correlation IDs
@@ -293,10 +357,15 @@ public class AbfsRestOperation {
         case Custom:
         case OAuth:
           LOG.debug("Authenticating request with OAuth2 access token");
-          httpOperation = getHttpOperation();
-          httpOperation.setHeader(
-              HttpHeaderConfigurations.AUTHORIZATION,
-              client.getAccessToken());
+          if (isAFastpathRequest()) {
+            httpOperation = getFastpathConnection();
+          } else {
+            httpOperation = getHttpOperation();
+            httpOperation.setHeader(
+                HttpHeaderConfigurations.AUTHORIZATION,
+                client.getAccessToken());
+          }
+
           tracingContext.constructHeader(httpOperation);
           break;
         case SAS:
@@ -334,7 +403,7 @@ public class AbfsRestOperation {
           httpOperation.getRequestHeaders());
       AbfsClientThrottlingIntercept.sendingRequest(operationType, abfsCounters);
 
-      if (hasRequestBody) {
+      if (hasRequestBody && !isAFastpathRequest()) {
         // HttpUrlConnection requires
         ((AbfsHttpConnection) httpOperation).sendRequest(buffer, bufferOffset, bufferLength);
         incrementCounter(AbfsStatistic.SEND_REQUESTS, 1);
@@ -366,6 +435,10 @@ public class AbfsRestOperation {
         LOG.debug("HttpRequestFailure: {}, {}", httpOperation.toString(), ex);
       }
 
+      if (ex instanceof AbfsFastpathException) {
+        throw (AbfsFastpathException) ex;
+      }
+
       if (!client.getRetryPolicy().shouldRetry(retryCount, -1)) {
         throw new InvalidAbfsRestOperationException(ex);
       }
@@ -389,6 +462,13 @@ public class AbfsRestOperation {
   @VisibleForTesting
   protected AbfsHttpConnection getHttpOperation() throws IOException {
     return new AbfsHttpConnection(url, method, requestHeaders, headerUpDownCallable);
+  }
+
+  @VisibleForTesting
+  protected AbfsFastpathConnection getFastpathConnection() throws IOException {
+    return new AbfsFastpathConnection(operationType, url, method,
+        client.getAuthType(), client.getAccessToken(), requestHeaders, //TODO: remove oauth?
+        fastpathSessionData);
   }
 
   @VisibleForTesting
@@ -426,6 +506,11 @@ public class AbfsRestOperation {
   @VisibleForTesting
   protected int getBufferLength() {
     return bufferLength;
+  }
+
+  @VisibleForTesting
+  protected AbfsFastpathSessionData getFastpathSessionData() {
+    return fastpathSessionData;
   }
 
   @VisibleForTesting

@@ -8,42 +8,37 @@ import org.apache.hadoop.fs.azurebfs.services.AbfsInputStreamRequestContext;
 import org.apache.hadoop.fs.azurebfs.services.AbfsRestOperation;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 
-public class RestAbfsInputStreamHelper implements AbfsInputStreamHelper {
+public class FastpathRimbaudAbfsInputStreamHelper
+    implements AbfsInputStreamHelper {
 
-  private AbfsInputStreamHelper nextHelper;
+  private AbfsInputStreamHelper prevHelper;
 
-  public RestAbfsInputStreamHelper() {
-    nextHelper = new FastpathRestAbfsInputStreamHelper(this);
+  public FastpathRimbaudAbfsInputStreamHelper(AbfsInputStreamHelper prevHelper) {
+    this.prevHelper = prevHelper;
   }
 
   @Override
   public boolean shouldGoNext(final AbfsInputStreamContext abfsInputStreamContext) {
-    if (abfsInputStreamContext == null) {
-      return false;
-    }
-    return ((abfsInputStreamContext.isDefaultConnectionOnFastpath()
-        || abfsInputStreamContext.isDefaultConnectionOnOptimizedRest())
-        && nextHelper != null);
+    return false;
   }
 
   @Override
   public AbfsInputStreamHelper getNext() {
-    return nextHelper;
-  }
-
-  @Override
-  public AbfsInputStreamHelper getBack() {
     return null;
   }
 
   @Override
-  public void setNextAsInvalid() {
-    nextHelper = null;
+  public AbfsInputStreamHelper getBack() {
+    return prevHelper;
   }
 
   @Override
   public Boolean explicitPreFetchReadAllowed() {
     return true;
+  }
+
+  @Override
+  public void setNextAsInvalid() {
   }
 
   @Override

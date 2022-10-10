@@ -4,7 +4,7 @@ import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemExc
 import org.apache.hadoop.fs.azurebfs.contracts.services.ReadRequestParameters;
 import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
 import org.apache.hadoop.fs.azurebfs.services.AbfsConnectionMode;
-import org.apache.hadoop.fs.azurebfs.services.AbfsOptimizedRestResponseHeaderBlock;
+import org.apache.hadoop.fs.azurebfs.services.AbfsFastpathRestResponseHeaderBlock;
 import org.apache.hadoop.fs.azurebfs.services.AbfsInputStreamContext;
 import org.apache.hadoop.fs.azurebfs.services.AbfsInputStreamRequestContext;
 import org.apache.hadoop.fs.azurebfs.services.AbfsRestOperation;
@@ -24,7 +24,7 @@ import java.util.concurrent.Callable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class OptimizedRestAbfsInputStreamHelper
+public class FastpathRestAbfsInputStreamHelper
     implements AbfsInputStreamHelper {
 
   private AbfsInputStreamHelper nextHelper;
@@ -36,16 +36,17 @@ public class OptimizedRestAbfsInputStreamHelper
 
 
   private static final Logger LOG = LoggerFactory.getLogger(
-      OptimizedRestAbfsInputStreamHelper.class);
+      FastpathRestAbfsInputStreamHelper.class);
 
-  public OptimizedRestAbfsInputStreamHelper(AbfsInputStreamHelper abfsInputStreamHelper) {
-    nextHelper = null;
+  public FastpathRestAbfsInputStreamHelper(AbfsInputStreamHelper abfsInputStreamHelper) {
+    nextHelper = new FastpathRimbaudAbfsInputStreamHelper(this);
     prevHelper = abfsInputStreamHelper;
   }
 
   @Override
   public boolean shouldGoNext(final AbfsInputStreamContext abfsInputStreamContext) {
-    return false;
+    return (abfsInputStreamContext.isDefaultConnectionOnFastpath()
+        && nextHelper != null);
   }
 
   @Override
@@ -83,16 +84,16 @@ public class OptimizedRestAbfsInputStreamHelper
 
         @Override
         public Object call() throws Exception {
-          AbfsOptimizedRestResponseHeaderBlock
-              abfsOptimizedRestResponseHeaderBlock
-              = (AbfsOptimizedRestResponseHeaderBlock) ThreadBasedMessageQueue.getData(
+          AbfsFastpathRestResponseHeaderBlock
+              abfsFastpathRestResponseHeaderBlock
+              = (AbfsFastpathRestResponseHeaderBlock) ThreadBasedMessageQueue.getData(
               this);
           final AbfsSessionData currentSessionData
               = readRequestParameters.getAbfsSessionData();
           final AbfsSessionData sessionDataForNextRequest = new AbfsSessionData(
-              abfsOptimizedRestResponseHeaderBlock.getSessionToken(),
+              abfsFastpathRestResponseHeaderBlock.getSessionToken(),
               OffsetDateTime.parse(
-                  abfsOptimizedRestResponseHeaderBlock.getSessionExpiry(),
+                  abfsFastpathRestResponseHeaderBlock.getSessionExpiry(),
                   DateTimeFormatter.RFC_1123_DATE_TIME),
               currentSessionData.getConnectionMode());
           abfsInputStreamRequestContext.setAbfsSessionData(

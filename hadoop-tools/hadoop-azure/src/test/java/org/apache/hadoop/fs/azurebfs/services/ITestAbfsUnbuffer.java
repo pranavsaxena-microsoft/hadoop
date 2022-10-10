@@ -24,6 +24,8 @@ import org.junit.After;
 import org.junit.Assume;
 import org.junit.Test;
 
+import org.apache.hadoop.fs.azurebfs.utils.MockFastpathConnection;
+
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.azurebfs.AbstractAbfsIntegrationTest;
@@ -54,22 +56,37 @@ public class ITestAbfsUnbuffer extends AbstractAbfsIntegrationTest {
   }
 
   @Test
-  public void testUnbuffer() throws IOException {
-    writeData();
-    testUnbufferAssertions();
+  public void testMockFastpathUnbuffer() throws IOException {
+    // Run mock test only if feature is set to off
+    Assume.assumeFalse(getDefaultFastpathFeatureStatus());
+    writeData(true);
+    testUnbuffer(true);
+    MockFastpathConnection.unregisterAppend(dest.getName());
   }
 
-  public void writeData() throws IOException {
+  @Test
+  public void testUnbuffer() throws IOException {
+    writeData(false);
+    testUnbuffer(false);
+  }
+
+  public void writeData(boolean isMockFastpathTest) throws IOException {
     dest = path("ITestAbfsUnbuffer");
 
     byte[] data = ContractTestUtils.dataset(TEST_DATASET_LEN, 'a', TEST_DATASET_MODULO);
     ContractTestUtils
         .writeDataset(getFileSystem(), dest, data, data.length, data.length, true);
+    if (isMockFastpathTest) {
+      MockFastpathConnection
+          .registerAppend(data.length, dest.getName(), data, 0, data.length);
+    }
   }
 
-  public void testUnbufferAssertions() throws IOException {
+  public void testUnbuffer(boolean isMockFastpathTest) throws IOException {
     // Open file, read half the data, and then call unbuffer
-    try (FSDataInputStream inputStream = getFileSystem().open(dest)) {
+    try (FSDataInputStream inputStream = isMockFastpathTest
+        ? openMockAbfsInputStream(getFileSystem(), dest)
+        : getFileSystem().open(dest)) {
       assertTrue("unexpected stream type "
               + inputStream.getWrappedStream().getClass().getSimpleName(),
               inputStream.getWrappedStream() instanceof AbfsInputStream);

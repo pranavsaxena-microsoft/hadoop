@@ -58,7 +58,7 @@ public class MockAzureBlobFileSystemStore extends AzureBlobFileSystemStore {
       // create instance with fastpath disabled flag. MockAbfsInputStream will setup
       // a mock session valid for 5 mins
       return new MockAbfsInputStream(mockClient, statistics, path, contentLength,
-          abfsInputStreamContext.withDefaultOptimizedRest(true), eTag, tracingContext);
+          abfsInputStreamContext.withDefaultFastpath(true), eTag, tracingContext);
     } catch (Exception e) {
       Assert.fail("Failure in creating MockAbfsInputStream " + e.getMessage());
     }

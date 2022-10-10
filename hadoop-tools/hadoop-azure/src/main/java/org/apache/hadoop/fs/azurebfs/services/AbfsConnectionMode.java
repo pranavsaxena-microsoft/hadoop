@@ -20,11 +20,20 @@ package org.apache.hadoop.fs.azurebfs.services;
 
 public enum AbfsConnectionMode {
   REST_CONN,
+  FASTPATH_CONN,
   OPTIMIZED_REST,
+  OPTIMIZED_REST_ON_FASTPATH_REQ_FAILURE,
+  OPTIMIZED_REST_ON_FASTPATH_CONN_FAILURE,
   REST_ON_SESSION_UPD_FAILURE;
 
+  public static boolean isFastpathConnection(final AbfsConnectionMode mode) {
+    return (mode == FASTPATH_CONN);
+  }
+
   public static boolean isOptimizedRestConnection(final AbfsConnectionMode mode) {
-    return (mode == OPTIMIZED_REST);
+    return ((mode == OPTIMIZED_REST)
+            || (mode == OPTIMIZED_REST_ON_FASTPATH_REQ_FAILURE)
+            || (mode == OPTIMIZED_REST_ON_FASTPATH_CONN_FAILURE));
   }
 
   public static boolean isBaseRestConnection(final AbfsConnectionMode mode) {
@@ -33,7 +42,8 @@ public enum AbfsConnectionMode {
 
   public static boolean isErrorConnectionMode(final AbfsConnectionMode mode) {
     return ((mode == AbfsConnectionMode.REST_ON_SESSION_UPD_FAILURE)
-        || (mode == AbfsConnectionMode.REST_CONN));
+        || (mode == AbfsConnectionMode.REST_CONN)
+        || (mode == AbfsConnectionMode.OPTIMIZED_REST_ON_FASTPATH_CONN_FAILURE));
   }
 
 }

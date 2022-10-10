@@ -23,10 +23,12 @@ import java.net.URL;
 import java.util.List;
 import java.util.concurrent.Callable;
 
+import com.azure.storage.fastpath.exceptions.FastpathRequestException;
 import org.mockito.Mockito;
 
 import org.apache.hadoop.fs.azurebfs.AbfsConfiguration;
 import org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations;
+import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AbfsFastpathException;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemException;
 import org.apache.hadoop.fs.azurebfs.contracts.services.ReadRequestParameters;
 import org.apache.hadoop.fs.azurebfs.extensions.SASTokenProvider;
@@ -37,9 +39,14 @@ import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.HTTP_MET
 import static org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations.X_MS_FASTPATH_SESSION_EXPIRY;
 
 public class MockAbfsClient extends AbfsClient {
+
+  private int errFpRimbaudStatus = 0;
+  private boolean mockFpRimabudRequestException = false;
+  private boolean mockFpRimabudConnectionException = false;
   private int errFpRestStatus = 0;
   private boolean mockFpRestRequestException = false;
   private boolean mockFpRestConnectionException = false;
+  private boolean forceFastpathReadAlways = true;
 
   public MockAbfsClient(final URL baseUrl,
       final SharedKeyCredentials sharedKeyCredentials,
@@ -81,6 +88,10 @@ public class MockAbfsClient extends AbfsClient {
     return super.read(path, buffer, cachedSasToken, reqParams, tracingContext);
   }
 
+  public void setForceFastpathReadAlways(Boolean forceFastpathReadAlways) {
+    this.forceFastpathReadAlways = forceFastpathReadAlways;
+  }
+
   @Override
   protected AbfsRestOperation getAbfsGetRestOperation(final byte[] buffer,
       final ReadRequestParameters reqParams,
@@ -100,6 +111,25 @@ public class MockAbfsClient extends AbfsClient {
         sasTokenForReuse, url, opType, headerUpDownCallable);
   }
 
+
+  @Override
+  protected AbfsRestOperation getFastpathRimbaudReadAbfsRestOperation(final ReadRequestParameters reqParams,
+      final URL url,
+      final List<AbfsHttpHeader> requestHeaders,
+      final byte[] buffer) {
+    final MockAbfsRestOperation op = new MockAbfsRestOperation(
+        AbfsRestOperationType.FastpathRead,
+        this,
+        HTTP_METHOD_GET,
+        url,
+        requestHeaders,
+        buffer,
+        reqParams.getBufferOffset(),
+        reqParams.getReadLength(),
+        (AbfsFastpathSessionData) reqParams.getAbfsSessionData());
+    signalErrorConditionToMockRestOp(op);
+    return op;
+  }
 
 //  protected AbfsRestOperation executeFastpathRead(String path,
 //      ReadRequestParameters reqParams,
@@ -143,12 +173,54 @@ public class MockAbfsClient extends AbfsClient {
 //    }
 //  }
 
+  protected AbfsRestOperation executeFastpathOpen(URL url,
+      List<AbfsHttpHeader> requestHeaders,
+      AbfsFastpathSessionData fastpathSessionInfo,
+      TracingContext tracingContext) throws AzureBlobFileSystemException {
+    final MockAbfsRestOperation op = new MockAbfsRestOperation(
+        AbfsRestOperationType.FastpathOpen,
+        this,
+        HTTP_METHOD_GET,
+        url,
+        requestHeaders,
+        fastpathSessionInfo);
+    signalErrorConditionToMockRestOp(op);
+    op.execute(tracingContext);
+    return op;
+  }
+
+  protected AbfsRestOperation executeFastpathClose(URL url,
+      List<AbfsHttpHeader> requestHeaders,
+      AbfsFastpathSessionData fastpathSessionInfo,
+      TracingContext tracingContext) throws AzureBlobFileSystemException {
+    final MockAbfsRestOperation op = new MockAbfsRestOperation(
+        AbfsRestOperationType.FastpathClose,
+        this,
+        HTTP_METHOD_GET,
+        url,
+        requestHeaders,
+        fastpathSessionInfo);
+    signalErrorConditionToMockRestOp(op);
+    op.execute(tracingContext);
+    return op;
+  }
 
   public AbfsCounters getAbfsCounters() {
     return super.getAbfsCounters();
   }
 
   private void signalErrorConditionToMockRestOp(MockAbfsRestOperation op) {
+    if (errFpRimbaudStatus != 0) {
+      op.induceFpRimbaudError(errFpRimbaudStatus);
+    }
+
+    if (mockFpRimabudRequestException) {
+      op.induceFpRimbaudRequestException();
+    }
+
+    if (mockFpRimabudConnectionException) {
+      op.induceFpRimbaudConnectionException();
+    }
 
     if (errFpRestStatus != 0) {
       op.induceFpRestError(errFpRestStatus);
@@ -163,6 +235,17 @@ public class MockAbfsClient extends AbfsClient {
     }
   }
 
+  public void induceFpRimbaudError(int httpStatus) {
+    errFpRimbaudStatus = httpStatus;
+  }
+
+  public void induceFpRimbaudRequestException() {
+    mockFpRimabudRequestException = true;
+  }
+
+  public void induceFpRimbaudConnectionException() {
+    mockFpRimabudConnectionException = true;
+  }
   public void induceFpRestError(int httpStatus) {
     errFpRestStatus = httpStatus;
   }
@@ -173,6 +256,24 @@ public class MockAbfsClient extends AbfsClient {
 
   public void induceFpRestConnectionException() {
     mockFpRestConnectionException = true;
+  }
+
+  public void resetAllMockErrStates() {
+    errFpRimbaudStatus = 0;
+    mockFpRimabudRequestException = false;
+    mockFpRimabudConnectionException = false;
+  }
+
+  private boolean mockErrorConditionSet() {
+    return ((errFpRimbaudStatus != 0) || mockFpRimabudRequestException || mockFpRimabudConnectionException);
+  }
+
+  public boolean isForceFastpathReadAlways() {
+    return forceFastpathReadAlways;
+  }
+
+  public void setForceFastpathReadAlways(final boolean forceFastpathReadAlways) {
+    this.forceFastpathReadAlways = forceFastpathReadAlways;
   }
 
   @Override

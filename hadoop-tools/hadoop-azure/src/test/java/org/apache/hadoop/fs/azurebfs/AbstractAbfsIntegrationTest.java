@@ -58,6 +58,7 @@ import org.apache.hadoop.fs.azure.metrics.AzureFileSystemInstrumentation;
 import org.apache.hadoop.fs.azurebfs.constants.FileSystemUriSchemes;
 import org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AbfsRestOperationException;
+import org.apache.hadoop.fs.azurebfs.utils.MockFastpathConnection;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 import org.apache.hadoop.fs.azurebfs.utils.TracingHeaderFormat;
 import org.apache.hadoop.fs.azurebfs.utils.UriUtils;
@@ -66,6 +67,7 @@ import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.io.IOUtils;
 
 import static org.apache.hadoop.fs.azure.AzureBlobStorageTestAccount.WASB_ACCOUNT_NAME_DOMAIN_SUFFIX;
+import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.DEFAULT_FASTPATH_READ_BUFFER_SIZE;
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.*;
 import static org.apache.hadoop.fs.azurebfs.contracts.services.AzureServiceErrorCode.FILE_SYSTEM_NOT_FOUND;
 import static org.apache.hadoop.fs.azurebfs.constants.TestConfigurationKeys.*;
@@ -98,6 +100,7 @@ public abstract class AbstractAbfsIntegrationTest extends
   private static final int SHORTENED_GUID_LEN = 12;
 
   private AuthType authType;
+  private List<String> mockFastpathFilesToRegister = new ArrayList<String>();
 
   protected AbstractAbfsIntegrationTest() throws Exception {
     fileSystemName = TEST_CONTAINER_PREFIX + UUID.randomUUID().toString();
@@ -533,6 +536,14 @@ public abstract class AbstractAbfsIntegrationTest extends
     return expectedValue;
   }
 
+  protected boolean getDefaultFastpathFeatureStatus() throws IOException {
+    assumeTrue("Fastpath supported only for HNS account",
+        getFileSystem().getIsNamespaceEnabled(getTestTracingContext(getFileSystem(), false)));
+    assumeTrue("Fastpath supported only for OAuth auth type",
+        authType == AuthType.OAuth);
+    return getFileSystem().getAbfsStore().getAbfsConfiguration().isReadByDefaultOnFastpath();
+  }
+
   public FSDataInputStream openMockAbfsInputStream(AzureBlobFileSystem fs,
       Path testFilePath) throws IOException {
     return openMockAbfsInputStream(fs, testFilePath, Optional.empty());
@@ -540,6 +551,12 @@ public abstract class AbstractAbfsIntegrationTest extends
 
   public FSDataInputStream openMockAbfsInputStream(AzureBlobFileSystem fs,
       FSDataInputStream in) throws IOException {
+    if (!bufferSizeCorrectForFastpath(fs)) {
+      LOG.debug("Creating non-Mock AbfsInputStream with Fastpath ON");
+      fs.getAbfsStore().getAbfsConfiguration().setReadByDefaultOnFastpath(true);
+      AbfsInputStream srcStream = (AbfsInputStream) in.getWrappedStream();
+      return fs.open(new Path(srcStream.getPath()));
+    }
     return new FSDataInputStream(new MockAbfsInputStream(fs.getAbfsClient(),
         (AbfsInputStream) in.getWrappedStream()));
   }
@@ -558,15 +575,47 @@ public abstract class AbstractAbfsIntegrationTest extends
   public AbfsInputStream getMockAbfsInputStream(AzureBlobFileSystem fs,
       Path testFilePath, Optional<OpenFileParameters> opt) throws IOException {
     Configuration conf = fs.getConf();
-    conf.setBoolean(FS_AZURE_READ_DEFAULT_OPTIMIZED_REST, true);
+    conf.setBoolean(FS_AZURE_READ_DEFAULT_FASTPATH, true);
     fs = (AzureBlobFileSystem) FileSystem.get(fs.getUri(), conf);
     Path qualifiedPath = makeQualified(testFilePath);
     AzureBlobFileSystemStore store = fs.getAbfsStore();
+    if (!bufferSizeCorrectForFastpath(fs)) {
+      LOG.debug("Creating non-Mock AbfsInputStream with Fastpath ON");
+      return store.openFileForRead(qualifiedPath, opt, fs.getFsStatistics(),
+          getTestTracingContext(fs, false));
+    }
     MockAzureBlobFileSystemStore mockStore = new MockAzureBlobFileSystemStore(
         fs.getUri(), fs.isSecureScheme(), fs.getConf(),
         store.getAbfsCounters());
     MockAbfsInputStream inputStream = (MockAbfsInputStream) mockStore.openFileForRead(qualifiedPath,
         opt, fs.getFsStatistics(), getTestTracingContext(fs, false));
     return inputStream;
+  }
+
+  private boolean bufferSizeCorrectForFastpath(AzureBlobFileSystem fs) {
+    if ((fs.getAbfsStore().getAbfsConfiguration().getReadBufferSize()
+        != DEFAULT_FASTPATH_READ_BUFFER_SIZE)
+        || (fs.getAbfsStore().getAbfsConfiguration().getReadBufferSize()
+        != DEFAULT_FASTPATH_READ_BUFFER_SIZE)) {
+      LOG.debug("Buffer size not valid for fastpath. AbfsInputStream needs to "
+          + "fallback to REST.");
+      return false;
+    }
+    return true;
+  }
+
+  protected void addToTestTearDownCleanupList(String fileName) {
+    mockFastpathFilesToRegister.add(fileName);
+  }
+
+  protected void addToTestTearDownCleanupList(Path file) {
+    mockFastpathFilesToRegister.add(file.getName());
+  }
+
+    protected void deleteMockFastpathFiles() {
+    Iterator<String> itr = mockFastpathFilesToRegister.iterator();
+    while (itr.hasNext()) {
+      MockFastpathConnection.unregisterAppend(itr.next());
+    }
   }
 }

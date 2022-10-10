@@ -56,6 +56,7 @@ import static java.lang.Math.min;
 
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.ONE_KB;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.STREAM_ID_LEN;
+import static org.apache.hadoop.fs.azurebfs.services.AbfsSession.IO_SESSION_SCOPE.READ_ON_FASTPATH;
 import static org.apache.hadoop.fs.azurebfs.services.AbfsSession.IO_SESSION_SCOPE.READ_ON_OPTIMIZED_REST;
 import static org.apache.hadoop.util.StringUtils.toLowerCase;
 
@@ -181,8 +182,13 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
 
   protected AbfsSession createAbfsSession(AbfsInputStreamContext context) {
     AbfsSession session = null;
+    if (context.isDefaultConnectionOnFastpath()) {
+      session = new AbfsFastpathSession(READ_ON_FASTPATH, client, path, eTag, tracingContext);
+    }
+
     if (context.isDefaultConnectionOnOptimizedRest()) {
       session = new AbfsSession(READ_ON_OPTIMIZED_REST, client, path, eTag, tracingContext);
+      readAheadEnabled = false;
     }
 
     if ((session != null) && session.isValid()) {
@@ -507,12 +513,6 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
       final boolean bypassReadAhead,
       final AbfsInputStreamRequestContext abfsInputStreamRequestContext)
       throws IOException {
-    abfsInputStreamRequestContext.setBufferSize((long) bufferSize);
-    abfsInputStreamRequestContext.setAbfsInputStream(this);
-    abfsInputStreamRequestContext.setContentLength(contentLength);
-    abfsInputStreamRequestContext.setStartOffset(position);
-    abfsInputStreamRequestContext.setCurrentOffset(position);
-
     if (readAheadEnabled && !bypassReadAhead) {
       // try reading from read-ahead
       if (offset != 0) {
@@ -533,6 +533,11 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
       while(abfsInputStreamHelper.shouldGoNext(context)) {
         abfsInputStreamHelper = abfsInputStreamHelper.getNext();
       }
+      abfsInputStreamRequestContext.setBufferSize((long) bufferSize);
+      abfsInputStreamRequestContext.setAbfsInputStream(this);
+      abfsInputStreamRequestContext.setContentLength(contentLength);
+      abfsInputStreamRequestContext.setStartOffset(position);
+      abfsInputStreamRequestContext.setCurrentOffset(position);
       if(abfsInputStreamHelper.explicitPreFetchReadAllowed()) {
         while (numReadAheads > 0 && nextOffset < contentLength) {
           LOG.debug("issuing read ahead requestedOffset = {} requested size {}",
