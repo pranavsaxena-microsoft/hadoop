@@ -73,7 +73,7 @@ public class OptimizedRestAbfsInputStreamHelper
   @Override
   public boolean shouldGoNext(final AbfsInputStreamContext abfsInputStreamContext) {
     return (abfsInputStreamContext.isDefaultConnectionOnFastpath()
-        && nextHelper != null);
+        && nextHelper != null && isNextHelperValid);
   }
 
   @Override
