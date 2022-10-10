@@ -48,6 +48,7 @@ public class RestAbfsInputStreamHelper implements AbfsInputStreamHelper {
   @Override
   public void setNextAsValid() {
     isNextHelperValid = true;
+    nextHelper.setNextAsValid();
   }
 
   @Override

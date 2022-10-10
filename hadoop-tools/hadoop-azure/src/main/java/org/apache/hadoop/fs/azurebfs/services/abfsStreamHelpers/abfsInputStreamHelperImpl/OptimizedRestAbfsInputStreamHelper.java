@@ -55,6 +55,7 @@ public class OptimizedRestAbfsInputStreamHelper
   @Override
   public void setNextAsValid() {
     isNextHelperValid = true;
+    nextHelper.setNextAsValid();
   }
 
   @Override
