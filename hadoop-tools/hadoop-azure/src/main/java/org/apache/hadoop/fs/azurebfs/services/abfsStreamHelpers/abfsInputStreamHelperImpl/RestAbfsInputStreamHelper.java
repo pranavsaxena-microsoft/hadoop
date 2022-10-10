@@ -41,7 +41,7 @@ public class RestAbfsInputStreamHelper implements AbfsInputStreamHelper {
     if (abfsInputStreamContext == null) {
       return false;
     }
-    return (abfsInputStreamContext.isDefaultConnectionOnOptimizedRest()
+    return ((abfsInputStreamContext.isDefaultConnectionOnOptimizedRest() || abfsInputStreamContext.isDefaultConnectionOnFastpath())
         && nextHelper != null && isNextHelperValid);
   }
 

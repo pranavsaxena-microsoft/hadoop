@@ -22,9 +22,9 @@ import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemExc
 import org.apache.hadoop.fs.azurebfs.contracts.services.ReadRequestParameters;
 import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
 import org.apache.hadoop.fs.azurebfs.services.AbfsConnectionMode;
-import org.apache.hadoop.fs.azurebfs.services.AbfsOptimizedRestResponseHeaderBlock;
 import org.apache.hadoop.fs.azurebfs.services.AbfsInputStreamContext;
 import org.apache.hadoop.fs.azurebfs.services.AbfsInputStreamRequestContext;
+import org.apache.hadoop.fs.azurebfs.services.AbfsOptimizedRestResponseHeaderBlock;
 import org.apache.hadoop.fs.azurebfs.services.AbfsRestOperation;
 import org.apache.hadoop.fs.azurebfs.services.AbfsSessionData;
 import org.apache.hadoop.fs.azurebfs.services.ReadBufferManager;
@@ -50,9 +50,11 @@ public class OptimizedRestAbfsInputStreamHelper
 
   private AbfsInputStreamHelper prevHelper;
 
+  private Boolean isNextHelperValid = true;
+
   @Override
   public void setNextAsValid() {
-
+    isNextHelperValid = true;
   }
 
   @Override
@@ -64,13 +66,14 @@ public class OptimizedRestAbfsInputStreamHelper
       OptimizedRestAbfsInputStreamHelper.class);
 
   public OptimizedRestAbfsInputStreamHelper(AbfsInputStreamHelper abfsInputStreamHelper) {
-    nextHelper = null;
+    nextHelper = new FastpathRimbaudAbfsInputStreamHelper(this);
     prevHelper = abfsInputStreamHelper;
   }
 
   @Override
   public boolean shouldGoNext(final AbfsInputStreamContext abfsInputStreamContext) {
-    return false;
+    return (abfsInputStreamContext.isDefaultConnectionOnFastpath()
+        && nextHelper != null);
   }
 
   @Override
@@ -85,7 +88,7 @@ public class OptimizedRestAbfsInputStreamHelper
 
   @Override
   public void setNextAsInvalid() {
-    nextHelper = null;
+    isNextHelperValid = false;
   }
 
   @Override

@@ -38,6 +38,8 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.hadoop.classification.VisibleForTesting;
+import org.apache.hadoop.fs.azurebfs.services.abfsStreamHelpers.exceptions.BlockHelperException;
+import org.apache.hadoop.fs.azurebfs.services.abfsStreamHelpers.exceptions.RequestBlockException;
 import org.apache.hadoop.fs.store.LogExactlyOnce;
 import org.apache.hadoop.util.Preconditions;
 import org.apache.hadoop.thirdparty.com.google.common.base.Strings;
@@ -52,10 +54,12 @@ import org.apache.hadoop.thirdparty.com.google.common.util.concurrent.ThreadFact
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.azure.storage.fastpath.exceptions.FastpathRequestException;
 
 import org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants;
 import org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations;
 import org.apache.hadoop.fs.azurebfs.constants.HttpQueryParams;
+import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AbfsFastpathException;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemException;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.InvalidUriException;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.SASTokenProviderException;
@@ -886,6 +890,36 @@ public class AbfsClient implements Closeable {
     return op;
   }
 
+  public AbfsRestOperation fastPathOpen(final String path, final String eTag,
+      AbfsFastpathSessionData fastpathSessionData,
+      final TracingContext tracingContext) throws AzureBlobFileSystemException {
+    final List<AbfsHttpHeader> requestHeaders = createDefaultHeaders();
+    requestHeaders.add(new AbfsHttpHeader(IF_MATCH, eTag));
+
+    final AbfsUriQueryBuilder abfsUriQueryBuilder = createDefaultUriQueryBuilder();
+
+    final URL url = createRequestUrl(path, abfsUriQueryBuilder.toString());
+
+    return executeFastpathOpen(url, requestHeaders, fastpathSessionData,
+        tracingContext);
+  }
+
+  public AbfsRestOperation fastPathClose(final String path,
+      final String eTag,
+      final AbfsFastpathSessionData fastpathSessionData,
+      final TracingContext tracingContext)
+      throws AzureBlobFileSystemException {
+    final List<AbfsHttpHeader> requestHeaders = createDefaultHeaders();
+    requestHeaders.add(new AbfsHttpHeader(IF_MATCH, eTag));
+    final AbfsUriQueryBuilder abfsUriQueryBuilder = createDefaultUriQueryBuilder();
+
+    final URL url = createRequestUrl(path, abfsUriQueryBuilder.toString());
+
+    return executeFastpathClose(url, requestHeaders,
+        fastpathSessionData, tracingContext);
+
+  }
+
   public AbfsRestOperation read(String path,
       byte[] buffer,
       String cachedSasToken,
@@ -917,22 +951,25 @@ public class AbfsClient implements Closeable {
 
     AbfsRestOperation op = null;
 
-    AbfsRestOperationType opType = AbfsRestOperationType.ReadFile;
-    if (reqParams.isOptimizedRestConnection()) {
-      opType = AbfsRestOperationType.OptimizedRead;
-      requestHeaders.add(new AbfsHttpHeader(X_MS_FASTPATH_SESSION_DATA,
-          reqParams.getAbfsSessionData().getSessionToken()));
-    }
-    op = getAbfsGetRestOperation(buffer, reqParams, requestHeaders,
-        sasTokenForReuse, url,
-        opType, headerUpDownCallable);
+    if (reqParams.isFastpathConnection()) {
+      op = executeFastpathRead(path, reqParams, url, requestHeaders, buffer,
+          sasTokenForReuse, tracingContext);
+    } else {
+      AbfsRestOperationType opType = AbfsRestOperationType.ReadFile;
+      if (reqParams.isOptimizedRestConnection()) {
+        opType = AbfsRestOperationType.OptimizedRead;
+        requestHeaders.add(new AbfsHttpHeader(X_MS_FASTPATH_SESSION_DATA,
+            reqParams.getAbfsSessionData().getSessionToken()));
+      }
+      op = getAbfsGetRestOperation(buffer, reqParams, requestHeaders, sasTokenForReuse, url,
+          opType, headerUpDownCallable);
 
-    try {
-      op.execute(tracingContext);
-    } catch (AzureBlobFileSystemException ex) {
-      throw ex;
+      try {
+      op.execute(tracingContext); }
+      catch (AzureBlobFileSystemException ex) {
+        throw ex;
+      }
     }
-
 
     return op;
   }
@@ -1398,6 +1435,94 @@ public class AbfsClient implements Closeable {
 
   public <V> void addCallback(ListenableFuture<V> future, FutureCallback<V> callback) {
     Futures.addCallback(future, callback, executorService);
+  }
+
+  private AbfsRestOperation executeFastpathRead(String path,
+      ReadRequestParameters reqParams,
+      URL url,
+      List<AbfsHttpHeader> requestHeaders,
+      byte[] buffer,
+      String sasTokenForReuse,
+      TracingContext tracingContext) throws AzureBlobFileSystemException {
+    final AbfsRestOperation op = getFastpathRimbaudReadAbfsRestOperation(reqParams, url, requestHeaders, buffer);
+
+    try {
+      op.execute(tracingContext);
+      return op;
+    } catch (AbfsFastpathException ex) {
+      // Fastpath threw irrecoverable exception
+      // when FastpathRequestException is received, the request needs to
+      // be retried on REST
+      if (ex.getCause() instanceof FastpathRequestException) {
+        LOG.debug("Fallback:to OptimizedREST due to Fastpath request exception");
+        tracingContext.setConnectionMode(
+            AbfsConnectionMode.OPTIMIZED_REST_ON_FASTPATH_REQ_FAILURE);
+        reqParams.getAbfsSessionData()
+            .setConnectionMode(
+                AbfsConnectionMode.OPTIMIZED_REST_ON_FASTPATH_REQ_FAILURE);
+        throw new RequestBlockException(ex);
+      } else {
+        // when FastpathConnectionException is received, the request needs to
+        // be retried on REST as well as switch AbfsInputStream to REST for
+        // all future reads in its lifetime
+        LOG.debug("Fallback:to OptimizedREST due to Fastpath connection exception");
+        tracingContext.setConnectionMode(
+            AbfsConnectionMode.OPTIMIZED_REST_ON_FASTPATH_CONN_FAILURE);
+        reqParams.getAbfsSessionData()
+            .setConnectionMode(
+                AbfsConnectionMode.OPTIMIZED_REST_ON_FASTPATH_CONN_FAILURE);
+        throw new BlockHelperException(ex);
+      }
+    }
+  }
+
+  @VisibleForTesting
+  protected AbfsRestOperation getFastpathRimbaudReadAbfsRestOperation(final ReadRequestParameters reqParams,
+      final URL url,
+      final List<AbfsHttpHeader> requestHeaders,
+      final byte[] buffer) {
+    return new AbfsRestOperation(
+        AbfsRestOperationType.FastpathRead,
+        this,
+        HTTP_METHOD_GET,
+        url,
+        requestHeaders,
+        buffer,
+        reqParams.getBufferOffset(),
+        reqParams.getReadLength(),
+        (AbfsFastpathSessionData) reqParams.getAbfsSessionData());
+  }
+
+  @VisibleForTesting
+  protected AbfsRestOperation executeFastpathOpen(URL url,
+      List<AbfsHttpHeader> requestHeaders,
+      AbfsFastpathSessionData fastpathSessionData,
+      TracingContext tracingContext) throws AzureBlobFileSystemException {
+    final AbfsRestOperation op = new AbfsRestOperation(
+        AbfsRestOperationType.FastpathOpen,
+        this,
+        HTTP_METHOD_GET,
+        url,
+        requestHeaders,
+        fastpathSessionData);
+    op.execute(tracingContext);
+    return op;
+  }
+
+  @VisibleForTesting
+  protected AbfsRestOperation executeFastpathClose(URL url,
+      List<AbfsHttpHeader> requestHeaders,
+      AbfsFastpathSessionData fastpathSessionData,
+      TracingContext tracingContext) throws AzureBlobFileSystemException {
+    final AbfsRestOperation op = new AbfsRestOperation(
+        AbfsRestOperationType.FastpathClose,
+        this,
+        HTTP_METHOD_GET,
+        url,
+        requestHeaders,
+        fastpathSessionData);
+    op.execute(tracingContext);
+    return op;
   }
 
    @VisibleForTesting

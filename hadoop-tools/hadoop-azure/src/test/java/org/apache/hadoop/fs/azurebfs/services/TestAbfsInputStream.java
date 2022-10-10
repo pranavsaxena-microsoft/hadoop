@@ -47,6 +47,7 @@ import org.apache.hadoop.fs.azurebfs.AzureBlobFileSystemStore;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemException;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.TimeoutException;
 import org.apache.hadoop.fs.azurebfs.contracts.services.ReadBufferStatus;
+import org.apache.hadoop.fs.azurebfs.utils.MockFastpathConnection;
 import org.apache.hadoop.fs.azurebfs.utils.TestCachedSASToken;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 import org.apache.hadoop.fs.impl.OpenFileParameters;
@@ -92,6 +93,7 @@ public class TestAbfsInputStream extends
   @After
   public void tearDown() throws Exception {
     super.teardown();
+    deleteMockFastpathFiles();
   }
   private AbfsRestOperation getMockRestOp() {
     AbfsRestOperation op = mock(AbfsRestOperation.class);
@@ -170,13 +172,15 @@ public class TestAbfsInputStream extends
   public  AbfsInputStreamContext getInStmContext(int readAheadQueueDepth,
       int readBufferSize,
       boolean alwaysReadBufferSize,
-      int readAheadBlockSize) {
+      int readAheadBlockSize,
+      boolean isFastpathEnabled) {
     AbfsInputStreamContext inputStreamContext = new AbfsInputStreamContext(-1);
     inputStreamContext.withReadBufferSize(readBufferSize)
         .withReadAheadQueueDepth(readAheadQueueDepth)
         .withShouldReadBufferSizeAlways(alwaysReadBufferSize)
         .withReadAheadBlockSize(readAheadBlockSize)
         .withReadAheadRange(DEFAULT_READ_AHEAD_RANGE)
+        .withDefaultFastpath(isFastpathEnabled)
         .build();
     return inputStreamContext;
   }
@@ -680,27 +684,38 @@ public class TestAbfsInputStream extends
    * @throws Exception
    */
   @Test
+  public void testMockFastpathDiffReadRequestSizeAndRAHBlockSize() throws Exception {
+    // Run mock test only if feature is set to off
+    Assume.assumeFalse(getDefaultFastpathFeatureStatus());
+    testDiffReadRequestSizeAndRAHBlockSize(true);
+  }
+
+  @Test
   public void testDiffReadRequestSizeAndRAHBlockSize() throws Exception {
+    testDiffReadRequestSizeAndRAHBlockSize(false);
+  }
+
+  public void testDiffReadRequestSizeAndRAHBlockSize(boolean isMockFastpathTest) throws Exception {
     // Set requestRequestSize = 4MB and readAheadBufferSize=8MB
     resetReadBufferManager(FOUR_MB, INCREASED_READ_BUFFER_AGE_THRESHOLD);
-    testReadAheadConfigs(FOUR_MB, TEST_READAHEAD_DEPTH_4, false, EIGHT_MB);
+    testReadAheadConfigs(FOUR_MB, TEST_READAHEAD_DEPTH_4, false, EIGHT_MB, isMockFastpathTest);
 
     // Test for requestRequestSize =16KB and readAheadBufferSize=16KB
     resetReadBufferManager(SIXTEEN_KB, INCREASED_READ_BUFFER_AGE_THRESHOLD);
     AbfsInputStream inputStream = testReadAheadConfigs(SIXTEEN_KB,
-        TEST_READAHEAD_DEPTH_2, true, SIXTEEN_KB);
+        TEST_READAHEAD_DEPTH_2, true, SIXTEEN_KB, isMockFastpathTest);
     testReadAheads(inputStream, SIXTEEN_KB, SIXTEEN_KB);
 
     // Test for requestRequestSize =16KB and readAheadBufferSize=48KB
     resetReadBufferManager(FORTY_EIGHT_KB, INCREASED_READ_BUFFER_AGE_THRESHOLD);
     inputStream = testReadAheadConfigs(SIXTEEN_KB, TEST_READAHEAD_DEPTH_2, true,
-        FORTY_EIGHT_KB);
+        FORTY_EIGHT_KB, isMockFastpathTest);
     testReadAheads(inputStream, SIXTEEN_KB, FORTY_EIGHT_KB);
 
     // Test for requestRequestSize =48KB and readAheadBufferSize=16KB
     resetReadBufferManager(FORTY_EIGHT_KB, INCREASED_READ_BUFFER_AGE_THRESHOLD);
     inputStream = testReadAheadConfigs(FORTY_EIGHT_KB, TEST_READAHEAD_DEPTH_2,
-        true, SIXTEEN_KB);
+        true, SIXTEEN_KB, isMockFastpathTest);
     testReadAheads(inputStream, FORTY_EIGHT_KB, SIXTEEN_KB);
   }
 
@@ -758,7 +773,8 @@ public class TestAbfsInputStream extends
   public AbfsInputStream testReadAheadConfigs(int readRequestSize,
       int readAheadQueueDepth,
       boolean alwaysReadBufferSizeEnabled,
-      int readAheadBlockSize) throws Exception {
+      int readAheadBlockSize,
+      boolean isMockFastpathTest) throws Exception {
     Configuration
         config = new Configuration(
         this.getRawConfiguration());
@@ -777,7 +793,10 @@ public class TestAbfsInputStream extends
     final AzureBlobFileSystem fs = createTestFile(testPath,
         ALWAYS_READ_BUFFER_SIZE_TEST_FILE_SIZE, config);
     byte[] byteBuffer = new byte[ONE_MB];
-    AbfsInputStream inputStream = this.getAbfsStore(fs)
+    AbfsInputStream inputStream = isMockFastpathTest
+        ? new MockAbfsInputStream(this.getAbfsClient(fs), this.getAbfsStore(fs)
+        .openFileForRead(testPath, null, getTestTracingContext(fs, false)))
+        : this.getAbfsStore(fs)
         .openFileForRead(testPath, null, getTestTracingContext(fs, false));
 
     Assertions.assertThat(inputStream.getBufferSize())
@@ -844,14 +863,19 @@ public class TestAbfsInputStream extends
       character = (character == 'z') ? 'a' : (char) ((int) character + 1);
     }
 
+    MockFastpathConnection.unregisterAppend(testFilePath.getName());
+
     try (FSDataOutputStream outputStream = fs.create(testFilePath)) {
       int bytesWritten = 0;
       while (bytesWritten < testFileSize) {
+        MockFastpathConnection.registerAppend((int) testFileSize,
+            testFilePath.getName(), buffer, 0, buffer.length);
         outputStream.write(buffer);
         bytesWritten += buffer.length;
       }
     }
 
+    addToTestTearDownCleanupList(testFilePath.getName());
     Assertions.assertThat(fs.getFileStatus(testFilePath).getLen())
         .describedAs("File not created of expected size")
         .isEqualTo(testFileSize);
@@ -865,5 +889,16 @@ public class TestAbfsInputStream extends
     // Trigger GC as aggressive recreation of ReadBufferManager buffers
     // by successive tests can lead to OOM based on the dev VM/machine capacity.
     System.gc();
+  }
+
+  public static boolean isFastpathEnabled(AbfsInputStream inStream) {
+    if ((inStream.getAbfsSession() != null)
+      && (inStream.getAbfsSession().getSessionData() != null)
+        && (inStream.getAbfsSession().getSessionData().getConnectionMode()
+            == AbfsConnectionMode.FASTPATH_CONN)) {
+      return true;
+    }
+
+    return false;
   }
 }

@@ -29,6 +29,7 @@ import java.util.concurrent.Future;
 import org.junit.Assume;
 import org.junit.Test;
 
+import org.apache.hadoop.fs.azurebfs.utils.MockFastpathConnection;
 
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -87,10 +88,19 @@ public class ITestAzureBlobFileSystemE2EScale extends
     assertEquals(testWriteBufferSize * operationCount, fileStatus.getLen());
   }
 
-
+  @Test
+  public void testMockFastpathReadWriteHeavyBytesToFileWithStatistics() throws Exception {
+    // Run mock test only if feature is set to off
+    Assume.assumeFalse(getDefaultFastpathFeatureStatus());
+    testReadWriteHeavyBytesToFileWithStatistics(true);
+  }
 
   @Test
   public void testReadWriteHeavyBytesToFileWithStatistics() throws Exception {
+    testReadWriteHeavyBytesToFileWithStatistics(false);
+  }
+
+  public void testReadWriteHeavyBytesToFileWithStatistics(boolean isMockFastpathTest) throws Exception {
     final AzureBlobFileSystem fs = getFileSystem();
     final FileSystem.Statistics abfsStatistics;
     final Path testFile = path(methodName.getMethodName());
@@ -106,10 +116,16 @@ public class ITestAzureBlobFileSystemE2EScale extends
       stream.write(sourceData);
     }
 
-
+    if (isMockFastpathTest) {
+      MockFastpathConnection
+          .registerAppend(sourceData.length, testFile.getName(), sourceData, 0,
+              sourceData.length);
+    }
     final byte[] remoteData = new byte[testBufferSize];
     int bytesRead;
-    try (FSDataInputStream inputStream = fs.open(testFile, 4 * ONE_MB)) {
+    try (FSDataInputStream inputStream = isMockFastpathTest
+        ? openMockAbfsInputStream(fs, testFile)
+        : fs.open(testFile, 4 * ONE_MB)) {
       bytesRead = inputStream.read(remoteData);
     }
 
@@ -120,6 +136,9 @@ public class ITestAzureBlobFileSystemE2EScale extends
         sourceData.length, abfsStatistics.getBytesWritten());
     assertEquals("bytesRead from read() call", testBufferSize, bytesRead);
     assertArrayEquals("round tripped data", sourceData, remoteData);
+    if (isMockFastpathTest) {
+      MockFastpathConnection.unregisterAppend(testFile.getName());
+    }
 
   }
 }
