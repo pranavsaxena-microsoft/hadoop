@@ -579,7 +579,6 @@ public abstract class AbstractAbfsIntegrationTest extends
   public AbfsInputStream getMockAbfsInputStream(AzureBlobFileSystem fs,
       Path testFilePath, Optional<OpenFileParameters> opt) throws IOException {
     Configuration conf = fs.getConf();
-    conf.setBoolean(FS_AZURE_READ_DEFAULT_FASTPATH, true);
     fs = (AzureBlobFileSystem) FileSystem.get(fs.getUri(), conf);
     Path qualifiedPath = makeQualified(testFilePath);
     AzureBlobFileSystemStore store = fs.getAbfsStore();

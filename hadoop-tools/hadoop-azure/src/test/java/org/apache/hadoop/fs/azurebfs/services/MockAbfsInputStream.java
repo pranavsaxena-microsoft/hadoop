@@ -84,11 +84,6 @@ public class MockAbfsInputStream extends AbfsInputStream {
         new TracingContext("MockFastpathTest",
             UUID.randomUUID().toString(), FSOperationType.OPEN, TracingHeaderFormat.ALL_ID_FORMAT,
             null));
-    try {
-      createMockAbfsFastpathSession();
-    } catch (Exception e) {
-      Assert.fail("createMockAbfsFastpathSession failed " + e);
-    }
   }
 
   public MockAbfsInputStream(final AbfsClient client, final AbfsInputStream in)
@@ -98,39 +93,11 @@ public class MockAbfsInputStream extends AbfsInputStream {
         in.getContext().withDefaultFastpath(false).withDefaultOptimizedRest(false),
         in.getETag(),
         in.getTracingContext());
-    try {
-      createMockAbfsFastpathSession();
-    } catch (Exception e) {
-      Assert.fail("createMockAbfsFastpathSession failed " + e);
-    }
   }
 
-  protected AbfsSession createAbfsSession(boolean isFastpathFeatureConfigOn) {
-    if (isFastpathFeatureConfigOn) {
-      try {
-        setAbfsSession(
-            new MockAbfsFastpathSession(READ_ON_FASTPATH, getClient(), getPath(), getETag(),
-                getTracingContext()));
-      } catch (IOException e) {
-        Assert.fail("Failure in creating MockAbfsFastpathSession instance " + e);
-      }
-    }
-
-    return this.getAbfsSession();
-  }
-
-  public void createMockAbfsFastpathSession()
-      throws Exception {
-    if (getContext() == null) {
-      return;
-    }
-    if (getContext().isDefaultConnectionOnFastpath()
-        || getContext().isDefaultConnectionOnOptimizedRest()) {
-      AbfsFastpathSession fastpathSsn
-          = MockAbfsInputStream.getStubAbfsFastpathSession(
-          getClient(), getPath(), getETag(), getTracingContext());
-      setAbfsSession(new MockAbfsFastpathSession(fastpathSsn));
-    }
+  protected AbfsSession createFastpathSession() {
+    return new MockAbfsFastpathSession(READ_ON_FASTPATH, getClient(), getPath(), getETag(),
+        getTracingContext());
   }
 
   @Override

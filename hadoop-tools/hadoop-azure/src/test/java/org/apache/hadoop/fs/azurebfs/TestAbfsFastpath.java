@@ -54,6 +54,8 @@ import org.apache.hadoop.fs.azurebfs.services.abfsStreamHelpers.abfsOutputStream
 
 import static org.apache.hadoop.fs.azurebfs.AbfsStatistic.ABFS_READ_AHEAD_CACHE_HIT_COUNTER;
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.AZURE_WRITE_BUFFER_SIZE;
+import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_READ_DEFAULT_FASTPATH;
+import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_READ_DEFAULT_OPTIMIZED_REST;
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_WRITE_DEFAULT_OPTIMIZED_REST;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.DEFAULT_OPTIMIZED_READ_BUFFER_SIZE;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.THRICE_DEFAULT_OPTIMIZED_READ_BUFFER_SIZE;
@@ -90,7 +92,7 @@ public class TestAbfsFastpath extends AbstractAbfsIntegrationTest {
 
   @Test
   public void testMockFastpathFileDeleted() throws Exception {
-    AzureBlobFileSystem fs = getAbfsFileSystem(2, DEFAULT_OPTIMIZED_READ_BUFFER_SIZE, 0);
+    AzureBlobFileSystem fs = getAbfsFileSystem(2, DEFAULT_OPTIMIZED_READ_BUFFER_SIZE, 0, FS_AZURE_READ_DEFAULT_FASTPATH);
     AbfsInputStream inStream = createTestfileAndGetInputStream(fs,
         this.methodName.getMethodName(), DEFAULT_OPTIMIZED_READ_BUFFER_SIZE, true);
     ((MockAbfsInputStream) inStream).induceFpRimbaudError(FILE_NOT_FOUND_HTTP_STATUS);
@@ -155,7 +157,7 @@ public class TestAbfsFastpath extends AbstractAbfsIntegrationTest {
 
   @Test
   public void testThrottled() throws Exception {
-    AzureBlobFileSystem fs = getAbfsFileSystem(2, DEFAULT_OPTIMIZED_READ_BUFFER_SIZE, 0);
+    AzureBlobFileSystem fs = getAbfsFileSystem(2, DEFAULT_OPTIMIZED_READ_BUFFER_SIZE, 0, FS_AZURE_READ_DEFAULT_FASTPATH);
     AbfsInputStream inStream = createTestfileAndGetInputStream(fs,
         this.methodName.getMethodName(), DEFAULT_OPTIMIZED_READ_BUFFER_SIZE, true);
     ((MockAbfsInputStream) inStream).induceFpRimbaudError(THROTTLED_HTTP_STATUS);
@@ -178,7 +180,7 @@ public class TestAbfsFastpath extends AbstractAbfsIntegrationTest {
 
   @Test
   public void testFastpathRequestFailure() throws IOException {
-    AzureBlobFileSystem fs = getAbfsFileSystem(2, DEFAULT_OPTIMIZED_READ_BUFFER_SIZE, 0);
+    AzureBlobFileSystem fs = getAbfsFileSystem(2, DEFAULT_OPTIMIZED_READ_BUFFER_SIZE, 0, FS_AZURE_READ_DEFAULT_FASTPATH);
     AbfsInputStream inStream = createTestfileAndGetInputStream(fs,
         this.methodName.getMethodName(), 4 * DEFAULT_OPTIMIZED_READ_BUFFER_SIZE, true);
     ((MockAbfsInputStream) inStream).induceFpRimbaudRequestException();
@@ -212,7 +214,7 @@ public class TestAbfsFastpath extends AbstractAbfsIntegrationTest {
 
   @Test
   public void testFastpathConnectionFailure() throws IOException {
-    AzureBlobFileSystem fs = getAbfsFileSystem(2, DEFAULT_OPTIMIZED_READ_BUFFER_SIZE, 0);
+    AzureBlobFileSystem fs = getAbfsFileSystem(2, DEFAULT_OPTIMIZED_READ_BUFFER_SIZE, 0, FS_AZURE_READ_DEFAULT_FASTPATH);
     AbfsInputStream inStream = createTestfileAndGetInputStream(fs,
         this.methodName.getMethodName(), 4 * DEFAULT_OPTIMIZED_READ_BUFFER_SIZE, true);
     ((MockAbfsInputStream) inStream).induceFpRimbaudConnectionException();
@@ -246,7 +248,7 @@ public class TestAbfsFastpath extends AbstractAbfsIntegrationTest {
   @Test
   public void testFastpathRimbaudAndRestConnectionFailure() throws IOException {
     AzureBlobFileSystem fs = getAbfsFileSystem(2,
-        DEFAULT_OPTIMIZED_READ_BUFFER_SIZE, 0);
+        DEFAULT_OPTIMIZED_READ_BUFFER_SIZE, 0, FS_AZURE_READ_DEFAULT_FASTPATH);
     AbfsInputStream inStream = createTestfileAndGetInputStream(fs,
         this.methodName.getMethodName(), 4 * DEFAULT_OPTIMIZED_READ_BUFFER_SIZE, true);
     ((MockAbfsInputStream) inStream).induceFpRimbaudConnectionException();
@@ -286,7 +288,7 @@ public class TestAbfsFastpath extends AbstractAbfsIntegrationTest {
   public void testIfSessionTokenInCurrentResponseUsedInNextRequestFpRest()
       throws IOException {
     AzureBlobFileSystem fs = getAbfsFileSystem(2,
-        DEFAULT_OPTIMIZED_READ_BUFFER_SIZE, 0);
+        DEFAULT_OPTIMIZED_READ_BUFFER_SIZE, 0, FS_AZURE_READ_DEFAULT_OPTIMIZED_REST);
     AbfsInputStream inStream = createTestfileAndGetInputStream(fs,
         this.methodName.getMethodName(), 4 * DEFAULT_OPTIMIZED_READ_BUFFER_SIZE, false);
     ((MockAbfsInputStream) inStream).setSessionMode(
@@ -320,7 +322,7 @@ public class TestAbfsFastpath extends AbstractAbfsIntegrationTest {
   public void testPrefetchDevInvokedCalls()
       throws IOException, InterruptedException {
     AzureBlobFileSystem fs = getAbfsFileSystem(2,
-        DEFAULT_OPTIMIZED_READ_BUFFER_SIZE, 3);
+        DEFAULT_OPTIMIZED_READ_BUFFER_SIZE, 3, FS_AZURE_READ_DEFAULT_OPTIMIZED_REST);
     AbfsInputStream inStream = createTestfileAndGetInputStream(fs,
         this.methodName.getMethodName(), 4 * DEFAULT_OPTIMIZED_READ_BUFFER_SIZE, false);
     ((MockAbfsInputStream) inStream).setSessionMode(
@@ -368,7 +370,7 @@ public class TestAbfsFastpath extends AbstractAbfsIntegrationTest {
   public void testPrefetchLargeBufferCall()
       throws IOException, InterruptedException {
     AzureBlobFileSystem fs = getAbfsFileSystem(2,
-        DEFAULT_OPTIMIZED_READ_BUFFER_SIZE, 3);
+        DEFAULT_OPTIMIZED_READ_BUFFER_SIZE, 3, FS_AZURE_READ_DEFAULT_OPTIMIZED_REST);
     AbfsInputStream inStream = createTestfileAndGetInputStream(fs,
         this.methodName.getMethodName(), 4 * DEFAULT_OPTIMIZED_READ_BUFFER_SIZE, false);
     ((MockAbfsInputStream) inStream).setSessionMode(
@@ -410,7 +412,7 @@ public class TestAbfsFastpath extends AbstractAbfsIntegrationTest {
 
     }
     AzureBlobFileSystem fs = getAbfsFileSystem(2,
-        DEFAULT_OPTIMIZED_READ_BUFFER_SIZE, 3);
+        DEFAULT_OPTIMIZED_READ_BUFFER_SIZE, 3, FS_AZURE_READ_DEFAULT_OPTIMIZED_REST);
     AbfsInputStream inStream = createTestfileAndGetInputStream(fs,
         this.methodName.getMethodName(), 4 * DEFAULT_OPTIMIZED_READ_BUFFER_SIZE, false);
     ((MockAbfsInputStream) inStream).setSessionMode(
@@ -455,7 +457,7 @@ public class TestAbfsFastpath extends AbstractAbfsIntegrationTest {
   public void testFpRestPreFetchCappedToReadAheadDepthSecondReadBlockNotAtEOF()
       throws IOException, InterruptedException {
     AzureBlobFileSystem fs = getAbfsFileSystem(2,
-        DEFAULT_OPTIMIZED_READ_BUFFER_SIZE, 3);
+        DEFAULT_OPTIMIZED_READ_BUFFER_SIZE, 3, FS_AZURE_READ_DEFAULT_OPTIMIZED_REST);
     AbfsInputStream inStream = createTestfileAndGetInputStream(fs,
         this.methodName.getMethodName(), 5 * DEFAULT_OPTIMIZED_READ_BUFFER_SIZE, false);
     ((MockAbfsInputStream) inStream).setSessionMode(
@@ -502,7 +504,7 @@ public class TestAbfsFastpath extends AbstractAbfsIntegrationTest {
   public void testNewAbfsSessionBehaviourDependOnPreviousSessionObjectForRead()
       throws IOException {
     AzureBlobFileSystem fs = getAbfsFileSystem(2,
-        DEFAULT_OPTIMIZED_READ_BUFFER_SIZE, 0);
+        DEFAULT_OPTIMIZED_READ_BUFFER_SIZE, 0, FS_AZURE_READ_DEFAULT_OPTIMIZED_REST);
     AbfsInputStream inStream = createTestfileAndGetInputStream(fs,
         this.methodName.getMethodName(),
         4 * DEFAULT_OPTIMIZED_READ_BUFFER_SIZE, false);

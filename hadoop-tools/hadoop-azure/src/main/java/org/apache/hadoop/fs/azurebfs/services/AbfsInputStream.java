@@ -29,6 +29,8 @@ import org.apache.hadoop.classification.VisibleForTesting;
 import org.apache.hadoop.fs.azurebfs.contracts.services.ReadRequestParameters;
 import org.apache.hadoop.fs.azurebfs.services.abfsStreamHelpers.AbfsInputStreamHelper;
 import org.apache.hadoop.fs.azurebfs.services.abfsStreamHelpers.IOStreamHelper;
+import org.apache.hadoop.fs.azurebfs.services.abfsStreamHelpers.abfsInputStreamHelperImpl.FastpathRimbaudAbfsInputStreamHelper;
+import org.apache.hadoop.fs.azurebfs.services.abfsStreamHelpers.abfsInputStreamHelperImpl.OptimizedRestAbfsInputStreamHelper;
 import org.apache.hadoop.fs.azurebfs.services.abfsStreamHelpers.exceptions.BlockHelperException;
 import org.apache.hadoop.fs.azurebfs.services.abfsStreamHelpers.exceptions.RequestBlockException;
 import org.apache.hadoop.fs.azurebfs.AbfsStatistic;
@@ -179,19 +181,18 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
     return StringUtils.right(UUID.randomUUID().toString(), STREAM_ID_LEN);
   }
 
-  protected AbfsSession createAbfsSession(AbfsInputStreamContext context) {
+  private AbfsSession createAbfsSession(AbfsInputStreamContext context) {
     AbfsSession session = null;
     AbfsInputStreamHelper inputStreamHelper = IOStreamHelper.getInputStreamHelper();
     while(inputStreamHelper.shouldGoNext(context)) {
       inputStreamHelper = inputStreamHelper.getNext();
     }
-    if (context.isDefaultConnectionOnFastpath()) {
-      session = new AbfsFastpathSession(READ_ON_FASTPATH, client, path, eTag, tracingContext);
+    if (inputStreamHelper.getClass() == FastpathRimbaudAbfsInputStreamHelper.class) {
+      session = createFastpathSession();
     }
 
-    if (context.isDefaultConnectionOnOptimizedRest()) {
+    if (inputStreamHelper.getClass() == OptimizedRestAbfsInputStreamHelper.class) {
       session = new AbfsSession(READ_ON_OPTIMIZED_REST, client, path, eTag, tracingContext);
-      readAheadEnabled = false;
     }
 
     if ((session != null) && session.isValid()) {
@@ -199,6 +200,10 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
     }
 
     return null;
+  }
+
+  protected AbfsSession createFastpathSession() {
+    return new AbfsFastpathSession(READ_ON_FASTPATH, client, path, eTag, tracingContext);
   }
 
   @Override

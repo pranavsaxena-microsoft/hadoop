@@ -42,8 +42,8 @@ public class MockAbfsFastpathSession extends AbfsFastpathSession {
   public MockAbfsFastpathSession(final IO_SESSION_SCOPE scope, final AbfsClient client,
       final String path,
       final String eTag,
-      TracingContext tracingContext) throws IOException {
-    super(IO_SESSION_SCOPE.READ_ON_FASTPATH, (new MockAbfsClient(client)), path, eTag, tracingContext);
+      TracingContext tracingContext)  {
+    super(IO_SESSION_SCOPE.READ_ON_FASTPATH, client, path, eTag, tracingContext);
   }
 
   public MockAbfsFastpathSession(final AbfsSession srcSession) {
