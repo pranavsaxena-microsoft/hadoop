@@ -24,7 +24,6 @@ import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
 import org.apache.hadoop.fs.azurebfs.services.AbfsInputStreamContext;
 import org.apache.hadoop.fs.azurebfs.services.AbfsInputStreamRequestContext;
 import org.apache.hadoop.fs.azurebfs.services.AbfsRestOperation;
-import org.apache.hadoop.fs.azurebfs.services.AbfsSession;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 
 public interface AbfsInputStreamHelper {
@@ -51,9 +50,4 @@ public interface AbfsInputStreamHelper {
   public Boolean isAbfsSessionRequired();
 
   public void setNextAsValid();
-
-  public AbfsSession createAbfsSession(final AbfsClient abfsClient,
-      final String path,
-      final String eTag,
-      final TracingContext tracingContext);
 }

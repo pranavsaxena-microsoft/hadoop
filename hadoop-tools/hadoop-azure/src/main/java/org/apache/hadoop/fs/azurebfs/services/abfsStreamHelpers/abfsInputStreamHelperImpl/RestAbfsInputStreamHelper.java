@@ -24,7 +24,6 @@ import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
 import org.apache.hadoop.fs.azurebfs.services.AbfsInputStreamContext;
 import org.apache.hadoop.fs.azurebfs.services.AbfsInputStreamRequestContext;
 import org.apache.hadoop.fs.azurebfs.services.AbfsRestOperation;
-import org.apache.hadoop.fs.azurebfs.services.AbfsSession;
 import org.apache.hadoop.fs.azurebfs.services.abfsStreamHelpers.AbfsInputStreamHelper;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 
@@ -32,14 +31,6 @@ public class RestAbfsInputStreamHelper implements AbfsInputStreamHelper {
 
   private AbfsInputStreamHelper nextHelper;
   private Boolean isNextHelperValid = true;
-
-  @Override
-  public AbfsSession createAbfsSession(final AbfsClient abfsClient,
-      final String path,
-      final String eTag,
-      final TracingContext tracingContext) {
-    return null;
-  }
 
   public RestAbfsInputStreamHelper() {
     nextHelper = new OptimizedRestAbfsInputStreamHelper(this);

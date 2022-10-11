@@ -26,7 +26,6 @@ import org.apache.hadoop.fs.azurebfs.services.AbfsInputStreamContext;
 import org.apache.hadoop.fs.azurebfs.services.AbfsInputStreamRequestContext;
 import org.apache.hadoop.fs.azurebfs.services.AbfsOptimizedRestResponseHeaderBlock;
 import org.apache.hadoop.fs.azurebfs.services.AbfsRestOperation;
-import org.apache.hadoop.fs.azurebfs.services.AbfsSession;
 import org.apache.hadoop.fs.azurebfs.services.AbfsSessionData;
 import org.apache.hadoop.fs.azurebfs.services.ReadBufferManager;
 import org.apache.hadoop.fs.azurebfs.services.ThreadBasedMessageQueue;
@@ -36,6 +35,8 @@ import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 
@@ -55,14 +56,6 @@ public class OptimizedRestAbfsInputStreamHelper
   public void setNextAsValid() {
     isNextHelperValid = true;
     nextHelper.setNextAsValid();
-  }
-
-  @Override
-  public AbfsSession createAbfsSession(final AbfsClient abfsClient,
-      final String path,
-      final String eTag,
-      final TracingContext tracingContext) {
-    return new AbfsSession(AbfsSession.IO_SESSION_SCOPE.READ_ON_OPTIMIZED_REST, abfsClient, path, eTag, tracingContext);
   }
 
   @Override

@@ -84,11 +84,11 @@ public class MockAbfsInputStream extends AbfsInputStream {
         new TracingContext("MockFastpathTest",
             UUID.randomUUID().toString(), FSOperationType.OPEN, TracingHeaderFormat.ALL_ID_FORMAT,
             null));
-//    try {
-//      createMockAbfsFastpathSession();
-//    } catch (Exception e) {
-//      Assert.fail("createMockAbfsFastpathSession failed " + e);
-//    }
+    try {
+      createMockAbfsFastpathSession();
+    } catch (Exception e) {
+      Assert.fail("createMockAbfsFastpathSession failed " + e);
+    }
   }
 
   public MockAbfsInputStream(final AbfsClient client, final AbfsInputStream in)
@@ -98,11 +98,11 @@ public class MockAbfsInputStream extends AbfsInputStream {
         in.getContext().withDefaultFastpath(false).withDefaultOptimizedRest(false),
         in.getETag(),
         in.getTracingContext());
-//    try {
-//      createMockAbfsFastpathSession();
-//    } catch (Exception e) {
-//      Assert.fail("createMockAbfsFastpathSession failed " + e);
-//    }
+    try {
+      createMockAbfsFastpathSession();
+    } catch (Exception e) {
+      Assert.fail("createMockAbfsFastpathSession failed " + e);
+    }
   }
 
   protected AbfsSession createAbfsSession(boolean isFastpathFeatureConfigOn) {
