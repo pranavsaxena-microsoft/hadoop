@@ -43,6 +43,7 @@ import org.apache.hadoop.fs.azurebfs.Abfs;
 import org.apache.hadoop.fs.azurebfs.AzureBlobFileSystem;
 import org.junit.Assert;
 import org.junit.Test;
+import org.mockito.Mockito;
 
 import org.apache.hadoop.conf.Configuration;
 
@@ -136,6 +137,18 @@ public class TestExponentialRetryPolicy extends AbstractAbfsIntegrationTest {
     new Random().nextBytes(b);
 
     Path testPath = path(TEST_PATH);
+    AbfsClientThrottlingIntercept accountIntercept = AbfsClientThrottlingInterceptFactory.getInstance(this.getAccountName(),
+        fs.getAbfsStore().getClient().getAbfsConfiguration().isAutoThrottlingEnabled(),
+        fs.getAbfsStore().getClient().getAbfsConfiguration().isSingletonEnabled());
+
+    final AbfsClientThrottlingAnalyzer readAccount1Analyser = Mockito.spy(new AbfsClientThrottlingAnalyzer("read"));
+    final AbfsClientThrottlingAnalyzer writeAccount1Analyser = Mockito.spy(new AbfsClientThrottlingAnalyzer("write"));
+
+    accountIntercept.setReadThrottler(readAccount1Analyser);
+    accountIntercept.setWriteThrottler(writeAccount1Analyser);
+
+    Mockito.doReturn(1000* 10).when(readAccount1Analyser).getIdleTimeout();
+
     FSDataOutputStream stream = fs.create(testPath);
     try {
       stream.write(b);
