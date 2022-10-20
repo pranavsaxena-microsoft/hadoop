@@ -40,6 +40,7 @@ import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.A
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.DEFAULT_READ_BUFFER_SIZE;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.MAX_BUFFER_SIZE;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.MIN_BUFFER_SIZE;
+import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.ONE_MB;
 
 /**
  * Test read, write and seek.
@@ -67,6 +68,29 @@ public class ITestAbfsReadWriteAndSeek extends AbstractAbfsScaleTest {
   @Test
   public void testReadAndWriteWithDifferentBufferSizesAndSeek() throws Exception {
     testReadWriteAndSeek(size);
+  }
+
+  @Test
+  public void testDownloadLargeFiles() throws Exception {
+    final AzureBlobFileSystem fs = getFileSystem();
+    final AbfsConfiguration abfsConfiguration = fs.getAbfsStore().getAbfsConfiguration();
+    abfsConfiguration.setWriteBufferSize(DEFAULT_READ_BUFFER_SIZE);
+    abfsConfiguration.setReadBufferSize(DEFAULT_READ_BUFFER_SIZE);
+
+    final int fileSize = ONE_MB * 1024 * 5;
+    final byte[] b = new byte[fileSize];
+    new Random().nextBytes(b);
+
+    Path testPath = path(TEST_PATH);
+    FSDataOutputStream stream = fs.create(testPath);
+    try {
+      stream.write(b);
+    } finally{
+      stream.close();
+    }
+
+    FSDataInputStream inputStream = fs.open(testPath);
+    inputStream.read(b, 0, 4 * ONE_MB);
   }
 
   private void testReadWriteAndSeek(int bufferSize) throws Exception {
