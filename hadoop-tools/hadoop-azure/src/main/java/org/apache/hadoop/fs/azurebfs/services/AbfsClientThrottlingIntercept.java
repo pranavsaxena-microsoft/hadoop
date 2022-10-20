@@ -89,8 +89,14 @@ public final class AbfsClientThrottlingIntercept {
       case ReadFile:
         String range = abfsHttpOperation.getConnection().getRequestProperty(HttpHeaderConfigurations.RANGE);
         contentLength = getContentLengthIfKnown(range);
+        int contentLengthReceived = abfsHttpOperation.getConnection()
+            .getContentLength();
+        if (abfsHttpOperation.getStatusCode() == HttpURLConnection.HTTP_PARTIAL
+            && contentLength > contentLengthReceived) {
+          isFailedOperation = true;
+        }
         if (contentLength > 0) {
-          singleton.readThrottler.addBytesTransferred(contentLength,
+          singleton.readThrottler.addBytesTransferred(contentLengthReceived,
               isFailedOperation);
         }
         break;
