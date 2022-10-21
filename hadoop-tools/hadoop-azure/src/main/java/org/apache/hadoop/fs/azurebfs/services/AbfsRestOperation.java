@@ -71,6 +71,8 @@ public class AbfsRestOperation {
   private AbfsHttpOperation result;
   private AbfsCounters abfsCounters;
 
+  private OperationExecuteOrchestrator operationExecuteOrchestrator;
+
   /**
    * Checks if there is non-null HTTP response.
    * @return true if there is a non-null HTTP response from the ABFS call.

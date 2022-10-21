@@ -96,7 +96,7 @@ public final class AbfsClientThrottlingIntercept {
           isFailedOperation = true;
         }
         if (contentLength > 0) {
-          singleton.readThrottler.addBytesTransferred(contentLengthReceived,
+          singleton.readThrottler.addBytesTransferred(contentLength,
               isFailedOperation);
         }
         break;
