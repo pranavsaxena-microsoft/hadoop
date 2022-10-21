@@ -393,7 +393,7 @@ public final class TestAbfsClient {
         client,
         method,
         url,
-        requestHeaders);
+        requestHeaders, new OperationExecuteOrchestrator());
   }
 
   public static AccessTokenProvider getAccessTokenProvider(AbfsClient client) {

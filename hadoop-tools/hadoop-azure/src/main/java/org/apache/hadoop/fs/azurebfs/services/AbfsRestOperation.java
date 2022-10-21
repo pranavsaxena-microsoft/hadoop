@@ -119,8 +119,9 @@ public class AbfsRestOperation {
                     final AbfsClient client,
                     final String method,
                     final URL url,
-                    final List<AbfsHttpHeader> requestHeaders) {
-    this(operationType, client, method, url, requestHeaders, null);
+                    final List<AbfsHttpHeader> requestHeaders,
+                    final OperationExecuteOrchestrator operationExecuteOrchestrator) {
+    this(operationType, client, method, url, requestHeaders, null, operationExecuteOrchestrator);
   }
 
   /**
@@ -137,7 +138,8 @@ public class AbfsRestOperation {
                     final String method,
                     final URL url,
                     final List<AbfsHttpHeader> requestHeaders,
-                    final String sasToken) {
+                    final String sasToken,
+                    final OperationExecuteOrchestrator operationExecuteOrchestrator) {
     this.operationType = operationType;
     this.client = client;
     this.method = method;
@@ -148,6 +150,7 @@ public class AbfsRestOperation {
             || AbfsHttpConstants.HTTP_METHOD_PATCH.equals(method));
     this.sasToken = sasToken;
     this.abfsCounters = client.getAbfsCounters();
+    this.operationExecuteOrchestrator = operationExecuteOrchestrator;
   }
 
   /**
@@ -172,8 +175,9 @@ public class AbfsRestOperation {
                     byte[] buffer,
                     int bufferOffset,
                     int bufferLength,
-                    String sasToken) {
-    this(operationType, client, method, url, requestHeaders, sasToken);
+                    String sasToken,
+                    final OperationExecuteOrchestrator operationExecuteOrchestrator) {
+    this(operationType, client, method, url, requestHeaders, sasToken, operationExecuteOrchestrator);
     this.buffer = buffer;
     this.bufferOffset = bufferOffset;
     this.bufferLength = bufferLength;

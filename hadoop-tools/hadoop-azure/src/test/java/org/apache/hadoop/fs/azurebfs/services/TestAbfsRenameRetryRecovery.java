@@ -67,14 +67,14 @@ public class TestAbfsRenameRetryRecovery extends AbstractAbfsIntegrationTest {
     // SuccessFul Result.
     AbfsRestOperation successOp =
         new AbfsRestOperation(AbfsRestOperationType.RenamePath, mockClient,
-            HTTP_METHOD_PUT, null, null);
+            HTTP_METHOD_PUT, null, null, new OperationExecuteOrchestrator());
     AbfsClientRenameResult successResult = mock(AbfsClientRenameResult.class);
     doReturn(successOp).when(successResult).getOp();
     when(successResult.isIncompleteMetadataState()).thenReturn(false);
 
     // Failed Result.
     AbfsRestOperation failedOp = new AbfsRestOperation(AbfsRestOperationType.RenamePath, mockClient,
-        HTTP_METHOD_PUT, null, null);
+        HTTP_METHOD_PUT, null, null, new OperationExecuteOrchestrator());
     AbfsClientRenameResult recoveredMetaDataIncompleteResult =
         mock(AbfsClientRenameResult.class);
 
