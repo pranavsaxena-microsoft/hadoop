@@ -1,0 +1,27 @@
+@startuml
+'https://plantuml.com/sequence-diagram
+
+autonumber
+
+AbfsClient -> AbfsRestOperation: execute()
+AbfsRestOperation -> AbfsRestOperation: canRetry = true
+AbfsRestOperation -> AbfsRestOperation: retryCount = 0;
+loop canRetry == true
+  AbfsRestOperation -> AbfsHttpOperation: addAuthInfo()
+  AbfsRestOperation -> AbfsHttpOperation: process()
+  AbfsHttpOperation -> AbfsRestOperation: result, exception
+  alt catch(exception) && retryCount > maxRetry:
+      AbfsRestOperation -> AbfsRestOperation: canRetry = false;
+  end
+  alt retryCount > maxRetry || status != <408, 500, 501, 505>
+    AbfsRestOperation -> AbfsRestOperation: canRetry = false;
+  end
+  AbfsRestOperation -> AbfsRestOperation: retryCount++;
+end
+alt result.status > 400
+  AbfsRestOperation -> AbfsClient: throw\nAbfsRestOperationException
+else
+  AbfsRestOperation -> AbfsClient: result
+end
+
+@enduml
