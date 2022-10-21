@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.hadoop.fs.azurebfs.AbfsStatistic;
 import org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants;
+import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AbfsAuthFailureRestOperationException;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AbfsRestOperationException;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemException;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.InvalidAbfsRestOperationException;
@@ -190,7 +191,8 @@ public class AbfsRestOperation {
     try {
       IOStatisticsBinding.trackDurationOfInvocation(abfsCounters,
           AbfsStatistic.getStatNameFromHttpCall(method),
-          () -> completeExecute(tracingContext));
+          () -> operationExecuteOrchestrator.orchestrate(
+              () -> completeExecute(tracingContext), client, this));
     } catch (AzureBlobFileSystemException aze) {
       throw aze;
     } catch (IOException e) {
@@ -204,8 +206,8 @@ public class AbfsRestOperation {
    * HTTP operations.
    * @param tracingContext TracingContext instance to track correlation IDs
    */
-  private void completeExecute(TracingContext tracingContext)
-      throws AzureBlobFileSystemException {
+  private AbfsHttpOperation completeExecute(TracingContext tracingContext)
+      throws IOException {
     // see if we have latency reports from the previous requests
     String latencyHeader = this.client.getAbfsPerfTracker().getClientLatency();
     if (latencyHeader != null && !latencyHeader.isEmpty()) {
@@ -216,24 +218,28 @@ public class AbfsRestOperation {
 
     retryCount = 0;
     LOG.debug("First execution of REST operation - {}", operationType);
-    while (!executeHttpOperation(retryCount, tracingContext)) {
-      try {
-        ++retryCount;
-        tracingContext.setRetryCount(retryCount);
-        LOG.debug("Retrying REST operation {}. RetryCount = {}",
-            operationType, retryCount);
-        Thread.sleep(client.getRetryPolicy().getRetryInterval(retryCount));
-      } catch (InterruptedException ex) {
-        Thread.currentThread().interrupt();
-      }
-    }
 
-    if (result.getStatusCode() >= HttpURLConnection.HTTP_BAD_REQUEST) {
-      throw new AbfsRestOperationException(result.getStatusCode(), result.getStorageErrorCode(),
-          result.getStorageErrorMessage(), null, result);
-    }
+    executeHttpOperation(tracingContext);
+    return result;
 
-    LOG.trace("{} REST operation complete", operationType);
+//    while (!executeHttpOperation(retryCount, tracingContext)) {
+//      try {
+//        ++retryCount;
+//        tracingContext.setRetryCount(retryCount);
+//        LOG.debug("Retrying REST operation {}. RetryCount = {}",
+//            operationType, retryCount);
+//        Thread.sleep(client.getRetryPolicy().getRetryInterval(retryCount));
+//      } catch (InterruptedException ex) {
+//        Thread.currentThread().interrupt();
+//      }
+//    }
+//
+//    if (result.getStatusCode() >= HttpURLConnection.HTTP_BAD_REQUEST) {
+//      throw new AbfsRestOperationException(result.getStatusCode(), result.getStorageErrorCode(),
+//          result.getStorageErrorMessage(), null, result);
+//    }
+//
+//    LOG.trace("{} REST operation complete", operationType);
   }
 
   /**
@@ -241,8 +247,7 @@ public class AbfsRestOperation {
    * fails, there may be a retry.  The retryCount is incremented with each
    * attempt.
    */
-  private boolean executeHttpOperation(final int retryCount,
-    TracingContext tracingContext) throws AzureBlobFileSystemException {
+  private void executeHttpOperation(TracingContext tracingContext) throws IOException {
     AbfsHttpOperation httpOperation = null;
     try {
       // initialize the HTTP request and open the connection
@@ -272,7 +277,7 @@ public class AbfsRestOperation {
       }
     } catch (IOException e) {
       LOG.debug("Auth failure: {}, {}", method, url);
-      throw new AbfsRestOperationException(-1, null,
+      throw new AbfsAuthFailureRestOperationException(-1, null,
           "Auth failure: " + e.getMessage(), e);
     }
 
@@ -304,33 +309,35 @@ public class AbfsRestOperation {
       hostname = httpOperation.getHost();
       LOG.warn("Unknown host name: {}. Retrying to resolve the host name...",
           hostname);
-      if (!client.getRetryPolicy().shouldRetry(retryCount, -1)) {
-        throw new InvalidAbfsRestOperationException(ex);
-      }
-      return false;
+      throw ex;
+//      if (!client.getRetryPolicy().shouldRetry(retryCount, -1)) {
+//        throw new InvalidAbfsRestOperationException(ex);
+//      }
+//      return false;
     } catch (IOException ex) {
       if (LOG.isDebugEnabled()) {
         LOG.debug("HttpRequestFailure: {}, {}", httpOperation, ex);
       }
+      throw ex;
 
-      if (!client.getRetryPolicy().shouldRetry(retryCount, -1)) {
-        throw new InvalidAbfsRestOperationException(ex);
-      }
-
-      return false;
+//      if (!client.getRetryPolicy().shouldRetry(retryCount, -1)) {
+//        throw new InvalidAbfsRestOperationException(ex);
+//      }
+//
+//      return false;
     } finally {
       AbfsClientThrottlingIntercept.updateMetrics(operationType, httpOperation);
     }
 
     LOG.debug("HttpRequest: {}: {}", operationType, httpOperation);
 
-    if (client.getRetryPolicy().shouldRetry(retryCount, httpOperation.getStatusCode())) {
-      return false;
-    }
-
+//    if (client.getRetryPolicy().shouldRetry(retryCount, httpOperation.getStatusCode())) {
+//      return false;
+//    }
+//
     result = httpOperation;
-
-    return true;
+//
+//    return true;
   }
 
   /**
