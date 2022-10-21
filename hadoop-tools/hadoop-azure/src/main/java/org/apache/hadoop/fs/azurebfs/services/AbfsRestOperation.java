@@ -225,25 +225,6 @@ public class AbfsRestOperation {
 
     executeHttpOperation(tracingContext);
     return result;
-
-//    while (!executeHttpOperation(retryCount, tracingContext)) {
-//      try {
-//        ++retryCount;
-//        tracingContext.setRetryCount(retryCount);
-//        LOG.debug("Retrying REST operation {}. RetryCount = {}",
-//            operationType, retryCount);
-//        Thread.sleep(client.getRetryPolicy().getRetryInterval(retryCount));
-//      } catch (InterruptedException ex) {
-//        Thread.currentThread().interrupt();
-//      }
-//    }
-//
-//    if (result.getStatusCode() >= HttpURLConnection.HTTP_BAD_REQUEST) {
-//      throw new AbfsRestOperationException(result.getStatusCode(), result.getStorageErrorCode(),
-//          result.getStorageErrorMessage(), null, result);
-//    }
-//
-//    LOG.trace("{} REST operation complete", operationType);
   }
 
   /**
@@ -314,34 +295,17 @@ public class AbfsRestOperation {
       LOG.warn("Unknown host name: {}. Retrying to resolve the host name...",
           hostname);
       throw ex;
-//      if (!client.getRetryPolicy().shouldRetry(retryCount, -1)) {
-//        throw new InvalidAbfsRestOperationException(ex);
-//      }
-//      return false;
     } catch (IOException ex) {
       if (LOG.isDebugEnabled()) {
         LOG.debug("HttpRequestFailure: {}, {}", httpOperation, ex);
       }
       throw ex;
-
-//      if (!client.getRetryPolicy().shouldRetry(retryCount, -1)) {
-//        throw new InvalidAbfsRestOperationException(ex);
-//      }
-//
-//      return false;
     } finally {
       AbfsClientThrottlingIntercept.updateMetrics(operationType, httpOperation);
     }
 
     LOG.debug("HttpRequest: {}: {}", operationType, httpOperation);
-
-//    if (client.getRetryPolicy().shouldRetry(retryCount, httpOperation.getStatusCode())) {
-//      return false;
-//    }
-//
     result = httpOperation;
-//
-//    return true;
   }
 
   /**
