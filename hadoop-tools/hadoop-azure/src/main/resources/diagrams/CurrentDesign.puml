@@ -17,6 +17,7 @@ loop canRetry == true
     AbfsRestOperation -> AbfsRestOperation: canRetry = false;
   end
   AbfsRestOperation -> AbfsRestOperation: retryCount++;
+  AbfsRestOperation -> AbfsRestOperation: Thread.sleep()
 end
 alt result.status > 400
   AbfsRestOperation -> AbfsClient: throw\nAbfsRestOperationException

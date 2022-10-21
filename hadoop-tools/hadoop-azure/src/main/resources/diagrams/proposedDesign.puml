@@ -1,0 +1,31 @@
+@startuml
+'https://plantuml.com/sequence-diagram
+
+autonumber
+
+AbfsClient -> AbfsRestOperation:execute\n(OperationExecuteOrchestrator)
+AbfsRestOperation -> OperationExecuteOrchestrator: orchestrate\n(OperationInvocationRaisingIOE)
+OperationExecuteOrchestrator -> OperationExecuteOrchestrator: retryCount = 0;\nretryable=true;
+loop retryable == true
+  OperationExecuteOrchestrator -> OperationInvocationRaisingIOE: apply();
+  OperationInvocationRaisingIOE -> AbfsHttpOperation: addAuthInfo()
+  OperationInvocationRaisingIOE -> AbfsHttpOperation: process()
+  AbfsHttpOperation -> OperationInvocationRaisingIOE: result, exception
+  OperationInvocationRaisingIOE -> OperationExecuteOrchestrator: result, exception
+  alt no_exception && result.status == 206
+    OperationExecuteOrchestrator -> OperationExecuteOrchestrator: handlePartialSuccess
+  else no_exception && result.status >= 400
+    OperationExecuteOrchestrator -> AbfsRestOperation: exception
+  else no_exception && (retryCount > maxRetry && result.status!=<408, 500, 501, 505>)
+    OperationExecuteOrchestrator -> OperationExecuteOrchestrator: retryable = false;
+  else exception
+    alt retryCount > maxRetry
+      OperationExecuteOrchestrator -> AbfsRestOperation: exception
+    end
+    alt exception == "connection reset"
+      OperationExecuteOrchestrator -> OperationExecuteOrchestrator: handleConnectionReset()
+    end
+  end
+  OperationExecuteOrchestrator -> OperationExecuteOrchestrator: retryCount++;
+end
+@enduml
