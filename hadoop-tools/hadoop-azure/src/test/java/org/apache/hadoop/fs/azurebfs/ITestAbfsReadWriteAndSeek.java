@@ -21,6 +21,7 @@ package org.apache.hadoop.fs.azurebfs;
 import java.util.Arrays;
 import java.util.Random;
 
+import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -77,7 +78,7 @@ public class ITestAbfsReadWriteAndSeek extends AbstractAbfsScaleTest {
     abfsConfiguration.setWriteBufferSize(DEFAULT_READ_BUFFER_SIZE);
     abfsConfiguration.setReadBufferSize(DEFAULT_READ_BUFFER_SIZE);
 
-    final int fileSize = ONE_MB * 1024 * 5;
+    final int fileSize = ONE_MB * 5;
     final byte[] b = new byte[fileSize];
     new Random().nextBytes(b);
 
@@ -90,7 +91,13 @@ public class ITestAbfsReadWriteAndSeek extends AbstractAbfsScaleTest {
     }
 
     FSDataInputStream inputStream = fs.open(testPath);
-    inputStream.read(b, 0, 4 * ONE_MB);
+    byte[] b1 = new byte[fileSize];
+    inputStream.read(b1, 0, 5 * ONE_MB);
+    for(int i =0; i < fileSize; i++) {
+      if(b1[i] != b[i]) {
+        Assert.assertTrue(i + " " + b1[i] + ";; " + b[i], false);
+      }
+    }
   }
 
   private void testReadWriteAndSeek(int bufferSize) throws Exception {

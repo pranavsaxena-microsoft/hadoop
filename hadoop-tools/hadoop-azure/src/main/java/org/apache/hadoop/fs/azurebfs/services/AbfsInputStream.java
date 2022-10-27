@@ -255,6 +255,7 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
         limit = 0;
         bCursor = 0;
       }
+      LOG.info("bcusor " + bCursor + " limit " + limit + " fcursor " + fCursor + " nextreadpos " + nextReadPos);
       if (shouldReadFully()) {
         lastReadBytes = readFileCompletely(b, currentOff, currentLen);
       } else if (shouldReadLastBlock()) {
