@@ -105,9 +105,25 @@ class AbfsClientThrottlingAnalyzer {
     timer.schedule(new TimerTaskImpl(),
             analysisPeriodMs,
             analysisPeriodMs);
-    synchronized (lock) {
-      isOperationOnAccountIdle.set(false);
+    isOperationOnAccountIdle.set(false);
+  }
+
+  private synchronized Boolean timerOrchestrator(Boolean resume, Boolean suspend, TimerTask timerTask) {
+    if(resume) {
+      lastExecutionTime.set(now());
+      resumeTimer();
+      return false;
     }
+    if(suspend) {
+      if (accountLevelThrottlingEnabled && (System.currentTimeMillis() - lastExecutionTime.get() >= getOperationIdleTimeout())) {
+        isOperationOnAccountIdle.set(true);
+        timerTask.cancel();
+        timer.purge();
+        return true;
+      }
+      return false;
+    }
+    return false;
   }
 
   /**
@@ -134,9 +150,11 @@ class AbfsClientThrottlingAnalyzer {
    */
   public boolean suspendIfNecessary() {
     lastExecutionTime.set(now());
-    if (isOperationOnAccountIdle.get()) {
-      resumeTimer();
-    }
+//    if (isOperationOnAccountIdle.get()) {
+//
+//      resumeTimer();
+//    }
+    timerOrchestrator(true, false, null);
     int duration = sleepDuration;
     if (duration > 0) {
       try {
@@ -267,10 +285,11 @@ class AbfsClientThrottlingAnalyzer {
 
         long now = System.currentTimeMillis();
         if (accountLevelThrottlingEnabled && (now - lastExecutionTime.get() >= getOperationIdleTimeout())) {
-          synchronized (lock) {
-            isOperationOnAccountIdle.set(true);
-            this.cancel();
-            timer.purge();
+//            isOperationOnAccountIdle.set(true);
+//            this.cancel();
+//            timer.purge();
+//            return;
+          if(timerOrchestrator(false, true, this)) {
             return;
           }
         }
