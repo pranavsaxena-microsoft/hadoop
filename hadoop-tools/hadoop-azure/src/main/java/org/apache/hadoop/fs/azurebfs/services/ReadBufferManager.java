@@ -54,6 +54,12 @@ final class ReadBufferManager {
   private static int thresholdAgeMilliseconds = DEFAULT_THRESHOLD_AGE_MILLISECONDS;
   private Thread[] threads = new Thread[NUM_THREADS];
   private byte[][] buffers;    // array of byte[] buffers, to hold the data that is read
+
+  /**
+   * map of {@link #buffers} to {@link ReadBuffer} using it.
+   */
+  private ReadBuffer[] bufferOwners;
+
   private Stack<Integer> freeList = new Stack<>();   // indices in buffers[] array that are available
 
   private Queue<ReadBuffer> readAheadQueue = new LinkedList<>(); // queue of requests that are not picked up by any worker thread yet
@@ -103,6 +109,7 @@ final class ReadBufferManager {
 
   private void init() {
     buffers = new byte[NUM_BUFFERS][];
+    bufferOwners = new ReadBuffer[NUM_BUFFERS];
     for (int i = 0; i < NUM_BUFFERS; i++) {
       buffers[i] = new byte[blockSize];  // same buffers are reused. The byte array never goes back to GC
       freeList.add(i);
@@ -160,10 +167,8 @@ final class ReadBufferManager {
       buffer.setLatch(new CountDownLatch(1));
       buffer.setTracingContext(tracingContext);
 
-      Integer bufferIndex = freeList.pop();  // will return a value, since we have checked size > 0 already
-
-      buffer.setBuffer(buffers[bufferIndex]);
-      buffer.setBufferindex(bufferIndex);
+      int bufferIndex = freeList.pop();  // will return a value, since we have checked size > 0 already
+      takeOwnershipOfBufferAtIndex(buffer, bufferIndex);
       readAheadQueue.add(buffer);
       notifyAll();
       if (LOGGER.isTraceEnabled()) {
@@ -320,17 +325,16 @@ final class ReadBufferManager {
   }
 
   private boolean evict(final ReadBuffer buf) {
-    // As failed ReadBuffers (bufferIndx = -1) are saved in completedReadList,
-    // avoid adding it to freeList.
-    if (buf.getBufferindex() != -1) {
-      placeBufferOnFreeList(buf);
-    }
-
-    completedReadList.remove(buf);
     buf.setTracingContext(null);
     if (LOGGER.isTraceEnabled()) {
       LOGGER.trace("Evicting buffer idx {}; was used for file {} offset {} length {}",
           buf.getBufferindex(), buf.getStream().getPath(), buf.getOffset(), buf.getLength());
+    }
+    completedReadList.remove(buf);
+    // As failed ReadBuffers (bufferIndx = -1) are saved in completedReadList,
+    // avoid adding it to freeList.
+    if (buf.getBufferindex() != -1) {
+      placeBufferOnFreeList("eviction", buf);
     }
     return true;
   }
@@ -388,22 +392,59 @@ final class ReadBufferManager {
     if (buffer != null) {
       readAheadQueue.remove(buffer);
       notifyAll();   // lock is held in calling method
-      placeBufferOnFreeList(buffer);
+      placeBufferOnFreeList("clear from readahead", buffer);
     }
   }
 
   /**
    * Add a buffer to the free list.
-   * @param buffer buffer
+   * @param reason reason for eviction
+   * @param readBuffer read buffer which owns the buffer to free
    */
-  private void placeBufferOnFreeList(final ReadBuffer buffer) {
-    int index = buffer.getBufferindex();
+  private void placeBufferOnFreeList(final String reason, final ReadBuffer readBuffer) {
+    int index = readBuffer.getBufferindex();
+    LOGGER.debug("Returning buffer index {} to free list for '{}'; owner {}",
+        index, reason, readBuffer);
     checkState(!freeList.contains(index),
-        "Duplicate buffer %d added to free buffer list", index);
+        "Duplicate buffer %d added to free buffer list for '%s' by %s",
+        index, reason, readBuffer);
+    verifyReadOwnsBufferAtIndex(readBuffer, index);
     verifyByteBufferNotInUse(index);
+    // declare it as unowned
+    bufferOwners[index] = null;
+    // set the buffer to null, because it is now free
+    // for other operations.
+    readBuffer.setBuffer(null);
+    // once it is not owned/referenced, make available to others
     freeList.push(index);
     // validate full state of read manager
     validateReadManagerState();
+  }
+
+  /**
+   * Verify that at given read ReadBuffer a buffer.
+   * @param readBuffer read operation taking ownership
+   * @param index index of buffer in buffer array
+   */
+  void verifyReadOwnsBufferAtIndex(final ReadBuffer readBuffer, final int index) {
+    checkState(readBuffer == bufferOwners[index],
+        "Buffer %d returned to free buffer list by non-owner %s",
+        index, readBuffer);
+  }
+
+  /**
+   * Take ownership of a buffer.
+   * This updates the {@link #bufferOwners} array.
+   * @param readBuffer read operation taking ownership
+   * @param index index of buffer in buffer array
+   */
+  private void takeOwnershipOfBufferAtIndex(final ReadBuffer readBuffer, int index) {
+    checkState(null == bufferOwners[index],
+        "Buffer %d requested by %s already owned by %s",
+        index, readBuffer, bufferOwners[index]);
+    readBuffer.setBuffer(buffers[index]);
+    readBuffer.setBufferindex(index);
+    bufferOwners[index] = readBuffer;
   }
 
   /**
@@ -552,22 +593,26 @@ final class ReadBufferManager {
     }
     try {
       synchronized (this) {
+        checkState(inProgressList.remove(buffer),
+            "Read completed from an operation not declared as in progress %s", buffer);
         // If this buffer has already been purged during
         // close of InputStream then we don't update the lists.
-        if (inProgressList.contains(buffer)) {
-          inProgressList.remove(buffer);
-          if (result == ReadBufferStatus.AVAILABLE && bytesActuallyRead > 0) {
-            buffer.setStatus(ReadBufferStatus.AVAILABLE);
-            buffer.setLength(bytesActuallyRead);
-          } else {
-            placeBufferOnFreeList(buffer);
-            // buffer will be deleted as per the eviction policy.
-          }
-          // completed list also contains FAILED read buffers
-          // for sending exception message to clients.
-          buffer.setStatus(result);
-          buffer.setTimeStamp(currentTimeMillis());
+        if (result == ReadBufferStatus.AVAILABLE && bytesActuallyRead > 0) {
+          buffer.setStatus(ReadBufferStatus.AVAILABLE);
+          buffer.setLength(bytesActuallyRead);
+        } else {
+          // there is no data, so it is immediately returned to the free list.
+          placeBufferOnFreeList("failed read", buffer);
+        }
+        // completed list also contains FAILED read buffers
+        // for sending exception message to clients.
+        buffer.setStatus(result);
+        buffer.setTimeStamp(currentTimeMillis());
+        if (!buffer.getStream().isClosed()) {
+          // completed reads are added to the list.
           completedReadList.add(buffer);
+        } else {
+          LOGGER.trace("Discarding prefetch on closed stream {}", buffer);
         }
         validateReadManagerState();
       }
@@ -650,17 +695,9 @@ final class ReadBufferManager {
     int completedPurged = purgeList(stream, completedReadList);
     completedBlocksDiscarded.addAndGet(completedPurged);
 
-    // DANGER: In progress reads.
-    int inProgressPurged = 0;
-    inProgressPurged = purgeList(stream, inProgressList);
-    inProgressBlocksDiscarded.addAndGet(inProgressPurged);
-
     // print a summary
-    LOGGER.debug("Purging outcome readahead={}, completed={}, inprogress={} for {}",
-        readaheadPurged, completedPurged, inProgressPurged, stream);
-    if (LOGGER.isDebugEnabled() && inProgressPurged > 0) {
-      LOGGER.debug("In progress requests purged", new RuntimeException("location"));
-    }
+    LOGGER.debug("Purging outcome readahead={}, completed={} for {}",
+        readaheadPurged, completedPurged, stream);
     validateReadManagerState();
   }
 
@@ -683,7 +720,7 @@ final class ReadBufferManager {
         // As failed ReadBuffers (bufferIndex = -1) are already pushed to free
         // list in doneReading method, we will skip adding those here again.
         if (readBuffer.getBufferindex() != -1) {
-          placeBufferOnFreeList(readBuffer);
+          placeBufferOnFreeList("list purge", readBuffer);
         }
       }
     }
@@ -722,6 +759,15 @@ final class ReadBufferManager {
     completedBlocksDiscarded.set(0);
     queuedBlocksDiscarded.set(0);
     inProgressBlocksDiscarded.set(0);
+  }
+
+  /**
+   * Look up the owner of a buffer.
+   * @param index index of the buffer.
+   * @return the buffer owner, null if the buffer is free.
+   */
+  ReadBuffer bufferOwner(int index) {
+    return bufferOwners[index];
   }
 
   @Override

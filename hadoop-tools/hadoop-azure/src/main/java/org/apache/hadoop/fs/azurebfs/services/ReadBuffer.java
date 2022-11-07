@@ -19,6 +19,7 @@
 package org.apache.hadoop.fs.azurebfs.services;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.concurrent.CountDownLatch;
 
 import org.apache.hadoop.fs.azurebfs.contracts.services.ReadBufferStatus;
@@ -162,4 +163,20 @@ class ReadBuffer {
     this.isAnyByteConsumed = isAnyByteConsumed;
   }
 
+  @Override
+  public String toString() {
+    return "ReadBuffer{" +
+        "status=" + status +
+        ", offset=" + offset +
+        ", length=" + length +
+        ", requestedLength=" + requestedLength +
+        ", bufferindex=" + bufferindex +
+        ", timeStamp=" + timeStamp +
+        ", isFirstByteConsumed=" + isFirstByteConsumed +
+        ", isLastByteConsumed=" + isLastByteConsumed +
+        ", isAnyByteConsumed=" + isAnyByteConsumed +
+        ", errException=" + errException +
+        ", stream=" + stream +
+        '}';
+  }
 }

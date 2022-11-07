@@ -23,8 +23,10 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.VisibleForTesting;
 import org.apache.hadoop.util.Preconditions;
 
@@ -95,7 +97,11 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
   private int bCursor = 0;   // cursor of read within buffer - offset of next byte to be returned from buffer
   private int limit = 0;     // offset of next byte to be read into buffer from service (i.e., upper marker+1
   //                                                      of valid bytes in buffer)
-  private boolean closed = false;
+
+  /**
+   * Closed flag.
+   */
+  private final AtomicBoolean closed = new AtomicBoolean(false);
   private TracingContext tracingContext;
 
   //  Optimisations modify the pointer fields.
@@ -177,7 +183,7 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
     // benefited by such implementation.
     // Strict close check at the begin of the API only not for the entire flow.
     synchronized (this) {
-      if (closed) {
+      if (isClosed()) {
         throw new IOException(FSExceptionMessages.STREAM_IS_CLOSED);
       }
     }
@@ -428,7 +434,7 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
 
   private boolean validate(final byte[] b, final int off, final int len)
       throws IOException {
-    if (closed) {
+    if (isClosed()) {
       throw new IOException(FSExceptionMessages.STREAM_IS_CLOSED);
     }
 
@@ -587,7 +593,7 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
   @Override
   public synchronized void seek(long n) throws IOException {
     LOG.debug("requested seek to position {}", n);
-    if (closed) {
+    if (isClosed()) {
       throw new IOException(FSExceptionMessages.STREAM_IS_CLOSED);
     }
     if (n < 0) {
@@ -608,7 +614,7 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
 
   @Override
   public synchronized long skip(long n) throws IOException {
-    if (closed) {
+    if (isClosed()) {
       throw new IOException(FSExceptionMessages.STREAM_IS_CLOSED);
     }
     long currentPos = getPos();
@@ -641,7 +647,7 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
    */
   @Override
   public synchronized int available() throws IOException {
-    if (closed) {
+    if (isClosed()) {
       throw new IOException(
           FSExceptionMessages.STREAM_IS_CLOSED);
     }
@@ -659,7 +665,7 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
    * @throws IOException if the stream is closed
    */
   public long length() throws IOException {
-    if (closed) {
+    if (isClosed()) {
       throw new IOException(FSExceptionMessages.STREAM_IS_CLOSED);
     }
     return contentLength;
@@ -671,7 +677,7 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
    */
   @Override
   public synchronized long getPos() throws IOException {
-    if (closed) {
+    if (isClosed()) {
       throw new IOException(FSExceptionMessages.STREAM_IS_CLOSED);
     }
     return nextReadPos < 0 ? 0 : nextReadPos;
@@ -694,9 +700,22 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
   @Override
   public synchronized void close() throws IOException {
     LOG.debug("Closing {}", this);
-    closed = true;
-    buffer = null; // de-reference the buffer so it can be GC'ed sooner
-    ReadBufferManager.getBufferManager().purgeBuffersForStream(this);
+    if (!closed.compareAndSet(false, true)) {
+      buffer = null; // de-reference the buffer so it can be GC'ed sooner
+      // Tell the ReadBufferManager to clean up.
+      ReadBufferManager.getBufferManager().purgeBuffersForStream(this);
+    }
+  }
+
+  /**
+   * Is the stream closed?
+   * This must be thread safe as prefetch operations in
+   * different threads probe this before closure.
+   * @return true if the stream has been closed.
+   */
+  @InterfaceAudience.Private
+  public boolean isClosed() {
+    return closed.get();
   }
 
   /**
