@@ -27,6 +27,8 @@ import org.slf4j.LoggerFactory;
 import org.apache.hadoop.fs.PathIOException;
 import org.apache.hadoop.fs.azurebfs.contracts.services.ReadBufferStatus;
 
+import static org.apache.hadoop.util.Preconditions.checkState;
+
 class ReadBufferWorker implements Runnable {
 
   private static final Logger LOGGER =
@@ -67,6 +69,10 @@ class ReadBufferWorker implements Runnable {
         return;
       }
       if (buffer != null) {
+        // take exclusive ownership of the buffer, failing if it is in use
+        checkState(bufferManager.getActiveReads().put(buffer.getBufferindex(), buffer) == null,
+            "ReadBufferManager buffer overwrite detected before GET issued");
+
         try {
           // do the actual read, from the file.
           LOGGER.trace("Reading {}", buffer);
@@ -87,6 +93,9 @@ class ReadBufferWorker implements Runnable {
         } catch (Exception ex) {
           buffer.setErrException(new PathIOException(buffer.getStream().getPath(), ex));
           bufferManager.doneReading(buffer, ReadBufferStatus.READ_FAILED, 0);
+        } finally {
+          bufferManager.getActiveReads().remove(buffer.getBufferindex(), buffer);
+
         }
       }
     }

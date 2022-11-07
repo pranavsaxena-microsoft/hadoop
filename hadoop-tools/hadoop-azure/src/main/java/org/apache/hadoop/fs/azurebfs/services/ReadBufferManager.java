@@ -27,8 +27,10 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Queue;
 import java.util.Stack;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
@@ -61,6 +63,11 @@ final class ReadBufferManager {
   private ReadBuffer[] bufferOwners;
 
   private Stack<Integer> freeList = new Stack<>();   // indices in buffers[] array that are available
+
+  /**
+   * Map to track reads in progress.
+   */
+  private final Map<Integer, ReadBuffer> activeReads = new ConcurrentHashMap<>(NUM_BUFFERS);
 
   private Queue<ReadBuffer> readAheadQueue = new LinkedList<>(); // queue of requests that are not picked up by any worker thread yet
   private LinkedList<ReadBuffer> inProgressList = new LinkedList<>(); // requests being processed by worker threads
@@ -676,10 +683,20 @@ final class ReadBufferManager {
     tryEvict();
   }
 
+  /**
+   * Get the map of active reads.
+   * @return map of active reads.
+   */
+  Map<Integer, ReadBuffer> getActiveReads() {
+    return activeReads;
+  }
 
   /**
    * Purging the buffers associated with an {@link AbfsInputStream}
    * from {@link ReadBufferManager} when stream is closed.
+   * Before HADOOP-18521 this would purge in progress reads, which
+   * would return the active buffer to the free pool while it was
+   * still in use.
    * @param stream input stream.
    */
   public synchronized void purgeBuffersForStream(AbfsInputStream stream) {

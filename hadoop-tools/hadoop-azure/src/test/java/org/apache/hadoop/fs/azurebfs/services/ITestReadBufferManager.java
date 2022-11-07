@@ -118,7 +118,8 @@ public class ITestReadBufferManager extends AbstractAbfsIntegrationTest {
 
         AbfsInputStream iStream1 =  null;
         // stream1 will be closed right away.
-        try {
+      AbfsInputStream iStream2 = null;
+      try {
             iStream1 = (AbfsInputStream) fs.open(testFilePath).getWrappedStream();
             // Just reading one byte will trigger all read ahead calls.
             iStream1.read();
@@ -126,7 +127,7 @@ public class ITestReadBufferManager extends AbstractAbfsIntegrationTest {
             IOUtils.closeStream(iStream1);
         }
         ReadBufferManager bufferManager = ReadBufferManager.getBufferManager();
-        AbfsInputStream iStream2 = null;
+
         try {
             iStream2 = (AbfsInputStream) fs.open(testFilePath).getWrappedStream();
             iStream2.read();
@@ -144,7 +145,6 @@ public class ITestReadBufferManager extends AbstractAbfsIntegrationTest {
         AbfsInputStream s2 = iStream2;
         eventually(getTestTimeoutMillis() - TIMEOUT_OFFSET, PROBE_INTERVAL_MILLIS, () ->
             assertListDoesnotContainBuffersForIstream(bufferManager.getInProgressCopiedList(), s2));
-
         assertListDoesnotContainBuffersForIstream(bufferManager.getCompletedReadListCopy(), iStream2);
         assertListDoesnotContainBuffersForIstream(bufferManager.getReadAheadQueueCopy(), iStream2);
 
@@ -165,6 +165,28 @@ public class ITestReadBufferManager extends AbstractAbfsIntegrationTest {
                     .isNotEqualTo(inputStream);
         }
     }
+
+    private void assertListContainBuffersForIstream(List<ReadBuffer> list,
+        AbfsInputStream inputStream) {
+      Assertions.assertThat(list)
+          .describedAs("buffer expected to contain closed stream %s", inputStream )
+          .filteredOn(b -> b.getStream() == inputStream)
+          .isNotEmpty();
+    }
+
+  /**
+   * Does a list contain a read buffer for stream?
+   * @param list list to scan
+   * @param inputStream stream to look for
+   * @return true if there is at least one reference in the list.
+   */
+    boolean listContainsStreamRead(List<ReadBuffer> list,
+            AbfsInputStream inputStream) {
+      return list.stream()
+          .filter(b -> b.getStream() == inputStream)
+          .count() > 0;
+    }
+
 
     private AzureBlobFileSystem getABFSWithReadAheadConfig() throws Exception {
         Configuration conf = getRawConfiguration();

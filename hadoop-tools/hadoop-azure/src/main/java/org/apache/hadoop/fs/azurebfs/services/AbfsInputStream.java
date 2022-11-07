@@ -28,6 +28,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.VisibleForTesting;
+import org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys;
 import org.apache.hadoop.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -757,7 +758,15 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
 
   @Override
   public boolean hasCapability(String capability) {
-    return StreamCapabilities.UNBUFFER.equals(toLowerCase(capability));
+    switch (toLowerCase(capability)) {
+    case StreamCapabilities.UNBUFFER:
+    case ConfigurationKeys.FS_AZURE_CAPABILITY_PREFETCH_SAFE: // safe from buffer sharing
+      return true;
+    case ConfigurationKeys.FS_AZURE_BUFFERED_PREAD_DISABLE:
+      return bufferedPreadDisabled;
+    default:
+      return false;
+    }
   }
 
   byte[] getBuffer() {
