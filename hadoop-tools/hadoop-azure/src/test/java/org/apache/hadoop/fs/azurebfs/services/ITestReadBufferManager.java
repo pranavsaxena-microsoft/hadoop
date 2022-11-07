@@ -117,7 +117,6 @@ public class ITestReadBufferManager extends AbstractAbfsIntegrationTest {
             iStream2 = (AbfsInputStream) fs.open(testFilePath).getWrappedStream();
             iStream2.read();
             // After closing stream1, none of the buffers associated with stream1 should be present.
-            assertListDoesnotContainBuffersForIstream(bufferManager.getInProgressCopiedList(), iStream1);
             assertListDoesnotContainBuffersForIstream(bufferManager.getCompletedReadListCopy(), iStream1);
             assertListDoesnotContainBuffersForIstream(bufferManager.getReadAheadQueueCopy(), iStream1);
         } finally {
@@ -125,7 +124,6 @@ public class ITestReadBufferManager extends AbstractAbfsIntegrationTest {
             IOUtils.closeStream(iStream2);
         }
         // After closing stream2, none of the buffers associated with stream2 should be present.
-        assertListDoesnotContainBuffersForIstream(bufferManager.getInProgressCopiedList(), iStream2);
         assertListDoesnotContainBuffersForIstream(bufferManager.getCompletedReadListCopy(), iStream2);
         assertListDoesnotContainBuffersForIstream(bufferManager.getReadAheadQueueCopy(), iStream2);
 
