@@ -43,10 +43,24 @@ import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_READ_AHEAD_QUEUE_DEPTH;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.MIN_BUFFER_SIZE;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.ONE_MB;
+import static org.apache.hadoop.test.LambdaTestUtils.eventually;
 
 public class ITestReadBufferManager extends AbstractAbfsIntegrationTest {
 
-    public ITestReadBufferManager() throws Exception {
+  /**
+   * Time before the JUnit test times out for eventually() clauses
+   * to fail. This copes with slow network connections and debugging
+   * sessions, yet still allows for tests to fail with meaningful
+   * messages.
+   */
+  public static final int TIMEOUT_OFFSET = 5 * 60_000;
+
+  /**
+   * Interval between eventually preobes.
+   */
+  public static final int PROBE_INTERVAL_MILLIS = 1_000;
+
+  public ITestReadBufferManager() throws Exception {
     }
 
     @Test
@@ -104,7 +118,8 @@ public class ITestReadBufferManager extends AbstractAbfsIntegrationTest {
 
         AbfsInputStream iStream1 =  null;
         // stream1 will be closed right away.
-        try {
+      AbfsInputStream iStream2 = null;
+      try {
             iStream1 = (AbfsInputStream) fs.open(testFilePath).getWrappedStream();
             // Just reading one byte will trigger all read ahead calls.
             iStream1.read();
@@ -112,27 +127,32 @@ public class ITestReadBufferManager extends AbstractAbfsIntegrationTest {
             IOUtils.closeStream(iStream1);
         }
         ReadBufferManager bufferManager = ReadBufferManager.getBufferManager();
-        AbfsInputStream iStream2 = null;
+
         try {
             iStream2 = (AbfsInputStream) fs.open(testFilePath).getWrappedStream();
             iStream2.read();
             // After closing stream1, none of the buffers associated with stream1 should be present.
-            assertListDoesnotContainBuffersForIstream(bufferManager.getInProgressCopiedList(), iStream1);
-            assertListDoesnotContainBuffersForIstream(bufferManager.getCompletedReadListCopy(), iStream1);
-            assertListDoesnotContainBuffersForIstream(bufferManager.getReadAheadQueueCopy(), iStream1);
+          AbfsInputStream s1 = iStream1;
+          eventually(getTestTimeoutMillis() - TIMEOUT_OFFSET, PROBE_INTERVAL_MILLIS, () ->
+              assertListDoesnotContainBuffersForIstream(bufferManager.getInProgressCopiedList(), s1));
+          assertListDoesnotContainBuffersForIstream(bufferManager.getCompletedReadListCopy(), iStream1);
+          assertListDoesnotContainBuffersForIstream(bufferManager.getReadAheadQueueCopy(), iStream1);
         } finally {
             // closing the stream later.
             IOUtils.closeStream(iStream2);
         }
         // After closing stream2, none of the buffers associated with stream2 should be present.
-        assertListDoesnotContainBuffersForIstream(bufferManager.getInProgressCopiedList(), iStream2);
+        AbfsInputStream s2 = iStream2;
+        eventually(getTestTimeoutMillis() - TIMEOUT_OFFSET, PROBE_INTERVAL_MILLIS, () ->
+            assertListDoesnotContainBuffersForIstream(bufferManager.getInProgressCopiedList(), s2));
         assertListDoesnotContainBuffersForIstream(bufferManager.getCompletedReadListCopy(), iStream2);
         assertListDoesnotContainBuffersForIstream(bufferManager.getReadAheadQueueCopy(), iStream2);
 
         // After closing both the streams, all lists should be empty.
-        assertListEmpty("CompletedList", bufferManager.getCompletedReadListCopy());
-        assertListEmpty("InProgressList", bufferManager.getInProgressCopiedList());
-        assertListEmpty("ReadAheadQueue", bufferManager.getReadAheadQueueCopy());
+      eventually(getTestTimeoutMillis() - TIMEOUT_OFFSET, PROBE_INTERVAL_MILLIS, () ->
+          assertListEmpty("InProgressList", bufferManager.getInProgressCopiedList()));
+      assertListEmpty("CompletedList", bufferManager.getCompletedReadListCopy());
+      assertListEmpty("ReadAheadQueue", bufferManager.getReadAheadQueueCopy());
 
     }
 
@@ -145,6 +165,28 @@ public class ITestReadBufferManager extends AbstractAbfsIntegrationTest {
                     .isNotEqualTo(inputStream);
         }
     }
+
+    private void assertListContainBuffersForIstream(List<ReadBuffer> list,
+        AbfsInputStream inputStream) {
+      Assertions.assertThat(list)
+          .describedAs("buffer expected to contain closed stream %s", inputStream )
+          .filteredOn(b -> b.getStream() == inputStream)
+          .isNotEmpty();
+    }
+
+  /**
+   * Does a list contain a read buffer for stream?
+   * @param list list to scan
+   * @param inputStream stream to look for
+   * @return true if there is at least one reference in the list.
+   */
+    boolean listContainsStreamRead(List<ReadBuffer> list,
+            AbfsInputStream inputStream) {
+      return list.stream()
+          .filter(b -> b.getStream() == inputStream)
+          .count() > 0;
+    }
+
 
     private AzureBlobFileSystem getABFSWithReadAheadConfig() throws Exception {
         Configuration conf = getRawConfiguration();

@@ -18,9 +18,16 @@
 
 package org.apache.hadoop.fs.azurebfs.constants;
 
+import java.util.Collections;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.fs.FileSystem;
+
+import static org.apache.hadoop.fs.Options.OpenFileOptions.FS_OPTION_OPENFILE_STANDARD_OPTIONS;
 
 /**
  * Responsible to keep all the Azure Blob File System configurations keys in Hadoop configuration file.
@@ -186,6 +193,13 @@ public final class ConfigurationKeys {
   public static final String FS_AZURE_SKIP_SUPER_USER_REPLACEMENT = "fs.azure.identity.transformer.skip.superuser.replacement";
   public static final String AZURE_KEY_ACCOUNT_KEYPROVIDER = "fs.azure.account.keyprovider";
   public static final String AZURE_KEY_ACCOUNT_SHELLKEYPROVIDER_SCRIPT = "fs.azure.shellkeyprovider.script";
+
+  /**
+   * Enable or disable readahead buffer in AbfsInputStream.
+   * Value: {@value}.
+   */
+  public static final String FS_AZURE_ENABLE_READAHEAD = "fs.azure.enable.readahead";
+
   /** Setting this true will make the driver use it's own RemoteIterator implementation */
   public static final String FS_AZURE_ENABLE_ABFS_LIST_ITERATOR = "fs.azure.enable.abfslistiterator";
   /** Server side encryption key */
@@ -249,5 +263,27 @@ public final class ConfigurationKeys {
    * @see FileSystem#openFile(org.apache.hadoop.fs.Path)
    */
   public static final String FS_AZURE_BUFFERED_PREAD_DISABLE = "fs.azure.buffered.pread.disable";
+
+  /**
+   * Has the ReadBufferManager fix of HADOOP-18521 been applied?
+   * This can be queried on {@code hasCapability()} and
+   * on the filesystem {@code hasPathCapability()} probes.
+   */
+  public static final String FS_AZURE_CAPABILITY_PREFETCH_SAFE = "fs.azure.capability.prefetch.safe";
+
+  /**
+   * Known keys for openFile(), including the standard ones.
+   */
+  public static final Set<String> KNOWN_OPENFILE_KEYS;
+
+  static {
+    Set<String> collect = Stream.of(
+            FS_AZURE_CAPABILITY_PREFETCH_SAFE,
+            FS_AZURE_BUFFERED_PREAD_DISABLE)
+        .collect(Collectors.toSet());
+    collect.addAll(FS_OPTION_OPENFILE_STANDARD_OPTIONS);
+    KNOWN_OPENFILE_KEYS = Collections.unmodifiableSet(collect);;
+  }
+
   private ConfigurationKeys() {}
 }

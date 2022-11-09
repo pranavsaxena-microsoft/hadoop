@@ -21,10 +21,16 @@ package org.apache.hadoop.fs.azurebfs.services;
 import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.apache.hadoop.fs.PathIOException;
 import org.apache.hadoop.fs.azurebfs.contracts.services.ReadBufferStatus;
 
 class ReadBufferWorker implements Runnable {
+
+  private static final Logger LOGGER =
+      LoggerFactory.getLogger(ReadBufferWorker.class);
 
   protected static final CountDownLatch UNLEASH_WORKERS = new CountDownLatch(1);
   private int id;
@@ -63,6 +69,7 @@ class ReadBufferWorker implements Runnable {
       if (buffer != null) {
         try {
           // do the actual read, from the file.
+          LOGGER.trace("Reading {}", buffer);
           int bytesRead = buffer.getStream().readRemote(
               buffer.getOffset(),
               buffer.getBuffer(),
@@ -72,7 +79,7 @@ class ReadBufferWorker implements Runnable {
               // for remote read
               Math.min(buffer.getRequestedLength(), buffer.getBuffer().length),
                   buffer.getTracingContext());
-
+          LOGGER.trace("Read {} bytes", bytesRead);
           bufferManager.doneReading(buffer, ReadBufferStatus.AVAILABLE, bytesRead);  // post result back to ReadBufferManager
         } catch (IOException ex) {
           buffer.setErrException(ex);
