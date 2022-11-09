@@ -29,6 +29,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.VisibleForTesting;
 import org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys;
+import org.apache.hadoop.fs.statistics.impl.IOStatisticsStore;
 import org.apache.hadoop.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -45,7 +46,6 @@ import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemExc
 import org.apache.hadoop.fs.azurebfs.utils.CachedSASToken;
 import org.apache.hadoop.fs.azurebfs.utils.Listener;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
-import org.apache.hadoop.fs.statistics.IOStatistics;
 import org.apache.hadoop.fs.statistics.IOStatisticsSource;
 
 import static java.lang.Math.max;
@@ -53,6 +53,7 @@ import static java.lang.Math.min;
 
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.ONE_KB;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.STREAM_ID_LEN;
+import static org.apache.hadoop.fs.statistics.impl.IOStatisticsBinding.emptyStatisticsStore;
 import static org.apache.hadoop.util.StringUtils.toLowerCase;
 
 /**
@@ -120,7 +121,7 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
   private Listener listener;
 
   private final AbfsInputStreamContext context;
-  private IOStatistics ioStatistics;
+  private IOStatisticsStore ioStatistics;
   /**
    * This is the actual position within the object, used by
    * lazy seek to decide whether to seek on the next read or not.
@@ -162,9 +163,9 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
     // Propagate the config values to ReadBufferManager so that the first instance
     // to initialize can set the readAheadBlockSize
     ReadBufferManager.setReadBufferManagerConfigs(readAheadBlockSize);
-    if (streamStatistics != null) {
-      ioStatistics = streamStatistics.getIOStatistics();
-    }
+    ioStatistics = streamStatistics != null
+        ? streamStatistics.getIOStatistics()
+        : emptyStatisticsStore();
   }
 
   public String getPath() {
@@ -701,7 +702,7 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
   @Override
   public synchronized void close() throws IOException {
     LOG.debug("Closing {}", this);
-    if (!closed.compareAndSet(false, true)) {
+    if (closed.compareAndSet(false, true)) {
       buffer = null; // de-reference the buffer so it can be GC'ed sooner
       // Tell the ReadBufferManager to clean up.
       ReadBufferManager.getBufferManager().purgeBuffersForStream(this);
@@ -845,7 +846,7 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
   }
 
   @Override
-  public IOStatistics getIOStatistics() {
+  public IOStatisticsStore getIOStatistics() {
     return ioStatistics;
   }
 
@@ -855,13 +856,19 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
    */
   @Override
   public String toString() {
-    final StringBuilder sb = new StringBuilder(super.toString());
-    if (streamStatistics != null) {
-      sb.append("AbfsInputStream@(").append(this.hashCode()).append("){");
-      sb.append(streamStatistics.toString());
-      sb.append("}");
-    }
-    return sb.toString();
+    return "AbfsInputStream{(" + this.hashCode() + ") " +
+        "path='" + path + '\'' +
+        ", id=" + inputStreamId +
+        ", closed=" + closed.get() +
+        ", contentLength=" + contentLength +
+        ", nextReadPos=" + nextReadPos +
+        ", readAheadQueueDepth=" + readAheadQueueDepth +
+        ", readAheadEnabled=" + readAheadEnabled +
+        ", bufferedPreadDisabled=" + bufferedPreadDisabled +
+        ", firstRead=" + firstRead +
+        ", fCursor=" + fCursor +
+        ", " + streamStatistics.toString() +
+        "}";
   }
 
   @VisibleForTesting

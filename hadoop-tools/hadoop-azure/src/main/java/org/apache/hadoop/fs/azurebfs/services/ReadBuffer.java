@@ -19,13 +19,16 @@
 package org.apache.hadoop.fs.azurebfs.services;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.concurrent.CountDownLatch;
 
 import org.apache.hadoop.fs.azurebfs.contracts.services.ReadBufferStatus;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
+import org.apache.hadoop.fs.statistics.impl.IOStatisticsStore;
 
 import static org.apache.hadoop.fs.azurebfs.contracts.services.ReadBufferStatus.READ_FAILED;
+import static org.apache.hadoop.fs.statistics.StreamStatisticNames.STREAM_READ_PREFETCH_BLOCKS_USED;
+import static org.apache.hadoop.fs.statistics.StreamStatisticNames.STREAM_READ_PREFETCH_BYTES_DISCARDED;
+import static org.apache.hadoop.fs.statistics.StreamStatisticNames.STREAM_READ_PREFETCH_BYTES_USED;
 
 class ReadBuffer {
 
@@ -116,6 +119,11 @@ class ReadBuffer {
     return status;
   }
 
+  /**
+   * Update the read status.
+   * If it was a read failure, the buffer index is set to -1;
+   * @param status status
+   */
   public void setStatus(ReadBufferStatus status) {
     this.status = status;
     if (status == READ_FAILED) {
@@ -165,8 +173,8 @@ class ReadBuffer {
 
   @Override
   public String toString() {
-    return "ReadBuffer{" +
-        "status=" + status +
+    return super.toString() +
+        "{ status=" + status +
         ", offset=" + offset +
         ", length=" + length +
         ", requestedLength=" + requestedLength +
@@ -176,7 +184,93 @@ class ReadBuffer {
         ", isLastByteConsumed=" + isLastByteConsumed +
         ", isAnyByteConsumed=" + isAnyByteConsumed +
         ", errException=" + errException +
-        ", stream=" + stream +
+        ", stream=" + stream.getStreamID() +
+        ", stream closed=" + isStreamClosed() +
         '}';
+  }
+
+  /**
+   * Is the stream closed.
+   * @return stream closed status.
+   */
+  public boolean isStreamClosed() {
+    return stream.isClosed();
+  }
+
+  /**
+   * IOStatistics of stream.
+   * @return the stream's IOStatisticsStore.
+   */
+  public IOStatisticsStore getStreamIOStatistics() {
+    return stream.getIOStatistics();
+  }
+
+  /**
+   * Start using the buffer.
+   * Sets the byte consumption flags as appriopriate, then
+   * updates the stream statistics with the use of this buffer.
+   * @param offset offset in buffer where copy began
+   * @param bytesCopied bytes copied.
+   */
+  public void dataConsumedByStream(int offset, int bytesCopied) {
+    setAnyByteConsumed(true);
+    if (offset == 0) {
+      setFirstByteConsumed(true);
+    }
+    if (offset + bytesCopied == getLength()) {
+      setLastByteConsumed(true);
+    }
+    IOStatisticsStore iostats = getStreamIOStatistics();
+    iostats.incrementCounter(STREAM_READ_PREFETCH_BLOCKS_USED, 1);
+    iostats.incrementCounter(STREAM_READ_PREFETCH_BYTES_USED, bytesCopied);
+  }
+
+
+  /**
+   * The read completed
+   * @param result read result
+   * @param bytesActuallyRead the number of bytes actually read.
+   * @param timestampMillis timestamp of completion
+   */
+  void readCompleted(
+      final ReadBufferStatus result,
+      final int bytesActuallyRead,
+      final long timestampMillis) {
+    setStatus(status);
+    if (status == ReadBufferStatus.AVAILABLE) {
+      setLength(bytesActuallyRead);
+    } else {
+      setLength(0);
+    }
+    setTimeStamp(timestampMillis);
+  }
+
+  /**
+   * Has the read succeeded wth valid data
+   * @return true if there is data from a successful read
+   */
+  boolean readSucceededWithData() {
+    return status == ReadBufferStatus.AVAILABLE
+        && getLength() > 0;
+  }
+
+  /**
+   * The (completed) buffer was evicted; update stream statistics
+   * as appropriate.
+   */
+  public void evicted() {
+    if (getBufferindex() >= 0) {
+      IOStatisticsStore iostats = getStreamIOStatistics();
+      iostats.incrementCounter(STREAM_READ_PREFETCH_BYTES_DISCARDED, 1);
+      iostats.incrementCounter(STREAM_READ_PREFETCH_BYTES_USED, getLength());
+    }
+  }
+
+  /**
+   * Release the buffer: update fields as appropriate.
+   */
+  void releaseBuffer() {
+    setBuffer(null);
+    setBufferindex(-1);
   }
 }

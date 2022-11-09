@@ -422,6 +422,27 @@ public final class StreamStatisticNames {
       = "stream_read_prefetch_operations";
 
   /**
+   * Count of prefetch blocks used.
+   */
+  public static final String STREAM_READ_PREFETCH_BLOCKS_USED
+      = "stream_read_prefetch_blocks_used";
+  /**
+   * Count of prefetch bytes used.
+   */
+  public static final String STREAM_READ_PREFETCH_BYTES_USED
+      = "stream_read_prefetch_bytes_used";
+  /**
+   * Count of prefetch blocks used.
+   */
+  public static final String STREAM_READ_PREFETCH_BLOCKS_DISCARDED
+      = "stream_read_prefetch_blocks_discarded";
+  /**
+   * Count of prefetch bytes used.
+   */
+  public static final String STREAM_READ_PREFETCH_BYTES_DISCARDED
+      = "stream_read_prefetch_bytes_discarded";
+
+  /**
    * Total number of block in disk cache.
    */
   public static final String STREAM_READ_BLOCKS_IN_FILE_CACHE

@@ -36,6 +36,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 import org.apache.hadoop.classification.VisibleForTesting;
 
+import static org.apache.hadoop.fs.statistics.StreamStatisticNames.STREAM_READ_ACTIVE_PREFETCH_OPERATIONS;
 import static org.apache.hadoop.util.Preconditions.checkState;
 
 /**
@@ -336,6 +337,7 @@ final class ReadBufferManager {
     if (buf.getBufferindex() != -1) {
       placeBufferOnFreeList("eviction", buf);
     }
+    buf.evicted();
     return true;
   }
 
@@ -414,7 +416,7 @@ final class ReadBufferManager {
     bufferOwners[index] = null;
     // set the buffer to null, because it is now free
     // for other operations.
-    readBuffer.setBuffer(null);
+    readBuffer.releaseBuffer();
     // once it is not owned/referenced, make available to others
     freeList.push(index);
     // validate full state of read manager
@@ -534,13 +536,7 @@ final class ReadBufferManager {
     int availableLengthInBuffer = buf.getLength() - cursor;
     int lengthToCopy = Math.min(length, availableLengthInBuffer);
     System.arraycopy(buf.getBuffer(), cursor, buffer, 0, lengthToCopy);
-    if (cursor == 0) {
-      buf.setFirstByteConsumed(true);
-    }
-    if (cursor + lengthToCopy == buf.getLength()) {
-      buf.setLastByteConsumed(true);
-    }
-    buf.setAnyByteConsumed(true);
+    buf.dataConsumedByStream(cursor, lengthToCopy);
     return lengthToCopy;
   }
 
@@ -568,6 +564,9 @@ final class ReadBufferManager {
       if (buffer == null) {
         return null;            // should never happen
       }
+      // verify buffer index is owned.
+      verifyReadOwnsBufferAtIndex(buffer, buffer.getBufferindex());
+
       buffer.setStatus(ReadBufferStatus.READING_IN_PROGRESS);
       inProgressList.add(buffer);
     }
@@ -576,6 +575,8 @@ final class ReadBufferManager {
           buffer.getStream().getPath(), buffer.getOffset());
     }
     validateReadManagerState();
+    // update stream gauge.
+    buffer.getStreamIOStatistics().incrementGauge(STREAM_READ_ACTIVE_PREFETCH_OPERATIONS, 1);
     return buffer;
   }
 
@@ -588,31 +589,54 @@ final class ReadBufferManager {
    */
   void doneReading(final ReadBuffer buffer, final ReadBufferStatus result, final int bytesActuallyRead) {
     if (LOGGER.isTraceEnabled()) {
-      LOGGER.trace("ReadBufferWorker completed file {} for offset {} bytes {}",
-          buffer.getStream().getPath(),  buffer.getOffset(), bytesActuallyRead);
+      LOGGER.trace("ReadBufferWorker completed file {} for offset {} bytes {}; {}",
+          buffer.getStream().getPath(),  buffer.getOffset(), bytesActuallyRead, buffer);
     }
+    // decrement counter.
+    buffer.getStreamIOStatistics().incrementGauge(STREAM_READ_ACTIVE_PREFETCH_OPERATIONS, -1);
+
     try {
       synchronized (this) {
-        checkState(inProgressList.remove(buffer),
-            "Read completed from an operation not declared as in progress %s", buffer);
-        // If this buffer has already been purged during
-        // close of InputStream then we don't update the lists.
-        if (result == ReadBufferStatus.AVAILABLE && bytesActuallyRead > 0) {
-          buffer.setStatus(ReadBufferStatus.AVAILABLE);
-          buffer.setLength(bytesActuallyRead);
-        } else {
-          // there is no data, so it is immediately returned to the free list.
-          placeBufferOnFreeList("failed read", buffer);
+        // remove from the list
+        if (!inProgressList.remove(buffer)) {
+          // this is a sign of inconsistent state, so a major problem
+          String message =
+              String.format("Read completed from an operation not declared as in progress %s",
+                  buffer);
+          LOGGER.warn(message);
+          // release the buffer (which may raise an exception)
+          placeBufferOnFreeList("read not in progress", buffer);
+          // report the failure
+          throw new IllegalStateException(message);
         }
+
+        boolean shouldFreeBuffer = false;
+        String freeBufferReason = "";
+        buffer.readCompleted(result, bytesActuallyRead, currentTimeMillis());
+        if (!buffer.readSucceededWithData()) {
+          // reead failed or there was no data, -the buffer can be returned to the free list.
+          shouldFreeBuffer = true;
+          freeBufferReason = "failed read";
+        }
+
         // completed list also contains FAILED read buffers
         // for sending exception message to clients.
-        buffer.setStatus(result);
-        buffer.setTimeStamp(currentTimeMillis());
-        if (!buffer.getStream().isClosed()) {
+        if (!buffer.isStreamClosed()) {
           // completed reads are added to the list.
+          LOGGER.trace("Adding buffer to completed list {}", buffer);
           completedReadList.add(buffer);
         } else {
+          // stream was closed during the read.
+          // even if there is data, it should be discarded
           LOGGER.trace("Discarding prefetch on closed stream {}", buffer);
+          inProgressBlocksDiscarded.incrementAndGet();
+          // and the buffer recycled
+          shouldFreeBuffer = true;
+          freeBufferReason = "stream closed";
+        }
+        if (shouldFreeBuffer) {
+          // buffer should be returned to the free list.
+          placeBufferOnFreeList(freeBufferReason, buffer);
         }
         validateReadManagerState();
       }
@@ -685,7 +709,8 @@ final class ReadBufferManager {
    * @param stream input stream.
    */
   public synchronized void purgeBuffersForStream(AbfsInputStream stream) {
-    LOGGER.debug("Purging stale buffers for AbfsInputStream {} ", stream);
+    LOGGER.debug("Purging stale buffers for AbfsInputStream {}/{}",
+        stream.getStreamID(), stream.getPath());
 
     // remove from the queue
     int before = readAheadQueue.size();
