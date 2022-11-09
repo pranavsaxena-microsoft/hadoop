@@ -23,8 +23,10 @@ import java.net.URL;
 import java.util.List;
 
 import org.apache.hadoop.fs.azurebfs.AbfsConfiguration;
+import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemException;
 import org.apache.hadoop.fs.azurebfs.extensions.SASTokenProvider;
 import org.apache.hadoop.fs.azurebfs.oauth2.AccessTokenProvider;
+import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 
 /**
  * Child class of {@link org.apache.hadoop.fs.azurebfs.services.AbfsClient} to orchestrate mocking behaviour for test-classes.
@@ -37,6 +39,8 @@ import org.apache.hadoop.fs.azurebfs.oauth2.AccessTokenProvider;
 public class MockAbfsClient extends AbfsClient {
 
   private MockHttpOperationTestIntercept mockHttpOperationTestIntercept;
+
+  public ThreadLocal<Integer> bufferLengthSeen = new ThreadLocal<>();
 
   public MockAbfsClient(final URL baseUrl,
       final SharedKeyCredentials sharedKeyCredentials,
@@ -86,6 +90,20 @@ public class MockAbfsClient extends AbfsClient {
     }
     return super.getAbfsRestOperation(operationType, httpMethod, url,
         requestHeaders, buffer, bufferOffset, bufferLength, sasTokenForReuse);
+  }
+
+  @Override
+  public AbfsRestOperation read(final String path,
+      final long position,
+      final byte[] buffer,
+      final int bufferOffset,
+      final int bufferLength,
+      final String eTag,
+      final String cachedSasToken,
+      final TracingContext tracingContext) throws AzureBlobFileSystemException {
+    bufferLengthSeen.set(bufferLength);
+    return super.read(path, position, buffer, bufferOffset, bufferLength, eTag,
+        cachedSasToken, tracingContext);
   }
 
   public void setMockHttpOperationTestIntercept(final MockHttpOperationTestIntercept mockHttpOperationTestIntercept) {

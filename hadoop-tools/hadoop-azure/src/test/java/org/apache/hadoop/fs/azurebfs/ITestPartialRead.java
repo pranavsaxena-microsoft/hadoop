@@ -250,6 +250,36 @@ public class ITestPartialRead extends AbstractAbfsIntegrationTest {
         .isEqualTo(4);
   }
 
+  @Test
+  public void test2MB() throws IOException {
+    int fileSize = 2 * ONE_MB;
+    int bufferSize = 4* ONE_MB;
+    final AzureBlobFileSystem fs = getFileSystem();
+    final AbfsConfiguration abfsConfiguration = fs.getAbfsStore().getAbfsConfiguration();
+    abfsConfiguration.setWriteBufferSize(bufferSize);
+    abfsConfiguration.setReadBufferSize(bufferSize);
+    abfsConfiguration.setReadAheadEnabled(false);
+
+    final byte[] b = new byte[fileSize];
+    new Random().nextBytes(b);
+
+    Path testPath = path(TEST_PATH);
+    FSDataOutputStream stream = fs.create(testPath);
+    try {
+      stream.write(b);
+    } finally{
+      stream.close();
+    }
+
+    MockAbfsClient abfsClient = new MockAbfsClient(fs.getAbfsClient());
+
+    fs.getAbfsStore().setClient(abfsClient);
+    FSDataInputStream inputStream = fs.open(testPath);
+    byte[] buffer = new byte[fileSize];
+    inputStream.read(0, buffer, 0, fileSize);
+    Assertions.assertThat(abfsClient.bufferLengthSeen.get()).isEqualTo(fileSize);
+  }
+
   private class ActualServerReadByte {
 
     byte[] bytes;

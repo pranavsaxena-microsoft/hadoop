@@ -50,6 +50,10 @@ public class MockHttpOperation extends AbfsHttpOperation {
   public void processResponse(final byte[] buffer,
       final int offset,
       final int length) throws IOException {
+    if(mockHttpOperationTestIntercept == null) {
+      processResponseSuperCall(buffer, offset, length);
+      return;
+    }
     MockHttpOperationTestInterceptResult result =
         mockHttpOperationTestIntercept.intercept(this, buffer, offset, length);
     setStatusCode(result.getStatus());
