@@ -68,7 +68,7 @@ public class ITestPartialRead extends AbstractAbfsIntegrationTest {
     final int bufferSize = 4 * ONE_MB;
     abfsConfiguration.setWriteBufferSize(bufferSize);
     abfsConfiguration.setReadBufferSize(bufferSize);
-    abfsConfiguration.setReadAheadQueueDepth(0);
+//    abfsConfiguration.setReadAheadQueueDepth(0);
 
     final byte[] b = new byte[fileSize];
     new Random().nextBytes(b);
@@ -80,6 +80,65 @@ public class ITestPartialRead extends AbstractAbfsIntegrationTest {
       stream.close();
     }
     return b;
+  }
+
+
+  @Test
+  public void purgeIssue() throws IOException {
+    for(int loopi=0;loopi<20;loopi++) {
+      int fileSize = 16 * ONE_MB;
+      Path testPath = path(TEST_PATH);
+      byte[] originalFile = setup(testPath, fileSize);
+
+      final AzureBlobFileSystem fs = getFileSystem();
+      MockAbfsClient abfsClient = new MockAbfsClient(fs.getAbfsClient());
+
+
+      MockHttpOperationTestIntercept mockHttpOperationTestIntercept
+          = new MockHttpOperationTestIntercept() {
+        private int callCount = 0;
+
+        @Override
+        public MockHttpOperationTestInterceptResult intercept(final MockHttpOperation mockHttpOperation,
+            final byte[] buffer,
+            final int offset,
+            final int length) throws IOException {
+
+          MockHttpOperationTestInterceptResult
+              mockHttpOperationTestInterceptResult
+              = new MockHttpOperationTestInterceptResult();
+          mockHttpOperationTestInterceptResult.setStatus(200);
+          mockHttpOperationTestInterceptResult.setBytesRead(0);
+          callCount++;
+          return mockHttpOperationTestInterceptResult;
+        }
+
+        public int getCallCount() {
+          return callCount;
+        }
+      };
+      abfsClient.setMockHttpOperationTestIntercept(
+          mockHttpOperationTestIntercept);
+      fs.getAbfsStore().setClient(abfsClient);
+
+      AbfsClientThrottlingIntercept intercept
+          = AbfsClientThrottlingInterceptTestUtil.get();
+      MockAbfsClientThrottlingAnalyzer readAnalyzer
+          = new MockAbfsClientThrottlingAnalyzer("read");
+      MockAbfsClientThrottlingAnalyzer analyzerToBeAsserted
+          = (MockAbfsClientThrottlingAnalyzer) AbfsClientThrottlingInterceptTestUtil.setReadAnalyzer(
+          intercept, readAnalyzer);
+
+      FSDataInputStream[] fsIArray = new FSDataInputStream[10];
+      for (int i = 0; i < 10; i++) {
+        fsIArray[i] = fs.open(testPath);
+      }
+
+      for (int i = 0; i < 10; i++) {
+        byte[] buffer = new byte[fileSize / 2];
+        fsIArray[i].read(0, buffer, 0, fileSize / 2);
+      }
+    }
   }
 
   @Test
