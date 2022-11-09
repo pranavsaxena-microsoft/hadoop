@@ -28,8 +28,6 @@ import org.apache.hadoop.fs.PathIOException;
 import org.apache.hadoop.fs.azurebfs.contracts.services.ReadBufferStatus;
 import org.apache.hadoop.fs.statistics.DurationTracker;
 
-import static org.apache.hadoop.fs.statistics.StreamStatisticNames.STREAM_READ_PREFETCH_OPERATIONS;
-
 class ReadBufferWorker implements Runnable {
 
   private static final Logger LOGGER =
@@ -71,8 +69,7 @@ class ReadBufferWorker implements Runnable {
       }
       if (buffer != null) {
         // input stream is updated with count/duration of prefetching
-        DurationTracker tracker =
-            buffer.getStreamIOStatistics().trackDuration(STREAM_READ_PREFETCH_OPERATIONS);
+        DurationTracker tracker = buffer.trackPrefetchOperation();
         try {
           // do the actual read, from the file.
           LOGGER.trace("Reading {}", buffer);

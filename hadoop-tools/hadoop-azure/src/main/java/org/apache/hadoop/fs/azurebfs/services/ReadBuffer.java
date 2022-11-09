@@ -23,16 +23,22 @@ import java.util.concurrent.CountDownLatch;
 
 import org.apache.hadoop.fs.azurebfs.contracts.services.ReadBufferStatus;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
+import org.apache.hadoop.fs.statistics.DurationTracker;
 import org.apache.hadoop.fs.statistics.impl.IOStatisticsStore;
 
 import static org.apache.hadoop.fs.azurebfs.contracts.services.ReadBufferStatus.READ_FAILED;
+import static org.apache.hadoop.fs.statistics.StreamStatisticNames.STREAM_READ_ACTIVE_PREFETCH_OPERATIONS;
 import static org.apache.hadoop.fs.statistics.StreamStatisticNames.STREAM_READ_PREFETCH_BLOCKS_USED;
 import static org.apache.hadoop.fs.statistics.StreamStatisticNames.STREAM_READ_PREFETCH_BYTES_DISCARDED;
 import static org.apache.hadoop.fs.statistics.StreamStatisticNames.STREAM_READ_PREFETCH_BYTES_USED;
+import static org.apache.hadoop.fs.statistics.StreamStatisticNames.STREAM_READ_PREFETCH_OPERATIONS;
 
 class ReadBuffer {
 
-  private AbfsInputStream stream;
+  /**
+   * Stream operations.
+   */
+  private ReadBufferStreamOperations stream;
   private long offset;                   // offset within the file for the buffer
   private int length;                    // actual length, set after the buffer is filles
   private int requestedLength;           // requested length of the read
@@ -51,11 +57,11 @@ class ReadBuffer {
 
   private IOException errException = null;
 
-  public AbfsInputStream getStream() {
+  public ReadBufferStreamOperations getStream() {
     return stream;
   }
 
-  public void setStream(AbfsInputStream stream) {
+  public void setStream(ReadBufferStreamOperations stream) {
     this.stream = stream;
   }
 
@@ -212,7 +218,7 @@ class ReadBuffer {
    * @param offset offset in buffer where copy began
    * @param bytesCopied bytes copied.
    */
-  public void dataConsumedByStream(int offset, int bytesCopied) {
+  void dataConsumedByStream(int offset, int bytesCopied) {
     setAnyByteConsumed(true);
     if (offset == 0) {
       setFirstByteConsumed(true);
@@ -225,40 +231,11 @@ class ReadBuffer {
     iostats.incrementCounter(STREAM_READ_PREFETCH_BYTES_USED, bytesCopied);
   }
 
-
-  /**
-   * The read completed
-   * @param result read result
-   * @param bytesActuallyRead the number of bytes actually read.
-   * @param timestampMillis timestamp of completion
-   */
-  void readCompleted(
-      final ReadBufferStatus result,
-      final int bytesActuallyRead,
-      final long timestampMillis) {
-    setStatus(status);
-    if (status == ReadBufferStatus.AVAILABLE) {
-      setLength(bytesActuallyRead);
-    } else {
-      setLength(0);
-    }
-    setTimeStamp(timestampMillis);
-  }
-
-  /**
-   * Has the read succeeded wth valid data
-   * @return true if there is data from a successful read
-   */
-  boolean readSucceededWithData() {
-    return status == ReadBufferStatus.AVAILABLE
-        && getLength() > 0;
-  }
-
   /**
    * The (completed) buffer was evicted; update stream statistics
    * as appropriate.
    */
-  public void evicted() {
+  void evicted() {
     if (getBufferindex() >= 0) {
       IOStatisticsStore iostats = getStreamIOStatistics();
       iostats.incrementCounter(STREAM_READ_PREFETCH_BYTES_DISCARDED, 1);
@@ -273,4 +250,28 @@ class ReadBuffer {
     setBuffer(null);
     setBufferindex(-1);
   }
+
+
+  /**
+   * Prefetch started -update stream statistics.
+   */
+  void prefetchStarted()  {
+    getStreamIOStatistics().incrementGauge(STREAM_READ_ACTIVE_PREFETCH_OPERATIONS, 1);
+  }
+
+  /**
+   * Prefetch started -update stream statistics.
+   */
+  void prefetchFinished() {
+    getStreamIOStatistics().incrementGauge(STREAM_READ_ACTIVE_PREFETCH_OPERATIONS, -1);
+  }
+
+  /**
+   * Get a duration tracker for the prefetch.
+   * @return a duration tracker.
+   */
+  DurationTracker trackPrefetchOperation() {
+    return getStreamIOStatistics().trackDuration(STREAM_READ_PREFETCH_OPERATIONS);
+  }
+
 }

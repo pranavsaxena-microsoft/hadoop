@@ -36,7 +36,6 @@ import java.util.concurrent.locks.ReentrantLock;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 import org.apache.hadoop.classification.VisibleForTesting;
 
-import static org.apache.hadoop.fs.statistics.StreamStatisticNames.STREAM_READ_ACTIVE_PREFETCH_OPERATIONS;
 import static org.apache.hadoop.util.Preconditions.checkState;
 
 /**
@@ -144,7 +143,7 @@ final class ReadBufferManager {
    * @param requestedOffset The offset in the file which shoukd be read
    * @param requestedLength The length to read
    */
-  void queueReadAhead(final AbfsInputStream stream, final long requestedOffset, final int requestedLength,
+  void queueReadAhead(final ReadBufferStreamOperations stream, final long requestedOffset, final int requestedLength,
                       TracingContext tracingContext) {
     if (LOGGER.isTraceEnabled()) {
       LOGGER.trace("Start Queueing readAhead for {} offset {} length {}",
@@ -341,18 +340,18 @@ final class ReadBufferManager {
     return true;
   }
 
-  private boolean isAlreadyQueued(final AbfsInputStream stream, final long requestedOffset) {
+  private boolean isAlreadyQueued(final ReadBufferStreamOperations stream, final long requestedOffset) {
     // returns true if any part of the buffer is already queued
     return (isInList(readAheadQueue, stream, requestedOffset)
         || isInList(inProgressList, stream, requestedOffset)
         || isInList(completedReadList, stream, requestedOffset));
   }
 
-  private boolean isInList(final Collection<ReadBuffer> list, final AbfsInputStream stream, final long requestedOffset) {
+  private boolean isInList(final Collection<ReadBuffer> list, final ReadBufferStreamOperations stream, final long requestedOffset) {
     return (getFromList(list, stream, requestedOffset) != null);
   }
 
-  private ReadBuffer getFromList(final Collection<ReadBuffer> list, final AbfsInputStream stream, final long requestedOffset) {
+  private ReadBuffer getFromList(final Collection<ReadBuffer> list, final ReadBufferStreamOperations stream, final long requestedOffset) {
     for (ReadBuffer buffer : list) {
       if (buffer.getStream() == stream) {
         if (buffer.getStatus() == ReadBufferStatus.AVAILABLE
@@ -374,7 +373,7 @@ final class ReadBufferManager {
    * @param requestedOffset
    * @return
    */
-  private ReadBuffer getBufferFromCompletedQueue(final AbfsInputStream stream, final long requestedOffset) {
+  private ReadBuffer getBufferFromCompletedQueue(final ReadBufferStreamOperations stream, final long requestedOffset) {
     for (ReadBuffer buffer : completedReadList) {
       // Buffer is returned if the requestedOffset is at or above buffer's
       // offset but less than buffer's length or the actual requestedLength
@@ -389,7 +388,7 @@ final class ReadBufferManager {
     return null;
   }
 
-  private void clearFromReadAheadQueue(final AbfsInputStream stream, final long requestedOffset) {
+  private void clearFromReadAheadQueue(final ReadBufferStreamOperations stream, final long requestedOffset) {
     ReadBuffer buffer = getFromList(readAheadQueue, stream, requestedOffset);
     if (buffer != null) {
       readAheadQueue.remove(buffer);
@@ -509,7 +508,7 @@ final class ReadBufferManager {
 
   }
 
-  private int getBlockFromCompletedQueue(final AbfsInputStream stream, final long position, final int length,
+  private int getBlockFromCompletedQueue(final ReadBufferStreamOperations stream, final long position, final int length,
                                          final byte[] buffer) throws IOException {
     ReadBuffer buf = getBufferFromCompletedQueue(stream, position);
 
@@ -576,7 +575,7 @@ final class ReadBufferManager {
     }
     validateReadManagerState();
     // update stream gauge.
-    buffer.getStreamIOStatistics().incrementGauge(STREAM_READ_ACTIVE_PREFETCH_OPERATIONS, 1);
+    buffer.prefetchStarted();
     return buffer;
   }
 
@@ -593,7 +592,7 @@ final class ReadBufferManager {
           buffer.getStream().getPath(),  buffer.getOffset(), bytesActuallyRead, buffer);
     }
     // decrement counter.
-    buffer.getStreamIOStatistics().incrementGauge(STREAM_READ_ACTIVE_PREFETCH_OPERATIONS, -1);
+    buffer.prefetchFinished();
 
     try {
       synchronized (this) {
@@ -612,15 +611,18 @@ final class ReadBufferManager {
 
         boolean shouldFreeBuffer = false;
         String freeBufferReason = "";
-        buffer.readCompleted(result, bytesActuallyRead, currentTimeMillis());
-        if (!buffer.readSucceededWithData()) {
-          // reead failed or there was no data, -the buffer can be returned to the free list.
+        if (result == ReadBufferStatus.AVAILABLE && bytesActuallyRead > 0) {
+          buffer.setStatus(ReadBufferStatus.AVAILABLE);
+          buffer.setLength(bytesActuallyRead);
+        } else {
+          // read failed or there was no data, -the buffer can be returned to the free list.
           shouldFreeBuffer = true;
           freeBufferReason = "failed read";
         }
-
         // completed list also contains FAILED read buffers
         // for sending exception message to clients.
+        buffer.setStatus(result);
+        buffer.setTimeStamp(currentTimeMillis());
         if (!buffer.isStreamClosed()) {
           // completed reads are added to the list.
           LOGGER.trace("Adding buffer to completed list {}", buffer);
@@ -708,7 +710,7 @@ final class ReadBufferManager {
    * still in use.
    * @param stream input stream.
    */
-  public synchronized void purgeBuffersForStream(AbfsInputStream stream) {
+  public synchronized void purgeBuffersForStream(ReadBufferStreamOperations stream) {
     LOGGER.debug("Purging stale buffers for AbfsInputStream {}/{}",
         stream.getStreamID(), stream.getPath());
 
@@ -737,7 +739,7 @@ final class ReadBufferManager {
    * @param list list of buffers like {@link this#completedReadList}
    *             or {@link this#inProgressList}.
    */
-  private int purgeList(AbfsInputStream stream, LinkedList<ReadBuffer> list) {
+  private int purgeList(ReadBufferStreamOperations stream, LinkedList<ReadBuffer> list) {
     int purged = 0;
     for (Iterator<ReadBuffer> it = list.iterator(); it.hasNext();) {
       ReadBuffer readBuffer = it.next();

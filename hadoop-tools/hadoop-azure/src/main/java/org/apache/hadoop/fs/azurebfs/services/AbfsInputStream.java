@@ -53,6 +53,8 @@ import static java.lang.Math.min;
 
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.ONE_KB;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.STREAM_ID_LEN;
+import static org.apache.hadoop.fs.statistics.IOStatisticsLogging.ioStatisticsToPrettyString;
+import static org.apache.hadoop.fs.statistics.IOStatisticsSupport.retrieveIOStatistics;
 import static org.apache.hadoop.fs.statistics.impl.IOStatisticsBinding.emptyStatisticsStore;
 import static org.apache.hadoop.util.StringUtils.toLowerCase;
 
@@ -60,7 +62,7 @@ import static org.apache.hadoop.util.StringUtils.toLowerCase;
  * The AbfsInputStream for AbfsClient.
  */
 public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
-        StreamCapabilities, IOStatisticsSource {
+        StreamCapabilities, IOStatisticsSource, ReadBufferStreamOperations {
   private static final Logger LOG = LoggerFactory.getLogger(AbfsInputStream.class);
   //  Footer size is set to qualify for both ORC and parquet files
   public static final int FOOTER_SIZE = 16 * ONE_KB;
@@ -523,7 +525,12 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
     }
   }
 
-  int readRemote(long position, byte[] b, int offset, int length, TracingContext tracingContext) throws IOException {
+  @Override
+  public int readRemote(long position,
+      byte[] b,
+      int offset,
+      int length,
+      TracingContext tracingContext) throws IOException {
     if (position < 0) {
       throw new IllegalArgumentException("attempting to read from negative offset");
     }
@@ -709,12 +716,7 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
     }
   }
 
-  /**
-   * Is the stream closed?
-   * This must be thread safe as prefetch operations in
-   * different threads probe this before closure.
-   * @return true if the stream has been closed.
-   */
+  @Override
   @InterfaceAudience.Private
   public boolean isClosed() {
     return closed.get();
@@ -789,6 +791,7 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
     this.cachedSasToken = cachedSasToken;
   }
 
+  @Override
   @VisibleForTesting
   public String getStreamID() {
     return inputStreamId;
@@ -867,7 +870,7 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
         ", bufferedPreadDisabled=" + bufferedPreadDisabled +
         ", firstRead=" + firstRead +
         ", fCursor=" + fCursor +
-        ", " + streamStatistics.toString() +
+        ", " + ioStatisticsToPrettyString(retrieveIOStatistics(streamStatistics)) +
         "}";
   }
 
