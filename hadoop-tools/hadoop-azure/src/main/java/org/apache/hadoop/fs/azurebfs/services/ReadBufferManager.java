@@ -597,18 +597,20 @@ final class ReadBufferManager {
             "Read completed from an operation not declared as in progress %s", buffer);
         // If this buffer has already been purged during
         // close of InputStream then we don't update the lists.
+        boolean shouldBeAddedInCompletedList = true;
         if (result == ReadBufferStatus.AVAILABLE && bytesActuallyRead > 0) {
           buffer.setStatus(ReadBufferStatus.AVAILABLE);
           buffer.setLength(bytesActuallyRead);
         } else {
           // there is no data, so it is immediately returned to the free list.
           placeBufferOnFreeList("failed read", buffer);
+          shouldBeAddedInCompletedList = false;
         }
         // completed list also contains FAILED read buffers
         // for sending exception message to clients.
         buffer.setStatus(result);
         buffer.setTimeStamp(currentTimeMillis());
-        if (!buffer.getStream().isClosed()) {
+        if (!buffer.getStream().isClosed() && shouldBeAddedInCompletedList) {
           // completed reads are added to the list.
           completedReadList.add(buffer);
         } else {
