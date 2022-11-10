@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.hadoop.fs.PathIOException;
 import org.apache.hadoop.fs.azurebfs.contracts.services.ReadBufferStatus;
+import org.apache.hadoop.fs.statistics.DurationTracker;
 
 class ReadBufferWorker implements Runnable {
 
@@ -67,6 +68,8 @@ class ReadBufferWorker implements Runnable {
         return;
       }
       if (buffer != null) {
+        // input stream is updated with count/duration of prefetching
+        DurationTracker tracker = buffer.trackPrefetchOperation();
         try {
           // do the actual read, from the file.
           LOGGER.trace("Reading {}", buffer);
@@ -78,14 +81,17 @@ class ReadBufferWorker implements Runnable {
               // read-ahead buffer size, make sure a valid length is passed
               // for remote read
               Math.min(buffer.getRequestedLength(), buffer.getBuffer().length),
-                  buffer.getTracingContext());
+              buffer.getTracingContext());
           LOGGER.trace("Read {} bytes", bytesRead);
-          bufferManager.doneReading(buffer, ReadBufferStatus.AVAILABLE, bytesRead);  // post result back to ReadBufferManager
-        } catch (IOException ex) {
-          buffer.setErrException(ex);
-          bufferManager.doneReading(buffer, ReadBufferStatus.READ_FAILED, 0);
+          // post result back to ReadBufferManager
+          bufferManager.doneReading(buffer, ReadBufferStatus.AVAILABLE, bytesRead);
+          tracker.close();
         } catch (Exception ex) {
-          buffer.setErrException(new PathIOException(buffer.getStream().getPath(), ex));
+          tracker.failed();
+          IOException ioe = ex instanceof IOException
+              ? (IOException)ex
+              : new PathIOException(buffer.getStream().getPath(), ex);
+          buffer.setErrException(ioe);
           bufferManager.doneReading(buffer, ReadBufferStatus.READ_FAILED, 0);
         }
       }
