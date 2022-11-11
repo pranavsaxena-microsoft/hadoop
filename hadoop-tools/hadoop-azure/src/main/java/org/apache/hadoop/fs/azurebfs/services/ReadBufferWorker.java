@@ -92,6 +92,7 @@ class ReadBufferWorker implements Runnable {
               ? (IOException)ex
               : new PathIOException(buffer.getStream().getPath(), ex);
           buffer.setErrException(ioe);
+          LOGGER.trace("Exception received: ", ioe);
           bufferManager.doneReading(buffer, ReadBufferStatus.READ_FAILED, 0);
         }
       }

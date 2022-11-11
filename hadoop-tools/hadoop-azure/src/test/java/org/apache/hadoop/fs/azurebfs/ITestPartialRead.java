@@ -24,6 +24,7 @@ import java.net.SocketException;
 import java.util.Random;
 
 import org.assertj.core.api.Assertions;
+import org.junit.Assert;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -104,6 +105,10 @@ public class ITestPartialRead extends AbstractAbfsIntegrationTest {
             final int offset,
             final int length) throws IOException {
 
+          if(Math.random() >= 0.5) {
+             mockHttpOperation.processResponseSuperCall(buffer, offset, length);
+             return null;
+          }
           MockHttpOperationTestInterceptResult
               mockHttpOperationTestInterceptResult
               = new MockHttpOperationTestInterceptResult();
@@ -129,14 +134,43 @@ public class ITestPartialRead extends AbstractAbfsIntegrationTest {
           = (MockAbfsClientThrottlingAnalyzer) AbfsClientThrottlingInterceptTestUtil.setReadAnalyzer(
           intercept, readAnalyzer);
 
-      FSDataInputStream[] fsIArray = new FSDataInputStream[10];
-      for (int i = 0; i < 10; i++) {
+      final int experimentScale = 10;
+
+      FSDataInputStream[] fsIArray = new FSDataInputStream[experimentScale];
+      Boolean[] flags = new Boolean[experimentScale];
+      for (int i = 0; i < experimentScale; i++) {
         fsIArray[i] = fs.open(testPath);
+        flags[i] = false;
       }
 
-      for (int i = 0; i < 10; i++) {
-        byte[] buffer = new byte[fileSize / 2];
-        fsIArray[i].read(0, buffer, 0, fileSize / 2);
+      for (int i = 0; i < experimentScale; i++) {
+        final int iter = i;
+        new Thread(() -> {
+          try {
+            byte[] buffer = new byte[fileSize];
+            fsIArray[iter].read(0, buffer, 0, fileSize);
+            for(int in=0; in< fileSize;in++) {
+              if(buffer[in] != originalFile[in]) {
+                Assert.assertFalse("At index" + in, true);
+              }
+            }
+          } catch (Exception e) {
+
+          }finally {
+            flags[iter] = true;
+          }
+        }).start();
+      }
+      while(true) {
+        int count = 0;
+        for(int i=0;i<experimentScale;i++) {
+          if (flags[i]) {
+            count++;
+          }
+        }
+        if(count == experimentScale) {
+          break;
+        }
       }
     }
   }

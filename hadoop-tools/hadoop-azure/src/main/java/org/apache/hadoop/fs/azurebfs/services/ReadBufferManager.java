@@ -24,10 +24,14 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Queue;
+import java.util.Set;
 import java.util.Stack;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicLong;
@@ -122,6 +126,34 @@ final class ReadBufferManager {
       t.start();
     }
     ReadBufferWorker.UNLEASH_WORKERS.countDown();
+
+    new Thread(() -> {
+      while(true) {
+        try {
+          List<ReadBuffer> readAheadQueueSnap = new ArrayList<>(readAheadQueue);
+          List<ReadBuffer> inProgressQueueSnap = new ArrayList<>(
+              inProgressList);
+          Set<Integer> indexSet = new HashSet<>();
+          for (ReadBuffer buffer : readAheadQueueSnap) {
+            int index = buffer.getBufferindex();
+            if (indexSet.contains(index)) {
+              LOGGER.trace("INCONSISTENCY!! on index " + index);
+            }
+            indexSet.add(index);
+          }
+          for (ReadBuffer buffer : inProgressQueueSnap) {
+            int index = buffer.getBufferindex();
+            if (indexSet.contains(index)) {
+              LOGGER.trace("INCONSISTENCY!! on index " + index);
+            }
+//          indexSet.add(index);
+          }
+        } catch (Exception e) {
+
+        }
+      }
+    }).start();
+
   }
 
   // hide instance constructor
@@ -411,6 +443,11 @@ final class ReadBufferManager {
         index, reason, readBuffer);
     verifyReadOwnsBufferAtIndex(readBuffer, index);
     verifyByteBufferNotInUse(index);
+    try {
+      Thread.sleep(4000);
+    } catch (Exception e) {
+
+    }
     // declare it as unowned
     bufferOwners[index] = null;
     // set the buffer to null, because it is now free
