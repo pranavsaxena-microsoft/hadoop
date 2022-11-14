@@ -152,10 +152,12 @@ public class DatanodeAdminManager {
     executor.scheduleWithFixedDelay(monitor, intervalSecs, intervalSecs,
         TimeUnit.SECONDS);
 
-    LOG.debug("Activating DatanodeAdminManager with interval {} seconds, " +
-            "{} max blocks per interval, " +
-            "{} max concurrently tracked nodes.", intervalSecs,
-        blocksPerInterval, maxConcurrentTrackedNodes);
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("Activating DatanodeAdminManager with interval {} seconds, " +
+              "{} max blocks per interval, " +
+              "{} max concurrently tracked nodes.", intervalSecs,
+          blocksPerInterval, maxConcurrentTrackedNodes);
+    }
   }
 
   /**
@@ -417,4 +419,30 @@ public class DatanodeAdminManager {
     executor.submit(monitor).get();
   }
 
+  public void refreshPendingRepLimit(int pendingRepLimit, String key) {
+    ensurePositiveInt(pendingRepLimit, key);
+    this.monitor.setPendingRepLimit(pendingRepLimit);
+  }
+
+  @VisibleForTesting
+  public int getPendingRepLimit() {
+    return this.monitor.getPendingRepLimit();
+  }
+
+  public void refreshBlocksPerLock(int blocksPerLock, String key) {
+    ensurePositiveInt(blocksPerLock, key);
+    this.monitor.setBlocksPerLock(blocksPerLock);
+  }
+
+  @VisibleForTesting
+  public int getBlocksPerLock() {
+    return this.monitor.getBlocksPerLock();
+  }
+
+  private void ensurePositiveInt(int val, String key) {
+    Preconditions.checkArgument(
+        (val > 0),
+        key + " = '" + val + "' is invalid. " +
+            "It should be a positive, non-zero integer value.");
+  }
 }
