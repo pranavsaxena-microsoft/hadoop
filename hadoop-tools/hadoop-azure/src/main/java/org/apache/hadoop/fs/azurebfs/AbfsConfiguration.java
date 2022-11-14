@@ -303,6 +303,11 @@ public class AbfsConfiguration{
           DefaultValue = DEFAULT_ABFS_LATENCY_TRACK)
   private boolean trackLatency;
 
+  @BooleanConfigurationValidatorAnnotation(
+      ConfigurationKey = FS_AZURE_ENABLE_READAHEAD,
+      DefaultValue = DEFAULT_ENABLE_READAHEAD)
+  private boolean enabledReadAhead;
+
   @LongConfigurationValidatorAnnotation(ConfigurationKey = FS_AZURE_SAS_TOKEN_RENEW_PERIOD_FOR_STREAMS,
       MinValue = 0,
       DefaultValue = DEFAULT_SAS_TOKEN_RENEW_PERIOD_FOR_STREAMS_IN_SECONDS)
@@ -927,7 +932,8 @@ public class AbfsConfiguration{
         return null;
       }
       Class<? extends EncryptionContextProvider> encryptionContextClass =
-          getAccountSpecificClass(configKey, null, EncryptionContextProvider.class);
+          getAccountSpecificClass(configKey, null,
+              EncryptionContextProvider.class);
       Preconditions.checkArgument(encryptionContextClass != null, String.format(
           "The configuration value for %s is invalid, or config key is not account-specific",
           configKey));
@@ -940,9 +946,18 @@ public class AbfsConfiguration{
       LOG.trace("{} init complete", encryptionContextClass.getName());
       return encryptionContextProvider;
     } catch (Exception e) {
-      throw new IllegalArgumentException("Unable to load encryption context provider class: ", e);
+      throw new IllegalArgumentException(
+          "Unable to load encryption context provider class: ", e);
     }
 
+  }
+  public boolean isReadAheadEnabled() {
+    return this.enabledReadAhead;
+  }
+
+  @VisibleForTesting
+  void setReadAheadEnabled(final boolean enabledReadAhead) {
+    this.enabledReadAhead = enabledReadAhead;
   }
 
   public int getReadAheadRange() {

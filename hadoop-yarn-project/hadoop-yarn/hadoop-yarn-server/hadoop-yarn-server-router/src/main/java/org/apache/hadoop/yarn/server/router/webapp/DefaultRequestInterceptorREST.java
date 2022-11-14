@@ -66,6 +66,7 @@ import org.apache.hadoop.yarn.server.resourcemanager.webapp.dao.SchedulerTypeInf
 import org.apache.hadoop.yarn.server.webapp.dao.AppAttemptInfo;
 import org.apache.hadoop.yarn.server.webapp.dao.ContainerInfo;
 import org.apache.hadoop.yarn.server.webapp.dao.ContainersInfo;
+import org.apache.hadoop.yarn.webapp.dao.SchedConfUpdateInfo;
 import org.apache.hadoop.yarn.webapp.util.WebAppUtils;
 
 /**
@@ -525,10 +526,10 @@ public class DefaultRequestInterceptorREST
 
   @Override
   public RMQueueAclInfo checkUserAccessToQueue(String queue, String username,
-      String queueAclType, HttpServletRequest hsr) {
+      String queueAclType, HttpServletRequest hsr) throws AuthorizationException {
     return RouterWebServiceUtil.genericForward(webAppAddress, hsr,
         RMQueueAclInfo.class, HTTPMethods.GET,
-        RMWSConsts.RM_WEB_SERVICE_PATH + RMWSConsts.QUEUES + "/" + queue
+        RMWSConsts.RM_WEB_SERVICE_PATH +  "/" + RMWSConsts.QUEUES + "/" + queue
             + "/access", null, null, getConf(), client);
   }
 
@@ -566,6 +567,25 @@ public class DefaultRequestInterceptorREST
   }
 
   @Override
+  public Response updateSchedulerConfiguration(SchedConfUpdateInfo mutationInfo,
+      HttpServletRequest req)
+      throws AuthorizationException, InterruptedException {
+    return RouterWebServiceUtil.genericForward(webAppAddress, req,
+        Response.class, HTTPMethods.PUT,
+        RMWSConsts.RM_WEB_SERVICE_PATH + RMWSConsts.SCHEDULER_CONF,
+        mutationInfo, null, getConf(), client);
+  }
+
+  @Override
+  public Response getSchedulerConfiguration(HttpServletRequest req)
+      throws AuthorizationException {
+    return RouterWebServiceUtil.genericForward(webAppAddress, req,
+        Response.class, HTTPMethods.GET,
+        RMWSConsts.RM_WEB_SERVICE_PATH + RMWSConsts.SCHEDULER_CONF,
+        null, null, getConf(), client);
+  }
+
+  @Override
   public void setNextInterceptor(RESTRequestInterceptor next) {
     throw new YarnRuntimeException("setNextInterceptor is being called on "
         + "DefaultRequestInterceptorREST, which should be the last one "
@@ -581,5 +601,13 @@ public class DefaultRequestInterceptorREST
             RMWSConsts.RM_WEB_SERVICE_PATH + "/" + RMWSConsts.CONTAINERS + "/"
                 + containerId + "/" + RMWSConsts.SIGNAL + "/" + command, null,
             null, getConf(), client);
+  }
+
+  @Override
+  public NodeLabelsInfo getRMNodeLabels(HttpServletRequest hsr) {
+    return RouterWebServiceUtil.genericForward(webAppAddress, hsr,
+        NodeLabelsInfo.class, HTTPMethods.GET,
+        RMWSConsts.RM_WEB_SERVICE_PATH + RMWSConsts.GET_RM_NODE_LABELS,
+        null, null, getConf(), client);
   }
 }
