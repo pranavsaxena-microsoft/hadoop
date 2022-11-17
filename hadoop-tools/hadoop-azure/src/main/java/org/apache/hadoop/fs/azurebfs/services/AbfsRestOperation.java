@@ -71,7 +71,7 @@ public class AbfsRestOperation {
   private AbfsHttpOperation result;
   private AbfsCounters abfsCounters;
 
-  private final TimeoutValues timeoutValues;
+  private final TimeoutValuesManager timeoutValuesManager;
 
   /**
    * Checks if there is non-null HTTP response.
@@ -147,7 +147,7 @@ public class AbfsRestOperation {
             || AbfsHttpConstants.HTTP_METHOD_PATCH.equals(method));
     this.sasToken = sasToken;
     this.abfsCounters = client.getAbfsCounters();
-    this.timeoutValues = new TimeoutValues(operationType);
+    this.timeoutValuesManager = new TimeoutValuesManager(operationType, url);
   }
 
   /**
@@ -220,7 +220,7 @@ public class AbfsRestOperation {
     while (!executeHttpOperation(retryCount, tracingContext)) {
       try {
         ++retryCount;
-        url = timeoutValues.registerFailure(url);
+        timeoutValuesManager.registerFailure();
         tracingContext.setRetryCount(retryCount);
         LOG.debug("Retrying REST operation {}. RetryCount = {}",
             operationType, retryCount);
@@ -248,7 +248,8 @@ public class AbfsRestOperation {
     AbfsHttpOperation httpOperation = null;
     try {
       // initialize the HTTP request and open the connection
-      httpOperation = new AbfsHttpOperation(url, method, requestHeaders, timeoutValues);
+      httpOperation = new AbfsHttpOperation(timeoutValuesManager.getUrl(), method, requestHeaders,
+          timeoutValuesManager);
       incrementCounter(AbfsStatistic.CONNECTIONS_MADE, 1);
       tracingContext.constructHeader(httpOperation);
 

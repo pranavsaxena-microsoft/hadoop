@@ -261,7 +261,7 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
    *
    * @throws IOException if an error occurs.
    */
-  public AbfsHttpOperation(final URL url, final String method, final List<AbfsHttpHeader> requestHeaders, final TimeoutValues timeoutValues)
+  public AbfsHttpOperation(final URL url, final String method, final List<AbfsHttpHeader> requestHeaders, final TimeoutValuesManager timeoutValuesManager)
       throws IOException {
     this.isTraceEnabled = LOG.isTraceEnabled();
     this.url = url;
@@ -276,8 +276,8 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
       }
     }
 
-    this.connection.setConnectTimeout(timeoutValues.getConnectionTimeout());
-    this.connection.setReadTimeout(timeoutValues.getReadTimeout());
+    this.connection.setConnectTimeout(timeoutValuesManager.getConnectionTimeout());
+    this.connection.setReadTimeout(timeoutValuesManager.getReadTimeout());
 
     this.connection.setRequestMethod(method);
 
