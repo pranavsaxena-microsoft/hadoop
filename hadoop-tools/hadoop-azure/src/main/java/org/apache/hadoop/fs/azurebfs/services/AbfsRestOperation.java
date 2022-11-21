@@ -303,6 +303,17 @@ public class AbfsRestOperation {
           && httpOperation.getStatusCode() <= HttpURLConnection.HTTP_PARTIAL) {
         incrementCounter(AbfsStatistic.BYTES_RECEIVED,
             httpOperation.getBytesReceived());
+
+        String range = httpOperation.getConnection().getRequestProperty(HttpHeaderConfigurations.RANGE);
+        long bytesExpected = getContentLengthIfKnown(range);
+        double percentage = ((double) (httpOperation.getBytesReceived())/bytesExpected) * 100d;
+
+        if(httpOperation.getStatusCode() == HttpURLConnection.HTTP_PARTIAL && (percentage <= client.getAbfsConfiguration().getMinimumByteShouldBeRead())) {
+          if (!client.getRetryPolicy().shouldRetry(retryCount, -1)) {
+            throw new InvalidAbfsRestOperationException(new Exception("can not be retried more."));
+          }
+          return false;
+        }
       } else if (httpOperation.getStatusCode() == HttpURLConnection.HTTP_UNAVAILABLE) {
         incrementCounter(AbfsStatistic.SERVER_UNAVAILABLE, 1);
       }
@@ -351,6 +362,20 @@ public class AbfsRestOperation {
     result = httpOperation;
 
     return true;
+  }
+
+  private long getContentLengthIfKnown(String range) {
+    final String RANGE_PREFIX = "bytes=";
+    long contentLength = 0;
+    // Format is "bytes=%d-%d"
+    if (range != null && range.startsWith(RANGE_PREFIX)) {
+      String[] offsets = range.substring(RANGE_PREFIX.length()).split("-");
+      if (offsets.length == 2) {
+        contentLength = Long.parseLong(offsets[1]) - Long.parseLong(offsets[0])
+            + 1;
+      }
+    }
+    return contentLength;
   }
 
   @VisibleForTesting
