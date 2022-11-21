@@ -264,8 +264,10 @@ public class AbfsRestOperation {
               contentLength = Long.parseLong(offsets[1]) - Long.parseLong(offsets[0])
                   + 1;
 
-              String headerNewVal = RANGE_PREFIX + (Long.parseLong(start) + dataRead);
+              String headerNewVal = RANGE_PREFIX + (Long.parseLong(start) + dataRead) + "-" + end;
+              LOG.info("new range: " + headerNewVal);
               bufferOffset+=dataRead;
+              bufferLength-= dataRead;
               header.setValue(headerNewVal);
             }
           }
@@ -349,6 +351,9 @@ public class AbfsRestOperation {
             throw new InvalidAbfsRestOperationException(new Exception("can not be retried more."));
           }
           return false;
+        }
+        if(httpOperation.getStatusCode() == HttpURLConnection.HTTP_PARTIAL) {
+          LOG.info("data percentage" + percentage + "; bytesExpected" + bytesExpected);
         }
       } else if (httpOperation.getStatusCode() == HttpURLConnection.HTTP_UNAVAILABLE) {
         incrementCounter(AbfsStatistic.SERVER_UNAVAILABLE, 1);

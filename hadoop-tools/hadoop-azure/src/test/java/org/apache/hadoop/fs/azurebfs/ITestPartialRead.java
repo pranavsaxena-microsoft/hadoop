@@ -232,6 +232,71 @@ public class ITestPartialRead extends AbstractAbfsIntegrationTest {
         .isEqualTo(3);
   }
 
+
+  @Test
+  public void testRecoverPartialReadWithExponentialOptimization() throws Exception {
+    int fileSize = 4 * ONE_MB;
+    Path testPath = path(TEST_PATH);
+    byte[] originalFile = setup(testPath, fileSize);
+
+    final AzureBlobFileSystem fs = getFileSystem();
+
+    fs.getAbfsStore().getAbfsConfiguration().setMinimumByteShouldBeRead(99);
+
+
+    ActualServerReadByte actualServerReadByte = new ActualServerReadByte(
+        fileSize, originalFile);
+
+    final AbfsClient originalClient = fs.getAbfsClient();
+
+    FSDataInputStream inputStreamOriginal = fs.open(testPath);
+
+    MockHttpOperationTestIntercept mockHttpOperationTestIntercept
+        = new MockHttpOperationTestIntercept() {
+      private int callCount = 0;
+
+      @Override
+      public MockHttpOperationTestInterceptResult intercept(final AbfsHttpOperation abfsHttpOperation,
+          final byte[] buffer,
+          final int offset,
+          final int length) throws IOException {
+        /*
+         * 1. Check if server can handle the request parameters.
+         * 2. return 1MB data to test-client.
+         */
+        callActualServerAndAssertBehaviour1(abfsHttpOperation, buffer, offset,
+            length, actualServerReadByte, ONE_MB, inputStreamOriginal);
+
+        MockHttpOperationTestInterceptResult
+            mockHttpOperationTestInterceptResult
+            = new MockHttpOperationTestInterceptResult();
+        mockHttpOperationTestInterceptResult.setStatus(HTTP_PARTIAL);
+        mockHttpOperationTestInterceptResult.setBytesRead(4*ONE_MB);
+        callCount++;
+        return mockHttpOperationTestInterceptResult;
+      }
+
+      public int getCallCount() {
+        return callCount;
+      }
+    };
+
+    setMocks(fs, originalClient, mockHttpOperationTestIntercept);
+
+    MockAbfsClientThrottlingAnalyzer analyzerToBeAsserted = setReadAnalyzer();
+
+    FSDataInputStream inputStream = fs.open(testPath);
+    byte[] buffer = new byte[fileSize];
+    inputStream.read(0, buffer, 0, fileSize);
+    Assertions.assertThat(mockHttpOperationTestIntercept.getCallCount())
+        .describedAs("Number of server calls is wrong")
+        .isEqualTo(1);
+    Assertions.assertThat(analyzerToBeAsserted.getFailedInstances().intValue())
+        .describedAs(
+            "Number of server calls counted as throttling case is incorrect")
+        .isEqualTo(3);
+  }
+
   @Test
   public void testPartialReadWithConnectionReset() throws IOException {
     int fileSize = 4 * ONE_MB;
@@ -380,6 +445,7 @@ public class ITestPartialRead extends AbstractAbfsIntegrationTest {
         .when(mockHttpOperation)
         .processResponse(Mockito.nullable(byte[].class),
             Mockito.nullable(Integer.class), Mockito.nullable(Integer.class));
+    LOG.info("buffeLen: " + buffer.length + "; offset: " + offset + "; len " + length);
     mockHttpOperation.processResponse(buffer, offset, length);
     int iterator = 0;
     int currPointer = actualServerReadByte.currPointer;
@@ -393,6 +459,43 @@ public class ITestPartialRead extends AbstractAbfsIntegrationTest {
     if (actualServerReadByte.currPointer == actualServerReadByte.size) {
       for (int i = 0; i < actualServerReadByte.size; i++) {
         if (actualServerReadByte.bytes[i]
+            != actualServerReadByte.originalFile[i]) {
+          isOriginalAndReceivedFileEqual = false;
+          break;
+        }
+      }
+      Assertions.assertThat(isOriginalAndReceivedFileEqual)
+          .describedAs("Parsed data is not equal to original file")
+          .isTrue();
+    }
+  }
+
+  private void callActualServerAndAssertBehaviour1(final AbfsHttpOperation mockHttpOperation,
+      final byte[] buffer,
+      final int offset,
+      final int length,
+      final ActualServerReadByte actualServerReadByte,
+      final int byteLenMockServerReturn, FSDataInputStream inputStream)
+      throws IOException {
+    LOG.info("length: " + length + "; offset: " + offset);
+    Mockito.doCallRealMethod()
+        .when(mockHttpOperation)
+        .processResponse(Mockito.nullable(byte[].class),
+            Mockito.nullable(Integer.class), Mockito.nullable(Integer.class));
+    LOG.info("buffeLen: " + buffer.length + "; offset: " + offset + "; len " + length);
+    mockHttpOperation.processResponse(buffer, offset, length);
+    int iterator = 0;
+    int currPointer = actualServerReadByte.currPointer;
+    while (actualServerReadByte.currPointer < actualServerReadByte.size
+        && iterator < buffer.length) {
+      actualServerReadByte.bytes[actualServerReadByte.currPointer++]
+          = buffer[iterator++];
+    }
+    actualServerReadByte.currPointer = currPointer + byteLenMockServerReturn;
+    Boolean isOriginalAndReceivedFileEqual = true;
+    if (actualServerReadByte.currPointer == actualServerReadByte.size) {
+      for (int i = 0; i < actualServerReadByte.size; i++) {
+        if (buffer[i]
             != actualServerReadByte.originalFile[i]) {
           isOriginalAndReceivedFileEqual = false;
           break;
