@@ -316,7 +316,7 @@ public class AbfsConfiguration{
       FS_AZURE_ENABLE_ABFS_LIST_ITERATOR, DefaultValue = DEFAULT_ENABLE_ABFS_LIST_ITERATOR)
   private boolean enableAbfsListIterator;
 
-  @IntegerConfigurationValidatorAnnotation(ConfigurationKey ="fs.azure.min.bytes.should.read", DefaultValue =0)
+  @IntegerConfigurationValidatorAnnotation(ConfigurationKey ="fs.azure.min.bytes.should.read", DefaultValue =-1)
   private Integer minimumByteShouldBeRead;
 
   public AbfsConfiguration(final Configuration rawConfig, String accountName)
