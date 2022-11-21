@@ -271,7 +271,7 @@ public class ITestPartialRead extends AbstractAbfsIntegrationTest {
             mockHttpOperationTestInterceptResult
             = new MockHttpOperationTestInterceptResult();
         mockHttpOperationTestInterceptResult.setStatus(HTTP_PARTIAL);
-        mockHttpOperationTestInterceptResult.setBytesRead(4*ONE_MB);
+        mockHttpOperationTestInterceptResult.setBytesRead(ONE_MB);
         callCount++;
         return mockHttpOperationTestInterceptResult;
       }
@@ -290,7 +290,7 @@ public class ITestPartialRead extends AbstractAbfsIntegrationTest {
     inputStream.read(0, buffer, 0, fileSize);
     Assertions.assertThat(mockHttpOperationTestIntercept.getCallCount())
         .describedAs("Number of server calls is wrong")
-        .isEqualTo(1);
+        .isEqualTo(4);
     Assertions.assertThat(analyzerToBeAsserted.getFailedInstances().intValue())
         .describedAs(
             "Number of server calls counted as throttling case is incorrect")

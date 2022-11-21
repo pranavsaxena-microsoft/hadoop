@@ -78,6 +78,8 @@ public class AbfsRestOperation {
   private Boolean isIncomplete = false;
   private Long dataRead = 0l;
 
+  private Long totalIncompleteDataRead = 0l;
+
   /**
    * Checks if there is non-null HTTP response.
    * @return true if there is a non-null HTTP response from the ABFS call.
@@ -268,6 +270,7 @@ public class AbfsRestOperation {
               LOG.info("new range: " + headerNewVal);
               bufferOffset+=dataRead;
               bufferLength-= dataRead;
+              totalIncompleteDataRead += dataRead;
               header.setValue(headerNewVal);
             }
           }
@@ -350,6 +353,7 @@ public class AbfsRestOperation {
           if (!client.getRetryPolicy().shouldRetry(retryCount, -1)) {
             throw new InvalidAbfsRestOperationException(new Exception("can not be retried more."));
           }
+
           return false;
         }
         if(httpOperation.getStatusCode() == HttpURLConnection.HTTP_PARTIAL) {
@@ -401,6 +405,8 @@ public class AbfsRestOperation {
     }
 
     result = httpOperation;
+
+    result.setBytesReceived(result.getBytesReceived()  + totalIncompleteDataRead);
 
     return true;
   }
