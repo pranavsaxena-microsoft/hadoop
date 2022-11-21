@@ -23,7 +23,11 @@ package org.apache.hadoop.fs.azurebfs.services;
  */
 public class AbfsHttpHeader {
   private final String name;
-  private final String value;
+  private  String value;
+
+  public void setValue(String value) {
+    this.value = value;
+  }
 
   public AbfsHttpHeader(final String name, final String value) {
     this.name = name;

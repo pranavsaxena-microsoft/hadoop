@@ -75,6 +75,11 @@ public class AbfsRestOperation {
   private AbfsHttpOperation result;
   private AbfsCounters abfsCounters;
 
+  private Boolean isIncomplete = false;
+  private Long dataRead = 0l;
+
+  private Long totalIncompleteDataRead = 0l;
+
   /**
    * Checks if there is non-null HTTP response.
    * @return true if there is a non-null HTTP response from the ABFS call.
@@ -230,6 +235,7 @@ public class AbfsRestOperation {
         LOG.debug("Retrying REST operation {}. RetryCount = {}",
             operationType, retryCount);
         Thread.sleep(client.getRetryPolicy().getRetryInterval(retryCount));
+        makeChangeInRequest();
       } catch (InterruptedException ex) {
         Thread.currentThread().interrupt();
       }
@@ -243,6 +249,37 @@ public class AbfsRestOperation {
     LOG.trace("{} REST operation complete", operationType);
   }
 
+  private void makeChangeInRequest() {
+    if(isIncomplete) {
+      for(AbfsHttpHeader header : requestHeaders) {
+        if(HttpHeaderConfigurations.RANGE.equals(header.getName())) {
+          long contentLength = 0;
+          final String RANGE_PREFIX = "bytes=";
+          String start, end;
+          String range = header.getValue();
+          // Format is "bytes=%d-%d"
+          if (range != null && range.startsWith(RANGE_PREFIX)) {
+            String[] offsets = range.substring(RANGE_PREFIX.length()).split("-");
+            if (offsets.length == 2) {
+              start = offsets[0];
+              end = offsets[1];
+              contentLength = Long.parseLong(offsets[1]) - Long.parseLong(offsets[0])
+                  + 1;
+
+              String headerNewVal = RANGE_PREFIX + (Long.parseLong(start) + dataRead) + "-" + end;
+              LOG.info("new range: " + headerNewVal);
+              bufferOffset+=dataRead;
+              bufferLength-= dataRead;
+              totalIncompleteDataRead += dataRead;
+              header.setValue(headerNewVal);
+            }
+          }
+          return;
+        }
+      }
+    }
+  }
+
   /**
    * Executes a single HTTP operation to complete the REST operation.  If it
    * fails, there may be a retry.  The retryCount is incremented with each
@@ -250,6 +287,7 @@ public class AbfsRestOperation {
    */
   private boolean executeHttpOperation(final int retryCount,
     TracingContext tracingContext) throws AzureBlobFileSystemException {
+    isIncomplete = false;
     AbfsHttpOperation httpOperation = null;
     try {
       // initialize the HTTP request and open the connection
@@ -303,6 +341,24 @@ public class AbfsRestOperation {
           && httpOperation.getStatusCode() <= HttpURLConnection.HTTP_PARTIAL) {
         incrementCounter(AbfsStatistic.BYTES_RECEIVED,
             httpOperation.getBytesReceived());
+
+        String range = httpOperation.getConnection().getRequestProperty(HttpHeaderConfigurations.RANGE);
+        long bytesExpected = getContentLengthIfKnown(range);
+        double percentage = ((double) (httpOperation.getBytesReceived())/bytesExpected) * 100d;
+
+        if(httpOperation.getStatusCode() == HttpURLConnection.HTTP_PARTIAL && (percentage <= client.getAbfsConfiguration().getMinimumByteShouldBeRead())) {
+          isIncomplete = true;
+          dataRead = httpOperation.getBytesReceived();
+          LOG.info("incomplete data Read: " + dataRead + "; percentage: " + percentage);
+          if (!client.getRetryPolicy().shouldRetry(retryCount, -1)) {
+            throw new InvalidAbfsRestOperationException(new Exception("can not be retried more."));
+          }
+
+          return false;
+        }
+        if(httpOperation.getStatusCode() == HttpURLConnection.HTTP_PARTIAL) {
+          LOG.info("data percentage" + percentage + "; bytesExpected" + bytesExpected);
+        }
       } else if (httpOperation.getStatusCode() == HttpURLConnection.HTTP_UNAVAILABLE) {
         incrementCounter(AbfsStatistic.SERVER_UNAVAILABLE, 1);
       }
@@ -350,7 +406,23 @@ public class AbfsRestOperation {
 
     result = httpOperation;
 
+    result.setBytesReceived(result.getBytesReceived()  + totalIncompleteDataRead);
+
     return true;
+  }
+
+  private long getContentLengthIfKnown(String range) {
+    final String RANGE_PREFIX = "bytes=";
+    long contentLength = 0;
+    // Format is "bytes=%d-%d"
+    if (range != null && range.startsWith(RANGE_PREFIX)) {
+      String[] offsets = range.substring(RANGE_PREFIX.length()).split("-");
+      if (offsets.length == 2) {
+        contentLength = Long.parseLong(offsets[1]) - Long.parseLong(offsets[0])
+            + 1;
+      }
+    }
+    return contentLength;
   }
 
   @VisibleForTesting

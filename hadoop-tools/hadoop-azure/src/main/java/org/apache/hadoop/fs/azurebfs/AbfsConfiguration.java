@@ -316,6 +316,9 @@ public class AbfsConfiguration{
       FS_AZURE_ENABLE_ABFS_LIST_ITERATOR, DefaultValue = DEFAULT_ENABLE_ABFS_LIST_ITERATOR)
   private boolean enableAbfsListIterator;
 
+  @IntegerConfigurationValidatorAnnotation(ConfigurationKey ="fs.azure.min.bytes.should.read", DefaultValue =-1)
+  private Integer minimumByteShouldBeRead;
+
   public AbfsConfiguration(final Configuration rawConfig, String accountName)
       throws IllegalAccessException, InvalidConfigurationValueException, IOException {
     this.rawConfig = ProviderUtils.excludeIncompatibleCredentialProviders(
@@ -509,6 +512,14 @@ public class AbfsConfiguration{
       Class<? extends U> defaultValue,
       Class<U> xface) {
     return rawConfig.getClass(name, defaultValue, xface);
+  }
+
+  public Integer getMinimumByteShouldBeRead() {
+    return minimumByteShouldBeRead;
+  }
+
+  public void setMinimumByteShouldBeRead(int minimumByteShouldBeRead) {
+    this.minimumByteShouldBeRead = minimumByteShouldBeRead;
   }
 
   /**
