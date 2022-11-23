@@ -19,6 +19,8 @@
 package org.apache.hadoop.fs.azurebfs.services;
 
 import java.net.HttpURLConnection;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,6 +50,9 @@ public final class AbfsClientThrottlingIntercept {
   private AbfsClientThrottlingAnalyzer writeThrottler = null;
   private static boolean isAutoThrottlingEnabled = false;
 
+  private Map<String, AbfsClientFileThrottlingAnalyzer>
+      fileThrottlingAnalyzerMap = new HashMap<>();
+
   // Hide default constructor
   private AbfsClientThrottlingIntercept() {
     readThrottler = new AbfsClientThrottlingAnalyzer("read");
@@ -66,7 +71,7 @@ public final class AbfsClientThrottlingIntercept {
   }
 
   static void updateMetrics(AbfsRestOperationType operationType,
-                            AbfsHttpOperation abfsHttpOperation) {
+                            AbfsHttpOperation abfsHttpOperation, String path) {
     if (!isAutoThrottlingEnabled || abfsHttpOperation == null) {
       return;
     }
@@ -103,6 +108,7 @@ public final class AbfsClientThrottlingIntercept {
            * */
           bytesToBeAddedInMetric = contentLengthRequested - contentLengthReceived;
           isFailedOperation = true;
+          singleton.fileThrottlingAnalyzerMap.get(path).addBytesTransferred(bytesToBeAddedInMetric, true);
         }
         if (bytesToBeAddedInMetric > 0) {
           singleton.readThrottler.addBytesTransferred(
@@ -121,7 +127,7 @@ public final class AbfsClientThrottlingIntercept {
    * maximize throughput.
    */
   static void sendingRequest(AbfsRestOperationType operationType,
-      AbfsCounters abfsCounters) {
+      AbfsCounters abfsCounters, String path) {
     if (!isAutoThrottlingEnabled) {
       return;
     }
@@ -132,6 +138,10 @@ public final class AbfsClientThrottlingIntercept {
             && abfsCounters != null) {
           abfsCounters.incrementCounter(AbfsStatistic.READ_THROTTLES, 1);
         }
+        if(AbfsClientFileThrottlingAnalyzer.getAnalyzer(path) == null) {
+          singleton.fileThrottlingAnalyzerMap.put(path, new AbfsClientFileThrottlingAnalyzer("read", path));
+        }
+        singleton.fileThrottlingAnalyzerMap.get(path).updateLMT();
         break;
       case Append:
         if (singleton.writeThrottler.suspendIfNecessary()

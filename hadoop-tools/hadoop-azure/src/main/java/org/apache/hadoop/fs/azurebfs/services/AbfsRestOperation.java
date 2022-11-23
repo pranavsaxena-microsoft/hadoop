@@ -325,7 +325,8 @@ public class AbfsRestOperation {
       // dump the headers
       AbfsIoUtils.dumpHeadersToDebugLog("Request Headers",
           httpOperation.getConnection().getRequestProperties());
-      AbfsClientThrottlingIntercept.sendingRequest(operationType, abfsCounters);
+      AbfsClientThrottlingIntercept.sendingRequest(operationType, abfsCounters,
+          operationType== AbfsRestOperationType.ReadFile? "/" + getUrl().getPath().split("/")[2] : null);
 
       if (hasRequestBody) {
         // HttpUrlConnection requires
@@ -395,7 +396,8 @@ public class AbfsRestOperation {
 
       return false;
     } finally {
-      AbfsClientThrottlingIntercept.updateMetrics(operationType, httpOperation);
+      AbfsClientThrottlingIntercept.updateMetrics(operationType, httpOperation,
+          operationType== AbfsRestOperationType.ReadFile? "/" + getUrl().getPath().split("/")[2] : null);
     }
 
     LOG.debug("HttpRequest: {}: {}", operationType, httpOperation);

@@ -319,6 +319,9 @@ public class AbfsConfiguration{
   @IntegerConfigurationValidatorAnnotation(ConfigurationKey ="fs.azure.min.bytes.should.read", DefaultValue =-1)
   private Integer minimumByteShouldBeRead;
 
+  @BooleanConfigurationValidatorAnnotation(ConfigurationKey = "fs.azure.inputstreamlevel.prefetch.disable", DefaultValue = false)
+  private Boolean inputStreamLevelPrefetchDisable;
+
   public AbfsConfiguration(final Configuration rawConfig, String accountName)
       throws IllegalAccessException, InvalidConfigurationValueException, IOException {
     this.rawConfig = ProviderUtils.excludeIncompatibleCredentialProviders(
@@ -343,6 +346,14 @@ public class AbfsConfiguration{
         field.set(this, validateBoolean(field));
       }
     }
+  }
+
+  public Boolean getInputStreamLevelPrefetchDisable() {
+    return inputStreamLevelPrefetchDisable;
+  }
+
+  public void setInputStreamLevelPrefetchDisable(Boolean disable) {
+    this.inputStreamLevelPrefetchDisable = disable;
   }
 
   public Trilean getIsNamespaceEnabledAccount() {
