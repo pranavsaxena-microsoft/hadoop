@@ -24,6 +24,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -142,6 +143,13 @@ final class ReadBufferManager {
       buffer.setLatch(new CountDownLatch(1));
       buffer.setTracingContext(tracingContext);
 
+      if(stream.client.getAbfsConfiguration().getInputStreamLevelPrefetchDisable()) {
+        int timeDelayToBeHonored = AbfsClientFileThrottlingAnalyzer.getAnalyzer(
+            stream.getPath()).suspendTime();
+        buffer.setTimeBeforeCanBeTakenToProcessing(
+            new Date().toInstant().toEpochMilli() + timeDelayToBeHonored);
+      }
+
       Integer bufferIndex = freeList.pop();  // will return a value, since we have checked size > 0 already
 
       buffer.setBuffer(buffers[bufferIndex]);
@@ -239,6 +247,15 @@ final class ReadBufferManager {
    */
   private synchronized boolean tryEvict() {
     ReadBuffer nodeToEvict = null;
+
+    for(ReadBuffer readBuffer : readAheadQueue) {
+      if(readBuffer.getTimeBeforeCanBeTakenToProcessing() != null && readBuffer.getTimeBeforeCanBeTakenToProcessing() > new Date().toInstant().toEpochMilli()) {
+        freeList.push(readBuffer.getBufferindex());
+        readAheadQueue.remove(readBuffer);
+        return true;
+      }
+    }
+
     if (completedReadList.size() <= 0) {
       return false;  // there are no evict-able buffers
     }
@@ -430,7 +447,20 @@ final class ReadBufferManager {
       while (readAheadQueue.size() == 0) {
         wait();
       }
-      buffer = readAheadQueue.remove();
+      Boolean gotResult = false;
+      while(!gotResult) {
+        while (readAheadQueue.size() == 0) {
+          wait();
+        }
+        buffer = readAheadQueue.remove();
+        if (buffer.getTimeBeforeCanBeTakenToProcessing() != null
+            && buffer.getTimeBeforeCanBeTakenToProcessing()
+            > new Date().toInstant().toEpochMilli()) {
+          readAheadQueue.add(buffer);
+        } else {
+          gotResult = true;
+        }
+      }
       notifyAll();
       if (buffer == null) {
         return null;            // should never happen

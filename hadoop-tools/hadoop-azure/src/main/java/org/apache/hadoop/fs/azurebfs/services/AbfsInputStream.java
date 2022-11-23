@@ -63,7 +63,7 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
   public static final int MAX_OPTIMIZED_READ_ATTEMPTS = 2;
 
   private int readAheadBlockSize;
-  private final AbfsClient client;
+  final AbfsClient client;
   private final Statistics statistics;
   private final String path;
   private final long contentLength;

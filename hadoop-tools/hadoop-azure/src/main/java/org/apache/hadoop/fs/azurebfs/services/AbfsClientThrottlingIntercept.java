@@ -109,6 +109,8 @@ public final class AbfsClientThrottlingIntercept {
           bytesToBeAddedInMetric = contentLengthRequested - contentLengthReceived;
           isFailedOperation = true;
           singleton.fileThrottlingAnalyzerMap.get(path).addBytesTransferred(bytesToBeAddedInMetric, true);
+        } else {
+          singleton.fileThrottlingAnalyzerMap.get(path).addBytesTransferred(bytesToBeAddedInMetric, false);
         }
         if (bytesToBeAddedInMetric > 0) {
           singleton.readThrottler.addBytesTransferred(

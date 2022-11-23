@@ -46,6 +46,7 @@ class ReadBuffer {
   private boolean isAnyByteConsumed = false;
 
   private IOException errException = null;
+  private Long timeBeforeCanBeTakenToProcessing = null;
 
   public AbfsInputStream getStream() {
     return stream;
@@ -53,6 +54,14 @@ class ReadBuffer {
 
   public void setStream(AbfsInputStream stream) {
     this.stream = stream;
+  }
+
+  Long getTimeBeforeCanBeTakenToProcessing() {
+    return timeBeforeCanBeTakenToProcessing;
+  }
+
+  void setTimeBeforeCanBeTakenToProcessing(final Long timeBeforeCanBeTakenToProcessing) {
+    this.timeBeforeCanBeTakenToProcessing = timeBeforeCanBeTakenToProcessing;
   }
 
   public void setTracingContext(TracingContext tracingContext) {
