@@ -70,7 +70,7 @@ public class ITestPartialRead extends AbstractAbfsIntegrationTest {
    * exception + read 1 MB: retry with remaining data + add data in throttlingIntercept.
    */
 
-  private byte[] setup(final Path testPath, final int fileSize)
+  protected byte[] setup(final Path testPath, final int fileSize)
       throws IOException {
     final AzureBlobFileSystem fs = getFileSystem();
     final AbfsConfiguration abfsConfiguration = fs.getAbfsStore()
@@ -160,7 +160,7 @@ public class ITestPartialRead extends AbstractAbfsIntegrationTest {
         .isEqualTo(7);
   }
 
-  private MockAbfsClientThrottlingAnalyzer setReadAnalyzer() {
+  protected MockAbfsClientThrottlingAnalyzer setReadAnalyzer() {
     AbfsClientThrottlingIntercept intercept
         = AbfsClientThrottlingInterceptTestUtil.get();
     MockAbfsClientThrottlingAnalyzer readAnalyzer
@@ -359,7 +359,7 @@ public class ITestPartialRead extends AbstractAbfsIntegrationTest {
   }
 
   @SuppressWarnings("unchecked") // suppressing unchecked since, className of List<AbfsHttpHeader> not possible and need to supply List.class
-  private void setMocks(final AzureBlobFileSystem fs,
+  protected void setMocks(final AzureBlobFileSystem fs,
       final AbfsClient originalClient,
       final MockHttpOperationTestIntercept mockHttpOperationTestIntercept) {
     AbfsClient abfsClient = Mockito.spy(originalClient);
@@ -391,7 +391,7 @@ public class ITestPartialRead extends AbstractAbfsIntegrationTest {
     fs.getAbfsStore().setClient(abfsClient);
   }
 
-  private void setMockAbfsRestOperation(final MockHttpOperationTestIntercept mockHttpOperationTestIntercept,
+  protected void setMockAbfsRestOperation(final MockHttpOperationTestIntercept mockHttpOperationTestIntercept,
       final AbfsRestOperation mockRestOp) throws IOException {
     MockClassUtils.mockAbfsRestOperationGetHttpOperation(
         (getHttpOpInvocationMock, getHttpOpObjects) -> {
@@ -405,7 +405,7 @@ public class ITestPartialRead extends AbstractAbfsIntegrationTest {
         }, mockRestOp);
   }
 
-  private void setMockAbfsRestOperation(final MockHttpOperationTestIntercept mockHttpOperationTestIntercept,
+  protected void setMockAbfsRestOperation(final MockHttpOperationTestIntercept mockHttpOperationTestIntercept,
       final AbfsHttpOperation spiedOp) throws IOException {
     MockClassUtils.mockAbfsHttpOperationProcessResponse(
         (processResponseInvokation, processResponseObjs) -> {
@@ -433,7 +433,7 @@ public class ITestPartialRead extends AbstractAbfsIntegrationTest {
         }, spiedOp);
   }
 
-  private void callActualServerAndAssertBehaviour(final AbfsHttpOperation mockHttpOperation,
+  protected void callActualServerAndAssertBehaviour(final AbfsHttpOperation mockHttpOperation,
       final byte[] buffer,
       final int offset,
       final int length,
@@ -507,7 +507,7 @@ public class ITestPartialRead extends AbstractAbfsIntegrationTest {
     }
   }
 
-  private class ActualServerReadByte {
+  protected class ActualServerReadByte {
 
     byte[] bytes;
 

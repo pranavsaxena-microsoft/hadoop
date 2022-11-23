@@ -144,10 +144,13 @@ final class ReadBufferManager {
       buffer.setTracingContext(tracingContext);
 
       if(stream.client.getAbfsConfiguration().getInputStreamLevelPrefetchDisable()) {
-        int timeDelayToBeHonored = AbfsClientFileThrottlingAnalyzer.getAnalyzer(
-            stream.getPath()).suspendTime();
-        buffer.setTimeBeforeCanBeTakenToProcessing(
-            new Date().toInstant().toEpochMilli() + timeDelayToBeHonored);
+        if(AbfsClientFileThrottlingAnalyzer.getAnalyzer(stream.getPath()) != null) {
+//          new AbfsClientFileThrottlingAnalyzer("read", stream.getPath());
+          int timeDelayToBeHonored = AbfsClientFileThrottlingAnalyzer.getAnalyzer(
+              stream.getPath()).suspendTime();
+          buffer.setTimeBeforeCanBeTakenToProcessing(
+              new Date().toInstant().toEpochMilli() + timeDelayToBeHonored);
+        }
       }
 
       Integer bufferIndex = freeList.pop();  // will return a value, since we have checked size > 0 already
