@@ -20,7 +20,7 @@ import org.apache.hadoop.util.Preconditions;
 public class AbfsClientFileThrottlingAnalyzer {
   private static final Logger LOG = LoggerFactory.getLogger(
       AbfsClientFileThrottlingAnalyzer.class);
-  private static final int DEFAULT_ANALYSIS_PERIOD_MS = 30 * 1000;
+  private static final int DEFAULT_ANALYSIS_PERIOD_MS = 10 * 1000;
   private static final int MIN_ANALYSIS_PERIOD_MS = 1000;
   private static final int MAX_ANALYSIS_PERIOD_MS = 30000;
   private static final double MIN_ACCEPTABLE_ERROR_PERCENTAGE = .1;
@@ -65,6 +65,7 @@ public class AbfsClientFileThrottlingAnalyzer {
 
   private AbfsClientFileThrottlingAnalyzer() {
     // hide default constructor
+    garbageCleaner.start();
   }
 
   /**

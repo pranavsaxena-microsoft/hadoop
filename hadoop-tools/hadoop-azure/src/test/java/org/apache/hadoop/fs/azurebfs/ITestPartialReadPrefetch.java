@@ -22,7 +22,7 @@ import org.apache.hadoop.fs.azurebfs.services.MockHttpOperationTestInterceptResu
 import static java.net.HttpURLConnection.HTTP_PARTIAL;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.ONE_MB;
 
-public class ITestPartialReadPrefetch extends ITestPartialRead {
+public class ITestPartialReadPrefetch extends AbstractAbfsIntegrationTest {
 
   private static final String TEST_PATH = "/testfile";
 
@@ -39,7 +39,7 @@ public class ITestPartialReadPrefetch extends ITestPartialRead {
 
 
 
-    byte[] originalFile = setup(testPath, fileSize);
+    byte[] originalFile = PartialReadUtils.setup(testPath, fileSize, getFileSystem());
     getFileSystem().getAbfsStore().getAbfsConfiguration().setInputStreamLevelPrefetchDisable(true);
     getFileSystem().getAbfsStore().getAbfsConfiguration().setReadAheadEnabled(true);
     getFileSystem().getAbfsStore().getAbfsConfiguration().setReadAheadQueueDepth(2);
@@ -47,7 +47,7 @@ public class ITestPartialReadPrefetch extends ITestPartialRead {
 
     final AzureBlobFileSystem fs = getFileSystem();
 
-    ActualServerReadByte actualServerReadByte = new ActualServerReadByte(
+    PartialReadUtils.ActualServerReadByte actualServerReadByte = new PartialReadUtils.ActualServerReadByte(
         fileSize, originalFile);
 
     final AbfsClient originalClient = fs.getAbfsClient();
@@ -80,7 +80,7 @@ public class ITestPartialReadPrefetch extends ITestPartialRead {
           mockHttpOperationTestInterceptResult.setBytesRead(ONE_MB);
         } else {
           mockHttpOperationTestInterceptResult.setBytesRead(length);
-          callActualServerAndAssertBehaviour(abfsHttpOperation, buffer, offset,
+          PartialReadUtils.callActualServerAndAssertBehaviour(abfsHttpOperation, buffer, offset,
               length, actualServerReadByte, length, inputStreamOriginal);
         }
 
@@ -94,9 +94,9 @@ public class ITestPartialReadPrefetch extends ITestPartialRead {
     };
 
 
-    setMocks(fs, originalClient, mockHttpOperationTestIntercept);
+    PartialReadUtils.setMocks(fs, originalClient, mockHttpOperationTestIntercept);
 
-    MockAbfsClientThrottlingAnalyzer analyzerToBeAsserted = setReadAnalyzer();
+    MockAbfsClientThrottlingAnalyzer analyzerToBeAsserted = PartialReadUtils.setReadAnalyzer();
 
     FSDataInputStream inputStream = fs.open(testPath);
     path[0] = ((AbfsInputStream)inputStream.getWrappedStream()).getPath();
