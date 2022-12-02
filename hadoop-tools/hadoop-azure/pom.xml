@@ -538,6 +538,7 @@
                   <forkCount>${testsThreadCount}</forkCount>
                   <reuseForks>true</reuseForks>
                   <parallel>both</parallel>
+                  <threadCount>${testsThreadCount}</threadCount>
                   <argLine>${maven-surefire-plugin.argLine} -DminiClusterDedicatedDirs=true</argLine>
                   <forkedProcessTimeoutInSeconds>${fs.azure.scale.test.timeout}</forkedProcessTimeoutInSeconds>
                   <systemPropertyVariables>
