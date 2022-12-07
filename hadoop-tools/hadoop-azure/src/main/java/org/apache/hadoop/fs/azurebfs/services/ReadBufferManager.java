@@ -545,7 +545,6 @@ final class ReadBufferManager {
     readAheadQueue.removeIf(readBuffer -> readBuffer.getStream() == stream);
     purgeList(stream, completedReadList);
     LOGGER.debug("Not Purging inprogess");
-    //purgeList(stream, inProgressList);
   }
 
   /**
@@ -642,5 +641,10 @@ final class ReadBufferManager {
   void testMimicFullUseAndAddFailedBuffer(ReadBuffer buf) {
     freeList.clear();
     completedReadList.add(buf);
+  }
+
+  @VisibleForTesting
+  int getNumBuffers() {
+    return NUM_BUFFERS;
   }
 }
