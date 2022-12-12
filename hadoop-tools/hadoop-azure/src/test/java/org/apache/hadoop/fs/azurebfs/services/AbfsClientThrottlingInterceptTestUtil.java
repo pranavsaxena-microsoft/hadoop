@@ -18,6 +18,8 @@
 
 package org.apache.hadoop.fs.azurebfs.services;
 
+import org.apache.hadoop.fs.azurebfs.AbfsConfiguration;
+
 /**
  * Test-Utility class to interact with the methods of AbfsClientThrottlingIntercept
  * which are exposed to test classes.
@@ -26,8 +28,9 @@ public final class AbfsClientThrottlingInterceptTestUtil {
 
   private AbfsClientThrottlingInterceptTestUtil() {}
 
-  public static AbfsClientThrottlingIntercept get() {
-    return AbfsClientThrottlingIntercept.getSingleton();
+  public static AbfsThrottlingIntercept get(final String accountName,
+      final AbfsConfiguration abfsConfiguration) {
+    return AbfsThrottlingInterceptFactory.getInstance(accountName, abfsConfiguration);
   }
 
   /**

@@ -49,6 +49,8 @@ public class AbfsRestOperation {
   private final AbfsRestOperationType operationType;
   // Blob FS client, which has the credentials, retry policy, and logs.
   private final AbfsClient client;
+  // Return intercept instance
+  private final AbfsThrottlingIntercept intercept;
   // the HTTP method (PUT, PATCH, POST, GET, HEAD, or DELETE)
   private final String method;
   // full URL including query parameters
@@ -158,6 +160,7 @@ public class AbfsRestOperation {
             || AbfsHttpConstants.HTTP_METHOD_PATCH.equals(method));
     this.sasToken = sasToken;
     this.abfsCounters = client.getAbfsCounters();
+    this.intercept = client.getIntercept();
   }
 
   /**
@@ -325,7 +328,7 @@ public class AbfsRestOperation {
       // dump the headers
       AbfsIoUtils.dumpHeadersToDebugLog("Request Headers",
           httpOperation.getConnection().getRequestProperties());
-      AbfsClientThrottlingIntercept.sendingRequest(operationType, abfsCounters,
+      intercept.sendingRequest(operationType, abfsCounters,
           operationType== AbfsRestOperationType.ReadFile? "/" + getUrl().getPath().split("/")[2] : null);
 
       if (hasRequestBody) {
@@ -396,7 +399,7 @@ public class AbfsRestOperation {
 
       return false;
     } finally {
-      AbfsClientThrottlingIntercept.updateMetrics(operationType, httpOperation,
+      intercept.updateMetrics(operationType, httpOperation,
           operationType== AbfsRestOperationType.ReadFile? "/" + getUrl().getPath().split("/")[2] : null);
     }
 

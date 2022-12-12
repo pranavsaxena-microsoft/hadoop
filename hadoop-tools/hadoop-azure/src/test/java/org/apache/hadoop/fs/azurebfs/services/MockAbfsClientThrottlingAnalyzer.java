@@ -18,14 +18,16 @@
 
 package org.apache.hadoop.fs.azurebfs.services;
 
+import org.apache.hadoop.fs.azurebfs.AbfsConfiguration;
+
 public class MockAbfsClientThrottlingAnalyzer
     extends AbfsClientThrottlingAnalyzer {
 
   private ThreadLocal<Integer> failedInstances = new ThreadLocal<>();
 
-  public MockAbfsClientThrottlingAnalyzer(final String name)
+  public MockAbfsClientThrottlingAnalyzer(final String name, AbfsConfiguration abfsConfiguration)
       throws IllegalArgumentException {
-    super(name);
+    super(name, abfsConfiguration);
   }
 
   @Override

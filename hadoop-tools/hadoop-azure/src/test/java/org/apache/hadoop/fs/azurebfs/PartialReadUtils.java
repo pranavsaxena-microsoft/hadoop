@@ -19,12 +19,14 @@ import org.apache.hadoop.fs.azurebfs.services.AbfsClientThrottlingInterceptTestU
 import org.apache.hadoop.fs.azurebfs.services.AbfsHttpOperation;
 import org.apache.hadoop.fs.azurebfs.services.AbfsRestOperation;
 import org.apache.hadoop.fs.azurebfs.services.AbfsRestOperationType;
+import org.apache.hadoop.fs.azurebfs.services.AbfsThrottlingIntercept;
 import org.apache.hadoop.fs.azurebfs.services.MockAbfsClientThrottlingAnalyzer;
 import org.apache.hadoop.fs.azurebfs.services.MockClassUtils;
 import org.apache.hadoop.fs.azurebfs.services.MockHttpOperationTestIntercept;
 import org.apache.hadoop.fs.azurebfs.services.MockHttpOperationTestInterceptResult;
 
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.ONE_MB;
+import static org.apache.hadoop.fs.azurebfs.constants.TestConfigurationKeys.FS_AZURE_ACCOUNT_NAME;
 
 public class PartialReadUtils{
 
@@ -56,14 +58,15 @@ public class PartialReadUtils{
     return b;
   }
 
-  static MockAbfsClientThrottlingAnalyzer setReadAnalyzer() {
-    AbfsClientThrottlingIntercept intercept
-        = AbfsClientThrottlingInterceptTestUtil.get();
+  static MockAbfsClientThrottlingAnalyzer setReadAnalyzer(final AbfsConfiguration abfsConfiguration) {
+    final String accountName = abfsConfiguration.get(FS_AZURE_ACCOUNT_NAME);
+    AbfsThrottlingIntercept intercept
+        = AbfsClientThrottlingInterceptTestUtil.get(accountName, abfsConfiguration);
     MockAbfsClientThrottlingAnalyzer readAnalyzer
-        = new MockAbfsClientThrottlingAnalyzer("read");
+        = new MockAbfsClientThrottlingAnalyzer("read", abfsConfiguration);
     MockAbfsClientThrottlingAnalyzer analyzerToBeAsserted
         = (MockAbfsClientThrottlingAnalyzer) AbfsClientThrottlingInterceptTestUtil.setReadAnalyzer(
-        intercept, readAnalyzer);
+        (AbfsClientThrottlingIntercept) intercept, readAnalyzer);
     return analyzerToBeAsserted;
   }
 

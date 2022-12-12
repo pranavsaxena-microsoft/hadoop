@@ -1,7 +1,6 @@
 package org.apache.hadoop.fs.azurebfs;
 
 import java.io.IOException;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import org.assertj.core.api.Assertions;
 import org.junit.Test;
@@ -110,7 +109,8 @@ public class ITestPartialReadPrefetch extends AbstractAbfsIntegrationTest {
 
     PartialReadUtils.setMocks(fs, originalClient, mockHttpOperationTestIntercept);
 
-    MockAbfsClientThrottlingAnalyzer analyzerToBeAsserted = PartialReadUtils.setReadAnalyzer();
+    MockAbfsClientThrottlingAnalyzer analyzerToBeAsserted = PartialReadUtils.setReadAnalyzer(
+        fs.getAbfsStore().getAbfsConfiguration());
 
     FSDataInputStream inputStreamThrottled = fs.open(testPath);
     FSDataInputStream inputStreamNonThrottled = fs.open(testPath2);
