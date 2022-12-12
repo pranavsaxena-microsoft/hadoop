@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants;
 import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
 import org.apache.hadoop.fs.azurebfs.services.AbfsClientThrottlingIntercept;
 import org.apache.hadoop.fs.azurebfs.services.AbfsClientThrottlingInterceptTestUtil;
@@ -59,7 +60,8 @@ public class PartialReadUtils{
   }
 
   static MockAbfsClientThrottlingAnalyzer setReadAnalyzer(final AbfsConfiguration abfsConfiguration) {
-    final String accountName = abfsConfiguration.get(FS_AZURE_ACCOUNT_NAME);
+    final String accountName = abfsConfiguration.getAccountName().substring(0, abfsConfiguration.getAccountName().indexOf(
+        AbfsHttpConstants.DOT));
     AbfsThrottlingIntercept intercept
         = AbfsClientThrottlingInterceptTestUtil.get(accountName, abfsConfiguration);
     MockAbfsClientThrottlingAnalyzer readAnalyzer
