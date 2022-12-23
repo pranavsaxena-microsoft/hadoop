@@ -115,10 +115,6 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
     return connection;
   }
 
-  void setConnection(final HttpURLConnection connection) {
-    this.connection = connection;
-  }
-
   public String getMethod() {
     return method;
   }
