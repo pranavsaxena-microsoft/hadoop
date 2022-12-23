@@ -337,14 +337,14 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
            expect header enabled we return back without throwing an exception
            for the correct response code processing.
          */
-        outputStream = this.connection.getOutputStream();
+        outputStream = getConnOutputSteam();
       } catch (IOException e) {
         /* If getOutputStream fails with an exception and expect header
            is enabled, we return back without throwing an exception to
            the caller. The caller is responsible for setting the correct status code.
            If expect header is not enabled, we throw back the exception.
          */
-        String expectHeader = this.connection.getRequestProperty(EXPECT);
+        String expectHeader = getConnProp(EXPECT);
         if (expectHeader != null && expectHeader.equals(HUNDRED_CONTINUE)) {
           LOG.debug("Getting output stream failed with expect header enabled, returning back "
                   + ExceptionUtils.getStackTrace(e));
@@ -390,13 +390,13 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
       startTime = System.nanoTime();
     }
 
-    this.statusCode = this.connection.getResponseCode();
+    this.statusCode = connResponseCode();
 
     if (this.isTraceEnabled) {
       this.recvResponseTimeMs = elapsedTimeMs(startTime);
     }
 
-    this.statusDescription = this.connection.getResponseMessage();
+    this.statusDescription = connectionResponseMessage();
 
     this.requestId = this.connection.getHeaderField(HttpHeaderConfigurations.X_MS_REQUEST_ID);
     if (this.requestId == null) {
@@ -580,6 +580,38 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
       throw ex;
     }
   }
+
+  String getConnProp(String key) {
+    return connection.getRequestProperty(key);
+  }
+
+  void setConnProp(String key, String val) {
+    connection.setRequestProperty(key, val);
+  }
+
+  URL getConnUrl() {
+    return connection.getURL();
+  }
+
+  String connRequestMethod() {
+    return connection.getRequestMethod();
+  }
+
+  Integer connResponseCode() throws IOException {
+    return connection.getResponseCode();
+  }
+
+  OutputStream getConnOutputSteam() throws IOException {
+    return connection.getOutputStream();
+  }
+
+  String connectionResponseMessage() throws IOException {
+    return connection.getResponseMessage();
+  }
+
+
+
+
 
   /**
    * Check null stream, this is to pass findbugs's redundant check for NULL

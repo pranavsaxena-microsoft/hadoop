@@ -265,7 +265,7 @@ public class AbfsRestOperation {
         case Custom:
         case OAuth:
           LOG.debug("Authenticating request with OAuth2 access token");
-          httpOperation.getConnection().setRequestProperty(HttpHeaderConfigurations.AUTHORIZATION,
+          httpOperation.setConnProp(HttpHeaderConfigurations.AUTHORIZATION,
               client.getAccessToken());
           break;
         case SAS:
