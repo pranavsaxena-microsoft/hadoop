@@ -25,8 +25,10 @@ import java.util.List;
 import java.util.regex.Pattern;
 
 import org.junit.Test;
+import org.mockito.Mockito;
 
 import org.apache.hadoop.fs.azurebfs.AbfsConfiguration;
+import org.apache.hadoop.fs.azurebfs.MockIntercept;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemException;
 import org.apache.hadoop.fs.azurebfs.oauth2.AccessTokenProvider;
 import org.apache.hadoop.conf.Configuration;
@@ -404,4 +406,23 @@ public final class TestAbfsClient {
   public static AccessTokenProvider getAccessTokenProvider(AbfsClient client) {
     return client.getTokenProvider();
   }
+
+  public static void mockAbfsOperationCreation(final AbfsClient abfsClient, final
+      MockIntercept mockIntercept) throws  Exception {
+
+    AbfsRestOperation abfsRestOperation = Mockito.mock(AbfsRestOperation.class);
+
+    if(mockIntercept.throwException() != null) {
+      Mockito.doThrow(mockIntercept.throwException()).when(abfsRestOperation)
+          .execute(any());
+    }
+
+    Mockito.doReturn(mockIntercept.mockValue()).when(abfsRestOperation)
+        .execute(any());
+
+   Mockito.doReturn(abfsRestOperation).when(abfsClient)
+          .getAbfsRestOperation(any(), any(), any(), any());
+
+  }
+
 }

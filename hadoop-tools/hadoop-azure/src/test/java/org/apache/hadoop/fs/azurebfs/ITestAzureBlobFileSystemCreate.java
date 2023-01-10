@@ -26,6 +26,7 @@ import java.util.EnumSet;
 import java.util.UUID;
 
 import org.junit.Test;
+import org.mockito.Mockito;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.CreateFlag;
@@ -243,6 +244,39 @@ public class ITestAzureBlobFileSystemCreate extends
   public void testDefaultCreateOverwriteFileTest() throws Throwable {
     testCreateFileOverwrite(true);
     testCreateFileOverwrite(false);
+  }
+
+  @Test
+  public void createPathRetryIdempotency() throws Exception {
+    final AzureBlobFileSystem currentFs = getFileSystem();
+    Configuration config = new Configuration(this.getRawConfiguration());
+
+    final AzureBlobFileSystem fs =
+        (AzureBlobFileSystem) FileSystem.newInstance(currentFs.getUri(),
+            config);
+
+    AbfsClient abfsClient = Mockito.spy(fs.getAbfsClient());
+    fs.getAbfsStore().setClient(abfsClient);
+
+
+    final Path nonOverwriteFile = new Path("/NonOverwriteTest_FileName_"
+        + UUID.randomUUID().toString());
+
+    TestAbfsClient.mockAbfsOperationCreation(abfsClient, new MockIntercept() {
+      @Override
+      public Exception throwException() {
+        return new AbfsRestOperationException(404, "404",
+            "", null, null);
+      }
+
+      @Override
+      public Object mockValue() {
+        return null;
+      }
+    });
+
+    fs.create(nonOverwriteFile, false);
+
   }
 
   public void testCreateFileOverwrite(boolean enableConditionalCreateOverwrite)
