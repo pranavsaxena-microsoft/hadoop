@@ -412,12 +412,13 @@ public final class TestAbfsClient {
 
     AbfsRestOperation abfsRestOperation = Mockito.mock(AbfsRestOperation.class);
 
-    if(mockIntercept.throwException() != null) {
-      Mockito.doThrow(mockIntercept.throwException()).when(abfsRestOperation)
-          .execute(any());
-    }
-
-    Mockito.doReturn(mockIntercept.mockValue()).when(abfsRestOperation)
+    Mockito.doAnswer((answer) -> {
+      Exception ex = mockIntercept.throwException();
+      if(ex != null) {
+        throw ex;
+      }
+      return mockIntercept.mockValue();
+    }).when(abfsRestOperation)
         .execute(any());
 
    Mockito.doReturn(abfsRestOperation).when(abfsClient)

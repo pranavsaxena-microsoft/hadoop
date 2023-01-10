@@ -263,10 +263,18 @@ public class ITestAzureBlobFileSystemCreate extends
         + UUID.randomUUID().toString());
 
     TestAbfsClient.mockAbfsOperationCreation(abfsClient, new MockIntercept() {
+      Boolean thrown = false;
       @Override
       public Exception throwException() {
-        return new AbfsRestOperationException(404, "404",
-            "", null, null);
+        if(thrown) {
+          return null;
+        }
+        AbfsHttpOperation op = Mockito.mock(AbfsHttpOperation.class);
+        Mockito.doReturn("PUT").when(op).getMethod();
+        Mockito.doReturn("").when(op).getStorageErrorMessage();
+        thrown = true;
+        return new AbfsRestOperationException(409, "409",
+            "", null, op);
       }
 
       @Override
