@@ -352,6 +352,9 @@ public class AbfsClient implements Closeable {
       requestHeaders.add(new AbfsHttpHeader(HttpHeaderConfigurations.X_MS_PERMISSIONS, permission));
     }
 
+    final String clientTransactionId = UUID.randomUUID().toString();
+    requestHeaders.add(new AbfsHttpHeader(X_MS_CLIENT_TRANSACTION_ID, clientTransactionId));
+
     if (umask != null && !umask.isEmpty()) {
       requestHeaders.add(new AbfsHttpHeader(HttpHeaderConfigurations.X_MS_UMASK, umask));
     }
@@ -386,6 +389,13 @@ public class AbfsClient implements Closeable {
             op.getResult().getResponseHeader(X_MS_EXISTING_RESOURCE_TYPE);
         if (existingResource != null && existingResource.equals(DIRECTORY)) {
           return op; //don't throw ex on mkdirs for existing directory
+        }
+      }
+      if(isFile && op.getResult().getStatusCode() == HttpURLConnection.HTTP_CONFLICT) {
+        final AbfsHttpOperation getPathStatusOp =
+            getPathStatus(path, false, tracingContext).getResult();
+        if(clientTransactionId.equals(getPathStatusOp.getResponseHeader(X_MS_CLIENT_TRANSACTION_ID))) {
+          return op;
         }
       }
       throw ex;
