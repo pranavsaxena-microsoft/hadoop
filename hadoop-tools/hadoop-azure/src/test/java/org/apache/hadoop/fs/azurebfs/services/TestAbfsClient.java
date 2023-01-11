@@ -407,23 +407,27 @@ public final class TestAbfsClient {
     return client.getTokenProvider();
   }
 
-  public static void mockAbfsOperationCreation(final AbfsClient abfsClient, final
-      MockIntercept mockIntercept) throws  Exception {
+  public static void mockAbfsOperationCreation(final AbfsClient abfsClient,
+      final
+      MockIntercept mockIntercept) throws Exception {
 
-    AbfsRestOperation abfsRestOperation = Mockito.mock(AbfsRestOperation.class);
-
-    Mockito.doAnswer((answer) -> {
-      Exception ex = mockIntercept.throwException();
-      if(ex != null) {
-        throw ex;
-      }
-      return mockIntercept.mockValue();
-    }).when(abfsRestOperation)
-        .execute(any());
-
-   Mockito.doReturn(abfsRestOperation).when(abfsClient)
-          .getAbfsRestOperation(any(), any(), any(), any());
-
+    Mockito.doAnswer(answer -> {
+          AbfsRestOperation op = Mockito.spy(
+              new AbfsRestOperation(
+                  answer.getArgument(0),
+                  abfsClient,
+                  answer.getArgument(1),
+                  answer.getArgument(2),
+                  answer.getArgument(3)
+              ));
+          Mockito.doAnswer((answer1) -> {
+                mockIntercept.answer(op, answer1);
+                return null;
+              }).when(op)
+              .execute(any());
+          return op;
+        }).when(abfsClient)
+        .getAbfsRestOperation(any(), any(), any(), any());
   }
 
 }
