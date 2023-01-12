@@ -78,6 +78,7 @@ import static org.apache.hadoop.fs.azurebfs.constants.FileSystemUriSchemes.HTTPS
 import static org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations.*;
 import static org.apache.hadoop.fs.azurebfs.constants.HttpQueryParams.*;
 import static org.apache.hadoop.fs.azurebfs.contracts.services.AzureServiceErrorCode.RENAME_DESTINATION_PARENT_PATH_NOT_FOUND;
+import static org.apache.hadoop.fs.azurebfs.contracts.services.AzureServiceErrorCode.SOURCE_PATH_NOT_FOUND;
 
 /**
  * AbfsClient.
@@ -509,6 +510,9 @@ public class AbfsClient implements Closeable {
     requestHeaders.add(new AbfsHttpHeader(X_MS_RENAME_SOURCE, encodedRenameSource));
     requestHeaders.add(new AbfsHttpHeader(IF_NONE_MATCH, STAR));
 
+    final String clientTransactionId = UUID.randomUUID().toString();
+    requestHeaders.add(new AbfsHttpHeader(X_MS_CLIENT_TRANSACTION_ID, clientTransactionId));
+
     final AbfsUriQueryBuilder abfsUriQueryBuilder = createDefaultUriQueryBuilder();
     abfsUriQueryBuilder.addQuery(QUERY_PARAM_CONTINUATION, continuation);
     appendSASTokenToQuery(destination, SASTokenProvider.RENAME_DESTINATION_OPERATION, abfsUriQueryBuilder);
@@ -531,6 +535,17 @@ public class AbfsClient implements Closeable {
         if (!op.hasResult()) {
           throw e;
         }
+
+      if (SOURCE_PATH_NOT_FOUND.getErrorCode()
+          .equalsIgnoreCase(op.getResult().getStorageErrorCode())) {
+        final AbfsHttpOperation abfsHttpOperation = getPathStatus(destination,
+            false, tracingContext).getResult();
+        if (clientTransactionId.equals(
+            abfsHttpOperation.getResponseHeader(X_MS_CLIENT_TRANSACTION_ID))) {
+          return new AbfsClientRenameResult(op, true,
+              isMetadataIncompleteState);
+        }
+      }
 
         // ref: HADOOP-18242. Rename failure occurring due to a rare case of
         // tracking metadata being in incomplete state.
