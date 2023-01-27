@@ -5,6 +5,9 @@ import java.util.Date;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.azurebfs.services.AbfsHttpOperation;
@@ -17,6 +20,9 @@ public class ConnectionTimeoutPerf {
 
   private static String TEST_PATH = "/testfile";
 
+  static Logger LOG =
+      LoggerFactory.getLogger(ConnectionTimeoutPerf.class);
+
   public ConnectionTimeoutPerf() throws Exception {
     setup = new PerfTestAzureSetup();
     setup.setup();
@@ -27,7 +33,7 @@ public class ConnectionTimeoutPerf {
     AzureBlobFileSystem fs = connectionTimeoutPerf.setup.getFileSystem();
     Integer threadCount = Integer.parseInt(args[0]);
     int connTimeout = Integer.parseInt(args[1]);
-    long runTime = 10* 60*1000l;// 10 min
+    long runTime = 5* 60*1000l;// 10 min
     AbfsHttpOperation.setConnTimeout(connTimeout);
     final Boolean[] threadDone = new Boolean[threadCount];
     final AtomicInteger count = new AtomicInteger(0);
@@ -60,21 +66,23 @@ public class ConnectionTimeoutPerf {
         threadDone[currI] = true;
       }).start();
     }
-    while(true) {
-      Boolean toBreak = true;
-      for(int i=0;i<threadCount;i++) {
-        if(threadDone[i] == false) {
-          toBreak = false;
-          break;
-        }
-      }
-      if(toBreak) {
-        break;
-      }
-    }
+//    while(true) {
+//      Boolean toBreak = true;
+//      for(int i=0;i<threadCount;i++) {
+//        if(threadDone[i] == false) {
+//          toBreak = false;
+//          break;
+//        }
+//      }
+//      if(toBreak) {
+//        break;
+//      }
+//    }
 
-    System.out.println("CT_Seen: " + AbfsRestOperation.ctSeen);
-    System.out.println("total ops: " + count.get());
+    while(new Date().toInstant().toEpochMilli() - start < runTime);
+
+    LOG.info("CT_Seen: " + AbfsRestOperation.ctSeen);
+    LOG.info("total ops: " + count.get());
 
   }
 }
