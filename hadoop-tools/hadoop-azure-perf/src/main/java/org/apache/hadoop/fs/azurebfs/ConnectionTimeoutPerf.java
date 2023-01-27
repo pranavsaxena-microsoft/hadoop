@@ -47,6 +47,7 @@ public class ConnectionTimeoutPerf {
 
     for(int i=0;i<threadCount;i++) {
       threadDone[i] = false;
+      final int currI = i;
       new Thread(() -> {
         while(new Date().toInstant().toEpochMilli() - start < runTime) {
           try {
@@ -56,6 +57,7 @@ public class ConnectionTimeoutPerf {
 //            throw new RuntimeException(e);
           }
         }
+        threadDone[currI] = true;
       }).start();
     }
     while(true) {
