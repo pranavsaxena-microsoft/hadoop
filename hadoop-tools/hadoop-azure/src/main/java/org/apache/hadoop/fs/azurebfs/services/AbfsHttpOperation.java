@@ -49,7 +49,7 @@ import org.apache.hadoop.fs.azurebfs.contracts.services.ListResultSchema;
 public class AbfsHttpOperation implements AbfsPerfLoggable {
   private static final Logger LOG = LoggerFactory.getLogger(AbfsHttpOperation.class);
 
-  private static final int CONNECT_TIMEOUT = 30 * 1000;
+  private static int CONNECT_TIMEOUT = 30 * 1000;
   private static final int READ_TIMEOUT = 30 * 1000;
 
   private static final int CLEAN_UP_BUFFER_SIZE = 64 * 1024;
@@ -81,6 +81,10 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
   private long sendRequestTimeMs;
   private long recvResponseTimeMs;
   private boolean shouldMask = false;
+
+  public static void setConnTimeout(int timeout) {
+    CONNECT_TIMEOUT = timeout;
+  }
 
   public static AbfsHttpOperation getAbfsHttpOperationWithFixedResult(
       final URL url,

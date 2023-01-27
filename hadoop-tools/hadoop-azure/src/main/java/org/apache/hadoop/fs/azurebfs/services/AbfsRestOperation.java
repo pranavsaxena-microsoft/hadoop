@@ -54,6 +54,8 @@ public class AbfsRestOperation {
   // all the custom HTTP request headers provided by the caller
   private final List<AbfsHttpHeader> requestHeaders;
 
+  public static int ctSeen = 0;
+
   // This is a simple operation class, where all the upload methods have a
   // request body and all the download methods have a response body.
   private final boolean hasRequestBody;
@@ -310,6 +312,9 @@ public class AbfsRestOperation {
       }
       return false;
     } catch (IOException ex) {
+      if("connect timed out".equalsIgnoreCase(ex.getMessage())) {
+        ctSeen++;
+      }
       if (LOG.isDebugEnabled()) {
         LOG.debug("HttpRequestFailure: {}, {}", httpOperation, ex);
       }
