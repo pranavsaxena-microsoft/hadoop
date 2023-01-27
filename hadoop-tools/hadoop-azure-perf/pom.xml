@@ -86,7 +86,7 @@
                         <manifest>
                             <addClasspath>true</addClasspath>
                             <classpathPrefix>lib/</classpathPrefix>
-                            <mainClass>org.apache.hadoop.fs.azurebfs.PerfTest</mainClass>
+                            <mainClass>org.apache.hadoop.fs.azurebfs.ConnectionTimeoutPerf</mainClass>
                         </manifest>
                     </archive>
                 </configuration>

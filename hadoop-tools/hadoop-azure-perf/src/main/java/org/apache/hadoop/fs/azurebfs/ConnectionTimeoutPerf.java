@@ -1,16 +1,25 @@
 package org.apache.hadoop.fs.azurebfs;
 
+import java.io.IOException;
+import java.util.Date;
 import java.util.Random;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.azurebfs.services.AbfsHttpOperation;
 import org.apache.hadoop.fs.azurebfs.services.AbfsRestOperation;
 
+import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.ONE_MB;
+
 public class ConnectionTimeoutPerf {
   PerfTestAzureSetup setup = new PerfTestAzureSetup();
 
+  private static String TEST_PATH = "/testfile";
+
   public ConnectionTimeoutPerf() throws Exception {
+    setup = new PerfTestAzureSetup();
+    setup.setup();
   }
 
   public static void main(String[] args) throws Exception {
@@ -21,13 +30,12 @@ public class ConnectionTimeoutPerf {
     long runTime = 10* 60*1000l;// 10 min
     AbfsHttpOperation.setConnTimeout(connTimeout);
     final Boolean[] threadDone = new Boolean[threadCount];
-    final Integer[] totalOps = new Integer[1];
-    totalOps[0] = 0;
+    final AtomicInteger count = new AtomicInteger(0);
 
-    final byte[] b = new byte[fileSize];
+    final byte[] b = new byte[4* ONE_MB];
     new Random().nextBytes(b);
 
-    Path testPath = perfTestSetup.path(TEST_PATH);
+    Path testPath = connectionTimeoutPerf.setup.path(TEST_PATH);
     FSDataOutputStream stream = fs.create(testPath);
     try {
       stream.write(b);
@@ -35,11 +43,19 @@ public class ConnectionTimeoutPerf {
       stream.close();
     }
 
+    Long start = new Date().toInstant().toEpochMilli();
 
     for(int i=0;i<threadCount;i++) {
       threadDone[i] = false;
       new Thread(() -> {
-
+        while(new Date().toInstant().toEpochMilli() - start < runTime) {
+          try {
+            fs.open(testPath).read(0, new byte[4*ONE_MB], 0, 4 *ONE_MB);
+            count.getAndIncrement();
+          } catch (IOException e) {
+//            throw new RuntimeException(e);
+          }
+        }
       }).start();
     }
     while(true) {
@@ -56,7 +72,7 @@ public class ConnectionTimeoutPerf {
     }
 
     System.out.println("CT_Seen: " + AbfsRestOperation.ctSeen);
-    System.out.println("total ops: " + totalOps[0]);
+    System.out.println("total ops: " + count.get());
 
   }
 }
