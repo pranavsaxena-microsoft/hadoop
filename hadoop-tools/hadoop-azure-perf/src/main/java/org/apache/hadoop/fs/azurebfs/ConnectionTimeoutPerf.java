@@ -33,7 +33,7 @@ public class ConnectionTimeoutPerf {
     AzureBlobFileSystem fs = connectionTimeoutPerf.setup.getFileSystem();
     Integer threadCount = Integer.parseInt(args[0]);
     int connTimeout = Integer.parseInt(args[1]);
-    long runTime = 5* 60*1000l;// 10 min
+    long runTime = 1* 60*1000l;// 10 min
     AbfsHttpOperation.setConnTimeout(connTimeout);
     final Boolean[] threadDone = new Boolean[threadCount];
     final AtomicInteger count = new AtomicInteger(0);
