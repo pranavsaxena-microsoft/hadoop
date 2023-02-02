@@ -184,7 +184,7 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
     sb.append(requestId);
     if (isTraceEnabled) {
       sb.append(",connMs=");
-      sb.append(connectionTimeMs);
+      sb.append(connectionEstablishmentTime);
       sb.append(",sendMs=");
       sb.append(sendRequestTimeMs);
       sb.append(",recvMs=");
@@ -216,7 +216,7 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
 
     if (isTraceEnabled) {
       sb.append(" ct=")
-        .append(connectionTimeMs)
+        .append(connectionEstablishmentTime)
         .append(" st=")
         .append(sendRequestTimeMs)
         .append(" rt=")
