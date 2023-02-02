@@ -80,7 +80,9 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
   private long connectionTimeMs;
   private long sendRequestTimeMs;
   private long recvResponseTimeMs;
+  private long connectionEstablishmentTime;
   private boolean shouldMask = false;
+  private Boolean connected = false;
 
   public static AbfsHttpOperation getAbfsHttpOperationWithFixedResult(
       final URL url,
@@ -314,6 +316,7 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
     if (this.isTraceEnabled) {
       startTime = System.nanoTime();
     }
+    connectIfNotConnected();
     try (OutputStream outputStream = this.connection.getOutputStream()) {
       // update bytes sent before they are sent so we may observe
       // attempted sends as well as successful sends via the
@@ -343,7 +346,7 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
     if (this.isTraceEnabled) {
       startTime = System.nanoTime();
     }
-
+    connectIfNotConnected();
     this.statusCode = this.connection.getResponseCode();
 
     if (this.isTraceEnabled) {
@@ -420,6 +423,15 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
         }
         this.bytesReceived = totalBytesRead;
       }
+    }
+  }
+
+  private void connectIfNotConnected() throws IOException {
+    if(!connected) {
+      long startTime = System.nanoTime();
+      connection.connect();
+      this.connectionEstablishmentTime = elapsedTimeMs(startTime);
+      connected = true;
     }
   }
 
