@@ -317,10 +317,10 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
     // send the request body
 
     long startTime = 0;
+    connectIfNotConnected();
     if (this.isTraceEnabled) {
       startTime = System.nanoTime();
     }
-    connectIfNotConnected();
     try (OutputStream outputStream = this.connection.getOutputStream()) {
       // update bytes sent before they are sent so we may observe
       // attempted sends as well as successful sends via the
@@ -347,10 +347,10 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
 
     // get the response
     long startTime = 0;
+    connectIfNotConnected();
     if (this.isTraceEnabled) {
       startTime = System.nanoTime();
     }
-    connectIfNotConnected();
     this.statusCode = this.connection.getResponseCode();
 
     if (this.isTraceEnabled) {
