@@ -23,7 +23,9 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLSocketFactory;
@@ -84,8 +86,14 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
   private boolean shouldMask = false;
   private Boolean connected = false;
 
+  public static List<Long> connTimeTaken = new ArrayList<>();
+
   public static void setConnTimeout(int timeout) {
     CONNECT_TIMEOUT = timeout;
+  }
+
+  private synchronized static void addConnTime(Long time) {
+    connTimeTaken.add(time);
   }
 
   public static AbfsHttpOperation getAbfsHttpOperationWithFixedResult(
@@ -435,6 +443,7 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
       long startTime = System.nanoTime();
       connection.connect();
       this.connectionEstablishmentTime = elapsedTimeMs(startTime);
+      addConnTime(connectionEstablishmentTime);
       connected = true;
     }
   }
