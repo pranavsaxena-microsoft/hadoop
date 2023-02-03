@@ -87,6 +87,7 @@ public class ConnectionTimeoutPerf {
     LOG.info("CT_Seen: " + AbfsRestOperation.ctSeen);
     LOG.info("total ops: " + count.get());
 
+    Thread.sleep(10000);
     List<Long> connTime = AbfsHttpOperation.connTimeTaken;
     Collections.sort(connTime);
     if(connTime.size() == 0) {
