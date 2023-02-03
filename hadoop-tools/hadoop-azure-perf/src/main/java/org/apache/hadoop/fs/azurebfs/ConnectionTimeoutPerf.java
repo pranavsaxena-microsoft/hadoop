@@ -1,6 +1,8 @@
 package org.apache.hadoop.fs.azurebfs;
 
 import java.io.IOException;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Random;
@@ -86,7 +88,10 @@ public class ConnectionTimeoutPerf {
     LOG.info("total ops: " + count.get());
 
     List<Long> connTime = AbfsHttpOperation.connTimeTaken;
-    connTime.sort((b1,b2) -> {return (int) (b1-b2);});
+    Collections.sort(connTime);
+    if(connTime.size() == 0) {
+      return;
+    }
     long p50 = connTime.get((int) (connTime.size()*0.5));
     long p90 = connTime.get((int) (connTime.size()*0.9));
     long p99 = connTime.get((int) (connTime.size()*0.99));
