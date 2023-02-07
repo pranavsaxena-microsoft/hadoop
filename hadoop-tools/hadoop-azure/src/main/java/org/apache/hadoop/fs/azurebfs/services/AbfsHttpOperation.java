@@ -25,6 +25,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import javax.net.ssl.HttpsURLConnection;
@@ -85,6 +86,8 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
   private long connectionEstablishmentTime;
   private boolean shouldMask = false;
   private Boolean connected = false;
+
+  static int readOccurence = 0;
 
   public static List<Long> connTimeTaken = new ArrayList<>();
 
@@ -284,14 +287,17 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
     this.connection = openConnection();
     if (this.connection instanceof HttpsURLConnection) {
       HttpsURLConnection secureConn = (HttpsURLConnection) this.connection;
-      SSLSocketFactory sslSocketFactory = DelegatingSSLSocketFactory.getDefaultFactory();
+//      DelegatingSSLSocketFactory.resetDefaultFactory();
+//      DelegatingSSLSocketFactory.initializeDefaultFactory(DelegatingSSLSocketFactory.SSLChannelMode.OpenSSL);
+      SSLSocketFactory sslSocketFactory = new SSLSocketFactoryWrapper(DelegatingSSLSocketFactory.getDefaultFactory());
       if (sslSocketFactory != null) {
         secureConn.setSSLSocketFactory(sslSocketFactory);
       }
     }
 
     this.connection.setConnectTimeout(CONNECT_TIMEOUT);
-    this.connection.setReadTimeout(READ_TIMEOUT);
+      this.connection.setReadTimeout(READ_TIMEOUT);
+      readOccurence++;
 
     this.connection.setRequestMethod(method);
 
@@ -335,6 +341,8 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
       // accompanying statusCode
       this.bytesSent = length;
       outputStream.write(buffer, offset, length);
+    } catch (Exception e) {
+        connection.disconnect();
     } finally {
       if (this.isTraceEnabled) {
         this.sendRequestTimeMs = elapsedTimeMs(startTime);
@@ -402,12 +410,14 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
 
         // this is a list operation and need to retrieve the data
         // need a better solution
-        if (AbfsHttpConstants.HTTP_METHOD_GET.equals(this.method) && buffer == null) {
+        if (AbfsHttpConstants.HTTP_METHOD_GET.equals(this.method)
+            && buffer == null) {
           parseListFilesResponse(stream);
         } else {
           if (buffer != null) {
             while (totalBytesRead < length) {
-              int bytesRead = stream.read(buffer, offset + totalBytesRead, length - totalBytesRead);
+              int bytesRead = stream.read(buffer, offset + totalBytesRead,
+                  length - totalBytesRead);
               if (bytesRead == -1) {
                 endOfStream = true;
                 break;
@@ -434,6 +444,7 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
           this.recvResponseTimeMs += elapsedTimeMs(startTime);
         }
         this.bytesReceived = totalBytesRead;
+//        connection.disconnect();
       }
     }
   }
@@ -442,6 +453,7 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
     if(!connected) {
       long startTime = System.nanoTime();
       connection.connect();
+//      connection.setReadTimeout(10);
       this.connectionEstablishmentTime = elapsedTimeMs(startTime);
       addConnTime(connectionEstablishmentTime);
       connected = true;
