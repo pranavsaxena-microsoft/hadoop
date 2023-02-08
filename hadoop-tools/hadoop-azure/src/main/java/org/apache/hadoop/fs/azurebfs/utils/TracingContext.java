@@ -177,7 +177,7 @@ public class TracingContext {
     httpOperation.setRequestProperty(HttpHeaderConfigurations.X_MS_CLIENT_REQUEST_ID, header);
   }
 
-  private String addConnTime(Long connTime, cString header) {
+  private String addConnTime(Long connTime, String header) {
     if(connTime == null) {
       connTime = 0l;
     }
