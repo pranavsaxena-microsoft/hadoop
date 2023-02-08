@@ -27,6 +27,7 @@ import org.apache.hadoop.fs.azurebfs.constants.FSOperationType;
 import org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations;
 import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
 import org.apache.hadoop.fs.azurebfs.services.AbfsHttpOperation;
+import org.apache.hadoop.fs.azurebfs.services.MetricQueue;
 
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.EMPTY_STRING;
 
@@ -154,6 +155,7 @@ public class TracingContext {
    *                      connection
    */
   public void constructHeader(AbfsHttpOperation httpOperation) {
+    Long connTime = MetricQueue.dequeueConnTime(httpOperation.getHost());
     clientRequestId = UUID.randomUUID().toString();
     switch (format) {
     case ALL_ID_FORMAT: // Optional IDs (e.g. streamId) may be empty
@@ -161,6 +163,7 @@ public class TracingContext {
           clientCorrelationID + ":" + clientRequestId + ":" + fileSystemID + ":"
               + primaryRequestId + ":" + streamID + ":" + opType + ":"
               + retryCount;
+      header = addConnTime(connTime, header);
       break;
     case TWO_ID_FORMAT:
       header = clientCorrelationID + ":" + clientRequestId;
@@ -172,6 +175,13 @@ public class TracingContext {
       listener.callTracingHeaderValidator(header, format);
     }
     httpOperation.setRequestProperty(HttpHeaderConfigurations.X_MS_CLIENT_REQUEST_ID, header);
+  }
+
+  private String addConnTime(Long connTime, cString header) {
+    if(connTime == null) {
+      connTime = 0l;
+    }
+    return header + ":" + connTime;
   }
 
   /**

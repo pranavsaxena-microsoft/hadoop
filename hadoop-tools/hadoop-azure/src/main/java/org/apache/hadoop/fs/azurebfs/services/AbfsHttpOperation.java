@@ -431,6 +431,7 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
       long startTime = System.nanoTime();
       connection.connect();
       this.connectionEstablishmentTime = elapsedTimeMs(startTime);
+      MetricQueue.enqueueConnTime(url.getHost(), this.connectionEstablishmentTime);
       connected = true;
     }
   }
