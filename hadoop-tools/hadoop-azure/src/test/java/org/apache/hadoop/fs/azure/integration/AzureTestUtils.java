@@ -94,7 +94,7 @@ public final class AzureTestUtils extends Assert {
           "No test filesystem in " + TEST_FS_WASB_NAME);
     }
     NativeAzureFileSystem fs1 = new NativeAzureFileSystem();
-    fs1.initialize(testURI, conf);
+    //fs1.initialize(testURI, conf);
     return fs1;
   }
 

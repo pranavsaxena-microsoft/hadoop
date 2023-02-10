@@ -217,21 +217,25 @@ public class AzureBlobFileSystem extends FileSystem
     }
 
     AbfsClientThrottlingIntercept.initializeSingleton(abfsConfiguration.isAutoThrottlingEnabled());
-    String abfsUrl = uri.toString();
-    URI wasbUri = null;
-    try {
-      wasbUri = new URI(abfsUrlToWasbUrl(abfsUrl, abfsStore.getAbfsConfiguration().isHttpsAlwaysUsed()));
-    } catch (URISyntaxException e) {
-      e.printStackTrace();
-    }
-    nativeFs = new NativeAzureFileSystem();
-    Configuration config = getConf();
-    config.setInt("fs.azure.rename.threads", 5);
-    try {
-      nativeFs.initialize(wasbUri, config);
-    } catch (IOException e) {
-      LOG.debug("Initializing  NativeAzureBlobFileSystem failed ", e);
-      throw e;
+    boolean isRedirect = abfsConfiguration.isRedirection();
+    if (isRedirect) {
+      String abfsUrl = uri.toString();
+      URI wasbUri = null;
+      try {
+        wasbUri = new URI(abfsUrlToWasbUrl(abfsUrl,
+            abfsStore.getAbfsConfiguration().isHttpsAlwaysUsed()));
+      } catch (URISyntaxException e) {
+        e.printStackTrace();
+      }
+      nativeFs = new NativeAzureFileSystem();
+      Configuration config = getConf();
+      config.setInt("fs.azure.rename.threads", 5);
+      try {
+        nativeFs.initialize(wasbUri, config);
+      } catch (IOException e) {
+        LOG.debug("Initializing  NativeAzureBlobFileSystem failed ", e);
+        throw e;
+      }
     }
     LOG.debug("Initializing AzureBlobFileSystem for {} complete", uri);
   }

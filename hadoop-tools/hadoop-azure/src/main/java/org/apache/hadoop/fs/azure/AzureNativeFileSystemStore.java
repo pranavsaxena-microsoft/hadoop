@@ -778,7 +778,9 @@ public class AzureNativeFileSystemStore implements NativeFileSystemStore {
     //
     sessionUri = uri;
     sessionConfiguration = conf;
-    tokenProvider = getTokenProvider();
+    if (tokenProvider == null) {
+      tokenProvider = getTokenProvider();
+    }
     useSecureMode = conf.getBoolean(KEY_USE_SECURE_MODE,
         DEFAULT_USE_SECURE_MODE);
     useLocalSasKeyMode = conf.getBoolean(KEY_USE_LOCAL_SAS_KEY_MODE,
