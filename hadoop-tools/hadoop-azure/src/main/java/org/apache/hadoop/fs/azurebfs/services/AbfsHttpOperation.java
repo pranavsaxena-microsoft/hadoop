@@ -84,6 +84,8 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
   private boolean shouldMask = false;
   private Boolean connected = false;
 
+  private AbfsRestOperationType operationType;
+
   public static AbfsHttpOperation getAbfsHttpOperationWithFixedResult(
       final URL url,
       final String method,
@@ -167,6 +169,10 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
 
   public String getResponseHeader(String httpHeader) {
     return connection.getHeaderField(httpHeader);
+  }
+
+  public AbfsRestOperationType getOperationType() {
+    return operationType;
   }
 
   // Returns a trace message for the request
@@ -286,6 +292,13 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
     for (AbfsHttpHeader header : requestHeaders) {
       this.connection.setRequestProperty(header.getName(), header.getValue());
     }
+  }
+
+  public AbfsHttpOperation(final URL url, final String method,
+      final List<AbfsHttpHeader> requestHeaders, AbfsRestOperationType abfsRestOperationType)
+      throws IOException {
+    this(url, method, requestHeaders);
+    this.operationType = abfsRestOperationType;
   }
 
    /**
@@ -431,7 +444,7 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
       long startTime = System.nanoTime();
       connection.connect();
       this.connectionEstablishmentTime = elapsedTimeMs(startTime);
-      MetricQueue.enqueueConnTime(url.getHost(), this.connectionEstablishmentTime);
+      MetricQueue.enqueueConnTime(url.getHost(), this.connectionEstablishmentTime, operationType);
       connected = true;
     }
   }

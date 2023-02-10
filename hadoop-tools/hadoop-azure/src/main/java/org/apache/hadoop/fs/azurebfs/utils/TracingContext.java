@@ -155,7 +155,7 @@ public class TracingContext {
    *                      connection
    */
   public void constructHeader(AbfsHttpOperation httpOperation) {
-    Long connTime = MetricQueue.dequeueConnTime(httpOperation.getHost());
+    Long connTime = MetricQueue.dequeueConnTime(httpOperation.getHost(), httpOperation.getOperationType());
     clientRequestId = UUID.randomUUID().toString();
     switch (format) {
     case ALL_ID_FORMAT: // Optional IDs (e.g. streamId) may be empty

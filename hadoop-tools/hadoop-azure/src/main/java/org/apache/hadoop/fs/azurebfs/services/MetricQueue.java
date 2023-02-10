@@ -16,22 +16,29 @@ public class MetricQueue {
 
   }
 
-  public static void enqueueConnTime(String host, Long time) {
-    accountConnTimeQueueMap.putIfAbsent(host, new ConcurrentLinkedQueue<Long>());
-    accountConnTimeQueueMap.get(host).add(time);
-    commonCode(host);
+  public static void enqueueConnTime(String host, Long time,
+      final AbfsRestOperationType operationType) {
+    final String key = getKey(host, operationType);
+    accountConnTimeQueueMap.putIfAbsent(key, new ConcurrentLinkedQueue<Long>());
+    accountConnTimeQueueMap.get(key).add(time);
+    commonCode(key);
   }
 
-  private static void commonCode(final String host) {
-    accountLastUse.put(host, new Date().toInstant().toEpochMilli());
+  private static String getKey(String host, AbfsRestOperationType operationType) {
+    return host + "_" + operationType;
   }
 
-  public static Long dequeueConnTime(final String host) {
-    commonCode(host);
-    Queue<Long> queue = accountConnTimeQueueMap.get(host);
+  private static void commonCode(final String key) {
+    accountLastUse.put(key, new Date().toInstant().toEpochMilli());
+  }
+
+  public static Long dequeueConnTime(final String host, final AbfsRestOperationType operationType) {
+    final String key = getKey(host, operationType);
+    commonCode(key);
+    Queue<Long> queue = accountConnTimeQueueMap.get(key);
     if(queue == null) {
       return null;
     }
-    return accountConnTimeQueueMap.get(host).poll();
+    return accountConnTimeQueueMap.get(key).poll();
   }
 }
