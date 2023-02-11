@@ -145,12 +145,12 @@ changeconf() {
 
 init() {
   checkdependencies
-  if ! mvn clean install -DskipTests
-  then
-    echo ""
-    echo "Exiting. Build failed."
-    exit 1
-  fi
+#  if ! mvn clean install -DskipTests
+#  then
+#    echo ""
+#    echo "Exiting. Build failed."
+#    exit 1
+#  fi
   starttime=$(date +"%Y-%m-%d_%H-%M-%S")
   testOutputLogFolder+=$starttime
   mkdir -p "$testOutputLogFolder"

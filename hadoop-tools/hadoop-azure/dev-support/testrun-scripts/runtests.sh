@@ -153,10 +153,10 @@ do
          runNonHNSSharedKeyTest
          break
          ;;
-       NonHNS-OAuth)
-         runNonHNSOAuthTest
-         break
-         ;;
+      NonHNS-OAuth)
+          runNonHNSOAuthTest
+          break
+          ;;
        AppendBlob-HNS-OAuth)
          runAppendBlobHNSOAuthTest
          break
@@ -170,6 +170,7 @@ do
          runHNSOAuthTest
          runHNSSharedKeyTest
          runNonHNSSharedKeyTest
+         runNonHNSOAuthTest
          runAppendBlobHNSOAuthTest ## Keep this as the last run scenario always
          break
          ;;

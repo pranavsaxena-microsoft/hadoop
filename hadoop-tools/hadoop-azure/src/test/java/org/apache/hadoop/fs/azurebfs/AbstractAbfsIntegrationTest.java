@@ -329,11 +329,11 @@ public abstract class AbstractAbfsIntegrationTest extends
     return methodName.getMethodName();
   }
 
-  protected String getFileSystemName() {
+  public String getFileSystemName() {
     return fileSystemName;
   }
 
-  protected String getAccountName() {
+  public String getAccountName() {
     return this.accountName;
   }
 

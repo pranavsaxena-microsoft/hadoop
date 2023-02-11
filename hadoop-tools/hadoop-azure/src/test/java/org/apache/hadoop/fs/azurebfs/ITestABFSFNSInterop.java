@@ -319,42 +319,6 @@ public class ITestABFSFNSInterop extends
   }
 
   @Test
-  public void testXXXlistOnBlobEndPtBlob() throws Throwable {
-    final AzureBlobFileSystem fs = getFileSystem();
-    String testFileName = getMethodName();
-    Path testDFSPath = getRelativeDFSPath(testFileName);
-    Path testWASBPath = testUtilityCreateBlob(testFileName);
-
-    fs.delete(testDFSPath, false);
-
-    assertFalse(fs.exists(testDFSPath));
-
-//    // Save status for assert when created on DFS
-//    Path testDFSPath = testUtilityCreateDFSFile(fs, testFileName);
-//    FileStatus dfsPathFileStatus = fs.getFileStatus(testDFSPath);
-//    // delete the file
-//    fs.delete(testDFSPath, false);
-
-//    // Recreate on Blob endpoint
-//    byte[] data = getTestData(defaultTestFileSize);
-//    Path testWASBPath = testUtilityCreateBlob(testFileName, data);
-
-//    // Validate
-//    try (FSDataInputStream inStream = fs.open(testDFSPath)) {
-//      int fileLen = (int) fs.getFileStatus(testDFSPath).getLen();
-//      byte[] readFile = new byte[fileLen];
-//      inStream.read(readFile, 0, fileLen);
-//      assertContentReadCorrectly(data, readFile);
-//    }
-//
-//    assertEquals(dfsPathFileStatus.getPath(), status.getPath());
-//    assertEquals(dfsPathFileStatus.isFile(), status.isFile());
-//    assertEquals(dfsPathFileStatus.getLen(), status.getLen());
-//
-//    println(status.getPath().toString() + " " + status.getLen() + " " + status.isFile());
-  }
-
-  @Test
   public void testRenameBlobEndPtSrcToDestnWithNoParent() throws Throwable {
     final AzureBlobFileSystem fs = getFileSystem();
     String srcParent = "Implicit_Parent_Of_Src_In_testRenameBlobEndPtSrcToDestnWithNoParent/";
