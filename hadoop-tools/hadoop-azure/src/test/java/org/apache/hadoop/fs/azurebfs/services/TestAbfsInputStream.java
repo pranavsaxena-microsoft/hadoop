@@ -36,6 +36,7 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FutureDataInputStreamBuilder;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.azurebfs.AbfsConfiguration;
 import org.apache.hadoop.fs.azurebfs.AbstractAbfsIntegrationTest;
 import org.apache.hadoop.fs.azurebfs.AzureBlobFileSystem;
 import org.apache.hadoop.fs.azurebfs.AzureBlobFileSystemStore;
@@ -105,6 +106,10 @@ public class TestAbfsInputStream extends
         this.getAccountName(),
         this.getConfiguration());
     when(client.getAbfsPerfTracker()).thenReturn(tracker);
+
+    AbfsConfiguration configuration = Mockito.mock(AbfsConfiguration.class);
+    Mockito.doReturn(false).when(configuration).getInputStreamLevelPrefetchDisable();
+    Mockito.doReturn(configuration).when(client).getAbfsConfiguration();
 
     return client;
   }
