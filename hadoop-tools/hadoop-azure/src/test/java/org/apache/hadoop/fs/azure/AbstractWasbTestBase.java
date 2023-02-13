@@ -59,8 +59,8 @@ public abstract class AbstractWasbTestBase extends AbstractWasbTestWithTimeout
   @After
   public void tearDown() throws Exception {
     describe("closing test account and filesystem");
-    testAccount = cleanupTestAccount(testAccount);
-    IOUtils.closeStream(fs);
+//    testAccount = cleanupTestAccount(testAccount);
+//    IOUtils.closeStream(fs);
     fs = null;
   }
 

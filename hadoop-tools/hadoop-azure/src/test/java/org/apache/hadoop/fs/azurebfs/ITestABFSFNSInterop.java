@@ -126,7 +126,7 @@ public class ITestABFSFNSInterop extends
   public Path testUtilityCreateBlob(String blobName) throws Throwable {
     ITestNativeAzureFileSystemFNSInterop wasb = new ITestNativeAzureFileSystemFNSInterop();
     Path wasbPath = getWasbBlobPath(blobName);
-    wasb.createBlobFile(getWasbBlobPath(blobName), defaultTestFileSize);
+    wasb.createBlobFile(getFileSystemName(), getWasbBlobPath(blobName), defaultTestFileSize);
     println("Created file on BlobEndpoint : " + wasbPath.toString());
     return wasbPath;
   }
@@ -134,7 +134,7 @@ public class ITestABFSFNSInterop extends
   public Path testUtilityCreateBlob(String blobName, byte[] data) throws Throwable {
     ITestNativeAzureFileSystemFNSInterop wasb = new ITestNativeAzureFileSystemFNSInterop();
     Path wasbPath = getWasbBlobPath(blobName);
-    wasb.createBlobFile(getWasbBlobPath(blobName), data);
+    wasb.createBlobFile(getFileSystemName(), getWasbBlobPath(blobName), data);
     println("Created file on BlobEndpoint : " + wasbPath.toString());
     return wasbPath;
   }

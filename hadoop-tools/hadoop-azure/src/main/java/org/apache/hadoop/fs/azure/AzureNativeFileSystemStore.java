@@ -2430,6 +2430,7 @@ public class AzureNativeFileSystemStore implements NativeFileSystemStore {
     }
 
     ErrorMetricUpdater.hook(operationContext, instrumentation);
+    operationContext.setLoggingEnabled(true);;
 
     // Return the operation context.
     return operationContext;

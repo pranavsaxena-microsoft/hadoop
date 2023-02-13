@@ -38,6 +38,7 @@ import java.util.EnumSet;
 public class ITestNativeAzureFileSystemFNSInterop extends AbstractWasbTestBase {
 
   private Path testPath;
+  private String containerName;
 
   @Override
   public Configuration createConfiguration() {
@@ -53,9 +54,10 @@ public class ITestNativeAzureFileSystemFNSInterop extends AbstractWasbTestBase {
     testPath = methodPath();
   }
 
-  @Override
+ @Override
   protected AzureBlobStorageTestAccount createTestAccount() throws Exception {
-    return AzureBlobStorageTestAccount.create(createConfiguration());
+    //return AzureBlobStorageTestAccount.create(createConfiguration());
+   return AzureBlobStorageTestAccount.create(containerName, EnumSet.of(AzureBlobStorageTestAccount.CreateOptions.CreateContainer), createConfiguration(), true);
   }
 
   /*
@@ -71,10 +73,10 @@ public class ITestNativeAzureFileSystemFNSInterop extends AbstractWasbTestBase {
   // Helper method to create file and write fileSize bytes of data on it.
   private byte[] createBaseFileWithData(int fileSize, Path testPath) throws Throwable {
 
-//    // To create versions
-//    try(FSDataOutputStream createStream = fs.create(testPath)) {
-//    }
-//    fs.delete(testPath, false);
+    // To create versions
+    try(FSDataOutputStream createStream = fs.create(testPath)) {
+    }
+    fs.delete(testPath, false);
 
     try(FSDataOutputStream createStream = fs.create(testPath)) {
       byte[] fileData = null;
@@ -90,10 +92,10 @@ public class ITestNativeAzureFileSystemFNSInterop extends AbstractWasbTestBase {
 
   private void createBaseFileWithData(Path testPath, byte[] fileData) throws Throwable {
 
-//    // To create versions
-//    try(FSDataOutputStream createStream = fs.create(testPath)) {
-//    }
-//    fs.delete(testPath, false);
+    // To create versions
+    try(FSDataOutputStream createStream = fs.create(testPath)) {
+    }
+    fs.delete(testPath, false);
 
     try(FSDataOutputStream createStream = fs.create(testPath)) {
         createStream.write(fileData);
@@ -164,12 +166,14 @@ public class ITestNativeAzureFileSystemFNSInterop extends AbstractWasbTestBase {
     }
   }
 
-  public byte[] createBlobFile(Path path, int baseDataSize) throws Throwable{
+  public byte[] createBlobFile(String containerName, Path path, int baseDataSize) throws Throwable{
+    this.containerName = containerName;
     setUp();
     return createBaseFileWithData(baseDataSize, path);
   }
 
-  public void createBlobFile(Path path, byte[] data) throws Throwable{
+  public void createBlobFile(String containerName, Path path, byte[] data) throws Throwable{
+    this.containerName = containerName;
     setUp();
     createBaseFileWithData(path, data);
   }
