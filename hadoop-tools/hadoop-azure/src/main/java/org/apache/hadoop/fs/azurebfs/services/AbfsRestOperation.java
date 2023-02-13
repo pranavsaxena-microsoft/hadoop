@@ -81,6 +81,7 @@ public class AbfsRestOperation {
   private Long dataRead = 0l;
 
   private Long totalIncompleteDataRead = 0l;
+  private String failureReason = null;
 
   /**
    * Checks if there is non-null HTTP response.
@@ -222,7 +223,7 @@ public class AbfsRestOperation {
   private void completeExecute(TracingContext tracingContext)
       throws AzureBlobFileSystemException {
     // see if we have latency reports from the previous requests
-    String latencyHeader = this.client.getAbfsPerfTracker().getClientLatency();
+    String latencyHeader = getClientLatency();
     if (latencyHeader != null && !latencyHeader.isEmpty()) {
       AbfsHttpHeader httpHeader =
               new AbfsHttpHeader(HttpHeaderConfigurations.X_MS_ABFS_CLIENT_LATENCY, latencyHeader);
@@ -253,26 +254,29 @@ public class AbfsRestOperation {
   }
 
   private void makeChangeInRequest() {
-    if(isIncomplete) {
-      for(AbfsHttpHeader header : requestHeaders) {
-        if(HttpHeaderConfigurations.RANGE.equals(header.getName())) {
+    if (isIncomplete) {
+      for (AbfsHttpHeader header : requestHeaders) {
+        if (HttpHeaderConfigurations.RANGE.equals(header.getName())) {
           long contentLength = 0;
           final String RANGE_PREFIX = "bytes=";
           String start, end;
           String range = header.getValue();
           // Format is "bytes=%d-%d"
           if (range != null && range.startsWith(RANGE_PREFIX)) {
-            String[] offsets = range.substring(RANGE_PREFIX.length()).split("-");
+            String[] offsets = range.substring(RANGE_PREFIX.length())
+                .split("-");
             if (offsets.length == 2) {
               start = offsets[0];
               end = offsets[1];
-              contentLength = Long.parseLong(offsets[1]) - Long.parseLong(offsets[0])
-                  + 1;
+              contentLength =
+                  Long.parseLong(offsets[1]) - Long.parseLong(offsets[0])
+                      + 1;
 
-              String headerNewVal = RANGE_PREFIX + (Long.parseLong(start) + dataRead) + "-" + end;
+              String headerNewVal = RANGE_PREFIX + (Long.parseLong(start)
+                  + dataRead) + "-" + end;
               LOG.info("new range: " + headerNewVal);
-              bufferOffset+=dataRead;
-              bufferLength-= dataRead;
+              bufferOffset += dataRead;
+              bufferLength -= dataRead;
               totalIncompleteDataRead += dataRead;
               header.setValue(headerNewVal);
             }
@@ -281,6 +285,10 @@ public class AbfsRestOperation {
         }
       }
     }
+  }
+  @VisibleForTesting
+  String getClientLatency() {
+    return this.client.getAbfsPerfTracker().getClientLatency();
   }
 
   /**
@@ -296,7 +304,7 @@ public class AbfsRestOperation {
       // initialize the HTTP request and open the connection
       httpOperation = getHttpOperation();
       incrementCounter(AbfsStatistic.CONNECTIONS_MADE, 1);
-      tracingContext.constructHeader(httpOperation);
+      tracingContext.constructHeader(httpOperation, failureReason);
 
       switch(client.getAuthType()) {
         case Custom:
@@ -369,6 +377,7 @@ public class AbfsRestOperation {
     } catch (UnknownHostException ex) {
       String hostname = null;
       hostname = httpOperation.getHost();
+      failureReason = RetryReason.getAbbreviation(ex, null, null);
       LOG.warn("Unknown host name: {}. Retrying to resolve the host name...",
           hostname);
       if (!client.getRetryPolicy().shouldRetry(retryCount, -1)) {
@@ -379,6 +388,8 @@ public class AbfsRestOperation {
       if (LOG.isDebugEnabled()) {
         LOG.debug("HttpRequestFailure: {}, {}", httpOperation, ex);
       }
+
+      failureReason = RetryReason.getAbbreviation(ex, -1, "");
 
       /*
        * In case of Connection_reset with status == 206 (partial-content)from
@@ -406,6 +417,8 @@ public class AbfsRestOperation {
     LOG.debug("HttpRequest: {}: {}", operationType, httpOperation);
 
     if (client.getRetryPolicy().shouldRetry(retryCount, httpOperation.getStatusCode())) {
+      int status = httpOperation.getStatusCode();
+      failureReason = RetryReason.getAbbreviation(null, status, httpOperation.getStorageErrorMessage());
       return false;
     }
 
