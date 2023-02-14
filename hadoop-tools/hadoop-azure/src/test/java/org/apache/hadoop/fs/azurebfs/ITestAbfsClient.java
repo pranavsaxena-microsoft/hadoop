@@ -32,6 +32,7 @@ import org.assertj.core.api.Assertions;
 import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
+import org.mockito.Mock;
 import org.mockito.Mockito;
 
 import org.apache.hadoop.fs.FileSystem;
@@ -193,6 +194,71 @@ public final class ITestAbfsClient extends AbstractAbfsIntegrationTest {
     }).when(client).getCreateOp(Mockito.anyList(), Mockito.any(
         URL.class));
     fileSystem.create(path, false);
+  }
+
+  @Test
+  public void testRename() throws Exception {
+    AzureBlobFileSystem fileSystem = getFileSystem();
+    Path path = path(TEST_PATH);
+    Path dst = path(TEST_PATH + "1");
+    fileSystem.create(path);
+    fileSystem.rename(path, dst);
+    Assertions.assertThat(fileSystem.getFileStatus(dst).isFile()).isTrue();
+  }
+
+  @Test
+  public void testRenameSourceIsThereIdempotencyIssue() throws Exception {
+    AzureBlobFileSystem fileSystem = getFileSystem();
+    AbfsClient client = Mockito.spy(fileSystem.getAbfsClient());
+    fileSystem.getAbfsStore().setClient(client);
+    Path path = path(TEST_PATH);
+    fileSystem.create(path);
+    Path newPath = path(TEST_PATH + "1");
+
+    Integer[] counter = new Integer[1];
+    counter[0] = 0;
+
+    Mockito.doAnswer(answer -> {
+      List<AbfsHttpHeader> headers = answer.getArgument(0);
+      URL url = answer.getArgument(1);
+      counter[0]++;
+      if(counter[0] == 1) {
+        AbfsRestOperation op = Mockito.spy(client.getRenameOp(headers, url));
+        mockAbfsHttpOperation(op);
+        return op;
+      } else {
+        return client.getRenameOp(headers, url);
+      }
+    }).when(client).getRenameOpWrapper(Mockito.anyList(), Mockito.any(URL.class));
+    fileSystem.rename(path, newPath);
+  }
+
+  @Test
+  public void testRenameSourceIsRemovedThereIdempotencyIssue() throws Exception {
+    AzureBlobFileSystem fileSystem = getFileSystem();
+    AbfsClient client = Mockito.spy(fileSystem.getAbfsClient());
+    fileSystem.getAbfsStore().setClient(client);
+    Path path = path(TEST_PATH);
+    fileSystem.create(path);
+    Path newPath = path(TEST_PATH + "1");
+
+    Integer[] counter = new Integer[1];
+    counter[0] = 0;
+
+    Mockito.doAnswer(answer -> {
+      List<AbfsHttpHeader> headers = answer.getArgument(0);
+      URL url = answer.getArgument(1);
+      counter[0]++;
+      if(counter[0] == 1) {
+        FileSystem.newInstance(fileSystem.getConf()).rename(path, newPath);
+        AbfsRestOperation op = Mockito.spy(client.getRenameOp(headers, url));
+        mockAbfsHttpOperation(op);
+        return op;
+      } else {
+        return client.getRenameOp(headers, url);
+      }
+    }).when(client).getRenameOpWrapper(Mockito.anyList(), Mockito.any(URL.class));
+    fileSystem.rename(path, newPath);
   }
 
   @Test

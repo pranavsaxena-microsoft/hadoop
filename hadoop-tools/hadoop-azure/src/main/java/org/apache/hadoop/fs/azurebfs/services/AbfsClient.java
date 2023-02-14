@@ -550,12 +550,7 @@ public class AbfsClient implements Closeable {
     appendSASTokenToQuery(destination, SASTokenProvider.RENAME_DESTINATION_OPERATION, abfsUriQueryBuilder);
 
     final URL url = createRequestUrl(destination, abfsUriQueryBuilder.toString());
-    final AbfsRestOperation op = new AbfsRestOperation(
-            AbfsRestOperationType.RenamePath,
-            this,
-            HTTP_METHOD_PUT,
-            url,
-            requestHeaders);
+    final AbfsRestOperation op = getRenameOpWrapper(requestHeaders, url);
     try {
       incrementAbfsRenamePath();
       op.execute(tracingContext);
@@ -606,6 +601,21 @@ public class AbfsClient implements Closeable {
         }
       return new AbfsClientRenameResult(op, true, isMetadataIncompleteState);
     }
+  }
+
+  public AbfsRestOperation getRenameOpWrapper(final List<AbfsHttpHeader> requestHeaders,
+      final URL url) {
+    return getRenameOp(requestHeaders, url);
+  }
+
+  public AbfsRestOperation getRenameOp(final List<AbfsHttpHeader> requestHeaders,
+      final URL url) {
+    return new AbfsRestOperation(
+        AbfsRestOperationType.RenamePath,
+        this,
+        HTTP_METHOD_PUT,
+        url,
+        requestHeaders);
   }
 
   private void incrementAbfsRenamePath() {
