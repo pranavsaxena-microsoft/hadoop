@@ -153,7 +153,8 @@ public final class ITestAbfsClient extends AbstractAbfsIntegrationTest {
       counter[0]++;
       if(counter[0] == 1) {
         AbfsHttpOperation httpOperation = Mockito.spy(op.getAbfsHttpOperation());
-        Mockito.doThrow(new IOException()).when(httpOperation).processResponse(Mockito.any(), Mockito.any(), Mockito.any());
+        Mockito.doThrow(new IOException()).when(httpOperation)
+            .processResponse(Mockito.nullable(byte[].class), Mockito.nullable(int.class), Mockito.nullable(int.class));
         return httpOperation;
       } else {
         return op.getAbfsHttpOperation();
@@ -167,7 +168,31 @@ public final class ITestAbfsClient extends AbstractAbfsIntegrationTest {
     Path path = path(TEST_PATH);
     AbfsClient client = Mockito.spy(fileSystem.getAbfsClient());
     fileSystem.getAbfsStore().setClient(client);
-    AbfsRestOperation op = Mockito.mock(AbfsRestOperation.class);
+    final Integer[] counter = new Integer[1];
+    counter[0] = 0;
+    Mockito.doAnswer(answer -> {
+      List<AbfsHttpHeader> header = answer.getArgument(0);
+      URL url = answer.getArgument(1);
+      if(counter[0] == 0) {
+        /*
+         * For the first createPath, on the first try, request will go to server and after that,
+         * client will face IOException. But due to race-condition, createPath from some other job has taken place on that path.
+         *  On retry, it should get 409. To resolve idempotency issue,
+         * client should call getpathStatus with the required leaseId.
+         * */
+        counter[0]++;
+        FileSystem.newInstance(fileSystem.getConf()).create(path);
+        AbfsRestOperation op = Mockito.spy(client.getCreateOpActual(header, url));
+        mockAbfsHttpOperation(op);
+        return op;
+      } else {
+        counter[0]++;
+        return client.getCreateOpActual(header, url);
+      }
+
+    }).when(client).getCreateOp(Mockito.anyList(), Mockito.any(
+        URL.class));
+    fileSystem.create(path, false);
   }
 
   @Test
