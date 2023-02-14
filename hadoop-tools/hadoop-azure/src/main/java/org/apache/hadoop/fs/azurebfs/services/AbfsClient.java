@@ -388,12 +388,7 @@ public class AbfsClient implements Closeable {
     appendSASTokenToQuery(path, operation, abfsUriQueryBuilder);
 
     final URL url = createRequestUrl(path, abfsUriQueryBuilder.toString());
-    final AbfsRestOperation op = new AbfsRestOperation(
-            AbfsRestOperationType.CreatePath,
-            this,
-            HTTP_METHOD_PUT,
-            url,
-            requestHeaders);
+    final AbfsRestOperation op = getCreateOp(requestHeaders, url);
     try {
       op.execute(tracingContext);
     } catch (AzureBlobFileSystemException ex) {
@@ -411,6 +406,21 @@ public class AbfsClient implements Closeable {
       throw ex;
     }
     return op;
+  }
+
+  public AbfsRestOperation getCreateOp(final List<AbfsHttpHeader> requestHeaders,
+      final URL url) {
+    return getCreateOpActual(requestHeaders, url);
+  }
+
+  public AbfsRestOperation getCreateOpActual(final List<AbfsHttpHeader> requestHeaders,
+      final URL url) {
+    return new AbfsRestOperation(
+        AbfsRestOperationType.CreatePath,
+        this,
+        HTTP_METHOD_PUT,
+        url,
+        requestHeaders);
   }
 
   public AbfsRestOperation acquireLease(final String path, int duration, TracingContext tracingContext) throws AzureBlobFileSystemException {

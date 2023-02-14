@@ -248,7 +248,7 @@ public class AbfsRestOperation {
 
     try {
       // initialize the HTTP request and open the connection
-      httpOperation = new AbfsHttpOperation(url, method, requestHeaders);
+      httpOperation = getHttpOperationWrapper();
       incrementCounter(AbfsStatistic.CONNECTIONS_MADE, 1);
       tracingContext.constructHeader(httpOperation);
 
@@ -332,6 +332,14 @@ public class AbfsRestOperation {
     result = httpOperation;
 
     return true;
+  }
+
+  public AbfsHttpOperation getHttpOperationWrapper() throws IOException {
+    return getAbfsHttpOperation();
+  }
+
+  public AbfsHttpOperation getAbfsHttpOperation() throws IOException {
+    return new AbfsHttpOperation(url, method, requestHeaders);
   }
 
   /**
