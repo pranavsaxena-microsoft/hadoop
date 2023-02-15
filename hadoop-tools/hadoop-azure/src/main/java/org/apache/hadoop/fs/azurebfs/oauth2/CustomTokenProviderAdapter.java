@@ -76,7 +76,7 @@ public final class CustomTokenProviderAdapter extends AccessTokenProvider
           LOG.debug("CustomTokenProvider Access token value obtained is empty");
           throw new IOException("The token is empty ");
         }
-        LOG.debug("The token is " + accessToken.substring(0, Math.min(accessToken.length(), 5)) + "...." +
+        LOG.debug("CustomTokenProvider Access token is " + accessToken.substring(0, Math.min(accessToken.length(), 5)) + "...." +
             accessToken.substring(Math.max(accessToken.length() - 5, 0)));
         LOG.debug("CustomTokenProvider Access token fetch was successful with retry count {}",
             (fetchTokenRetryCount - retryCount));
