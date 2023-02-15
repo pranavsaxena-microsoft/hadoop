@@ -116,7 +116,7 @@ public class ITestCustomerProvidedKey extends AbstractAbfsIntegrationTest {
     byte[] buffer = new byte[length];
     TracingContext tracingContext = getTestTracingContext(fs, false);
     final AbfsRestOperation op = abfsClient.getPathStatus(fileName, false,
-        tracingContext);
+        tracingContext, null);
     final String eTag = op.getResult()
         .getResponseHeader(HttpHeaderConfigurations.ETAG);
     AbfsRestOperation abfsRestOperation = abfsClient
@@ -166,7 +166,7 @@ public class ITestCustomerProvidedKey extends AbstractAbfsIntegrationTest {
     byte[] buffer = new byte[length * 4];
     TracingContext tracingContext = getTestTracingContext(fs, false);
     final AbfsRestOperation op = abfsClient
-        .getPathStatus(fileName, false, tracingContext);
+        .getPathStatus(fileName, false, tracingContext, null);
     final String eTag = op.getResult()
         .getResponseHeader(HttpHeaderConfigurations.ETAG);
     AbfsRestOperation abfsRestOperation = abfsClient
@@ -651,7 +651,7 @@ public class ITestCustomerProvidedKey extends AbstractAbfsIntegrationTest {
     AbfsClient abfsClient = fs.getAbfsClient();
     TracingContext tracingContext = getTestTracingContext(fs, false);
     AbfsRestOperation abfsRestOperation = abfsClient
-        .getPathStatus(testFileName, false, tracingContext);
+        .getPathStatus(testFileName, false, tracingContext, null);
     assertCPKHeaders(abfsRestOperation, false);
     assertResponseHeader(abfsRestOperation, isWithCPK,
         X_MS_ENCRYPTION_KEY_SHA256, getCPKSha(fs));
@@ -660,7 +660,8 @@ public class ITestCustomerProvidedKey extends AbstractAbfsIntegrationTest {
     assertResponseHeader(abfsRestOperation, false,
         X_MS_REQUEST_SERVER_ENCRYPTED, "");
 
-    abfsRestOperation = abfsClient.getPathStatus(testFileName, true, tracingContext);
+    abfsRestOperation = abfsClient.getPathStatus(testFileName, true, tracingContext,
+        null);
     assertCPKHeaders(abfsRestOperation, isWithCPK);
     assertResponseHeader(abfsRestOperation, isWithCPK,
         X_MS_ENCRYPTION_KEY_SHA256, getCPKSha(fs));

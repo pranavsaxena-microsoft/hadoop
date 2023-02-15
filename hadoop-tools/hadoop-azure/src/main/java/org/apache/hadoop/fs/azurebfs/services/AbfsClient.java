@@ -375,6 +375,15 @@ public class AbfsClient implements Closeable {
     if (eTag != null && !eTag.isEmpty()) {
       requestHeaders.add(new AbfsHttpHeader(HttpHeaderConfigurations.IF_MATCH, eTag));
     }
+//    String leaseId = UUID.randomUUID().toString();
+//    requestHeaders.add(new AbfsHttpHeader(X_MS_LEASE_DURATION, "60"));
+//    requestHeaders.add(new AbfsHttpHeader(X_MS_LEASE_ACTION, ACQUIRE_LEASE_ACTION));
+//    requestHeaders.add(new AbfsHttpHeader(X_MS_PROPOSED_LEASE_ID, leaseId));
+//    requestHeaders.add(new AbfsHttpHeader(X_MS_LEASE_ID, leaseId));
+
+//    requestHeaders.add(new AbfsHttpHeader(X_MS_LEASE_ACTION, ACQUIRE_LEASE_ACTION));
+//    requestHeaders.add(new AbfsHttpHeader(X_MS_LEASE_DURATION, Integer.toString(16)));
+//    requestHeaders.add(new AbfsHttpHeader(X_MS_PROPOSED_LEASE_ID, UUID.randomUUID().toString()));
 
     final AbfsUriQueryBuilder abfsUriQueryBuilder = createDefaultUriQueryBuilder();
     abfsUriQueryBuilder.addQuery(QUERY_PARAM_RESOURCE, isFile ? FILE : DIRECTORY);
@@ -396,6 +405,13 @@ public class AbfsClient implements Closeable {
       if (!op.hasResult()) {
         throw ex;
       }
+//      if(op.getResult().getStatusCode() == HttpURLConnection.HTTP_CONFLICT) {
+//        if(getPathStatus(path, false, tracingContext, leaseId).getResult().getResponseHeader("ETag") == null) {
+//          throw  ex;
+//        } else {
+//          return op;
+//        }
+//      }
       if (!isFile && op.getResult().getStatusCode() == HttpURLConnection.HTTP_CONFLICT) {
         String existingResource =
             op.getResult().getResponseHeader(X_MS_EXISTING_RESOURCE_TYPE);
@@ -578,7 +594,7 @@ public class AbfsClient implements Closeable {
           // Doing a HEAD call resolves the incomplete metadata state and
           // then we can retry the rename operation.
           AbfsRestOperation sourceStatusOp = getPathStatus(source, false,
-              tracingContext);
+              tracingContext, null);
           isMetadataIncompleteState = true;
           // Extract the sourceEtag, using the status Op, and set it
           // for future rename recovery.
@@ -659,7 +675,7 @@ public class AbfsClient implements Closeable {
 
       try {
         final AbfsRestOperation destStatusOp = getPathStatus(destination,
-            false, tracingContext);
+            false, tracingContext, null);
         final AbfsHttpOperation result = destStatusOp.getResult();
 
         return result.getStatusCode() == HttpURLConnection.HTTP_OK
@@ -749,7 +765,8 @@ public class AbfsClient implements Closeable {
                                        final long length, TracingContext tracingContext) throws AzureBlobFileSystemException {
     if ((op.isARetriedRequest())
         && (op.getResult().getStatusCode() == HttpURLConnection.HTTP_BAD_REQUEST)) {
-      final AbfsRestOperation destStatusOp = getPathStatus(path, false, tracingContext);
+      final AbfsRestOperation destStatusOp = getPathStatus(path, false, tracingContext,
+          null);
       if (destStatusOp.getResult().getStatusCode() == HttpURLConnection.HTTP_OK) {
         String fileLength = destStatusOp.getResult().getResponseHeader(
             HttpHeaderConfigurations.CONTENT_LENGTH);
@@ -824,8 +841,13 @@ public class AbfsClient implements Closeable {
   }
 
   public AbfsRestOperation getPathStatus(final String path, final boolean includeProperties,
-                                         TracingContext tracingContext) throws AzureBlobFileSystemException {
+                                         TracingContext tracingContext,
+      final String leaseId) throws AzureBlobFileSystemException {
     final List<AbfsHttpHeader> requestHeaders = createDefaultHeaders();
+
+    if(leaseId != null) {
+      requestHeaders.add(new AbfsHttpHeader(X_MS_LEASE_ID, leaseId));
+    }
 
     final AbfsUriQueryBuilder abfsUriQueryBuilder = createDefaultUriQueryBuilder();
     String operation = SASTokenProvider.GET_PROPERTIES_OPERATION;

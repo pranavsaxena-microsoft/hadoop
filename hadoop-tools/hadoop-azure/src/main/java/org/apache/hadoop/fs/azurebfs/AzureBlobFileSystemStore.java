@@ -472,7 +472,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
 
       final Hashtable<String, String> parsedXmsProperties;
       final AbfsRestOperation op = client
-          .getPathStatus(getRelativePath(path), true, tracingContext);
+          .getPathStatus(getRelativePath(path), true, tracingContext, null);
       perfInfo.registerResult(op.getResult());
 
       final String xMsProperties = op.getResult().getResponseHeader(HttpHeaderConfigurations.X_MS_PROPERTIES);
@@ -624,7 +624,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       if (e.getStatusCode() == HttpURLConnection.HTTP_CONFLICT) {
         // File pre-exists, fetch eTag
         try {
-          op = client.getPathStatus(relativePath, false, tracingContext);
+          op = client.getPathStatus(relativePath, false, tracingContext, null);
         } catch (AbfsRestOperationException ex) {
           if (ex.getStatusCode() == HttpURLConnection.HTTP_NOT_FOUND) {
             // Is a parallel access case, as file which was found to be
@@ -773,7 +773,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
                   + "is not of type VersionedFileStatus");
         }
         AbfsHttpOperation op = client.getPathStatus(relativePath, false,
-            tracingContext).getResult();
+            tracingContext, null).getResult();
         resourceType = op.getResponseHeader(
             HttpHeaderConfigurations.X_MS_RESOURCE_TYPE);
         contentLength = Long.parseLong(
@@ -832,7 +832,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       String relativePath = getRelativePath(path);
 
       final AbfsRestOperation op = client
-          .getPathStatus(relativePath, false, tracingContext);
+          .getPathStatus(relativePath, false, tracingContext, null);
       perfInfo.registerResult(op.getResult());
 
       final String resourceType = op.getResult().getResponseHeader(HttpHeaderConfigurations.X_MS_RESOURCE_TYPE);
@@ -995,7 +995,8 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         }
       } else {
         perfInfo.registerCallee("getPathStatus");
-        op = client.getPathStatus(getRelativePath(path), false, tracingContext);
+        op = client.getPathStatus(getRelativePath(path), false, tracingContext,
+            null);
       }
 
       perfInfo.registerResult(op.getResult());

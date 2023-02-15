@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -35,6 +36,7 @@ import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 
+import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.azurebfs.contracts.services.ListResultEntrySchema;
@@ -42,9 +44,12 @@ import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AbfsRestOperationExcep
 import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
 import org.apache.hadoop.fs.azurebfs.services.AbfsHttpHeader;
 import org.apache.hadoop.fs.azurebfs.services.AbfsHttpOperation;
+import org.apache.hadoop.fs.azurebfs.services.AbfsOutputStream;
 import org.apache.hadoop.fs.azurebfs.services.AbfsRestOperation;
+import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 
 import static org.apache.hadoop.fs.CommonConfigurationKeysPublic.FS_DEFAULT_NAME_KEY;
+import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.ONE_MB;
 import static org.apache.hadoop.fs.azurebfs.constants.TestConfigurationKeys.FS_AZURE_ACCOUNT_KEY;
 import static org.apache.hadoop.test.LambdaTestUtils.intercept;
 
@@ -113,6 +118,36 @@ public final class ITestAbfsClient extends AbstractAbfsIntegrationTest {
         Assertions.assertThat(((AbfsRestOperationException) e).getStatusCode()).equals(409);
       }
     }
+  }
+
+  @Test
+  public void testFileCreateWithLeaseAndAppendWithoutLease() throws Exception {
+    AzureBlobFileSystem fileSystem = getFileSystem();
+    Path path = path(TEST_PATH);
+    fileSystem.create(path, false);
+
+    fileSystem.getAbfsClient().acquireLease(path.toUri().getPath(), 60, Mockito.mock(
+        TracingContext.class));
+
+    FSDataOutputStream ps = fileSystem.append(path);
+    byte[] bytes = new byte[4 * ONE_MB];
+    new Random().nextBytes(bytes);
+    ps.write(bytes);
+    ps.flush();
+    ps.close();
+  }
+
+
+  @Test
+  public void testFileCreateWithLeaseAndRenameWithoutLease() throws Exception {
+    AzureBlobFileSystem fileSystem = getFileSystem();
+    Path path = path(TEST_PATH);
+    fileSystem.create(path, false);
+
+    fileSystem.getAbfsClient().acquireLease(path.toUri().getPath(), 60, Mockito.mock(
+        TracingContext.class));
+
+    fileSystem.rename(path, path(TEST_PATH + "1"));
   }
 
   @Test

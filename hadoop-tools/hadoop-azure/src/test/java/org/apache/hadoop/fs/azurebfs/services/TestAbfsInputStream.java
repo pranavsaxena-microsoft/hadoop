@@ -241,7 +241,8 @@ public class TestAbfsInputStream extends
         .ofNullable(new OpenFileParameters().withStatus(fileStatus)), null, tracingContext);
     verify(mockClient, times(0).description((String.format(
         "FileStatus [from %s result] provided, GetFileStatus should not be invoked",
-        source)))).getPathStatus(anyString(), anyBoolean(), any(TracingContext.class));
+        source)))).getPathStatus(anyString(), anyBoolean(), any(TracingContext.class),
+        null);
 
     // verify GetPathStatus invoked when FileStatus not provided
     abfsStore.openFileForRead(testFile,
@@ -249,7 +250,8 @@ public class TestAbfsInputStream extends
         tracingContext);
     verify(mockClient, times(1).description(
         "GetPathStatus should be invoked when FileStatus not provided"))
-        .getPathStatus(anyString(), anyBoolean(), any(TracingContext.class));
+        .getPathStatus(anyString(), anyBoolean(), any(TracingContext.class),
+            null);
 
     Mockito.reset(mockClient); //clears invocation count for next test case
   }

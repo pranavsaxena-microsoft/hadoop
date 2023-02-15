@@ -407,7 +407,8 @@ public class ITestAzureBlobFileSystemCreate extends
         .doReturn(successOp) // Scn3: create overwrite=true fails with Http412
         .doReturn(successOp) // Scn4: create overwrite=true fails with Http500
         .when(mockClient)
-        .getPathStatus(any(String.class), eq(false), any(TracingContext.class));
+        .getPathStatus(any(String.class), eq(false), any(TracingContext.class),
+            null);
 
     // mock for overwrite=true
     doThrow(
