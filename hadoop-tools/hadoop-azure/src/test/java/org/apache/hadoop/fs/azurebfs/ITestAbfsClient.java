@@ -37,6 +37,7 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 
 import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.azurebfs.contracts.services.ListResultEntrySchema;
@@ -103,7 +104,7 @@ public final class ITestAbfsClient extends AbstractAbfsIntegrationTest {
   public void testFileCreation() throws Exception {
     AzureBlobFileSystem fileSystem = getFileSystem();
     Path path = path(TEST_PATH);
-    fileSystem.create(path, false);
+    fileSystem.create(path, true);
   }
 
   @Test
@@ -147,7 +148,23 @@ public final class ITestAbfsClient extends AbstractAbfsIntegrationTest {
     fileSystem.getAbfsClient().acquireLease(path.toUri().getPath(), 60, Mockito.mock(
         TracingContext.class));
 
-    fileSystem.rename(path, path(TEST_PATH + "1"));
+    Path dst1 = path(TEST_PATH + "1");
+    fileSystem.rename(path, dst1);
+    fileSystem.rename(dst1, path(TEST_PATH + "2"));
+  }
+
+  @Test
+  public void testFileCreateAndGetPathWithoutLease() throws  Exception {
+    AzureBlobFileSystem fileSystem = getFileSystem();
+    Path path = path(TEST_PATH);
+    fileSystem.create(path, false);
+
+    fileSystem.getAbfsClient().acquireLease(path.toUri().getPath(), 60, Mockito.mock(
+        TracingContext.class));
+
+    FileStatus status = fileSystem.getFileStatus(path);
+    int a =1;
+    a++;
   }
 
   @Test

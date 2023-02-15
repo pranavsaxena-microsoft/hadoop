@@ -87,7 +87,9 @@ public class AbfsClient implements Closeable {
 
   private final URL baseUrl;
   private final SharedKeyCredentials sharedKeyCredentials;
-  private final String xMsVersion = "2019-12-12";
+
+  private static String lastUUID = null;
+  private final String xMsVersion = "2021-10-04";//"2020-04-08";//"2021-10-04";
   private final ExponentialRetryPolicy retryPolicy;
   private final String filesystem;
   private final AbfsConfiguration abfsConfiguration;
@@ -442,9 +444,10 @@ public class AbfsClient implements Closeable {
   public AbfsRestOperation acquireLease(final String path, int duration, TracingContext tracingContext) throws AzureBlobFileSystemException {
     final List<AbfsHttpHeader> requestHeaders = createDefaultHeaders();
 
+    lastUUID = UUID.randomUUID().toString();
     requestHeaders.add(new AbfsHttpHeader(X_MS_LEASE_ACTION, ACQUIRE_LEASE_ACTION));
     requestHeaders.add(new AbfsHttpHeader(X_MS_LEASE_DURATION, Integer.toString(duration)));
-    requestHeaders.add(new AbfsHttpHeader(X_MS_PROPOSED_LEASE_ID, UUID.randomUUID().toString()));
+    requestHeaders.add(new AbfsHttpHeader(X_MS_PROPOSED_LEASE_ID, lastUUID));
 
     final AbfsUriQueryBuilder abfsUriQueryBuilder = createDefaultUriQueryBuilder();
 
@@ -560,6 +563,13 @@ public class AbfsClient implements Closeable {
     LOG.trace("Rename source queryparam added {}", encodedRenameSource);
     requestHeaders.add(new AbfsHttpHeader(X_MS_RENAME_SOURCE, encodedRenameSource));
     requestHeaders.add(new AbfsHttpHeader(IF_NONE_MATCH, STAR));
+    requestHeaders.add(new AbfsHttpHeader(X_MS_PROPOSED_LEASE_ID, UUID.randomUUID().toString()));
+    requestHeaders.add(new AbfsHttpHeader("x-ms-source-lease-id", lastUUID));
+//    lastUUID = UUID.randomUUID().toString(/);
+
+//    requestHeaders.add(new AbfsHttpHeader(X_MS_LEASE_ID, UUID.randomUUID().toString()));
+//    requestHeaders.add(new AbfsHttpHeader(X_MS_LEASE_ACTION, "acquire"));
+//    requestHeaders.add(new AbfsHttpHeader(X_MS_LEASE_DURATION, "15"));
 
     final AbfsUriQueryBuilder abfsUriQueryBuilder = createDefaultUriQueryBuilder();
     abfsUriQueryBuilder.addQuery(QUERY_PARAM_CONTINUATION, continuation);
@@ -846,7 +856,7 @@ public class AbfsClient implements Closeable {
     final List<AbfsHttpHeader> requestHeaders = createDefaultHeaders();
 
     if(leaseId != null) {
-      requestHeaders.add(new AbfsHttpHeader(X_MS_LEASE_ID, leaseId));
+      requestHeaders.add(new AbfsHttpHeader(X_MS_LEASE_ID, UUID.randomUUID().toString()));
     }
 
     final AbfsUriQueryBuilder abfsUriQueryBuilder = createDefaultUriQueryBuilder();
