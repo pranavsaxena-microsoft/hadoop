@@ -20,15 +20,24 @@ package org.apache.hadoop.fs.azurebfs.oauth2;
 
 import java.util.Date;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 
 /**
  * Object representing the AAD access token to use when making HTTP requests to Azure Data Lake Storage.
  */
 public class AzureADToken {
+  private static final Logger LOG = LoggerFactory.getLogger(AzureADAuthenticator.class);
   private String accessToken;
   private Date expiry;
 
   public String getAccessToken() {
+    if (accessToken.length() == 0) {
+      LOG.debug("The token value obtained is empty");
+    }
+    LOG.debug("The token is " + accessToken.substring(0, Math.min(accessToken.length(), 5)) + "...." +
+        accessToken.substring(Math.max(accessToken.length() - 5, 0)));
     return this.accessToken;
   }
 

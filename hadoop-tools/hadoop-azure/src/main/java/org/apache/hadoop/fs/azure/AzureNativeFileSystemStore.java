@@ -1080,8 +1080,9 @@ public class AzureNativeFileSystemStore implements NativeFileSystemStore {
       autoThrottlingEnabled = false;
     }
 
-    OperationContext.setLoggingEnabledByDefault(sessionConfiguration.
-        getBoolean(KEY_ENABLE_STORAGE_CLIENT_LOGGING, true));
+    if (LOG.isDebugEnabled()) {
+      OperationContext.setLoggingEnabledByDefault(true);
+    }
 
     LOG.debug(
         "AzureNativeFileSystemStore init. Settings={},{},{},{{},{},{},{}},{{},{},{}}",

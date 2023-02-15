@@ -1052,7 +1052,10 @@ public class AbfsClient implements Closeable {
 
   public synchronized String getAccessToken() throws IOException {
     if (tokenProvider != null) {
-      return "Bearer " + tokenProvider.getToken().getAccessToken();
+      String token = "Bearer " + tokenProvider.getToken().getAccessToken();
+      LOG.debug("The header is " + token.substring(0, Math.min(token.length(), 12)) + "...." +
+          token.substring(Math.max(token.length() - 5, 0)));
+      return token;
     } else {
       return null;
     }
