@@ -148,7 +148,7 @@ public class AzureNativeFileSystemStore implements NativeFileSystemStore {
    * Configuration for User-Agent field.
    */
   static final String USER_AGENT_ID_KEY = "fs.azure.user.agent.prefix";
-  static final String USER_AGENT_ID_DEFAULT = "version1";
+  static final String USER_AGENT_ID_DEFAULT = "version2";
 
   public static final Logger LOG = LoggerFactory.getLogger(AzureNativeFileSystemStore.class);
 
@@ -807,7 +807,7 @@ public class AzureNativeFileSystemStore implements NativeFileSystemStore {
     LOG.debug("Page blob directories:  {}", setToString(pageBlobDirs));
 
     // User-agent
-    userAgentId = conf.get(USER_AGENT_ID_KEY, USER_AGENT_ID_DEFAULT);
+    userAgentId = "wasbdriverversion2";
 
     // Extract the directories that should contain block blobs with compaction
     blockBlobWithCompationDirs = getDirectorySet(
@@ -1081,7 +1081,7 @@ public class AzureNativeFileSystemStore implements NativeFileSystemStore {
     }
 
     OperationContext.setLoggingEnabledByDefault(sessionConfiguration.
-        getBoolean(KEY_ENABLE_STORAGE_CLIENT_LOGGING, false));
+        getBoolean(KEY_ENABLE_STORAGE_CLIENT_LOGGING, true));
 
     LOG.debug(
         "AzureNativeFileSystemStore init. Settings={},{},{},{{},{},{},{}},{{},{},{}}",
@@ -2430,7 +2430,7 @@ public class AzureNativeFileSystemStore implements NativeFileSystemStore {
     }
 
     ErrorMetricUpdater.hook(operationContext, instrumentation);
-    operationContext.setLoggingEnabled(true);;
+    //operationContext.setLoggingEnabled(true);;
 
     // Return the operation context.
     return operationContext;

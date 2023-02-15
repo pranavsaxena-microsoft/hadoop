@@ -100,7 +100,7 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
   protected AbfsHttpOperation(final URL url,
       final String method,
       final int httpStatus) {
-    this.isTraceEnabled = LOG.isTraceEnabled();
+    this.isTraceEnabled = true;
     this.url = url;
     this.method = method;
     this.statusCode = httpStatus;
@@ -263,7 +263,7 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
    */
   public AbfsHttpOperation(final URL url, final String method, final List<AbfsHttpHeader> requestHeaders)
       throws IOException {
-    this.isTraceEnabled = LOG.isTraceEnabled();
+    this.isTraceEnabled = true;
     this.url = url;
     this.method = method;
 

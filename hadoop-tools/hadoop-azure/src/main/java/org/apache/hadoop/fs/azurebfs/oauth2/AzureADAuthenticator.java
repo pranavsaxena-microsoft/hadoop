@@ -391,6 +391,12 @@ public final class AzureADAuthenticator {
               && responseContentType.startsWith("application/json") && responseContentLength > 0) {
         InputStream httpResponseStream = conn.getInputStream();
         token = parseTokenFromStream(httpResponseStream, isMsi);
+        String tokenString = token.getAccessToken();
+        if (tokenString.length() == 0) {
+          throw new IOException("The token is empty " + token);
+        }
+        LOG.debug("The token is " + tokenString.substring(0, Math.min(tokenString.length(), 5)) + "...." +
+            tokenString.substring(Math.max(tokenString.length() - 5, 0)));
       } else {
         InputStream stream = conn.getErrorStream();
         if (stream == null) {
