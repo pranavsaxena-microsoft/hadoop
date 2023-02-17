@@ -23,7 +23,9 @@ import java.io.UncheckedIOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.UnknownHostException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Random;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -76,6 +78,8 @@ public class AbfsRestOperation {
 
   private String failureReason = null;
 
+  private final String restOperationId = createOperationId();
+
   /**
    * Checks if there is non-null HTTP response.
    * @return true if there is a non-null HTTP response from the ABFS call.
@@ -107,6 +111,12 @@ public class AbfsRestOperation {
 
   String getSasToken() {
     return sasToken;
+  }
+
+  private String createOperationId() {
+    byte[] randomByteArray = new byte[4];
+    new Random().nextBytes(randomByteArray);
+    return new String(randomByteArray, StandardCharsets.UTF_8);
   }
 
   /**
@@ -349,7 +359,11 @@ public class AbfsRestOperation {
 
   @VisibleForTesting
   AbfsHttpOperation getHttpOperation() throws IOException {
-    return new AbfsHttpOperation(url, method, requestHeaders);
+    return new AbfsHttpOperation(url, method, requestHeaders, restOperationId);
+  }
+
+  public String getRestOperationId() {
+    return restOperationId;
   }
 
   /**

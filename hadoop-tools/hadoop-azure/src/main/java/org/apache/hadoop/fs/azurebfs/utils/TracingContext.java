@@ -164,6 +164,7 @@ public class TracingContext {
               + primaryRequestId + ":" + streamID + ":" + opType + ":"
               + retryCount;
       header = addFailureReasons(header, previousFailure);
+      header = addRestOpeartionInfo(header, httpOperation.getRestOperationId());
       break;
     case TWO_ID_FORMAT:
       header = clientCorrelationID + ":" + clientRequestId;
@@ -175,6 +176,11 @@ public class TracingContext {
       listener.callTracingHeaderValidator(header, format);
     }
     httpOperation.setRequestProperty(HttpHeaderConfigurations.X_MS_CLIENT_REQUEST_ID, header);
+  }
+
+  private String addRestOpeartionInfo(final String header,
+      final String restOperationId) {
+    return header + ":" + restOperationId;
   }
 
   private String addFailureReasons(final String header,

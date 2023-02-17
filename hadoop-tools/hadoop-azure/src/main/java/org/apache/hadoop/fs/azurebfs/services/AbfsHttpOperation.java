@@ -81,6 +81,7 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
   private long sendRequestTimeMs;
   private long recvResponseTimeMs;
   private boolean shouldMask = false;
+  private final String restOperationId;
 
   public static AbfsHttpOperation getAbfsHttpOperationWithFixedResult(
       final URL url,
@@ -104,6 +105,7 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
     this.url = url;
     this.method = method;
     this.statusCode = httpStatus;
+    restOperationId = null;
   }
 
   protected  HttpURLConnection getConnection() {
@@ -137,6 +139,10 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
   public String getClientRequestId() {
     return this.connection
         .getRequestProperty(HttpHeaderConfigurations.X_MS_CLIENT_REQUEST_ID);
+  }
+
+  public String getRestOperationId() {
+    return restOperationId;
   }
 
   public String getExpectedAppendPos() {
@@ -258,14 +264,17 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
    * @param url The full URL including query string parameters.
    * @param method The HTTP method (PUT, PATCH, POST, GET, HEAD, or DELETE).
    * @param requestHeaders The HTTP request headers.READ_TIMEOUT
+   * @param restOperationId id of REST operation to be done
    *
    * @throws IOException if an error occurs.
    */
-  public AbfsHttpOperation(final URL url, final String method, final List<AbfsHttpHeader> requestHeaders)
+  public AbfsHttpOperation(final URL url, final String method, final List<AbfsHttpHeader> requestHeaders,
+      final String restOperationId)
       throws IOException {
     this.isTraceEnabled = LOG.isTraceEnabled();
     this.url = url;
     this.method = method;
+    this.restOperationId = restOperationId;
 
     this.connection = openConnection();
     if (this.connection instanceof HttpsURLConnection) {
