@@ -180,7 +180,7 @@ public class TracingContext {
 
   private String addRestOpeartionInfo(final String header,
       final String restOperationId) {
-    return header + ":" + restOperationId;
+    return header + ":op:" + restOperationId;
   }
 
   private String addFailureReasons(final String header,
