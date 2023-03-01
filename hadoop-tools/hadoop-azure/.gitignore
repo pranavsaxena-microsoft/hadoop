@@ -2,5 +2,6 @@
 bin/
 src/test/resources/accountSettings
 src/test/resources/combinationConfigFiles
+src/test/resources/accountSettings/*
 src/test/resources/abfs-combination-test-configs.xml
 dev-support/testlogs
