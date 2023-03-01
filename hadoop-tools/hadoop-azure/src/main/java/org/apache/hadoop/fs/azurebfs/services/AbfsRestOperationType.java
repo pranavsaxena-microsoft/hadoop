@@ -24,6 +24,7 @@ package org.apache.hadoop.fs.azurebfs.services;
 public enum AbfsRestOperationType {
     CreateFileSystem,
     CreateContainer,
+    DeleteContainer,
     GetFileSystemProperties,
     SetFileSystemProperties,
     ListPaths,

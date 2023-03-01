@@ -223,21 +223,6 @@ public class AbfsClient implements Closeable {
     return requestHeaders;
   }
 
-  protected static String abfsUrlToWasbUrl(String abfsUrl) {
-    return convertUrls(abfsUrl, FileSystemUriSchemes.ABFS_DNS_PREFIX, FileSystemUriSchemes.WASB_DNS_PREFIX);
-  }
-
-  private static String convertUrls(
-      String url,
-      final String fromDnsPrefix,
-      final String toDnsPrefix) {
-    if (url.contains(fromDnsPrefix)) {
-      url = url.replace("." + fromDnsPrefix + ".",
-          "." + toDnsPrefix + ".");
-    }
-    return url;
-  }
-
   private void addCustomerProvidedKeyHeaders(
       final List<AbfsHttpHeader> requestHeaders) {
     if (clientProvidedEncryptionKey != null) {
@@ -284,17 +269,11 @@ public class AbfsClient implements Closeable {
     final AbfsUriQueryBuilder abfsUriQueryBuilder = new AbfsUriQueryBuilder();
     abfsUriQueryBuilder.addQuery(QUERY_PARAM_RESTYPE, CONTAINER);
     final URL url = createRequestUrl(abfsUriQueryBuilder.toString());
-    URL wasbUrl = null;
-    try {
-      wasbUrl = new URL(abfsUrlToWasbUrl(url.toString()));
-    }catch (MalformedURLException exception){
-      throw new InvalidUriException("Malformed URL");
-    }
     final AbfsRestOperation op = new AbfsRestOperation(
         AbfsRestOperationType.CreateContainer,
         this,
         HTTP_METHOD_PUT,
-        wasbUrl,
+        url,
         requestHeaders);
     op.execute(tracingContext);
     return op;
@@ -373,12 +352,34 @@ public class AbfsClient implements Closeable {
     abfsUriQueryBuilder.addQuery(QUERY_PARAM_RESOURCE, FILESYSTEM);
 
     final URL url = createRequestUrl(abfsUriQueryBuilder.toString());
+    AbfsRestOperation op = null;
+    if (abfsConfiguration.getMode() == PrefixMode.BLOB){
+      op = deleteFilesystemBlob(tracingContext);
+    } else if (abfsConfiguration.getMode() == PrefixMode.DFS) {
+      op = new AbfsRestOperation(
+          AbfsRestOperationType.DeleteFileSystem,
+          this,
+          HTTP_METHOD_DELETE,
+          url,
+          requestHeaders);
+      op.execute(tracingContext);
+    }
+    return op;
+  }
+
+  public AbfsRestOperation deleteFilesystemBlob(TracingContext tracingContext)
+      throws AzureBlobFileSystemException {
+    final List<AbfsHttpHeader> requestHeaders = createDefaultHeaders();
+
+    final AbfsUriQueryBuilder abfsUriQueryBuilder = new AbfsUriQueryBuilder();
+    abfsUriQueryBuilder.addQuery(QUERY_PARAM_RESTYPE, CONTAINER);
+    final URL url = createRequestUrl(abfsUriQueryBuilder.toString());
     final AbfsRestOperation op = new AbfsRestOperation(
-            AbfsRestOperationType.DeleteFileSystem,
-            this,
-            HTTP_METHOD_DELETE,
-            url,
-            requestHeaders);
+        AbfsRestOperationType.DeleteContainer,
+        this,
+        HTTP_METHOD_DELETE,
+        url,
+        requestHeaders);
     op.execute(tracingContext);
     return op;
   }
@@ -421,20 +422,14 @@ public class AbfsClient implements Closeable {
 
     final URL url = createRequestUrl(path, abfsUriQueryBuilder.toString());
     AbfsRestOperation op = null;
-    URL wasbUrl = null;
     if (abfsConfiguration.getMode() == PrefixMode.BLOB){
       requestHeaders.add(new AbfsHttpHeader(CONTENT_LENGTH, "0"));
       requestHeaders.add(new AbfsHttpHeader(X_MS_BLOB_TYPE, BLOCK_BLOB_TYPE));
-      try {
-        wasbUrl = new URL(abfsUrlToWasbUrl(url.toString()));
-      }catch (MalformedURLException exception){
-        throw new InvalidUriException(wasbUrl.toString());
-      }
       op = new AbfsRestOperation(
           AbfsRestOperationType.PutBlob,
           this,
           HTTP_METHOD_PUT,
-          wasbUrl,
+          url,
           requestHeaders);
     } else if (abfsConfiguration.getMode() == PrefixMode.DFS) {
       op = new AbfsRestOperation(
@@ -678,17 +673,11 @@ public class AbfsClient implements Closeable {
     requestHeaders.add(new AbfsHttpHeader(CONTENT_LENGTH, String.valueOf(buffer.length)));
 
     final URL url = createRequestUrl(path, abfsUriQueryBuilder.toString());
-    URL wasbUrl = null;
-    try {
-      wasbUrl = new URL(abfsUrlToWasbUrl(url.toString()));
-    }catch (MalformedURLException exception){
-      throw new InvalidUriException("URL is invalid");
-    }
     final AbfsRestOperation op = new AbfsRestOperation(
         AbfsRestOperationType.PutBlock,
         this,
         HTTP_METHOD_PUT,
-        wasbUrl,
+        url,
         requestHeaders,
         buffer,
         reqParams.getoffset(),
@@ -759,17 +748,11 @@ public class AbfsClient implements Closeable {
         abfsUriQueryBuilder, cachedSasToken);
 
     final URL url = createRequestUrl(path, abfsUriQueryBuilder.toString());
-    URL wasbUrl = null;
-    try {
-      wasbUrl = new URL(abfsUrlToWasbUrl(url.toString()));
-    }catch (MalformedURLException exception){
-      throw new InvalidUriException("URL is invalid");
-    }
     final AbfsRestOperation op = new AbfsRestOperation(
         AbfsRestOperationType.PutBlockList,
         this,
         HTTP_METHOD_PUT,
-        wasbUrl,
+        url,
         requestHeaders, buffer, 0, buffer.length, sasTokenForReuse);
     op.execute(tracingContext);
     return op;
@@ -875,18 +858,12 @@ public class AbfsClient implements Closeable {
     abfsUriQueryBuilder.addQuery(QUERY_PARAM_COMP, BLOCKLIST);
     abfsUriQueryBuilder.addQuery(QUERY_PARAM_BLOCKLISTTYPE, COMMITTED);
     final URL url = createRequestUrl(path, abfsUriQueryBuilder.toString());
-    URL wasbUrl;
-    try {
-      wasbUrl = new URL(abfsUrlToWasbUrl(url.toString()));
-    }catch (MalformedURLException exception){
-      throw new InvalidUriException("Url is malformed");
-    }
 
     final AbfsRestOperation op = new AbfsRestOperation(
         AbfsRestOperationType.GetBlockList,
         this,
         HTTP_METHOD_GET,
-        wasbUrl,
+        url,
         requestHeaders);
     try {
       op.execute(tracingContext);
