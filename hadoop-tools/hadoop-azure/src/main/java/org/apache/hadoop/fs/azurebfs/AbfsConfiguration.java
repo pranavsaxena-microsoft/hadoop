@@ -21,6 +21,7 @@ package org.apache.hadoop.fs.azurebfs;
 import java.io.IOException;
 import java.lang.reflect.Field;
 
+import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
 import org.apache.hadoop.thirdparty.com.google.common.annotations.VisibleForTesting;
 import org.apache.hadoop.thirdparty.com.google.common.base.Preconditions;
 
@@ -396,6 +397,16 @@ public class AbfsConfiguration{
 
   public Trilean getIsNamespaceEnabledAccount() {
     return Trilean.getTrilean(isNamespaceEnabledAccount);
+  }
+
+  public PrefixMode mode;
+
+  public PrefixMode getMode() {
+    return mode;
+  }
+
+  public void setMode(final PrefixMode mode) {
+    this.mode = mode;
   }
 
   /**

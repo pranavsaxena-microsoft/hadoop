@@ -18,7 +18,10 @@
 
 package org.apache.hadoop.fs.azurebfs.extensions;
 
+import javax.xml.parsers.ParserConfigurationException;
 import java.io.IOException;
+
+import org.xml.sax.SAXException;
 
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
@@ -39,6 +42,7 @@ public interface SASTokenProvider {
   String DELETE_RECURSIVE_OPERATION = "delete-recursive";
   String GET_ACL_OPERATION = "get-acl";
   String GET_STATUS_OPERATION = "get-status";
+  String GET_BLOCK_LIST = "get-block-list";
   String GET_PROPERTIES_OPERATION = "get-properties";
   String LIST_OPERATION = "list";
   String READ_OPERATION = "read";
@@ -57,7 +61,7 @@ public interface SASTokenProvider {
    * @throws IOException network problems or similar.
    */
   void initialize(Configuration configuration, String accountName)
-      throws IOException;
+      throws IOException, ParserConfigurationException, SAXException;
 
   /**
    * Invokes the authorizer to obtain a SAS token.

@@ -149,7 +149,6 @@ public class ITestNativeAzureFileSystemAppend extends AbstractWasbTestBase {
    */
   @Test
   public void testSingleAppend() throws Throwable{
-
     FSDataOutputStream appendStream = null;
     try {
       int baseDataSize = 50;

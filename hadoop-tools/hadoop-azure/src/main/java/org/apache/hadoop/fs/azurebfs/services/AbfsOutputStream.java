@@ -22,10 +22,17 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Future;
 import java.util.UUID;
 
+import org.apache.commons.codec.binary.Base64;
+import org.apache.hadoop.fs.azurebfs.utils.InsertionOrderConcurrentHashMap;
 import org.apache.hadoop.thirdparty.com.google.common.annotations.VisibleForTesting;
 import org.apache.hadoop.thirdparty.com.google.common.base.Preconditions;
 import org.apache.hadoop.thirdparty.com.google.common.util.concurrent.ListeningExecutorService;
@@ -122,8 +129,19 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
   /** The size of a single block. */
   private final int blockSize;
 
+  private static final int BLOCK_ID_LENGTH = 60;
+
   /** Executor service to carry out the parallel upload requests. */
   private final ListeningExecutorService executorService;
+
+  private final InsertionOrderConcurrentHashMap<BlockWithId, BlockStatus> map =
+      new InsertionOrderConcurrentHashMap<BlockWithId, BlockStatus>();
+
+  private List<String> committedBlockEntries = new ArrayList<>();
+
+  private final List<String> blockIdList = new ArrayList<>();
+
+  private final PrefixMode prefixMode;
 
   public AbfsOutputStream(AbfsOutputStreamContext abfsOutputStreamContext)
       throws IOException {
@@ -168,6 +186,8 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
     this.ioStatistics = outputStreamStatistics.getIOStatistics();
     this.blockFactory = abfsOutputStreamContext.getBlockFactory();
     this.blockSize = bufferSize;
+    this.committedBlockEntries = getBlockList(path, tracingContext);
+    this.prefixMode = client.getAbfsConfiguration().getMode();
     // create that first block. This guarantees that an open + close sequence
     // writes a 0-byte entry.
     createBlockIfNeeded();
@@ -187,6 +207,14 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
   public boolean hasCapability(String capability) {
     return supportFlush && isProbeForSyncable(capability);
   }
+
+  public List<String> getBlockList(final String path,
+      TracingContext tracingContext) throws AzureBlobFileSystemException {
+      List<String> blockIdList;
+      final AbfsRestOperation op = client.getBlockList(path, tracingContext);
+      blockIdList = op.getResult().getBlockIdList();
+      return blockIdList;
+    }
 
   /**
    * Writes the specified byte to this output stream. The general contract for
@@ -227,6 +255,11 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
     if (hasLease() && isLeaseFreed()) {
       throw new PathIOException(path, ERR_WRITE_WITHOUT_LEASE);
     }
+
+    if (closed) {
+      throw new IOException(FSExceptionMessages.STREAM_IS_CLOSED);
+    }
+
     DataBlocks.DataBlock block = createBlockIfNeeded();
     int written = block.write(data, off, length);
     int remainingCapacity = block.remainingCapacity();
@@ -282,6 +315,17 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
   }
 
   /**
+   * Helper method that generates an newer (4.2.0) version blockId.
+   * @return String representing the block ID generated.
+   */
+  private String generateBlockId(long position) {
+    String blockId = String.format("%d", position);
+    byte[] blockIdByteArray = new byte[BLOCK_ID_LENGTH];
+    System.arraycopy(blockId.getBytes(), 0, blockIdByteArray, 0, Math.min(BLOCK_ID_LENGTH, blockId.length()));
+    return new String(Base64.encodeBase64(blockIdByteArray), StandardCharsets.UTF_8);
+  }
+
+  /**
    * Upload a block of data.
    * This will take the block.
    *
@@ -328,9 +372,16 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
              */
             AppendRequestParameters reqParams = new AppendRequestParameters(
                 offset, 0, bytesLength, mode, false, leaseId);
-            AbfsRestOperation op =
-                client.append(path, blockUploadData.toByteArray(), reqParams,
-                    cachedSasToken.get(), new TracingContext(tracingContext));
+            AbfsRestOperation op = null;
+            if (prefixMode == PrefixMode.DFS) {
+              op = client.append(path, blockUploadData.toByteArray(), reqParams,
+                      cachedSasToken.get(), new TracingContext(tracingContext));
+            } else if (prefixMode == PrefixMode.BLOB){
+              String blockId = generateBlockId(offset);
+              map.put(new BlockWithId(blockId, offset), BlockStatus.UNCOMMITTED);
+              op = client.append(blockId, path, blockUploadData.toByteArray(), reqParams,
+                      cachedSasToken.get(), new TracingContext(tracingContext), map);
+            }
             cachedSasToken.update(op.getSasToken());
             perfInfo.registerResult(op.getResult());
             perfInfo.registerSuccess(true);
@@ -525,7 +576,7 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
     }
 
     if (hasActiveBlockDataToUpload()) {
-      uploadCurrentBlock();
+        uploadCurrentBlock();
     }
     flushWrittenBytesToService(isClose);
     numOfAppendsToServerSinceLastFlush = 0;
@@ -635,8 +686,39 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
     AbfsPerfTracker tracker = client.getAbfsPerfTracker();
     try (AbfsPerfInfo perfInfo = new AbfsPerfInfo(tracker,
             "flushWrittenBytesToServiceInternal", "flush")) {
-      AbfsRestOperation op = client.flush(path, offset, retainUncommitedData, isClose,
-          cachedSasToken.get(), leaseId, new TracingContext(tracingContext));
+      AbfsRestOperation op = null;
+     if (prefixMode == PrefixMode.DFS) {
+        op = client.flush(path, offset, retainUncommitedData,
+           isClose,
+           cachedSasToken.get(), leaseId, new TracingContext(tracingContext));
+     } else if (prefixMode == PrefixMode.BLOB) {
+       blockIdList.addAll(committedBlockEntries);
+       boolean successValue = true;
+       String failedBlockId = "";
+       BlockStatus success = BlockStatus.SUCCESS;
+       for (Map.Entry<BlockWithId, BlockStatus> entry: map.entrySet()) {
+         if (!success.equals(entry.getValue())) {
+           successValue = false;
+           failedBlockId = entry.getKey().getBlockId();
+           break;
+         }
+       }
+       if (!successValue) {
+         throw new IOException("Append failed for blockId " + failedBlockId);
+       }
+       for (BlockWithId obj : map.getQueue()) {
+         if (obj != null) {
+           blockIdList.add(obj.getBlockId());
+         }
+       }
+       String blockListXml = generateBlockListXml(blockIdList);
+       op = client.flush(blockListXml.getBytes(), path, offset, retainUncommitedData,
+           isClose,
+           cachedSasToken.get(), leaseId, new TracingContext(tracingContext));
+     }
+     if (op == null) {
+       throw new IOException("Flush failed");
+     }
       cachedSasToken.update(op.getSasToken());
       perfInfo.registerResult(op.getResult()).registerSuccess(true);
     } catch (AzureBlobFileSystemException ex) {
@@ -649,6 +731,17 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
       throw lastError;
     }
     this.lastFlushOffset = offset;
+  }
+
+  private static String generateBlockListXml(List<String> blockIds) {
+    StringBuilder stringBuilder = new StringBuilder();
+    stringBuilder.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+    stringBuilder.append("<BlockList>\n");
+    for (String blockId : blockIds) {
+      stringBuilder.append(String.format("<Latest>%s</Latest>\n", blockId));
+    }
+    stringBuilder.append("</BlockList>\n");
+    return stringBuilder.toString();
   }
 
   /**

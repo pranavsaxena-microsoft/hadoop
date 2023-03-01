@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -37,6 +38,8 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.hadoop.fs.azurebfs.constants.FileSystemUriSchemes;
+import org.apache.hadoop.fs.azurebfs.utils.InsertionOrderConcurrentHashMap;
 import org.apache.hadoop.thirdparty.com.google.common.annotations.VisibleForTesting;
 import org.apache.hadoop.thirdparty.com.google.common.base.Preconditions;
 import org.apache.hadoop.thirdparty.com.google.common.base.Strings;
@@ -48,6 +51,7 @@ import org.apache.hadoop.thirdparty.com.google.common.util.concurrent.ListeningS
 import org.apache.hadoop.thirdparty.com.google.common.util.concurrent.MoreExecutors;
 import org.apache.hadoop.thirdparty.com.google.common.util.concurrent.ThreadFactoryBuilder;
 
+import jdk.nashorn.internal.ir.Block;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -80,7 +84,7 @@ import static org.apache.hadoop.fs.azurebfs.constants.HttpQueryParams.*;
 public class AbfsClient implements Closeable {
   public static final Logger LOG = LoggerFactory.getLogger(AbfsClient.class);
 
-  private final URL baseUrl;
+  private URL baseUrl;
   private final SharedKeyCredentials sharedKeyCredentials;
   private final String xMsVersion = "2019-12-12";
   private final ExponentialRetryPolicy retryPolicy;
@@ -211,12 +215,27 @@ public class AbfsClient implements Closeable {
     final List<AbfsHttpHeader> requestHeaders = new ArrayList<AbfsHttpHeader>();
     requestHeaders.add(new AbfsHttpHeader(X_MS_VERSION, xMsVersion));
     requestHeaders.add(new AbfsHttpHeader(ACCEPT, APPLICATION_JSON
-            + COMMA + SINGLE_WHITE_SPACE + APPLICATION_OCTET_STREAM));
+            + COMMA + SINGLE_WHITE_SPACE + APPLICATION_OCTET_STREAM + COMMA + SINGLE_WHITE_SPACE + APPLICATION_XML));
     requestHeaders.add(new AbfsHttpHeader(ACCEPT_CHARSET,
             UTF_8));
     requestHeaders.add(new AbfsHttpHeader(CONTENT_TYPE, EMPTY_STRING));
     requestHeaders.add(new AbfsHttpHeader(USER_AGENT, userAgent));
     return requestHeaders;
+  }
+
+  protected static String abfsUrlToWasbUrl(String abfsUrl) {
+    return convertUrls(abfsUrl, FileSystemUriSchemes.ABFS_DNS_PREFIX, FileSystemUriSchemes.WASB_DNS_PREFIX);
+  }
+
+  private static String convertUrls(
+      String url,
+      final String fromDnsPrefix,
+      final String toDnsPrefix) {
+    if (url.contains(fromDnsPrefix)) {
+      url = url.replace("." + fromDnsPrefix + ".",
+          "." + toDnsPrefix + ".");
+    }
+    return url;
   }
 
   private void addCustomerProvidedKeyHeaders(
@@ -242,14 +261,41 @@ public class AbfsClient implements Closeable {
 
     final AbfsUriQueryBuilder abfsUriQueryBuilder = new AbfsUriQueryBuilder();
     abfsUriQueryBuilder.addQuery(QUERY_PARAM_RESOURCE, FILESYSTEM);
-
     final URL url = createRequestUrl(abfsUriQueryBuilder.toString());
+    AbfsRestOperation op = null;
+    if (abfsConfiguration.getMode() == PrefixMode.BLOB){
+      op = createFilesystemBlob(tracingContext);
+    } else if (abfsConfiguration.getMode() == PrefixMode.DFS) {
+       op = new AbfsRestOperation(
+          AbfsRestOperationType.CreateFileSystem,
+          this,
+          HTTP_METHOD_PUT,
+          url,
+          requestHeaders);
+      op.execute(tracingContext);
+    }
+    return op;
+  }
+
+  public AbfsRestOperation createFilesystemBlob(TracingContext tracingContext)
+      throws AzureBlobFileSystemException {
+    final List<AbfsHttpHeader> requestHeaders = createDefaultHeaders();
+
+    final AbfsUriQueryBuilder abfsUriQueryBuilder = new AbfsUriQueryBuilder();
+    abfsUriQueryBuilder.addQuery(QUERY_PARAM_RESTYPE, CONTAINER);
+    final URL url = createRequestUrl(abfsUriQueryBuilder.toString());
+    URL wasbUrl = null;
+    try {
+      wasbUrl = new URL(abfsUrlToWasbUrl(url.toString()));
+    }catch (MalformedURLException exception){
+      throw new InvalidUriException("Malformed URL");
+    }
     final AbfsRestOperation op = new AbfsRestOperation(
-            AbfsRestOperationType.CreateFileSystem,
-            this,
-            HTTP_METHOD_PUT,
-            url,
-            requestHeaders);
+        AbfsRestOperationType.CreateContainer,
+        this,
+        HTTP_METHOD_PUT,
+        wasbUrl,
+        requestHeaders);
     op.execute(tracingContext);
     return op;
   }
@@ -340,7 +386,8 @@ public class AbfsClient implements Closeable {
   public AbfsRestOperation createPath(final String path, final boolean isFile, final boolean overwrite,
                                       final String permission, final String umask,
                                       final boolean isAppendBlob, final String eTag,
-                                      TracingContext tracingContext) throws AzureBlobFileSystemException {
+                                      TracingContext tracingContext)
+      throws AzureBlobFileSystemException {
     final List<AbfsHttpHeader> requestHeaders = createDefaultHeaders();
     if (isFile) {
       addCustomerProvidedKeyHeaders(requestHeaders);
@@ -373,12 +420,30 @@ public class AbfsClient implements Closeable {
     appendSASTokenToQuery(path, operation, abfsUriQueryBuilder);
 
     final URL url = createRequestUrl(path, abfsUriQueryBuilder.toString());
-    final AbfsRestOperation op = new AbfsRestOperation(
-            AbfsRestOperationType.CreatePath,
-            this,
-            HTTP_METHOD_PUT,
-            url,
-            requestHeaders);
+    AbfsRestOperation op = null;
+    URL wasbUrl = null;
+    if (abfsConfiguration.getMode() == PrefixMode.BLOB){
+      requestHeaders.add(new AbfsHttpHeader(CONTENT_LENGTH, "0"));
+      requestHeaders.add(new AbfsHttpHeader(X_MS_BLOB_TYPE, BLOCK_BLOB_TYPE));
+      try {
+        wasbUrl = new URL(abfsUrlToWasbUrl(url.toString()));
+      }catch (MalformedURLException exception){
+        throw new InvalidUriException(wasbUrl.toString());
+      }
+      op = new AbfsRestOperation(
+          AbfsRestOperationType.PutBlob,
+          this,
+          HTTP_METHOD_PUT,
+          wasbUrl,
+          requestHeaders);
+    } else if (abfsConfiguration.getMode() == PrefixMode.DFS) {
+      op = new AbfsRestOperation(
+          AbfsRestOperationType.CreatePath,
+          this,
+          HTTP_METHOD_PUT,
+          url,
+          requestHeaders);
+    }
     try {
       op.execute(tracingContext);
     } catch (AzureBlobFileSystemException ex) {
@@ -397,6 +462,8 @@ public class AbfsClient implements Closeable {
     }
     return op;
   }
+
+
 
   public AbfsRestOperation acquireLease(final String path, int duration, TracingContext tracingContext) throws AzureBlobFileSystemException {
     final List<AbfsHttpHeader> requestHeaders = createDefaultHeaders();
@@ -579,6 +646,74 @@ public class AbfsClient implements Closeable {
     return op;
   }
 
+  public AbfsRestOperation append(final String blockId, final String path, final byte[] buffer,
+      AppendRequestParameters reqParams, final String cachedSasToken, TracingContext tracingContext,
+      InsertionOrderConcurrentHashMap map)
+      throws AzureBlobFileSystemException {
+    final List<AbfsHttpHeader> requestHeaders = createDefaultHeaders();
+    addCustomerProvidedKeyHeaders(requestHeaders);
+    // JDK7 does not support PATCH, so to workaround the issue we will use
+    // PUT and specify the real method in the X-Http-Method-Override header.
+    requestHeaders.add(new AbfsHttpHeader(X_HTTP_METHOD_OVERRIDE,
+        HTTP_METHOD_PATCH));
+    if (reqParams.getLeaseId() != null) {
+      requestHeaders.add(new AbfsHttpHeader(X_MS_LEASE_ID, reqParams.getLeaseId()));
+    }
+
+    final AbfsUriQueryBuilder abfsUriQueryBuilder = createDefaultUriQueryBuilder();
+    abfsUriQueryBuilder.addQuery(QUERY_PARAM_COMP, BLOCK);
+    abfsUriQueryBuilder.addQuery(QUERY_PARAM_BLOCKID, blockId);
+
+    if ((reqParams.getMode() == AppendRequestParameters.Mode.FLUSH_MODE) || (
+        reqParams.getMode() == AppendRequestParameters.Mode.FLUSH_CLOSE_MODE)) {
+      abfsUriQueryBuilder.addQuery(QUERY_PARAM_FLUSH, TRUE);
+      if (reqParams.getMode() == AppendRequestParameters.Mode.FLUSH_CLOSE_MODE) {
+        abfsUriQueryBuilder.addQuery(QUERY_PARAM_CLOSE, TRUE);
+      }
+    }
+
+    // AbfsInputStream/AbfsOutputStream reuse SAS tokens for better performance
+    String sasTokenForReuse = appendSASTokenToQuery(path, SASTokenProvider.WRITE_OPERATION,
+        abfsUriQueryBuilder, cachedSasToken);
+    requestHeaders.add(new AbfsHttpHeader(CONTENT_LENGTH, String.valueOf(buffer.length)));
+
+    final URL url = createRequestUrl(path, abfsUriQueryBuilder.toString());
+    URL wasbUrl = null;
+    try {
+      wasbUrl = new URL(abfsUrlToWasbUrl(url.toString()));
+    }catch (MalformedURLException exception){
+      throw new InvalidUriException("URL is invalid");
+    }
+    final AbfsRestOperation op = new AbfsRestOperation(
+        AbfsRestOperationType.PutBlock,
+        this,
+        HTTP_METHOD_PUT,
+        wasbUrl,
+        requestHeaders,
+        buffer,
+        reqParams.getoffset(),
+        reqParams.getLength(),
+        sasTokenForReuse);
+    try {
+      op.execute(tracingContext);
+      BlockWithId block = new BlockWithId(blockId, reqParams.getPosition());
+      if (map.containsKey(block)) {
+        map.put(block, BlockStatus.SUCCESS);
+      }
+    } catch (AzureBlobFileSystemException e) {
+      if (map.get(blockId) != null) {
+        map.put(blockId, BlockStatus.FAILED);
+      }
+      // If we have no HTTP response, throw the original exception.
+      if (!op.hasResult()) {
+        throw e;
+      }
+      throw e;
+    }
+
+    return op;
+  }
+
   // For AppendBlob its possible that the append succeeded in the backend but the request failed.
   // However a retry would fail with an InvalidQueryParameterValue
   // (as the current offset would be unacceptable).
@@ -599,6 +734,45 @@ public class AbfsClient implements Closeable {
       }
     }
     return false;
+  }
+
+  public AbfsRestOperation flush(byte[] buffer, final String path, final long position,
+      boolean retainUncommittedData, boolean isClose,
+      final String cachedSasToken, final String leaseId,
+      TracingContext tracingContext) throws AzureBlobFileSystemException {
+    final List<AbfsHttpHeader> requestHeaders = createDefaultHeaders();
+    addCustomerProvidedKeyHeaders(requestHeaders);
+    // JDK7 does not support PATCH, so to workaround the issue we will use
+    // PUT and specify the real method in the X-Http-Method-Override header.
+    requestHeaders.add(new AbfsHttpHeader(X_HTTP_METHOD_OVERRIDE,
+        HTTP_METHOD_PATCH));
+    if (leaseId != null) {
+      requestHeaders.add(new AbfsHttpHeader(X_MS_LEASE_ID, leaseId));
+    }
+
+    final AbfsUriQueryBuilder abfsUriQueryBuilder = createDefaultUriQueryBuilder();
+    abfsUriQueryBuilder.addQuery(QUERY_PARAM_COMP, BLOCKLIST);
+    requestHeaders.add(new AbfsHttpHeader(CONTENT_LENGTH, String.valueOf(buffer.length)));
+    requestHeaders.add(new AbfsHttpHeader(CONTENT_TYPE, "application/xml"));
+    // AbfsInputStream/AbfsOutputStream reuse SAS tokens for better performance
+    String sasTokenForReuse = appendSASTokenToQuery(path, SASTokenProvider.WRITE_OPERATION,
+        abfsUriQueryBuilder, cachedSasToken);
+
+    final URL url = createRequestUrl(path, abfsUriQueryBuilder.toString());
+    URL wasbUrl = null;
+    try {
+      wasbUrl = new URL(abfsUrlToWasbUrl(url.toString()));
+    }catch (MalformedURLException exception){
+      throw new InvalidUriException("URL is invalid");
+    }
+    final AbfsRestOperation op = new AbfsRestOperation(
+        AbfsRestOperationType.PutBlockList,
+        this,
+        HTTP_METHOD_PUT,
+        wasbUrl,
+        requestHeaders, buffer, 0, buffer.length, sasTokenForReuse);
+    op.execute(tracingContext);
+    return op;
   }
 
   public AbfsRestOperation flush(final String path, final long position,
@@ -688,6 +862,37 @@ public class AbfsClient implements Closeable {
             url,
             requestHeaders);
     op.execute(tracingContext);
+    return op;
+  }
+
+  public AbfsRestOperation getBlockList(final String path, TracingContext tracingContext) throws AzureBlobFileSystemException {
+    final List<AbfsHttpHeader> requestHeaders = createDefaultHeaders();
+
+    final AbfsUriQueryBuilder abfsUriQueryBuilder = createDefaultUriQueryBuilder();
+    String operation = SASTokenProvider.GET_BLOCK_LIST;
+    appendSASTokenToQuery(path, operation, abfsUriQueryBuilder);
+
+    abfsUriQueryBuilder.addQuery(QUERY_PARAM_COMP, BLOCKLIST);
+    abfsUriQueryBuilder.addQuery(QUERY_PARAM_BLOCKLISTTYPE, COMMITTED);
+    final URL url = createRequestUrl(path, abfsUriQueryBuilder.toString());
+    URL wasbUrl;
+    try {
+      wasbUrl = new URL(abfsUrlToWasbUrl(url.toString()));
+    }catch (MalformedURLException exception){
+      throw new InvalidUriException("Url is malformed");
+    }
+
+    final AbfsRestOperation op = new AbfsRestOperation(
+        AbfsRestOperationType.GetBlockList,
+        this,
+        HTTP_METHOD_GET,
+        wasbUrl,
+        requestHeaders);
+    try {
+      op.execute(tracingContext);
+    }catch (Exception e){
+      throw e;
+    }
     return op;
   }
 
@@ -1139,6 +1344,10 @@ public class AbfsClient implements Closeable {
    */
   protected AbfsCounters getAbfsCounters() {
     return abfsCounters;
+  }
+
+  protected AbfsConfiguration getAbfsConfiguration() {
+    return abfsConfiguration;
   }
 
   public int getNumLeaseThreads() {

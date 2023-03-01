@@ -59,8 +59,8 @@ runNonHNSSharedKeyTest()
 runNonHNSOAuthTest()
 {
   accountName=$(xmlstarlet sel -t -v '//property[name = "fs.azure.nonHnsTestAccountName"]/value' -n $azureTestXmlPath)
-  PROPERTIES=("fs.azure.account.auth.type")
-  VALUES=("OAuth")
+#  PROPERTIES=("fs.azure.account.auth.type")
+#  VALUES=("OAuth")
   triggerRun "NonHNS-OAuth" "$accountName" "$runTest" $processCount "$cleanUpTestContainers"
 }
 

@@ -18,6 +18,7 @@
 
 package org.apache.hadoop.fs.azurebfs.extensions;
 
+import javax.xml.parsers.ParserConfigurationException;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -25,6 +26,8 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+
+import org.xml.sax.SAXException;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants;
@@ -51,7 +54,8 @@ public class MockDelegationSASTokenProvider implements SASTokenProvider {
   public static final String NO_AGENT_PATH = "NoAgentPath";
 
   @Override
-  public void initialize(Configuration configuration, String accountName) throws IOException {
+  public void initialize(Configuration configuration, String accountName)
+      throws IOException, ParserConfigurationException, SAXException {
     String appID = configuration.get(TestConfigurationKeys.FS_AZURE_TEST_APP_ID);
     String appSecret = configuration.get(TestConfigurationKeys.FS_AZURE_TEST_APP_SECRET);
     String sktid = configuration.get(TestConfigurationKeys.FS_AZURE_TEST_APP_SERVICE_PRINCIPAL_TENANT_ID);
@@ -74,7 +78,8 @@ public class MockDelegationSASTokenProvider implements SASTokenProvider {
   }
 
   private byte[] getUserDelegationKey(String accountName, String appID, String appSecret,
-      String sktid, String skt, String ske, String skv) throws IOException {
+      String sktid, String skt, String ske, String skv)
+      throws IOException, ParserConfigurationException, SAXException {
 
     String method = "POST";
     String account = accountName.substring(0, accountName.indexOf(AbfsHttpConstants.DOT));

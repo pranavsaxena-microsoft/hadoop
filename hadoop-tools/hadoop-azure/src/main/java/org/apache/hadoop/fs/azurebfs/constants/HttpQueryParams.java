@@ -27,7 +27,11 @@ import org.apache.hadoop.classification.InterfaceStability;
 @InterfaceStability.Evolving
 public final class HttpQueryParams {
   public static final String QUERY_PARAM_RESOURCE = "resource";
+  public static final String QUERY_PARAM_RESTYPE = "restype";
+  public static final String QUERY_PARAM_COMP = "comp";
+  public static final String QUERY_PARAM_BLOCKLISTTYPE = "blocklisttype";
   public static final String QUERY_PARAM_DIRECTORY = "directory";
+  public static final String CONTAINER = "container";
   public static final String QUERY_PARAM_CONTINUATION = "continuation";
   public static final String QUERY_PARAM_RECURSIVE = "recursive";
   public static final String QUERY_PARAM_MAXRESULTS = "maxResults";
@@ -40,6 +44,7 @@ public final class HttpQueryParams {
   public static final String QUERY_PARAM_CLOSE = "close";
   public static final String QUERY_PARAM_UPN = "upn";
   public static final String QUERY_PARAM_BLOBTYPE = "blobtype";
+  public static final String QUERY_PARAM_BLOCKID = "blockid";
 
   //query params for SAS
   public static final String QUERY_PARAM_SAOID = "saoid";

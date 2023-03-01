@@ -27,6 +27,7 @@ import org.junit.Test;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.azurebfs.constants.FSOperationType;
+import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
 import org.apache.hadoop.fs.azurebfs.utils.TracingHeaderValidator;
 import org.apache.hadoop.fs.contract.ContractTestUtils;
 
@@ -53,6 +54,7 @@ public class ITestAzureBlobFileSystemAppend extends
   @Test
   public void testAppendWithLength0() throws Exception {
     final AzureBlobFileSystem fs = getFileSystem();
+    fs.getAbfsStore().getAbfsConfiguration().setMode(PrefixMode.BLOB);
     try(FSDataOutputStream stream = fs.create(TEST_FILE_PATH)) {
       final byte[] b = new byte[1024];
       new Random().nextBytes(b);
@@ -65,6 +67,7 @@ public class ITestAzureBlobFileSystemAppend extends
   @Test(expected = FileNotFoundException.class)
   public void testAppendFileAfterDelete() throws Exception {
     final AzureBlobFileSystem fs = getFileSystem();
+    fs.getAbfsStore().getAbfsConfiguration().setMode(PrefixMode.BLOB);
     final Path filePath = TEST_FILE_PATH;
     ContractTestUtils.touch(fs, filePath);
     fs.delete(filePath, false);
@@ -75,6 +78,7 @@ public class ITestAzureBlobFileSystemAppend extends
   @Test(expected = FileNotFoundException.class)
   public void testAppendDirectory() throws Exception {
     final AzureBlobFileSystem fs = getFileSystem();
+    fs.getAbfsStore().getAbfsConfiguration().setMode(PrefixMode.BLOB);
     final Path folderPath = TEST_FOLDER_PATH;
     fs.mkdirs(folderPath);
     fs.append(folderPath);
@@ -83,6 +87,7 @@ public class ITestAzureBlobFileSystemAppend extends
   @Test
   public void testTracingForAppend() throws IOException {
     AzureBlobFileSystem fs = getFileSystem();
+    fs.getAbfsStore().getAbfsConfiguration().setMode(PrefixMode.BLOB);
     fs.create(TEST_FILE_PATH);
     fs.registerListener(new TracingHeaderValidator(
         fs.getAbfsStore().getAbfsConfiguration().getClientCorrelationId(),
