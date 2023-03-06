@@ -544,7 +544,8 @@ final class ReadBufferManager {
     LOGGER.debug("Purging stale buffers for AbfsInputStream {} ", stream);
     readAheadQueue.removeIf(readBuffer -> readBuffer.getStream() == stream);
     purgeList(stream, completedReadList);
-    purgeList(stream, inProgressList);
+    LOGGER.debug("Not Purging inprogess");
+    //purgeList(stream, inProgressList);
   }
 
   /**

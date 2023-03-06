@@ -404,8 +404,8 @@ public class ITestABFSFNSInterop extends
     String destFile = destParent + "Dest_" + getMethodName();
     Path destTestDFSPath = getRelativeDFSPath(destFile);
 
-    intercept(NullPointerException.class ,
-        () -> fs.rename(srcParentPath, destParentPath));
+   intercept(NullPointerException.class, () ->
+       fs.rename(srcParentPath, destParentPath));
   }
 
   @Test

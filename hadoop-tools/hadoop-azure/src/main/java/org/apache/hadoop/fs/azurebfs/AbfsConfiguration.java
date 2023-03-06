@@ -789,7 +789,7 @@ public class AbfsConfiguration{
   }
 
   public String getCustomUserAgentPrefix() {
-    return "abfsdriverversion2";
+    return "abfsdriverversion3";
   }
 
   public String getClusterName() {
