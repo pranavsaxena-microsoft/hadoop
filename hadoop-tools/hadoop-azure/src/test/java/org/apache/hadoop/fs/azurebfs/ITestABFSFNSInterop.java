@@ -25,6 +25,7 @@ import org.apache.hadoop.fs.azure.ITestNativeAzureFileSystemFNSInterop;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Test;
+import org.mockito.Mockito;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -36,6 +37,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import static org.apache.hadoop.fs.contract.ContractTestUtils.*;
+import static org.apache.hadoop.test.LambdaTestUtils.intercept;
 
 public class ITestABFSFNSInterop extends
     AbstractAbfsIntegrationTest {
@@ -158,7 +160,7 @@ public class ITestABFSFNSInterop extends
   }
 
   public void createFileUsingAzcopy(String pathFromContainerRoot) throws IOException, InterruptedException {
-    String shellcmd = "~/hadoopSrc/abfsdriver/AbfsHadoop/hadoop-tools/hadoop-azure/azcopy/createFile.sh " + pathFromContainerRoot;
+    String shellcmd = "/home/snvijaya/Documents/AbfsHadoop/hadoop-tools/hadoop-azure/azcopy/createFile.sh " + pathFromContainerRoot;
     String[] cmd = { "bash", "-c", shellcmd };
     Process p = Runtime.getRuntime().exec(cmd);
     p.waitFor();
@@ -378,6 +380,32 @@ public class ITestABFSFNSInterop extends
     } else {
       assertFalse(fs.rename(srcTestDFSPath, destTestDFSPath));
     }
+  }
+
+  @Test
+  public void testRenameBlobEndPointImplicit() throws Throwable {
+    boolean redirect = true;
+    final AzureBlobFileSystem fs = getFileSystem();
+    getAbfsStore(fs).getAbfsConfiguration().setRedirectRename(redirect);
+
+    String redirectStr = (redirect ? "Blob_Rename_" : "DFS_Rename_");
+    String srcParent = redirectStr + "srcTestRenameBlobEndPointImplicit/";
+    String destParent = redirectStr + "destTestRenameBlobEndPointImplicit/";
+    Path destParentPath = getRelativeDFSPath(destParent);
+    Path srcParentPath = getRelativeDFSPath(srcParent);
+
+    String srcFile = srcParent + "Src_" + getMethodName();
+    Path srcTestDFSPath = getRelativeDFSPath(srcFile);
+    createFileUsingAzcopy(srcParentPath.toString());
+
+    // create implicit dir
+    String dummyFileAtDestParent = destParent + "dummyFileAtDestParent";
+
+    String destFile = destParent + "Dest_" + getMethodName();
+    Path destTestDFSPath = getRelativeDFSPath(destFile);
+
+    intercept(NullPointerException.class ,
+        () -> fs.rename(srcParentPath, destParentPath));
   }
 
   @Test
