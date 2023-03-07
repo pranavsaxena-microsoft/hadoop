@@ -19,9 +19,12 @@
 package org.apache.hadoop.fs.azurebfs.services;
 
 import java.io.IOException;
+import java.nio.Buffer;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -97,10 +100,27 @@ public class ITestReadBufferManager extends AbstractAbfsIntegrationTest {
         // readahead queue is empty.
         assertListEmpty("ReadAheadQueue", bufferManager.getReadAheadQueueCopy());
 
+        List<ReadBuffer> currentInProgressBuffers = bufferManager.getInProgressCopiedList();
+
         // verify the in progress list eventually empties out.
         eventually(getTestTimeoutMillis() - TIMEOUT_OFFSET, PROBE_INTERVAL_MILLIS, () ->
           assertListEmpty("InProgressList", bufferManager.getInProgressCopiedList()));
+
+        checkIfAllProgressBuffersConvertedToCompleted(bufferManager, currentInProgressBuffers);
     }
+
+  private void checkIfAllProgressBuffersConvertedToCompleted(final ReadBufferManager bufferManager,
+      final List<ReadBuffer> seenInProgressBuffers) throws Exception {
+    Set<ReadBuffer> completedReadBuffer = new HashSet<>();
+    completedReadBuffer.addAll(bufferManager.getCompletedReadListCopy());
+
+    for(ReadBuffer seenInProgressBuffer : seenInProgressBuffers) {
+      Assertions.assertThat(completedReadBuffer)
+          .describedAs("CompletedReadBuffer should contain all the "
+              + "buffers which were in inProgressList before it got processed.")
+          .contains(seenInProgressBuffer);
+    }
+  }
 
     private void assertListEmpty(String listName, List<ReadBuffer> list) {
         Assertions.assertThat(list)
