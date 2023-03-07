@@ -24,6 +24,7 @@ import org.apache.hadoop.fs.*;
 import org.apache.hadoop.fs.azure.ITestNativeAzureFileSystemFNSInterop;
 import org.junit.After;
 import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.Test;
 import org.mockito.Mockito;
 
@@ -36,6 +37,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import static org.apache.hadoop.fs.azurebfs.constants.TestConfigurationKeys.FS_AZURE_TEST_NAMESPACE_ENABLED_ACCOUNT;
 import static org.apache.hadoop.fs.contract.ContractTestUtils.*;
 import static org.apache.hadoop.test.LambdaTestUtils.intercept;
 
@@ -383,10 +385,16 @@ public class ITestABFSFNSInterop extends
   }
 
   @Test
-  public void testRenameBlobEndPointImplicit() throws Throwable {
-    boolean redirect = true;
+  public void testRenameBlobEndPointImplicitParent() throws Throwable {
+    testRenameBlobEndPointImplicit(true);
+  }
+
+  public void testRenameBlobEndPointImplicit(boolean redirect) throws Throwable {
     final AzureBlobFileSystem fs = getFileSystem();
     getAbfsStore(fs).getAbfsConfiguration().setRedirectRename(redirect);
+    boolean isHNSEnabled = getConfiguration()
+            .getBoolean(FS_AZURE_TEST_NAMESPACE_ENABLED_ACCOUNT, false);
+    Assume.assumeTrue(!isHNSEnabled);
 
     String redirectStr = (redirect ? "Blob_Rename_" : "DFS_Rename_");
     String srcParent = redirectStr + "srcTestRenameBlobEndPointImplicit/";
@@ -404,8 +412,10 @@ public class ITestABFSFNSInterop extends
     String destFile = destParent + "Dest_" + getMethodName();
     Path destTestDFSPath = getRelativeDFSPath(destFile);
 
-   intercept(NullPointerException.class, () ->
-       fs.rename(srcParentPath, destParentPath));
+    if (redirect) {
+      intercept(NullPointerException.class, () ->
+              fs.rename(srcParentPath, destParentPath));
+    }
   }
 
   @Test
