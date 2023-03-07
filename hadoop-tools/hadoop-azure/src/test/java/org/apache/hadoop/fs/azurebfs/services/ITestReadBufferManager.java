@@ -19,9 +19,12 @@
 package org.apache.hadoop.fs.azurebfs.services;
 
 import java.io.IOException;
+import java.nio.Buffer;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -44,8 +47,22 @@ import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_READ_AHEAD_QUEUE_DEPTH;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.MIN_BUFFER_SIZE;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.ONE_MB;
+import static org.apache.hadoop.test.LambdaTestUtils.eventually;
 
 public class ITestReadBufferManager extends AbstractAbfsIntegrationTest {
+
+  /**
+   * Time before the JUnit test times out for eventually() clauses
+   * to fail. This copes with slow network connections and debugging
+   * sessions, yet still allows for tests to fail with meaningful
+   * messages.
+   */
+  public static final int TIMEOUT_OFFSET = 5 * 60_000;
+
+  /**
+   * Interval between eventually preobes.
+   */
+  public static final int PROBE_INTERVAL_MILLIS = 1_000;
 
     public ITestReadBufferManager() throws Exception {
     }
@@ -80,10 +97,30 @@ public class ITestReadBufferManager extends AbstractAbfsIntegrationTest {
         }
 
         ReadBufferManager bufferManager = ReadBufferManager.getBufferManager();
-        // verify there is no work in progress or the readahead queue.
-        assertListEmpty("InProgressList", bufferManager.getInProgressCopiedList());
+        // readahead queue is empty.
         assertListEmpty("ReadAheadQueue", bufferManager.getReadAheadQueueCopy());
+
+        List<ReadBuffer> currentInProgressBuffers = bufferManager.getInProgressCopiedList();
+
+        // verify the in progress list eventually empties out.
+        eventually(getTestTimeoutMillis() - TIMEOUT_OFFSET, PROBE_INTERVAL_MILLIS, () ->
+          assertListEmpty("InProgressList", bufferManager.getInProgressCopiedList()));
+
+        checkIfAllProgressBuffersConvertedToCompleted(bufferManager, currentInProgressBuffers);
     }
+
+  private void checkIfAllProgressBuffersConvertedToCompleted(final ReadBufferManager bufferManager,
+      final List<ReadBuffer> seenInProgressBuffers) throws Exception {
+    Set<ReadBuffer> completedReadBuffer = new HashSet<>();
+    completedReadBuffer.addAll(bufferManager.getCompletedReadListCopy());
+
+    for(ReadBuffer seenInProgressBuffer : seenInProgressBuffers) {
+      Assertions.assertThat(completedReadBuffer)
+          .describedAs("CompletedReadBuffer should contain all the "
+              + "buffers which were in inProgressList before it got processed.")
+          .contains(seenInProgressBuffer);
+    }
+  }
 
     private void assertListEmpty(String listName, List<ReadBuffer> list) {
         Assertions.assertThat(list)
