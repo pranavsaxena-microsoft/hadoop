@@ -173,6 +173,54 @@ public class ITestAzureBlobFileSystemRename extends
   }
 
   @Test
+  public void testPosixRenameDirectoryWhereDirectoryAlreadyThereOnDestination() throws Exception {
+    final AzureBlobFileSystem fs = this.getFileSystem();
+    fs.mkdirs(new Path("testDir2/test1/test2/test3"));
+    fs.create(new Path("testDir2/test1/test2/test3/file"));
+    fs.mkdirs(new Path("testDir2/test4/test3"));
+    assertTrue(fs.exists(new Path("testDir2/test1/test2/test3/file")));
+    Assert.assertFalse(fs.rename(new Path("testDir2/test1/test2/test3"), new Path("testDir2/test4")));
+    assertTrue(fs.exists(new Path("testDir2")));
+    assertTrue(fs.exists(new Path("testDir2/test1/test2")));
+    assertTrue(fs.exists(new Path("testDir2/test4")));
+    assertTrue(fs.exists(new Path("testDir2/test1/test2/test3")));
+    if(getIsNamespaceEnabled(fs)) {
+      assertFalse(fs.exists(new Path("testDir2/test4/test3/file")));
+      assertTrue(fs.exists(new Path("testDir2/test1/test2/test3/file")));
+    } else {
+      assertTrue(fs.exists(new Path("testDir2/test4/test3/file")));
+      assertFalse(fs.exists(new Path("testDir2/test1/test2/test3/file")));
+    }
+  }
+
+  @Test
+  public void testPosixRenameDirectoryWherePartAlreadyThereOnDestination() throws Exception {
+    final AzureBlobFileSystem fs = this.getFileSystem();
+    fs.mkdirs(new Path("testDir2/test1/test2/test3"));
+    fs.create(new Path("testDir2/test1/test2/test3/file"));
+    fs.create(new Path("testDir2/test1/test2/test3/file1"));
+    fs.mkdirs(new Path("testDir2/test4/"));
+    fs.create(new Path("testDir2/test4/file1"));
+    byte[] etag = fs.getXAttr(new Path("testDir2/test4/file1"), "ETag");
+    assertTrue(fs.exists(new Path("testDir2/test1/test2/test3/file")));
+    assertTrue(fs.exists(new Path("testDir2/test1/test2/test3/file1")));
+    Assert.assertTrue(fs.rename(new Path("testDir2/test1/test2/test3"), new Path("testDir2/test4")));
+    assertTrue(fs.exists(new Path("testDir2")));
+    assertTrue(fs.exists(new Path("testDir2/test1/test2")));
+    assertTrue(fs.exists(new Path("testDir2/test4")));
+    assertFalse(fs.exists(new Path("testDir2/test1/test2/test3")));
+
+
+    assertFalse(fs.exists(new Path("testDir2/test4/file")));
+    assertTrue(fs.exists(new Path("testDir2/test4/file1")));
+    assertTrue(fs.exists(new Path("testDir2/test4/test3/file")));
+    assertTrue(fs.exists(new Path("testDir2/test4/test3/file1")));
+    assertTrue(fs.exists(new Path("testDir2/test4/file1")));
+    assertFalse(fs.exists(new Path("testDir2/test1/test2/test3/file")));
+    assertFalse(fs.exists(new Path("testDir2/test1/test2/test3/file1")));
+  }
+
+  @Test
   public void testRenameWithNoDestinationParentDir() throws Exception {
     describe("Verifying the expected behaviour of ABFS rename when "
         + "destination parent Dir doesn't exist.");
