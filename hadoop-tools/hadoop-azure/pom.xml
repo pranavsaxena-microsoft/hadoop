@@ -615,7 +615,7 @@
                     <include>**/azurebfs/extensions/ITestAbfsDelegationTokens.java</include>
                     <include>**/azurebfs/ITestSmallWriteOptimization.java</include>
                     <include>**/azurebfs/services/ITestReadBufferManager.java</include>
-                    <exclude>**/azurebfs/services/ITestABFSFNSInterop.java</exclude>
+                    <include>**/azurebfs/services/ITestABFSFNSInterop.java</include>
                     <include>**/azurebfs/services/ITestAzureBlobFileSystemRename.java</include>
                   </includes>
                 </configuration>

@@ -414,23 +414,7 @@ public class ITestABFSFNSInterop extends
     Assert.assertTrue(fs.rename(srcParentPath, destParentPath));
   }
 
-  @Test
-  public void testRenameBlobEndPointDestinationImplicit() throws Throwable {
-    // No marker files till parent folder
-    boolean redirect = true;
-    final AzureBlobFileSystem fs = getFileSystem();
-    getAbfsStore(fs).getAbfsConfiguration().setRedirectRename(redirect);
 
-    String redirectStr = (redirect ? "Blob_Rename_" : "DFS_Rename_");
-    String srcParent = redirectStr + "srcTestRenameBlobEndPointImplicit/";
-    String destParent = redirectStr + "destTestRenameBlobEndPointImplicit/";
-    Path destParentPath = getRelativeDFSPath(destParent);
-    Path srcParentPath = getRelativeDFSPath(srcParent);
-
-    createFolderUsingAzcopy(srcParentPath.toString());
-    createFolderUsingAzcopy(destParentPath.toString());
-    Assert.assertTrue(fs.rename(srcParentPath, destParentPath));
-  }
 
   @Test
   public void testRenameBlobEndPointDestinationExplicit() throws Throwable {
@@ -491,24 +475,6 @@ public class ITestABFSFNSInterop extends
   }
 
   @Test
-  public void testRenameBlobEndPointImplicitParentFolder() throws Throwable {
-    // Create marker files except for the folder to be renamed
-    boolean redirect = true;
-    final AzureBlobFileSystem fs = getFileSystem();
-    getAbfsStore(fs).getAbfsConfiguration().setRedirectRename(redirect);
-
-    String redirectStr = (redirect ? "Blob_Rename_" : "DFS_Rename_");
-    String srcParent = redirectStr + "srcTestRenameBlobEndPointImplicit/";
-    String destParent = redirectStr + "destTestRenameBlobEndPointImplicit/";
-    Path destParentPath = getRelativeDFSPath(destParent);
-    Path srcParentPath = getRelativeDFSPath(srcParent);
-
-    nativeFs.mkdirs(new Path(parentTestFolder));
-    createFolderUsingAzcopy(srcParentPath.toString());
-    Assert.assertTrue(fs.rename(srcParentPath, destParentPath));
-  }
-
-  @Test
   public void testRenameBlobEndPointImplicitParentDestFolder() throws Throwable {
     // Create marker files except for the folder to be renamed and the folder to be renamed with
     boolean redirect = true;
@@ -565,6 +531,42 @@ public class ITestABFSFNSInterop extends
     } else {
       Assert.assertFalse(fs.rename(new Path(srcParentPath + "/azcopy/"), new Path(srcParentPath + "/bzcopy/")));
     }
+  }
+
+  @Test
+  public void testRenameBlobEndPointDestinationImplicit() throws Throwable {
+    // No marker files till parent folder
+    boolean redirect = true;
+    final AzureBlobFileSystem fs = getFileSystem();
+    getAbfsStore(fs).getAbfsConfiguration().setRedirectRename(redirect);
+
+    String redirectStr = (redirect ? "Blob_Rename_" : "DFS_Rename_");
+    String srcParent = redirectStr + "srcTestRenameBlobEndPointImplicit/";
+    String destParent = redirectStr + "destTestRenameBlobEndPointImplicit/";
+    Path destParentPath = getRelativeDFSPath(destParent);
+    Path srcParentPath = getRelativeDFSPath(srcParent);
+
+    createFolderUsingAzcopy(srcParentPath.toString());
+    createFolderUsingAzcopy(destParentPath.toString());
+    Assert.assertTrue(fs.rename(srcParentPath, destParentPath));
+  }
+
+  @Test
+  public void testRenameBlobEndPointImplicitParentFolder() throws Throwable {
+    // Create marker files except for the folder to be renamed
+    boolean redirect = true;
+    final AzureBlobFileSystem fs = getFileSystem();
+    getAbfsStore(fs).getAbfsConfiguration().setRedirectRename(redirect);
+
+    String redirectStr = (redirect ? "Blob_Rename_" : "DFS_Rename_");
+    String srcParent = redirectStr + "srcTestRenameBlobEndPointImplicit/";
+    String destParent = redirectStr + "destTestRenameBlobEndPointImplicit/";
+    Path destParentPath = getRelativeDFSPath(destParent);
+    Path srcParentPath = getRelativeDFSPath(srcParent);
+
+    nativeFs.mkdirs(new Path(parentTestFolder));
+    createFolderUsingAzcopy(srcParentPath.toString());
+    Assert.assertTrue(fs.rename(srcParentPath, destParentPath));
   }
 
   @Test
