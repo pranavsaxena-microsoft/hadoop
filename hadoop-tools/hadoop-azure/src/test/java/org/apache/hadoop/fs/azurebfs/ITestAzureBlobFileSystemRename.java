@@ -201,47 +201,9 @@ public class ITestAzureBlobFileSystemRename extends
       assertFalse(fs.exists(new Path("testDir2/test4/test3/file")));
       assertTrue(fs.exists(new Path("testDir2/test1/test2/test3/file")));
     } else {
-      if(!isRedirect) {
-        assertFalse(fs.exists(new Path("testDir2/test4/test3/file")));
-        assertTrue(fs.exists(new Path("testDir2/test1/test2/test3/file")));
-      } else {
-        assertTrue(fs.exists(new Path("testDir2/test4/test3/file")));
-        assertFalse(fs.exists(new Path("testDir2/test1/test2/test3/file")));
-      }
+      assertTrue(fs.exists(new Path("testDir2/test4/test3/file")));
+      assertFalse(fs.exists(new Path("testDir2/test1/test2/test3/file")));
     }
-//    final AzureBlobFileSystem fs = this.getFileSystem();
-//    final Boolean isRedirect = fs.getAbfsStore().getAbfsConfiguration().shouldRedirectRename();
-//    fs.mkdirs(new Path("testDir2/test1/test2/test3"));
-//    fs.create(new Path("testDir2/test1/test2/test3/file"));
-//    fs.mkdirs(new Path("testDir2/test4/test3"));
-//    assertTrue(fs.exists(new Path("testDir2/test1/test2/test3/file")));
-//    if(!isRedirect) {
-//      Assert.assertFalse(fs.rename(new Path("testDir2/test1/test2/test3"),
-//          new Path("testDir2/test4")));
-//    } else {
-//      Assert.assertTrue(fs.rename(new Path("testDir2/test1/test2/test3"),
-//          new Path("testDir2/test4")));
-//    }
-//    assertTrue(fs.exists(new Path("testDir2")));
-//    assertTrue(fs.exists(new Path("testDir2/test1/test2")));
-//    assertTrue(fs.exists(new Path("testDir2/test4")));
-//    if(!isRedirect) {
-//      assertTrue(fs.exists(new Path("testDir2/test1/test2/test3")));
-//    } else {
-//      assertFalse(fs.exists(new Path("testDir2/test1/test2/test3")));
-//    }
-//    if(getIsNamespaceEnabled(fs)) {
-//      assertFalse(fs.exists(new Path("testDir2/test4/test3/file")));
-//      assertTrue(fs.exists(new Path("testDir2/test1/test2/test3/file")));
-//    } else {
-//      if(!isRedirect) {
-//        assertFalse(fs.exists(new Path("testDir2/test4/test3/file")));
-//        assertTrue(fs.exists(new Path("testDir2/test1/test2/test3/file")));
-//      } else {
-//        assertTrue(fs.exists(new Path("testDir2/test4/test3/file")));
-//        assertFalse(fs.exists(new Path("testDir2/test1/test2/test3/file")));
-//      }
-//    }
   }
 
   @Test
@@ -265,7 +227,6 @@ public class ITestAzureBlobFileSystemRename extends
     fs.create(new Path("testDir2/test1/test2/test3/file1"));
     fs.mkdirs(new Path("testDir2/test4/"));
     fs.create(new Path("testDir2/test4/file1"));
-    byte[] etag = fs.getXAttr(new Path("testDir2/test4/file1"), "ETag");
     assertTrue(fs.exists(new Path("testDir2/test1/test2/test3/file")));
     assertTrue(fs.exists(new Path("testDir2/test1/test2/test3/file1")));
     assertTrue(fs.exists(new Path("testDir2/test1/test2/test3/file1")));
@@ -284,56 +245,4 @@ public class ITestAzureBlobFileSystemRename extends
     assertFalse(fs.exists(new Path("testDir2/test1/test2/test3/file")));
     assertFalse(fs.exists(new Path("testDir2/test1/test2/test3/file1")));
   }
-
-//  private void testPosixRenameDirectoryWherePartAlreadyThereOnDestinationRedirectionCondition() throws Exception {
-//    final AzureBlobFileSystem fs = this.getFileSystem();
-//    final Boolean isRedirect = fs.getAbfsStore().getAbfsConfiguration().shouldRedirectRename();
-//    final Boolean isNamespaceEnabled = getIsNamespaceEnabled(fs);
-//    fs.mkdirs(new Path("testDir2/test1/test2/test3"));
-//    fs.create(new Path("testDir2/test1/test2/test3/file"));
-//    fs.create(new Path("testDir2/test1/test2/test3/file1"));
-//    fs.mkdirs(new Path("testDir2/test4/"));
-//    fs.create(new Path("testDir2/test4/file1"));
-//    assertTrue(fs.exists(new Path("testDir2/test1/test2/test3/file")));
-//    assertTrue(fs.exists(new Path("testDir2/test1/test2/test3/file1")));
-//    Boolean rename = fs.rename(new Path("testDir2/test1/test2/test3"),
-//          new Path("testDir2/test4"));
-////    if(!isRedirect) {
-////      if(!isNamespaceEnabled) {
-////        assertFalse(rename);
-////      }
-////    } else {
-////      assertTrue(rename);
-////    }
-//    assertTrue(rename);
-//    assertTrue(fs.exists(new Path("testDir2")));
-//    assertTrue(fs.exists(new Path("testDir2/test1/test2")));
-//    assertTrue(fs.exists(new Path("testDir2/test4")));
-//    if(isRedirect) {
-//      assertFalse(fs.exists(new Path("testDir2/test1/test2/test3")));
-//    } else {
-//      assertTrue(fs.exists(new Path("testDir2/test1/test2/test3")));
-//    }
-//
-//    assertFalse(fs.exists(new Path("testDir2/test1/test2/test3")));
-//
-//
-//    assertFalse(fs.exists(new Path("testDir2/test4/file")));
-//    assertTrue(fs.exists(new Path("testDir2/test4/file1")));
-//    if(isRedirect) {
-//      assertTrue(fs.exists(new Path("testDir2/test4/test3/file")));
-//      assertTrue(fs.exists(new Path("testDir2/test4/test3/file1")));
-//    } else {
-//      assertFalse(fs.exists(new Path("testDir2/test4/test3/file")));
-//      assertFalse(fs.exists(new Path("testDir2/test4/test3/file1")));
-//    }
-//    assertTrue(fs.exists(new Path("testDir2/test4/file1")));
-//    if(!isRedirect) {
-//      assertTrue(fs.exists(new Path("testDir2/test1/test2/test3/file")));
-//      assertTrue(fs.exists(new Path("testDir2/test1/test2/test3/file1")));
-//    } else {
-//      assertFalse(fs.exists(new Path("testDir2/test1/test2/test3/file")));
-//      assertFalse(fs.exists(new Path("testDir2/test1/test2/test3/file1")));
-//    }
-//  }
 }
