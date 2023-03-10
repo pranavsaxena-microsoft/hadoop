@@ -177,21 +177,37 @@ public class ITestAzureBlobFileSystemRename extends
 
   private void testPosixRenameDirectoryWhereDirectoryAlreadyThereOnDestinationRedirectCondition() throws Exception {
     final AzureBlobFileSystem fs = this.getFileSystem();
+    final Boolean isRedirect = fs.getAbfsStore().getAbfsConfiguration().shouldRedirectRename() && !getIsNamespaceEnabled(fs);
     fs.mkdirs(new Path("testDir2/test1/test2/test3"));
     fs.create(new Path("testDir2/test1/test2/test3/file"));
     fs.mkdirs(new Path("testDir2/test4/test3"));
     assertTrue(fs.exists(new Path("testDir2/test1/test2/test3/file")));
-    Assert.assertFalse(fs.rename(new Path("testDir2/test1/test2/test3"), new Path("testDir2/test4")));
+    if(!isRedirect) {
+      Assert.assertFalse(fs.rename(new Path("testDir2/test1/test2/test3"),
+          new Path("testDir2/test4")));
+    } else {
+      Assert.assertTrue(fs.rename(new Path("testDir2/test1/test2/test3"),
+          new Path("testDir2/test4")));
+    }
     assertTrue(fs.exists(new Path("testDir2")));
     assertTrue(fs.exists(new Path("testDir2/test1/test2")));
     assertTrue(fs.exists(new Path("testDir2/test4")));
-    assertTrue(fs.exists(new Path("testDir2/test1/test2/test3")));
+    if(!isRedirect) {
+      assertTrue(fs.exists(new Path("testDir2/test1/test2/test3")));
+    } else {
+      assertFalse(fs.exists(new Path("testDir2/test1/test2/test3")));
+    }
     if(getIsNamespaceEnabled(fs)) {
       assertFalse(fs.exists(new Path("testDir2/test4/test3/file")));
       assertTrue(fs.exists(new Path("testDir2/test1/test2/test3/file")));
     } else {
-      assertTrue(fs.exists(new Path("testDir2/test4/test3/file")));
-      assertFalse(fs.exists(new Path("testDir2/test1/test2/test3/file")));
+      if(!isRedirect) {
+        assertFalse(fs.exists(new Path("testDir2/test4/test3/file")));
+        assertTrue(fs.exists(new Path("testDir2/test1/test2/test3/file")));
+      } else {
+        assertTrue(fs.exists(new Path("testDir2/test4/test3/file")));
+        assertFalse(fs.exists(new Path("testDir2/test1/test2/test3/file")));
+      }
     }
 //    final AzureBlobFileSystem fs = this.getFileSystem();
 //    final Boolean isRedirect = fs.getAbfsStore().getAbfsConfiguration().shouldRedirectRename();
