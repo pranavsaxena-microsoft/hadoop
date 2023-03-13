@@ -942,10 +942,22 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
   }
 
   private void renameBlob(final Path destination,
-      final BlobProperty blobProperty)
+      final BlobProperty srcBlobProperty)
       throws AzureBlobFileSystemException {
-    String copyId = client.copyBlob(
-        blobProperty.getPath(), blobProperty.getBlobDstPath(destination));
+    String copyId;
+    try {
+      copyId = client.copyBlob(
+          srcBlobProperty.getPath(), srcBlobProperty.getBlobDstPath(destination));
+    } catch (AbfsRestOperationException operationException) {
+      if(operationException.getStatusCode() == HttpURLConnection.HTTP_CONFLICT) {
+        BlobProperty dstProperty = client.getBlobProperty(destination);
+        if(!srcBlobProperty.getUrl().equals(dstProperty.getCopySourceUrl())) {
+          throw operationException;
+        }
+        return;
+      }
+      throw operationException;
+    }
     while(true) {
       BlobProperty dstProperty = client.getBlobProperty(destination);
       if(dstProperty.exists()) {
