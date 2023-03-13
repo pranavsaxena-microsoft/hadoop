@@ -50,6 +50,37 @@ public class ITestReadBufferManager extends AbstractAbfsIntegrationTest {
     }
 
     @Test
+    public void testMultiThread() {
+      ReadBufferManager readBufferManager = ReadBufferManager.getBufferManager();
+      new Thread(() -> {
+        while(true) {
+          try {
+            System.out.println("alive!!");
+            readBufferManager.getBlock(null, 0, 4 * 1024 * 1024,
+                new byte[4 * 1024 * 1024]);
+          } catch (IOException e) {
+            throw new RuntimeException(e);
+          }
+        }
+      }).start();
+
+      for(int i=0;i<16;i++) {
+        new Thread(() -> {
+          while(true) {
+            try {
+              System.out.println("thread" + Thread.currentThread().getName());
+              readBufferManager.getNextBlockToRead();
+            } catch (InterruptedException e) {
+              throw new RuntimeException(e);
+            }
+          }
+        }).start();
+      }
+
+      while(true);
+    }
+
+    @Test
     public void testPurgeBufferManagerForParallelStreams() throws Exception {
         describe("Testing purging of buffers from ReadBufferManager for "
                 + "parallel input streams");
