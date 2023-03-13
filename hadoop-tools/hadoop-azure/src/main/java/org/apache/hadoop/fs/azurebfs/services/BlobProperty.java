@@ -7,6 +7,12 @@ public class BlobProperty {
   private Boolean isDirectory;
   private Path path;
   private Boolean exist;
+  private String url;
+
+  private String copySourceUrl;
+  private String copyId;
+  private String copyStatus;
+  private String statusDescription;
 
   private AzureBlobFileSystemException ex;
 
@@ -33,5 +39,25 @@ public class BlobProperty {
 
   public Path getBlobDstPath(Path dstBlobPath) {
     return null;
+  }
+
+  public String getUrl() {
+    return url;
+  }
+
+  public String getCopySourceUrl() {
+    return copySourceUrl;
+  }
+
+  public String getCopyId() {
+    return copyId;
+  }
+
+  public String getCopyStatus() {
+    return copyStatus;
+  }
+
+  public String getStatusDescription() {
+    return statusDescription;
   }
 }

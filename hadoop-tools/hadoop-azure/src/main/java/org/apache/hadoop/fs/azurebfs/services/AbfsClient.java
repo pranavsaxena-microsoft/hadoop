@@ -23,7 +23,6 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
-import java.net.URI;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -39,7 +38,6 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.azurebfs.constants.FileSystemUriSchemes;
 import org.apache.hadoop.fs.azurebfs.utils.InsertionOrderConcurrentHashMap;
 import org.apache.hadoop.thirdparty.com.google.common.annotations.VisibleForTesting;
 import org.apache.hadoop.thirdparty.com.google.common.base.Preconditions;
@@ -52,7 +50,6 @@ import org.apache.hadoop.thirdparty.com.google.common.util.concurrent.ListeningS
 import org.apache.hadoop.thirdparty.com.google.common.util.concurrent.MoreExecutors;
 import org.apache.hadoop.thirdparty.com.google.common.util.concurrent.ThreadFactoryBuilder;
 
-import jdk.nashorn.internal.ir.Block;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1123,7 +1120,7 @@ public class AbfsClient implements Closeable {
     return null;
   }
 
-  public void renameBlob(Path sourceBlobPath, Path destinationBlobPath) throws AzureBlobFileSystemException {
+  public String copyBlob(Path sourceBlobPath, Path destinationBlobPath) throws AzureBlobFileSystemException {
     return;
   }
 

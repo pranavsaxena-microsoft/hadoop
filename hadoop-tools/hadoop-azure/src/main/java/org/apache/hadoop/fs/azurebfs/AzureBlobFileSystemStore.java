@@ -50,15 +50,12 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.WeakHashMap;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.hadoop.fs.azure.AzureFileSystemThreadPoolExecutor;
 import org.apache.hadoop.fs.azurebfs.services.BlobProperty;
 import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
 import org.apache.hadoop.thirdparty.com.google.common.annotations.VisibleForTesting;
@@ -67,7 +64,6 @@ import org.apache.hadoop.thirdparty.com.google.common.base.Strings;
 import org.apache.hadoop.thirdparty.com.google.common.util.concurrent.Futures;
 import org.apache.hadoop.thirdparty.com.google.common.util.concurrent.ListenableFuture;
 
-import com.sun.xml.internal.ws.util.CompletedFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -137,7 +133,6 @@ import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.util.BlockingThreadPoolExecutorService;
 import org.apache.hadoop.util.SemaphoredDelegatingExecutor;
 import org.apache.hadoop.util.concurrent.HadoopExecutors;
-import org.apache.http.HttpStatus;
 import org.apache.http.client.utils.URIBuilder;
 
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.CHAR_EQUALS;
@@ -891,7 +886,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         for(BlobProperty blobProperty : blobProperties) {
           futures.add(renameBlobExecutorService.submit(() -> {
             try {
-              client.renameBlob(blobProperty.getPath(), blobProperty.getBlobDstPath(destination));
+              renameBlob(destination, blobProperty);
               client.deleteBlobPath(blobProperty);
             } catch (AzureBlobFileSystemException e) {
               throw new RuntimeException(e);
@@ -908,7 +903,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
           }
         }
       } else {
-        client.renameBlob(source, destination);
+        client.copyBlob(source, destination);
       }
       return;
     }
@@ -944,6 +939,38 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         }
       }
     } while (shouldContinue);
+  }
+
+  private void renameBlob(final Path destination,
+      final BlobProperty blobProperty)
+      throws AzureBlobFileSystemException {
+    String copyId = client.copyBlob(
+        blobProperty.getPath(), blobProperty.getBlobDstPath(destination));
+    while(true) {
+      BlobProperty dstProperty = client.getBlobProperty(destination);
+      if(dstProperty.exists()) {
+        if(copyId.equals(dstProperty.getCopyId())) {
+          if("success".equals(dstProperty.getCopyStatus())) {
+            return;
+          }
+          if("failed".equals(dstProperty.getCopyStatus()) || "aborted".equals(dstProperty.getCopyStatus())) {
+            LOG.error("Copy blob failed " + dstProperty.getStatusDescription());
+            throw new AbfsRestOperationException(HttpURLConnection.HTTP_INTERNAL_ERROR,
+                "internalError", dstProperty.getStatusDescription(), null);
+          }
+        } else {
+          LOG.error("Before rename operation, blob was not there, but there is a "
+              + "presence of the blob, this is a race condition!");
+          throw new AbfsRestOperationException(HttpURLConnection.HTTP_CONFLICT,
+              AzureServiceErrorCode.PATH_ALREADY_EXISTS.getErrorCode(), null, null);
+        }
+      }
+      try {
+        Thread.sleep(100);
+      } catch (Exception e) {
+
+      }
+    }
   }
 
   public void delete(final Path path, final boolean recursive,
