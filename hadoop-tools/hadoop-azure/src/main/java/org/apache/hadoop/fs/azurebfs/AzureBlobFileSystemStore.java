@@ -50,15 +50,21 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.WeakHashMap;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.hadoop.fs.azure.AzureFileSystemThreadPoolExecutor;
+import org.apache.hadoop.fs.azurebfs.services.BlobProperty;
+import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
 import org.apache.hadoop.thirdparty.com.google.common.annotations.VisibleForTesting;
 import org.apache.hadoop.thirdparty.com.google.common.base.Preconditions;
 import org.apache.hadoop.thirdparty.com.google.common.base.Strings;
 import org.apache.hadoop.thirdparty.com.google.common.util.concurrent.Futures;
 import org.apache.hadoop.thirdparty.com.google.common.util.concurrent.ListenableFuture;
+
+import com.sun.xml.internal.ws.util.CompletedFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -128,6 +134,7 @@ import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.util.BlockingThreadPoolExecutorService;
 import org.apache.hadoop.util.SemaphoredDelegatingExecutor;
 import org.apache.hadoop.util.concurrent.HadoopExecutors;
+import org.apache.http.HttpStatus;
 import org.apache.http.client.utils.URIBuilder;
 
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.CHAR_EQUALS;
@@ -860,6 +867,37 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     final Instant startAggregate = abfsPerfTracker.getLatencyInstant();
     long countAggregate = 0;
     boolean shouldContinue;
+
+    if(getAbfsConfiguration().getMode() == PrefixMode.BLOB) {
+      BlobProperty dstProperty = client.getBlobProperty(destination);
+      if(dstProperty.exists()) {
+        //destination already there. Rename should not be overwriting.
+        throw new AbfsRestOperationException(HttpURLConnection.HTTP_CONFLICT,
+            AzureServiceErrorCode.PATH_ALREADY_EXISTS.getErrorCode(), null, null);
+      }
+      BlobProperty srcProperty = client.getBlobProperty(source);
+      if(!srcProperty.exists()) {
+        throw new AbfsRestOperationException(HttpURLConnection.HTTP_NOT_FOUND,
+            AzureServiceErrorCode.PATH_NOT_FOUND.getErrorCode(), null, null);
+      }
+      if(srcProperty.getIsDirectory()) {
+        List<BlobProperty> blobProperties = client.getDirectoryBlobProperty(source);
+        List<CompletableFuture> futures = new ArrayList<>();
+        for(BlobProperty blobProperty : blobProperties) {
+          futures.add(new CompletableFuture().thenRunAsync(() -> {
+            try {
+              client.renameBlob(blobProperty.getPath(), blobProperty.getBlobDstPath(destination));
+              client.deleteBlobPath(blobProperty);
+            } catch (AzureBlobFileSystemException e) {
+              throw new RuntimeException(e);
+            }
+          }));
+        }
+      } else {
+        client.renameBlob(source, destination);
+      }
+      return;
+    }
 
     if (isAtomicRenameKey(source.getName())) {
       LOG.warn("The atomic rename feature is not supported by the ABFS scheme; however rename,"

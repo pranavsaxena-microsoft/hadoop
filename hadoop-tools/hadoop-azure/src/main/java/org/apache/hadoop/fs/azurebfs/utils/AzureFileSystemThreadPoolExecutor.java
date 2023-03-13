@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.hadoop.fs.azure;
+package org.apache.hadoop.fs.azurebfs.utils;
 
 import java.io.IOException;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -26,13 +26,12 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.hadoop.util.Time;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.hadoop.thirdparty.com.google.common.annotations.VisibleForTesting;
+import org.apache.hadoop.util.Time;
 
-public class AzureFileSystemThreadPoolExecutor {
+class AzureFileSystemThreadPoolExecutor {
 
   public static final Logger LOG = LoggerFactory.getLogger(AzureFileSystemThreadPoolExecutor.class);
 

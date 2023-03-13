@@ -38,6 +38,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.azurebfs.constants.FileSystemUriSchemes;
 import org.apache.hadoop.fs.azurebfs.utils.InsertionOrderConcurrentHashMap;
 import org.apache.hadoop.thirdparty.com.google.common.annotations.VisibleForTesting;
@@ -1116,6 +1117,21 @@ public class AbfsClient implements Closeable {
         AbfsHttpConstants.HTTP_METHOD_HEAD, url, createDefaultHeaders());
     op.execute(tracingContext);
     return op;
+  }
+
+  public BlobProperty getBlobProperty(Path blobPath) throws AzureBlobFileSystemException {
+    return null;
+  }
+
+  public void renameBlob(Path sourceBlobPath, Path destinationBlobPath) throws AzureBlobFileSystemException {
+    return;
+  }
+
+  public List<BlobProperty> getDirectoryBlobProperty(Path sourceDirBlobPath) throws AzureBlobFileSystemException {
+    return null;
+  }
+
+  public void deleteBlobPath(final BlobProperty blobProperty) throws AzureBlobFileSystemException{
   }
 
   /**

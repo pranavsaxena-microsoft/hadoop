@@ -512,88 +512,66 @@ public class AzureBlobFileSystem extends FileSystem
         fileSystemId, FSOperationType.RENAME, true, tracingHeaderFormat,
         listener);
 
-    // Non-HNS account need to check dst status on driver side.
-    if (shouldRedirect(FSOperationType.RENAME, tracingContext)) {
-      Path wasbSrc = src;
-      Path wasbDest = dst;
-      if (src.toString().contains(FileSystemUriSchemes.ABFS_SCHEME)
-          || src.toString().contains(FileSystemUriSchemes.ABFS_SECURE_SCHEME)) {
-        wasbSrc = new Path(abfsUrlToWasbUrl(src.toString(),
-            abfsStore.getAbfsConfiguration().isHttpsAlwaysUsed()));
-      }
-      if (dst.toString().contains(FileSystemUriSchemes.ABFS_SCHEME)
-          || dst.toString().contains(FileSystemUriSchemes.ABFS_SECURE_SCHEME)) {
-        wasbDest = new Path(abfsUrlToWasbUrl(dst.toString(),
-            abfsStore.getAbfsConfiguration().isHttpsAlwaysUsed()));
-      }
-      try {
-        return nativeFs.rename(wasbSrc, wasbDest);
-      } catch (IOException e) {
-        LOG.debug("Rename failed ", e);
-        throw e;
-      }
+    trailingPeriodCheck(dst);
+
+    Path parentFolder = src.getParent();
+    if (parentFolder == null) {
+      return false;
     }
-    else {
-      trailingPeriodCheck(dst);
+    Path qualifiedSrcPath = makeQualified(src);
+    Path qualifiedDstPath = makeQualified(dst);
 
-      Path parentFolder = src.getParent();
-      if (parentFolder == null) {
+    // rename under same folder;
+    if (makeQualified(parentFolder).equals(qualifiedDstPath)) {
+      return tryGetFileStatus(qualifiedSrcPath, tracingContext) != null;
+    }
+
+    FileStatus dstFileStatus = null;
+    if (qualifiedSrcPath.equals(qualifiedDstPath)) {
+      // rename to itself
+      // - if it doesn't exist, return false
+      // - if it is file, return true
+      // - if it is dir, return false.
+      dstFileStatus = tryGetFileStatus(qualifiedDstPath, tracingContext);
+      if (dstFileStatus == null) {
         return false;
       }
-      Path qualifiedSrcPath = makeQualified(src);
-      Path qualifiedDstPath = makeQualified(dst);
+      return dstFileStatus.isDirectory() ? false : true;
+    }
 
-      // rename under same folder;
-      if (makeQualified(parentFolder).equals(qualifiedDstPath)) {
-        return tryGetFileStatus(qualifiedSrcPath, tracingContext) != null;
-      }
+    // Non-HNS account need to check dst status on driver side.
+    if (!abfsStore.getIsNamespaceEnabled(tracingContext)
+        && dstFileStatus == null) {
+      dstFileStatus = tryGetFileStatus(qualifiedDstPath, tracingContext);
+    }
 
-      FileStatus dstFileStatus = null;
-      if (qualifiedSrcPath.equals(qualifiedDstPath)) {
-        // rename to itself
-        // - if it doesn't exist, return false
-        // - if it is file, return true
-        // - if it is dir, return false.
-        dstFileStatus = tryGetFileStatus(qualifiedDstPath, tracingContext);
-        if (dstFileStatus == null) {
-          return false;
+    try {
+      String sourceFileName = src.getName();
+      Path adjustedDst = dst;
+
+      if (dstFileStatus != null) {
+        if (!dstFileStatus.isDirectory()) {
+          return qualifiedSrcPath.equals(qualifiedDstPath);
         }
-        return dstFileStatus.isDirectory() ? false : true;
+        adjustedDst = new Path(dst, sourceFileName);
       }
 
-      // Non-HNS account need to check dst status on driver side.
-      if (!abfsStore.getIsNamespaceEnabled(tracingContext) && dstFileStatus == null) {
-        dstFileStatus = tryGetFileStatus(qualifiedDstPath, tracingContext);
-      }
+      qualifiedDstPath = makeQualified(adjustedDst);
 
-      try {
-        String sourceFileName = src.getName();
-        Path adjustedDst = dst;
-
-        if (dstFileStatus != null) {
-          if (!dstFileStatus.isDirectory()) {
-            return qualifiedSrcPath.equals(qualifiedDstPath);
-          }
-          adjustedDst = new Path(dst, sourceFileName);
-        }
-
-        qualifiedDstPath = makeQualified(adjustedDst);
-
-        abfsStore.rename(qualifiedSrcPath, qualifiedDstPath, tracingContext);
-        return true;
-      } catch (AzureBlobFileSystemException ex) {
-        LOG.debug("Rename operation failed. ", ex);
-        checkException(
-            src,
-            ex,
-            AzureServiceErrorCode.PATH_ALREADY_EXISTS,
-            AzureServiceErrorCode.INVALID_RENAME_SOURCE_PATH,
-            AzureServiceErrorCode.SOURCE_PATH_NOT_FOUND,
-            AzureServiceErrorCode.INVALID_SOURCE_OR_DESTINATION_RESOURCE_TYPE,
-            AzureServiceErrorCode.RENAME_DESTINATION_PARENT_PATH_NOT_FOUND,
-            AzureServiceErrorCode.INTERNAL_OPERATION_ABORT);
-        return false;
-      }
+      abfsStore.rename(qualifiedSrcPath, qualifiedDstPath, tracingContext);
+      return true;
+    } catch (AzureBlobFileSystemException ex) {
+      LOG.debug("Rename operation failed. ", ex);
+      checkException(
+          src,
+          ex,
+          AzureServiceErrorCode.PATH_ALREADY_EXISTS,
+          AzureServiceErrorCode.INVALID_RENAME_SOURCE_PATH,
+          AzureServiceErrorCode.SOURCE_PATH_NOT_FOUND,
+          AzureServiceErrorCode.INVALID_SOURCE_OR_DESTINATION_RESOURCE_TYPE,
+          AzureServiceErrorCode.RENAME_DESTINATION_PARENT_PATH_NOT_FOUND,
+          AzureServiceErrorCode.INTERNAL_OPERATION_ABORT);
+      return false;
     }
   }
 
