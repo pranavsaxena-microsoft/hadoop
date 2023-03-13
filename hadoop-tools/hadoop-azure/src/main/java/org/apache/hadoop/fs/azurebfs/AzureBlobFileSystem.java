@@ -196,7 +196,19 @@ public class AzureBlobFileSystem extends FileSystem
     TracingContext tracingContext = new TracingContext(clientCorrelationId,
         fileSystemId, FSOperationType.CREATE_FILESYSTEM, tracingHeaderFormat, listener);
     PrefixMode mode = PrefixMode.DFS;
-    boolean isNamespaceEnabled = getIsNamespaceEnabled(tracingContext);
+    boolean isNamespaceEnabled;
+    try {
+      isNamespaceEnabled = getIsNamespaceEnabled(tracingContext);
+    } catch (AbfsRestOperationException ex) {
+      /* since the filesystem has not been created. The API for HNS account would
+       * return 404 status.
+       */
+      if(ex.getStatusCode() == HttpURLConnection.HTTP_NOT_FOUND) {
+        isNamespaceEnabled = true;
+      } else {
+        throw ex;
+      }
+    }
     if (!isNamespaceEnabled && uri.toString().contains(FileSystemUriSchemes.WASB_DNS_PREFIX)) {
       mode = PrefixMode.BLOB;
     }
