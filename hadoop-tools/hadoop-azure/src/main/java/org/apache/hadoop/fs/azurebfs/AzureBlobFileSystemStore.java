@@ -53,6 +53,9 @@ import java.util.WeakHashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.hadoop.fs.azure.AzureFileSystemThreadPoolExecutor;
@@ -177,6 +180,8 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
   private final IdentityTransformerInterface identityTransformer;
   private final AbfsPerfTracker abfsPerfTracker;
   private final AbfsCounters abfsCounters;
+
+  private final static ExecutorService renameBlobExecutorService = Executors.newFixedThreadPool(5);
 
   /**
    * The set of directories where we should store files as append blobs.
@@ -882,9 +887,9 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       }
       if(srcProperty.getIsDirectory()) {
         List<BlobProperty> blobProperties = client.getDirectoryBlobProperty(source);
-        List<CompletableFuture> futures = new ArrayList<>();
+        List<Future> futures = new ArrayList<>();
         for(BlobProperty blobProperty : blobProperties) {
-          futures.add(new CompletableFuture().thenRunAsync(() -> {
+          futures.add(renameBlobExecutorService.submit(() -> {
             try {
               client.renameBlob(blobProperty.getPath(), blobProperty.getBlobDstPath(destination));
               client.deleteBlobPath(blobProperty);
@@ -892,6 +897,15 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
               throw new RuntimeException(e);
             }
           }));
+        }
+        for(Future future : futures) {
+          try {
+            future.get();
+          } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+          } catch (ExecutionException e) {
+            throw new RuntimeException(e);
+          }
         }
       } else {
         client.renameBlob(source, destination);
