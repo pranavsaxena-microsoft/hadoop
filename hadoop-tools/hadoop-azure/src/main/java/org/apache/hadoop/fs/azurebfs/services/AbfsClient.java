@@ -38,6 +38,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.azurebfs.constants.FileSystemUriSchemes;
 import org.apache.hadoop.fs.azurebfs.utils.InsertionOrderConcurrentHashMap;
 import org.apache.hadoop.thirdparty.com.google.common.annotations.VisibleForTesting;
@@ -1116,6 +1117,47 @@ public class AbfsClient implements Closeable {
         AbfsHttpConstants.HTTP_METHOD_HEAD, url, createDefaultHeaders());
     op.execute(tracingContext);
     return op;
+  }
+
+  /**
+   * @return the properties returned from server.
+   * @throws AzureBlobFileSystemException in case it is not a 404 error or some other exception
+   * which was not able to be retried.
+   * */
+  public BlobProperty getBlobProperty(Path blobPath, TracingContext tracingContext) throws AzureBlobFileSystemException {
+    AbfsUriQueryBuilder abfsUriQueryBuilder = createDefaultUriQueryBuilder();
+    String blobRelativePath = blobPath.toUri().getPath();
+    final URL url = createRequestUrl(blobRelativePath, abfsUriQueryBuilder.toString());
+    final List<AbfsHttpHeader> requestHeaders = createDefaultHeaders();
+    final AbfsRestOperation op = new AbfsRestOperation(
+        AbfsRestOperationType.GetBlobProperties,
+        this,
+        HTTP_METHOD_HEAD,
+        url,
+        requestHeaders);
+    BlobProperty blobProperty = new BlobProperty();
+    try {
+      op.execute(tracingContext);
+    } catch (AzureBlobFileSystemException ex) {
+      if(!op.hasResult()) {
+        throw ex;
+      }
+      if(op.getResult().getStatusCode() == HttpURLConnection.HTTP_NOT_FOUND) {
+        return blobProperty;
+      }
+      throw ex;
+    }
+    final AbfsHttpOperation opResult = op.getResult();
+    blobProperty.setIsDirectory(opResult
+        .getResponseHeader(X_MS_META_HDI_ISFOLDER) != null);
+    blobProperty.setExist(true);
+    blobProperty.setUrl(url.toString());
+    blobProperty.setCopyId(opResult.getResponseHeader(X_MS_COPY_ID));
+    blobProperty.setPath(blobPath);
+    blobProperty.setCopySourceUrl(opResult.getResponseHeader(X_MS_COPY_SOURCE));
+    blobProperty.setStatusDescription(opResult.getResponseHeader(X_MS_COPY_STATUS_DESCRIPTION));
+    blobProperty.setCopyStatus(opResult.getResponseHeader(X_MS_COPY_STATUS));
+    return blobProperty;
   }
 
   /**
