@@ -38,7 +38,6 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AbfsRestOperationException;
 import org.apache.hadoop.fs.azurebfs.utils.InsertionOrderConcurrentHashMap;
 import org.apache.hadoop.thirdparty.com.google.common.annotations.VisibleForTesting;
 import org.apache.hadoop.thirdparty.com.google.common.base.Preconditions;
@@ -1117,6 +1116,22 @@ public class AbfsClient implements Closeable {
     return op;
   }
 
+  public String copyBlob(Path sourceBlobPath, Path destinationBlobPath) throws AzureBlobFileSystemException {
+    return;
+  }
+
+  public List<BlobProperty> getDirectoryBlobProperty(Path sourceDirBlobPath) throws AzureBlobFileSystemException {
+    return null;
+  }
+
+  public void deleteBlobPath(final BlobProperty blobProperty) throws AzureBlobFileSystemException{
+  }
+
+  /**
+   * @return the properties returned from server.
+   * @throws AzureBlobFileSystemException in case it is not a 404 error or some other exception
+   * which was not able to be retried.
+   * */
   public BlobProperty getBlobProperty(Path blobPath, TracingContext tracingContext) throws AzureBlobFileSystemException {
     AbfsUriQueryBuilder abfsUriQueryBuilder = createDefaultUriQueryBuilder();
     String blobRelativePath = blobPath.toUri().getPath();
@@ -1151,17 +1166,6 @@ public class AbfsClient implements Closeable {
     blobProperty.setStatusDescription(opResult.getResponseHeader(X_MS_COPY_STATUS_DESCRIPTION));
     blobProperty.setCopyStatus(opResult.getResponseHeader(X_MS_COPY_STATUS));
     return blobProperty;
-  }
-
-  public String copyBlob(Path sourceBlobPath, Path destinationBlobPath) throws AzureBlobFileSystemException {
-    return;
-  }
-
-  public List<BlobProperty> getDirectoryBlobProperty(Path sourceDirBlobPath) throws AzureBlobFileSystemException {
-    return null;
-  }
-
-  public void deleteBlobPath(final BlobProperty blobProperty) throws AzureBlobFileSystemException{
   }
 
   /**
