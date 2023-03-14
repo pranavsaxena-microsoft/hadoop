@@ -23,7 +23,6 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
-import java.net.URI;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -39,7 +38,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.azurebfs.constants.FileSystemUriSchemes;
+import org.apache.hadoop.fs.azurebfs.BlobProperty;
 import org.apache.hadoop.fs.azurebfs.utils.InsertionOrderConcurrentHashMap;
 import org.apache.hadoop.thirdparty.com.google.common.annotations.VisibleForTesting;
 import org.apache.hadoop.thirdparty.com.google.common.base.Preconditions;
@@ -52,7 +51,6 @@ import org.apache.hadoop.thirdparty.com.google.common.util.concurrent.ListeningS
 import org.apache.hadoop.thirdparty.com.google.common.util.concurrent.MoreExecutors;
 import org.apache.hadoop.thirdparty.com.google.common.util.concurrent.ThreadFactoryBuilder;
 
-import jdk.nashorn.internal.ir.Block;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1124,7 +1122,7 @@ public class AbfsClient implements Closeable {
    * @throws AzureBlobFileSystemException in case it is not a 404 error or some other exception
    * which was not able to be retried.
    * */
-  public BlobProperty getBlobProperty(Path blobPath, TracingContext tracingContext) throws AzureBlobFileSystemException {
+  public AbfsRestOperation getBlobProperty(Path blobPath, TracingContext tracingContext) throws AzureBlobFileSystemException {
     AbfsUriQueryBuilder abfsUriQueryBuilder = createDefaultUriQueryBuilder();
     String blobRelativePath = blobPath.toUri().getPath();
     final URL url = createRequestUrl(blobRelativePath, abfsUriQueryBuilder.toString());
@@ -1135,30 +1133,17 @@ public class AbfsClient implements Closeable {
         HTTP_METHOD_HEAD,
         url,
         requestHeaders);
-    BlobProperty blobProperty = new BlobProperty();
     try {
       op.execute(tracingContext);
     } catch (AzureBlobFileSystemException ex) {
       if(!op.hasResult()) {
         throw ex;
       }
-      if(op.getResult().getStatusCode() == HttpURLConnection.HTTP_NOT_FOUND) {
-        return blobProperty;
+      if(op.getResult().getStatusCode() != HttpURLConnection.HTTP_NOT_FOUND) {
+        throw ex;
       }
-      throw ex;
     }
-    final AbfsHttpOperation opResult = op.getResult();
-    blobProperty.setIsDirectory(opResult
-        .getResponseHeader(X_MS_META_HDI_ISFOLDER) != null);
-    blobProperty.setExist(true);
-    blobProperty.setUrl(url.toString());
-    blobProperty.setCopyId(opResult.getResponseHeader(X_MS_COPY_ID));
-    blobProperty.setPath(blobPath);
-    blobProperty.setCopySourceUrl(opResult.getResponseHeader(X_MS_COPY_SOURCE));
-    blobProperty.setStatusDescription(opResult.getResponseHeader(X_MS_COPY_STATUS_DESCRIPTION));
-    blobProperty.setCopyStatus(opResult.getResponseHeader(X_MS_COPY_STATUS));
-    blobProperty.setContentLength(Integer.parseInt(opResult.getResponseHeader(CONTENT_LENGTH)));
-    return blobProperty;
+    return op;
   }
 
   public List<BlobProperty> getDirectoryBlobProperty(Path sourceDirBlobPath) throws AzureBlobFileSystemException {
