@@ -4,9 +4,9 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemException;
 
 public class BlobProperty {
-  private Boolean isDirectory;
+  private Boolean isDirectory = false;
   private Path path;
-  private Boolean exist;
+  private Boolean exist = false;
   private String url;
 
   private String copySourceUrl;
@@ -18,6 +18,38 @@ public class BlobProperty {
 
   BlobProperty() {
 
+  }
+
+  void setUrl(String url) {
+    this.url = url;
+  }
+
+  void setIsDirectory(Boolean isDirectory) {
+    this.isDirectory = isDirectory;
+  }
+
+  void setCopyId(String copyId) {
+    this.copyId = copyId;
+  }
+
+  void setExist(Boolean exist) {
+    this.exist = exist;
+  }
+
+  void setCopySourceUrl(String copySourceUrl) {
+    this.copySourceUrl = copySourceUrl;
+  }
+
+  void setPath(Path path) {
+    this.path = path;
+  }
+
+  void setCopyStatus(String copyStatus) {
+    this.copyStatus = copyStatus;
+  }
+
+  void setStatusDescription(String statusDescription) {
+    this.statusDescription = statusDescription;
   }
 
 
