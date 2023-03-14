@@ -1140,7 +1140,17 @@ public class AbfsClient implements Closeable {
       }
       throw ex;
     }
-    blobProperty.set
+    final AbfsHttpOperation opResult = op.getResult();
+    blobProperty.setIsDirectory(opResult
+        .getResponseHeader(X_MS_META_HDI_ISFOLDER) != null);
+    blobProperty.setExist(true);
+    blobProperty.setUrl(url.toString());
+    blobProperty.setCopyId(opResult.getResponseHeader(X_MS_COPY_ID));
+    blobProperty.setPath(blobPath);
+    blobProperty.setCopySourceUrl(opResult.getResponseHeader(X_MS_COPY_SOURCE));
+    blobProperty.setStatusDescription(opResult.getResponseHeader(X_MS_COPY_STATUS_DESCRIPTION));
+    blobProperty.setCopyStatus(opResult.getResponseHeader(X_MS_COPY_STATUS));
+    return blobProperty;
   }
 
   public String copyBlob(Path sourceBlobPath, Path destinationBlobPath) throws AzureBlobFileSystemException {
