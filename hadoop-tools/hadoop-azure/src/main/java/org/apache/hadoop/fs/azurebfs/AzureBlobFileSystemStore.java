@@ -17,6 +17,8 @@
  */
 package org.apache.hadoop.fs.azurebfs;
 
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.parsers.SAXParser;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
@@ -59,8 +61,11 @@ import org.apache.hadoop.thirdparty.com.google.common.base.Preconditions;
 import org.apache.hadoop.thirdparty.com.google.common.base.Strings;
 import org.apache.hadoop.thirdparty.com.google.common.util.concurrent.Futures;
 import org.apache.hadoop.thirdparty.com.google.common.util.concurrent.ListenableFuture;
+
+import com.microsoft.azure.storage.core.Utility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.xml.sax.SAXException;
 
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
@@ -521,8 +526,20 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
   }
 
   private BlobList parseResult(final AbfsHttpOperation result) {
-    XmlMapper xmlMapper
-    return null;
+    //TODO: have proper exception handling.
+    SAXParser saxParser = null;
+    try {
+      saxParser = Utility.getSAXParser();
+      BlobList blobList = new BlobList();
+      saxParser.parse(result.getInputStream(), new BlobListXmlParser(blobList));
+      return blobList;
+    } catch (ParserConfigurationException e) {
+      throw new RuntimeException(e);
+    } catch (SAXException e) {
+      throw new RuntimeException(e);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
 

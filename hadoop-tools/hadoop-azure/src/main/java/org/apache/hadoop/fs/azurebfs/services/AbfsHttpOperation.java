@@ -98,6 +98,8 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
   private long sendRequestTimeMs;
   private long recvResponseTimeMs;
   private boolean shouldMask = false;
+
+  private InputStream inputStream;
   private List<String> blockIdList = new ArrayList<>();
 
   public static AbfsHttpOperation getAbfsHttpOperationWithFixedResult(
@@ -155,6 +157,10 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
   public String getClientRequestId() {
     return this.connection
         .getRequestProperty(HttpHeaderConfigurations.X_MS_CLIENT_REQUEST_ID);
+  }
+
+  public InputStream getInputStream() {
+    return inputStream;
   }
 
   public String getExpectedAppendPos() {
@@ -414,6 +420,7 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
           if (url.toString().contains(COMP_BLOCKLIST)){
             parseBlockListResponse(stream);
           } else {
+            if()
             parseListFilesResponse(stream);
           }
         } else {

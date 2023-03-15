@@ -11,7 +11,7 @@ public class BlobList {
     return null;
   }
 
-  BlobList(String responseBody) {
+  BlobList() {
 
   }
 }
