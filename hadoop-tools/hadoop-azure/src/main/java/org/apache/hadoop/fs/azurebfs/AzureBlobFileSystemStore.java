@@ -518,30 +518,12 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     do {
       AbfsRestOperation op = client.getDirectoryBlobProperty(sourceDirBlobPath,
           tracingContext, nextMarker, null, maxResult);
-      BlobList blobList = parseResult(op.getResult());
+      BlobList blobList = op.getResult().getBlobList();
       nextMarker = blobList.getNextMarker();
       blobProperties.addAll(blobList.getBlobPropertyList());
     } while (nextMarker != null);
     return blobProperties;
   }
-
-  private BlobList parseResult(final AbfsHttpOperation result) {
-    //TODO: have proper exception handling.
-    SAXParser saxParser = null;
-    try {
-      saxParser = Utility.getSAXParser();
-      BlobList blobList = new BlobList();
-      saxParser.parse(result.getInputStream(), new BlobListXmlParser(blobList));
-      return blobList;
-    } catch (ParserConfigurationException e) {
-      throw new RuntimeException(e);
-    } catch (SAXException e) {
-      throw new RuntimeException(e);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-  }
-
 
   public void setPathProperties(final Path path,
       final Hashtable<String, String> properties, TracingContext tracingContext)

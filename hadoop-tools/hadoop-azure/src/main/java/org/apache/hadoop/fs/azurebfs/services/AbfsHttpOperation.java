@@ -34,10 +34,14 @@ import javax.net.ssl.SSLSocketFactory;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.parsers.SAXParser;
 
+import org.apache.hadoop.fs.azurebfs.BlobList;
+import org.apache.hadoop.fs.azurebfs.BlobListXmlParser;
 import org.apache.hadoop.fs.azurebfs.utils.UriUtils;
 import org.apache.hadoop.security.ssl.DelegatingSSLSocketFactory;
 
+import com.microsoft.azure.storage.core.Utility;
 import jdk.jfr.ContentType;
 import org.codehaus.jackson.JsonFactory;
 import org.codehaus.jackson.JsonParser;
@@ -58,6 +62,7 @@ import org.apache.hadoop.fs.azurebfs.contracts.services.AbfsPerfLoggable;
 import org.apache.hadoop.fs.azurebfs.contracts.services.ListResultSchema;
 
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.COMP_BLOCKLIST;
+import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.COMP_LIST;
 import static org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations.CONTENT_TYPE;
 
 /**
@@ -99,7 +104,7 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
   private long recvResponseTimeMs;
   private boolean shouldMask = false;
 
-  private InputStream inputStream;
+  private BlobList blobList;
   private List<String> blockIdList = new ArrayList<>();
 
   public static AbfsHttpOperation getAbfsHttpOperationWithFixedResult(
@@ -159,10 +164,6 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
         .getRequestProperty(HttpHeaderConfigurations.X_MS_CLIENT_REQUEST_ID);
   }
 
-  public InputStream getInputStream() {
-    return inputStream;
-  }
-
   public String getExpectedAppendPos() {
     return expectedAppendPos;
   }
@@ -189,6 +190,10 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
 
   public List<String> getBlockIdList() {
     return blockIdList;
+  }
+
+  public BlobList getBlobList() {
+    return blobList;
   }
 
   public String getResponseHeader(String httpHeader) {
@@ -420,7 +425,9 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
           if (url.toString().contains(COMP_BLOCKLIST)){
             parseBlockListResponse(stream);
           } else {
-            if()
+            if(url.toString().contains(COMP_LIST)) {
+              parsListBlobResponse(stream);
+            }
             parseListFilesResponse(stream);
           }
         } else {
@@ -452,6 +459,23 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
         }
         this.bytesReceived = totalBytesRead;
       }
+    }
+  }
+
+  private void parsListBlobResponse(final InputStream stream) {
+    //TODO: have proper exception handling.
+    SAXParser saxParser = null;
+    try {
+      saxParser = Utility.getSAXParser();
+      BlobList blobList = new BlobList();
+      saxParser.parse(stream, new BlobListXmlParser(blobList));
+      this.blobList = blobList;
+    } catch (ParserConfigurationException e) {
+      throw new RuntimeException(e);
+    } catch (SAXException e) {
+      throw new RuntimeException(e);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
     }
   }
 

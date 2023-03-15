@@ -36,6 +36,8 @@ public final class AbfsHttpConstants {
   public static final String BLOCK = "block";
   public static final String BLOCKLIST = "blocklist";
   public static final String COMP_BLOCKLIST = "comp=blocklist";
+
+  public static final String COMP_LIST = "comp=list";
   public static final String COMMITTED = "committed";
   public static final String UNCOMMITTED = "uncommitted";
   public static final String FLUSH_ACTION = "flush";
