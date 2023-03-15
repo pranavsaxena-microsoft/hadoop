@@ -1146,7 +1146,9 @@ public class AbfsClient implements Closeable {
     return op;
   }
 
-  public List<BlobProperty> getDirectoryBlobProperty(Path sourceDirBlobPath) throws AzureBlobFileSystemException {
+  public AbfsRestOperation getDirectoryBlobProperty(Path sourceDirBlobPath,
+      TracingContext tracingContext, String marker, String prefix, int maxResult)
+      throws AzureBlobFileSystemException {
     return null;
   }
 

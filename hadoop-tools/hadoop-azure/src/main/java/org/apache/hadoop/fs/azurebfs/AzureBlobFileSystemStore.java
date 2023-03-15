@@ -501,8 +501,28 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     blobProperty.setCopySourceUrl(opResult.getResponseHeader(X_MS_COPY_SOURCE));
     blobProperty.setStatusDescription(opResult.getResponseHeader(X_MS_COPY_STATUS_DESCRIPTION));
     blobProperty.setCopyStatus(opResult.getResponseHeader(X_MS_COPY_STATUS));
-    blobProperty.setContentLength(Integer.parseInt(opResult.getResponseHeader(CONTENT_LENGTH)));
+    blobProperty.setContentLength(Long.parseLong(opResult.getResponseHeader(CONTENT_LENGTH)));
     return blobProperty;
+  }
+
+  public List<BlobProperty> getDirectoryBlobProperty(Path sourceDirBlobPath,
+      TracingContext tracingContext, int maxResult)
+      throws AzureBlobFileSystemException {
+    List<BlobProperty> blobProperties = new ArrayList<>();
+    String nextMarker = null;
+    do {
+      AbfsRestOperation op = client.getDirectoryBlobProperty(sourceDirBlobPath,
+          tracingContext, nextMarker, null, maxResult);
+      BlobList blobList = parseResult(op.getResult());
+      nextMarker = blobList.getNextMarker();
+      blobProperties.addAll(blobList.getBlobPropertyList());
+    } while (nextMarker != null);
+    return blobProperties;
+  }
+
+  private BlobList parseResult(final AbfsHttpOperation result) {
+    XmlMapper xmlMapper
+    return null;
   }
 
 
