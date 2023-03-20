@@ -1,5 +1,8 @@
 package org.apache.hadoop.fs.azurebfs;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemException;
 
@@ -14,6 +17,10 @@ public class BlobProperty {
   private String statusDescription;
   private Long contentLength = 0L;
 
+  private Map<String, String> metadata = new HashMap<>();
+
+  private String blobPrefix;
+
   private AzureBlobFileSystemException ex;
 
   BlobProperty() {
@@ -22,6 +29,14 @@ public class BlobProperty {
 
   void setUrl(String url) {
     this.url = url;
+  }
+
+  void setBlobPrefix(String blobPrefix) {
+    this.blobPrefix = blobPrefix;
+  }
+
+  void addMetadata(String key, String value) {
+    metadata.put(key, value);
   }
 
   void setIsDirectory(Boolean isDirectory) {

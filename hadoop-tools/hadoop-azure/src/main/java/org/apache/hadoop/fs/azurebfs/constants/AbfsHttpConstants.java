@@ -121,5 +121,15 @@ public final class AbfsHttpConstants {
   public static final char CHAR_STAR = '*';
   public static final char CHAR_PLUS = '+';
 
+  public static final String BLOB = "Blob";
+  private static final String PREFIX = "Prefix";
+  public static final String NEXT_MARKER = "NextMarker";
+  public static final String NAME = "Name";
+  public static final String METADATA = "Metadata";
+  public static final String PROPERTIES = "Properties";
+  public static final String BLOB_PREFIX = "BlobPrefix";
+  public static final String CONTENT_LEN = "Content-Length";
+  public static final String RESOURCE_TYPE = "ResourceType";
+
   private AbfsHttpConstants() {}
 }
