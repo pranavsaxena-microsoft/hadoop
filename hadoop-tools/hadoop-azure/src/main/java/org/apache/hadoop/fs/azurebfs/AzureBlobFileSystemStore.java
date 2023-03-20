@@ -492,14 +492,10 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
 
   public BlobProperty getBlobProperty(Path blobPath, TracingContext tracingContext) throws AzureBlobFileSystemException {
     AbfsRestOperation op = client.getBlobProperty(blobPath, tracingContext);
-    if(op.hasResult() && op.getResult().getStatusCode() == HttpURLConnection.HTTP_NOT_FOUND) {
-      return new BlobProperty();
-    }
     BlobProperty blobProperty = new BlobProperty();
     final AbfsHttpOperation opResult = op.getResult();
     blobProperty.setIsDirectory(opResult
         .getResponseHeader(X_MS_META_HDI_ISFOLDER) != null);
-    blobProperty.setExist(true);
     blobProperty.setUrl(op.getUrl().toString());
     blobProperty.setCopyId(opResult.getResponseHeader(X_MS_COPY_ID));
     blobProperty.setPath(blobPath);
