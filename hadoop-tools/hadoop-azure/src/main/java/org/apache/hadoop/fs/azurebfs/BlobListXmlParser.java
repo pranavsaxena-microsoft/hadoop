@@ -5,10 +5,10 @@ import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
 
 public class BlobListXmlParser extends DefaultHandler {
+  private final BlobList blobList;
 
   public BlobListXmlParser(final BlobList blobList) {
-
-
+    this.blobList = blobList;
   }
 
   @Override

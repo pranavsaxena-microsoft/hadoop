@@ -427,8 +427,9 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
           } else {
             if(url.toString().contains(COMP_LIST)) {
               parsListBlobResponse(stream);
+            } else {
+              parseListFilesResponse(stream);
             }
-            parseListFilesResponse(stream);
           }
         } else {
           if (buffer != null) {
@@ -464,9 +465,8 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
 
   private void parsListBlobResponse(final InputStream stream) {
     //TODO: have proper exception handling.
-    SAXParser saxParser = null;
     try {
-      saxParser = Utility.getSAXParser();
+      final SAXParser saxParser = Utility.getSAXParser();
       BlobList blobList = new BlobList();
       saxParser.parse(stream, new BlobListXmlParser(blobList));
       this.blobList = blobList;
