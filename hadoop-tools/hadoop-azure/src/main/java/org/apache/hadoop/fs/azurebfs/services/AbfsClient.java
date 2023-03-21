@@ -1140,7 +1140,25 @@ public class AbfsClient implements Closeable {
   public AbfsRestOperation getDirectoryBlobProperty(Path sourceDirBlobPath,
       TracingContext tracingContext, String marker, String prefix, int maxResult)
       throws AzureBlobFileSystemException {
-    return null;
+    AbfsUriQueryBuilder abfsUriQueryBuilder = createDefaultUriQueryBuilder();
+    abfsUriQueryBuilder.addQuery("restype", "container");
+    abfsUriQueryBuilder.addQuery("comp", "list");
+    prefix = sourceDirBlobPath.toUri().getPath();
+    abfsUriQueryBuilder.addQuery("prefix", prefix);
+    if(marker != null) {
+      abfsUriQueryBuilder.addQuery("marker", marker);
+    }
+    final URL url = createRequestUrl(abfsUriQueryBuilder.toString());
+    final List<AbfsHttpHeader> requestHeaders = createDefaultHeaders();
+    final AbfsRestOperation op = new AbfsRestOperation(
+        AbfsRestOperationType.GetListBlobProperties,
+        this,
+        HTTP_METHOD_GET,
+        url,
+        requestHeaders
+    );
+    op.execute(tracingContext);
+    return op;
   }
 
   public void deleteBlobPath(final BlobProperty blobProperty, final TracingContext tracingContext) throws AzureBlobFileSystemException{
