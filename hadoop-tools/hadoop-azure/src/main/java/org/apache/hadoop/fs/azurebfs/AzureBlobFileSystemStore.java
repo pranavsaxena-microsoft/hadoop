@@ -62,10 +62,8 @@ import org.apache.hadoop.thirdparty.com.google.common.base.Strings;
 import org.apache.hadoop.thirdparty.com.google.common.util.concurrent.Futures;
 import org.apache.hadoop.thirdparty.com.google.common.util.concurrent.ListenableFuture;
 
-import com.microsoft.azure.storage.core.Utility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.xml.sax.SAXException;
 
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
@@ -506,6 +504,21 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     return blobProperty;
   }
 
+  /**
+   * Call server API for ListBlob on the blob endpoint. This API return a limited
+   * number of blobs and provide a field called as NextMarker which is reference to
+   * next list of blobs for the query. Server expects that the client calls this API
+   * in loop with the NextMarker received in previous iteration of backend call for
+   * the same request.
+   *
+   * @param sourceDirBlobPath path from where the list of blob is requried.
+   * @param tracingContext object of {@link TracingContext}
+   * @param maxResult define how many blobs can client handle in server response.
+   * In case maxResult <= 5000, server sends number of blobs equal to the value. In
+   * case maxResult > 5000, server sends maximum 5000 blobs.
+   * @return List of blobProperties
+   * @throws AbfsRestOperationException exception from server-calls / xml-parsing
+   */
   public List<BlobProperty> getDirectoryBlobProperty(Path sourceDirBlobPath,
       TracingContext tracingContext, Integer maxResult)
       throws AzureBlobFileSystemException {

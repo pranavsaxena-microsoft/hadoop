@@ -11,8 +11,8 @@ import org.xml.sax.helpers.DefaultHandler;
 import org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants;
 
 /**
- * sets path, url, metadata, isDir for now. Generic class which can be extended for
- * more fields.
+ * Sets name, metadata, content-length on {@link BlobProperty} object for now.
+ * Generic class which can be extended for more fields.
  */
 public class BlobListXmlParser extends DefaultHandler {
   private final BlobList blobList;
