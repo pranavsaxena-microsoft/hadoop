@@ -8,6 +8,7 @@ import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemExc
 
 public class BlobProperty {
   private Boolean isDirectory = false;
+  private String name;
   private Path path;
   private String url;
 
@@ -25,6 +26,10 @@ public class BlobProperty {
 
   BlobProperty() {
 
+  }
+
+  void setName(String name) {
+    this.name = name;
   }
 
   void setUrl(String url) {

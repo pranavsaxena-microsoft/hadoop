@@ -507,7 +507,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
   }
 
   public List<BlobProperty> getDirectoryBlobProperty(Path sourceDirBlobPath,
-      TracingContext tracingContext, int maxResult)
+      TracingContext tracingContext, Integer maxResult)
       throws AzureBlobFileSystemException {
     List<BlobProperty> blobProperties = new ArrayList<>();
     String nextMarker = null;

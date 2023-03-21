@@ -57,6 +57,7 @@ public class BlobListXmlParser extends DefaultHandler {
 
     if(AbfsHttpConstants.BLOB.equals(currentNode)) {
       blobList.addBlobProperty(currentBlobProperty);
+      currentBlobProperty.setIsDirectory(null);
       currentBlobProperty = null;
     }
 
@@ -67,6 +68,11 @@ public class BlobListXmlParser extends DefaultHandler {
     if(parentNode.equals(AbfsHttpConstants.BLOB_PREFIX)) {
       if(currentNode.equals(AbfsHttpConstants.NAME)) {
         currentBlobProperty.setBlobPrefix(value);
+      }
+    }
+    if(parentNode.equals(AbfsHttpConstants.BLOB)) {
+      if(currentNode.equals(AbfsHttpConstants.NAME)) {
+        currentBlobProperty.setName(value);
       }
     }
     if(parentNode.equals(AbfsHttpConstants.METADATA)) {

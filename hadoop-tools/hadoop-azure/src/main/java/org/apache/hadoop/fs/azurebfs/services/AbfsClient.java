@@ -1138,7 +1138,7 @@ public class AbfsClient implements Closeable {
   }
 
   public AbfsRestOperation getDirectoryBlobProperty(Path sourceDirBlobPath,
-      TracingContext tracingContext, String marker, String prefix, int maxResult)
+      TracingContext tracingContext, String marker, String prefix, Integer maxResult)
       throws AzureBlobFileSystemException {
     AbfsUriQueryBuilder abfsUriQueryBuilder = createDefaultUriQueryBuilder();
     abfsUriQueryBuilder.addQuery("restype", "container");
@@ -1147,6 +1147,9 @@ public class AbfsClient implements Closeable {
     abfsUriQueryBuilder.addQuery("prefix", prefix);
     if(marker != null) {
       abfsUriQueryBuilder.addQuery("marker", marker);
+    }
+    if(maxResult != null) {
+      abfsUriQueryBuilder.addQuery("maxresults", maxResult + "");
     }
     URL url = createRequestUrl(abfsUriQueryBuilder.toString());
     try {
