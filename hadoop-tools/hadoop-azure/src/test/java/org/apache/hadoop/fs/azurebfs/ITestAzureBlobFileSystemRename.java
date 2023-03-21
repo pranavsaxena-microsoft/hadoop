@@ -198,4 +198,78 @@ public class ITestAzureBlobFileSystemRename extends
             + "incomplete state failure is hit")
         .isEqualTo(2);
   }
+
+  @Test
+  public void testEtagAfterRenameHNSImplicitNoDest() throws Exception {
+    AzureBlobFileSystem fs = getFileSystem();
+    fs.create(new Path("/dir1/file1"));
+    AzureBlobFileSystemStore.VersionedFileStatus fileStatus = (AzureBlobFileSystemStore.VersionedFileStatus) fs.getFileStatus(new Path("/dir1"));
+    String etag = fileStatus.getEtag();
+
+    fs.rename(new Path("/dir1"), new Path("/dir2"));
+    fileStatus = (AzureBlobFileSystemStore.VersionedFileStatus) fs.getFileStatus(new Path("/dir2/file1"));
+    Assert.assertTrue(fileStatus.getEtag() != null);
+    fileStatus = (AzureBlobFileSystemStore.VersionedFileStatus) fs.getFileStatus(new Path("/dir2"));
+    Assert.assertTrue(etag != fileStatus.getEtag());
+  }
+
+  @Test
+  public void testEtagAfterRenameHNSImplicitYesDest() throws Exception {
+    AzureBlobFileSystem fs = getFileSystem();
+    fs.create(new Path("/dir1/file1"));
+    fs.create(new Path("/dir2/file2"));
+    AzureBlobFileSystemStore.VersionedFileStatus fileStatus = (AzureBlobFileSystemStore.VersionedFileStatus) fs.getFileStatus(new Path("/dir1"));
+    String etag = fileStatus.getEtag();
+
+    fs.rename(new Path("/dir1"), new Path("/dir2"));
+    fileStatus = (AzureBlobFileSystemStore.VersionedFileStatus) fs.getFileStatus(new Path("/dir2/dir1/file1"));
+    Assert.assertTrue(fileStatus.getEtag() != null);
+    fileStatus = (AzureBlobFileSystemStore.VersionedFileStatus) fs.getFileStatus(new Path("/dir2/dir1"));
+    Assert.assertTrue(etag != fileStatus.getEtag());
+  }
+
+  @Test
+  public void testEtagAfterRenameHNSmkdirNoDest() throws Exception {
+    AzureBlobFileSystem fs = getFileSystem();
+    fs.mkdirs(new Path("/dir1"));
+    fs.create(new Path("/dir1/file1"));
+    AzureBlobFileSystemStore.VersionedFileStatus fileStatus = (AzureBlobFileSystemStore.VersionedFileStatus) fs.getFileStatus(new Path("/dir1"));
+    String etag = fileStatus.getEtag();
+
+    fs.rename(new Path("/dir1"), new Path("/dir2"));
+    fileStatus = (AzureBlobFileSystemStore.VersionedFileStatus) fs.getFileStatus(new Path("/dir2/file1"));
+    Assert.assertTrue(fileStatus.getEtag() != null);
+    fileStatus = (AzureBlobFileSystemStore.VersionedFileStatus) fs.getFileStatus(new Path("/dir2"));
+    Assert.assertTrue(etag != fileStatus.getEtag());
+  }
+
+  @Test
+  public void testEtagAfterRenameHNSmkdirNoDestNoSourceFile() throws Exception {
+    AzureBlobFileSystem fs = getFileSystem();
+    fs.mkdirs(new Path("/dir1"));
+
+    AzureBlobFileSystemStore.VersionedFileStatus fileStatus = (AzureBlobFileSystemStore.VersionedFileStatus) fs.getFileStatus(new Path("/dir1"));
+    String etag = fileStatus.getEtag();
+
+    fs.rename(new Path("/dir1"), new Path("/dir2"));
+    fileStatus = (AzureBlobFileSystemStore.VersionedFileStatus) fs.getFileStatus(new Path("/dir2"));
+    Assert.assertTrue(etag != fileStatus.getEtag());
+  }
+
+  @Test
+  public void testEtagAfterRenameHNSMkdirYesDest() throws Exception {
+    AzureBlobFileSystem fs = getFileSystem();
+    fs.mkdirs(new Path("/dir1"));
+    fs.mkdirs(new Path("/dir2"));
+    fs.create(new Path("/dir1/file1"));
+    fs.create(new Path("/dir2/file2"));
+    AzureBlobFileSystemStore.VersionedFileStatus fileStatus = (AzureBlobFileSystemStore.VersionedFileStatus) fs.getFileStatus(new Path("/dir1"));
+    String etag = fileStatus.getEtag();
+
+    fs.rename(new Path("/dir1"), new Path("/dir2"));
+    fileStatus = (AzureBlobFileSystemStore.VersionedFileStatus) fs.getFileStatus(new Path("/dir2/dir1/file1"));
+    Assert.assertTrue(fileStatus.getEtag() != null);
+    fileStatus = (AzureBlobFileSystemStore.VersionedFileStatus) fs.getFileStatus(new Path("/dir2/dir1"));
+    Assert.assertTrue(etag != fileStatus.getEtag());
+  }
 }

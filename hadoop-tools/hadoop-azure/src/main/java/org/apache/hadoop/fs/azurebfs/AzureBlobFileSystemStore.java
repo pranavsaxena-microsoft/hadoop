@@ -1765,7 +1765,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
    * in a LIST or HEAD request.
    * The etag is included in the java serialization.
    */
-  private static final class VersionedFileStatus extends FileStatus
+  public static final class VersionedFileStatus extends FileStatus
       implements EtagSource {
 
     /**
