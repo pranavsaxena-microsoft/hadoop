@@ -210,7 +210,7 @@ public class ITestAzureBlobFileSystemRename extends
     fileStatus = (AzureBlobFileSystemStore.VersionedFileStatus) fs.getFileStatus(new Path("/dir2/file1"));
     Assert.assertTrue(fileStatus.getEtag() != null);
     fileStatus = (AzureBlobFileSystemStore.VersionedFileStatus) fs.getFileStatus(new Path("/dir2"));
-    Assert.assertTrue(etag != fileStatus.getEtag());
+    Assert.assertTrue(!etag.equals(fileStatus.getEtag()));
   }
 
   @Test
@@ -225,7 +225,7 @@ public class ITestAzureBlobFileSystemRename extends
     fileStatus = (AzureBlobFileSystemStore.VersionedFileStatus) fs.getFileStatus(new Path("/dir2/dir1/file1"));
     Assert.assertTrue(fileStatus.getEtag() != null);
     fileStatus = (AzureBlobFileSystemStore.VersionedFileStatus) fs.getFileStatus(new Path("/dir2/dir1"));
-    Assert.assertTrue(etag != fileStatus.getEtag());
+    Assert.assertTrue(!etag.equals(fileStatus.getEtag()));
   }
 
   @Test
@@ -240,7 +240,7 @@ public class ITestAzureBlobFileSystemRename extends
     fileStatus = (AzureBlobFileSystemStore.VersionedFileStatus) fs.getFileStatus(new Path("/dir2/file1"));
     Assert.assertTrue(fileStatus.getEtag() != null);
     fileStatus = (AzureBlobFileSystemStore.VersionedFileStatus) fs.getFileStatus(new Path("/dir2"));
-    Assert.assertTrue(etag != fileStatus.getEtag());
+    Assert.assertTrue(etag.equals(fileStatus.getEtag()));
   }
 
   @Test
@@ -253,7 +253,7 @@ public class ITestAzureBlobFileSystemRename extends
 
     fs.rename(new Path("/dir1"), new Path("/dir2"));
     fileStatus = (AzureBlobFileSystemStore.VersionedFileStatus) fs.getFileStatus(new Path("/dir2"));
-    Assert.assertTrue(etag != fileStatus.getEtag());
+    Assert.assertTrue(etag.equals(fileStatus.getEtag()));
   }
 
   @Test
@@ -270,6 +270,6 @@ public class ITestAzureBlobFileSystemRename extends
     fileStatus = (AzureBlobFileSystemStore.VersionedFileStatus) fs.getFileStatus(new Path("/dir2/dir1/file1"));
     Assert.assertTrue(fileStatus.getEtag() != null);
     fileStatus = (AzureBlobFileSystemStore.VersionedFileStatus) fs.getFileStatus(new Path("/dir2/dir1"));
-    Assert.assertTrue(etag != fileStatus.getEtag());
+    Assert.assertTrue(etag.equalsIgnoreCase(fileStatus.getEtag()));
   }
 }
