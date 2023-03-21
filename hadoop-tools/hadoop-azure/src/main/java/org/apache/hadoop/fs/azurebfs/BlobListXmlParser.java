@@ -45,7 +45,7 @@ public class BlobListXmlParser extends DefaultHandler {
     if(!currentNode.equals(localName)) {
       throw new SAXException("Invalid XML");
     }
-    String parentNode = null;
+    String parentNode = "";
     if(elements.size() > 0) {
       parentNode = elements.peek();
     }

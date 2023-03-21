@@ -1148,7 +1148,12 @@ public class AbfsClient implements Closeable {
     if(marker != null) {
       abfsUriQueryBuilder.addQuery("marker", marker);
     }
-    final URL url = createRequestUrl(abfsUriQueryBuilder.toString());
+    URL url = createRequestUrl(abfsUriQueryBuilder.toString());
+    try {
+      url = new URL(url.toString().replace("dfs.core", "blob.core"));
+    } catch (Exception e) {
+
+    }
     final List<AbfsHttpHeader> requestHeaders = createDefaultHeaders();
     final AbfsRestOperation op = new AbfsRestOperation(
         AbfsRestOperationType.GetListBlobProperties,
