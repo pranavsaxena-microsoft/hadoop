@@ -48,5 +48,7 @@ public enum AbfsRestOperationType {
     PutBlockList,
     PutBlob,
     GetBlockList,
-    GetBlobProperties
+    GetBlobProperties,
+    DeleteBlob,
+    GetListBlobProperties;
 }

@@ -1,27 +1,43 @@
-package org.apache.hadoop.fs.azurebfs.services;
+package org.apache.hadoop.fs.azurebfs;
+
+import java.util.HashMap;
+import java.util.Map;
 
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemException;
 
 public class BlobProperty {
   private Boolean isDirectory = false;
+  private String name;
   private Path path;
-  private Boolean exist = false;
   private String url;
-
   private String copySourceUrl;
   private String copyId;
   private String copyStatus;
   private String statusDescription;
-
+  private Long contentLength = 0L;
+  private Map<String, String> metadata = new HashMap<>();
+  private String blobPrefix;
   private AzureBlobFileSystemException ex;
 
   BlobProperty() {
 
   }
 
+  void setName(String name) {
+    this.name = name;
+  }
+
   void setUrl(String url) {
     this.url = url;
+  }
+
+  void setBlobPrefix(String blobPrefix) {
+    this.blobPrefix = blobPrefix;
+  }
+
+  void addMetadata(String key, String value) {
+    metadata.put(key, value);
   }
 
   void setIsDirectory(Boolean isDirectory) {
@@ -30,10 +46,6 @@ public class BlobProperty {
 
   void setCopyId(String copyId) {
     this.copyId = copyId;
-  }
-
-  void setExist(Boolean exist) {
-    this.exist = exist;
   }
 
   void setCopySourceUrl(String copySourceUrl) {
@@ -52,13 +64,13 @@ public class BlobProperty {
     this.statusDescription = statusDescription;
   }
 
+  void setContentLength(Long length) {
+    this.contentLength = length;
+  }
+
 
   public Boolean getIsDirectory() {
     return isDirectory;
-  }
-
-  public Boolean exists() {
-    return exist;
   }
 
   public AzureBlobFileSystemException getFailureException() {
@@ -91,5 +103,9 @@ public class BlobProperty {
 
   public String getStatusDescription() {
     return statusDescription;
+  }
+
+  public Long getContentLength() {
+    return contentLength;
   }
 }
