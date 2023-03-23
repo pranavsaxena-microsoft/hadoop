@@ -1121,13 +1121,6 @@ public class AbfsClient implements Closeable {
     return;
   }
 
-  public List<BlobProperty> getDirectoryBlobProperty(Path sourceDirBlobPath) throws AzureBlobFileSystemException {
-    return null;
-  }
-
-  public void deleteBlobPath(final BlobProperty blobProperty) throws AzureBlobFileSystemException{
-  }
-
   /**
    * @return the properties returned from server.
    * @throws AzureBlobFileSystemException in case it is not a 404 error or some other exception

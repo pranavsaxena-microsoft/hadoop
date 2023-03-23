@@ -56,7 +56,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.hadoop.fs.azurebfs.services.BlobProperty;
 import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
 import org.apache.hadoop.thirdparty.com.google.common.annotations.VisibleForTesting;
 import org.apache.hadoop.thirdparty.com.google.common.base.Preconditions;
@@ -492,7 +491,20 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     }
   }
 
-  public BlobProperty getBlobProperty(Path blobPath, TracingContext tracingContext) throws AzureBlobFileSystemException {
+  private BlobProperty getBlobPropertyWithNotFoundHandling(Path blobPath,
+      TracingContext tracingContext) throws AzureBlobFileSystemException {
+    try {
+      return getBlobProperty(blobPath, tracingContext);
+    } catch (AbfsRestOperationException ex) {
+      if (ex.getStatusCode() == HttpURLConnection.HTTP_NOT_FOUND) {
+        return null;
+      }
+      throw ex;
+    }
+  }
+
+
+  private BlobProperty getBlobProperty(Path blobPath, TracingContext tracingContext) throws AzureBlobFileSystemException {
     AbfsRestOperation op = client.getBlobProperty(blobPath, tracingContext);
     BlobProperty blobProperty = new BlobProperty();
     final AbfsHttpOperation opResult = op.getResult();
@@ -921,25 +933,25 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     boolean shouldContinue;
 
     if(getAbfsConfiguration().getMode() == PrefixMode.BLOB) {
-      BlobProperty dstProperty = client.getBlobProperty(destination);
-      if(dstProperty.exists()) {
+      BlobProperty dstProperty = getBlobPropertyWithNotFoundHandling(destination, tracingContext);
+      if(dstProperty != null) {
         //destination already there. Rename should not be overwriting.
         throw new AbfsRestOperationException(HttpURLConnection.HTTP_CONFLICT,
             AzureServiceErrorCode.PATH_ALREADY_EXISTS.getErrorCode(), null, null);
       }
-      BlobProperty srcProperty = client.getBlobProperty(source);
-      if(!srcProperty.exists()) {
+      BlobProperty srcProperty = getBlobPropertyWithNotFoundHandling(source, tracingContext);
+      if(srcProperty == null) {
         throw new AbfsRestOperationException(HttpURLConnection.HTTP_NOT_FOUND,
             AzureServiceErrorCode.PATH_NOT_FOUND.getErrorCode(), null, null);
       }
       if(srcProperty.getIsDirectory()) {
-        List<BlobProperty> blobProperties = client.getDirectoryBlobProperty(source);
+        List<BlobProperty> blobProperties = getListBlobs(source, tracingContext, null);
         List<Future> futures = new ArrayList<>();
         for(BlobProperty blobProperty : blobProperties) {
           futures.add(renameBlobExecutorService.submit(() -> {
             try {
-              renameBlob(destination, blobProperty);
-              client.deleteBlobPath(blobProperty);
+              renameBlob(destination, blobProperty, tracingContext);
+              client.deleteBlobPath(blobProperty, tracingContext);
             } catch (AzureBlobFileSystemException e) {
               throw new RuntimeException(e);
             }
@@ -994,7 +1006,8 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
   }
 
   private void renameBlob(final Path destination,
-      final BlobProperty srcBlobProperty)
+      final BlobProperty srcBlobProperty,
+      final TracingContext tracingContext)
       throws AzureBlobFileSystemException {
     String copyId;
     try {
@@ -1002,7 +1015,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
           srcBlobProperty.getPath(), srcBlobProperty.getBlobDstPath(destination));
     } catch (AbfsRestOperationException operationException) {
       if(operationException.getStatusCode() == HttpURLConnection.HTTP_CONFLICT) {
-        BlobProperty dstProperty = client.getBlobProperty(destination);
+        BlobProperty dstProperty = getBlobProperty(destination, tracingContext);
         if(!srcBlobProperty.getUrl().equals(dstProperty.getCopySourceUrl())) {
           throw operationException;
         }
@@ -1011,8 +1024,8 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       throw operationException;
     }
     while(true) {
-      BlobProperty dstProperty = client.getBlobProperty(destination);
-      if(dstProperty.exists()) {
+      BlobProperty dstProperty = getBlobPropertyWithNotFoundHandling(destination, tracingContext);
+      if(dstProperty != null) {
         if(copyId.equals(dstProperty.getCopyId())) {
           if("success".equals(dstProperty.getCopyStatus())) {
             return;
