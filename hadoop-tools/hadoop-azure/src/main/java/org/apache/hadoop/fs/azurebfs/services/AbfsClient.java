@@ -1152,27 +1152,25 @@ public class AbfsClient implements Closeable {
    * @throws AzureBlobFileSystemException thrown from server-call / xml-parsing
    */
   public AbfsRestOperation getListBlobs(Path sourceDirBlobPath,
-      TracingContext tracingContext, String marker, String prefix, Integer maxResult)
+      TracingContext tracingContext,
+      String marker,
+      String prefix,
+      Integer maxResult)
       throws AzureBlobFileSystemException {
     AbfsUriQueryBuilder abfsUriQueryBuilder = createDefaultUriQueryBuilder();
     abfsUriQueryBuilder.addQuery(QUERY_PARAM_RESTYPE, CONTAINER);
     abfsUriQueryBuilder.addQuery(QUERY_PARAM_COMP, QUERY_PARAM_COMP_VALUE_LIST);
-    if(prefix == null) {
+    if (prefix == null) {
       prefix = sourceDirBlobPath.toUri().getPath();
     }
     abfsUriQueryBuilder.addQuery(QUERY_PARAM_PREFIX, prefix);
-    if(marker != null) {
+    if (marker != null) {
       abfsUriQueryBuilder.addQuery(QUERY_PARAM_MARKER, marker);
     }
-    if(maxResult != null) {
+    if (maxResult != null) {
       abfsUriQueryBuilder.addQuery(QUERY_PARAM_MAXRESULT, maxResult + "");
     }
     URL url = createRequestUrl(abfsUriQueryBuilder.toString());
-    try {
-      url = new URL(url.toString().replace("dfs.core", "blob.core"));
-    } catch (Exception e) {
-
-    }
     final List<AbfsHttpHeader> requestHeaders = createDefaultHeaders();
     final AbfsRestOperation op = new AbfsRestOperation(
         AbfsRestOperationType.GetListBlobProperties,

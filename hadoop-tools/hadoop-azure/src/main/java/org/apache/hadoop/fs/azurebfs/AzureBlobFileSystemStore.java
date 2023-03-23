@@ -503,7 +503,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
   }
 
   /**
-   * Call server API for ListBlob on the blob endpoint. This API return a limited
+   * Call server API for ListBlob on the blob endpoint. This API returns a limited
    * number of blobs and provide a field called as NextMarker which is reference to
    * next list of blobs for the query. Server expects that the client calls this API
    * in loop with the NextMarker received in previous iteration of backend call for
