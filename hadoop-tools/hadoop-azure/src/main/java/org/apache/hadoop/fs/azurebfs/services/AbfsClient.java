@@ -198,6 +198,10 @@ public class AbfsClient implements Closeable {
     return filesystem;
   }
 
+  public String getAccountName() {
+    return accountName;
+  }
+
   protected AbfsPerfTracker getAbfsPerfTracker() {
     return abfsPerfTracker;
   }

@@ -143,6 +143,7 @@ import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.CHAR_UND
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.COPY_STATUS_ABORTED;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.COPY_STATUS_FAILED;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.COPY_STATUS_SUCCESS;
+import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.FORWARD_SLASH;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.ROOT_PATH;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.SINGLE_WHITE_SPACE;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.TOKEN_VERSION;
@@ -183,6 +184,8 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
   private final IdentityTransformerInterface identityTransformer;
   private final AbfsPerfTracker abfsPerfTracker;
   private final AbfsCounters abfsCounters;
+
+  private final Boolean useSecureHttp;
 
   private final static ExecutorService renameBlobExecutorService = Executors.newFixedThreadPool(5);
 
@@ -246,6 +249,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     this.authType = abfsConfiguration.getAuthType(accountName);
     boolean usingOauth = (authType == AuthType.OAuth);
     boolean useHttps = (usingOauth || abfsConfiguration.isHttpsAlwaysUsed()) ? true : abfsStoreBuilder.isSecureScheme;
+    useSecureHttp = useHttps;
     this.abfsPerfTracker = new AbfsPerfTracker(fileSystemName, accountName, this.abfsConfiguration);
     this.abfsCounters = abfsStoreBuilder.abfsCounters;
     initializeClient(uri, fileSystemName, accountName, useHttps);
@@ -544,7 +548,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
   }
 
   private String getCopySource(final Path srcPath) {
-    return null;
+    return  getBaseUrlString(client.getFileSystem(), client.getAccountName(), useSecureHttp) + FORWARD_SLASH + getNestedPath(srcPath);
   }
 
   private BlobProperty getBlobPropertyWithNotFoundHandling(Path blobPath,
@@ -1742,9 +1746,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       return;
     }
 
-    final URIBuilder uriBuilder = getURIBuilder(accountName, isSecure);
-
-    final String url = uriBuilder.toString() + AbfsHttpConstants.FORWARD_SLASH + fileSystemName;
+    final String url = getBaseUrlString(fileSystemName, accountName, isSecure);
 
     URL baseUrl;
     try {
@@ -1791,6 +1793,15 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
           populateAbfsClientContext());
     }
     LOG.trace("AbfsClient init complete");
+  }
+
+  private String getBaseUrlString(final String fileSystemName,
+      final String accountName,
+      final boolean isSecure) {
+    final URIBuilder uriBuilder = getURIBuilder(accountName, isSecure);
+
+    final String url = uriBuilder.toString() + AbfsHttpConstants.FORWARD_SLASH + fileSystemName;
+    return url;
   }
 
   /**
