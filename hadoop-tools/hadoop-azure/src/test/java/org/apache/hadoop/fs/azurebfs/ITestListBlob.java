@@ -32,7 +32,7 @@ public class ITestListBlob extends
       i++;
     }
     List<BlobProperty> blobProperties = fs.getAbfsStore()
-        .getDirectoryBlobProperty(new Path("dir"),
+        .getListBlobs(new Path("dir"),
             Mockito.mock(TracingContext.class), null);
     Assertions.assertThat(blobProperties)
         .describedAs(
@@ -55,14 +55,14 @@ public class ITestListBlob extends
     AbfsClient spiedClient = Mockito.spy(fs.getAbfsClient());
     fs.getAbfsStore().setClient(spiedClient);
     List<BlobProperty> blobProperties = fs.getAbfsStore()
-        .getDirectoryBlobProperty(new Path("dir"),
+        .getListBlobs(new Path("dir"),
             Mockito.mock(TracingContext.class), 1);
     Assertions.assertThat(blobProperties)
         .describedAs(
             "BlobList should match the number of files created in tests + the directory itself")
         .hasSize(11);
     Mockito.verify(spiedClient, Mockito.times(11))
-        .getDirectoryBlobProperty(Mockito.any(Path.class),
+        .getListBlobs(Mockito.any(Path.class),
             Mockito.any(TracingContext.class),
             Mockito.nullable(String.class), Mockito.nullable(String.class),
             Mockito.anyInt());

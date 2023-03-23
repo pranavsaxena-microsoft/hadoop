@@ -17,8 +17,6 @@
  */
 package org.apache.hadoop.fs.azurebfs;
 
-import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.parsers.SAXParser;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
@@ -519,13 +517,13 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
    * @return List of blobProperties
    * @throws AbfsRestOperationException exception from server-calls / xml-parsing
    */
-  public List<BlobProperty> getDirectoryBlobProperty(Path sourceDirBlobPath,
+  public List<BlobProperty> getListBlobs(Path sourceDirBlobPath,
       TracingContext tracingContext, Integer maxResult)
       throws AzureBlobFileSystemException {
     List<BlobProperty> blobProperties = new ArrayList<>();
     String nextMarker = null;
     do {
-      AbfsRestOperation op = client.getDirectoryBlobProperty(sourceDirBlobPath,
+      AbfsRestOperation op = client.getListBlobs(sourceDirBlobPath,
           tracingContext, nextMarker, null, maxResult);
       BlobList blobList = op.getResult().getBlobList();
       nextMarker = blobList.getNextMarker();

@@ -13,10 +13,11 @@ import org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants;
 /**
  * Sets name, metadata, content-length on {@link BlobProperty} object for now.
  * Generic class which can be extended for more fields.
+ * <a href="https://learn.microsoft.com/en-us/rest/api/storageservices/list-blobs?tabs=azure-ad#response-body">
+ * BlobList API XML response example</a>
  */
 public class BlobListXmlParser extends DefaultHandler {
   private final BlobList blobList;
-
   private BlobProperty currentBlobProperty;
   private StringBuilder bld = new StringBuilder();
   private final Stack<String> elements = new Stack<>();
@@ -31,7 +32,7 @@ public class BlobListXmlParser extends DefaultHandler {
       final String qName,
       final Attributes attributes) throws SAXException {
     elements.push(localName);
-    if(AbfsHttpConstants.BLOB.equals(localName)) {
+    if (AbfsHttpConstants.BLOB.equals(localName)) {
       currentBlobProperty = new BlobProperty();
     }
   }
@@ -42,48 +43,48 @@ public class BlobListXmlParser extends DefaultHandler {
       final String qName)
       throws SAXException {
     String currentNode = elements.pop();
-    if(!currentNode.equals(localName)) {
+    if (!currentNode.equals(localName)) {
       throw new SAXException("Invalid XML");
     }
     String parentNode = "";
-    if(elements.size() > 0) {
+    if (elements.size() > 0) {
       parentNode = elements.peek();
     }
 
     String value = bld.toString();
-    if(value.isEmpty()) {
+    if (value.isEmpty()) {
       value = null;
     }
 
-    if(AbfsHttpConstants.BLOB.equals(currentNode)) {
+    if (AbfsHttpConstants.BLOB.equals(currentNode)) {
       blobList.addBlobProperty(currentBlobProperty);
       currentBlobProperty.setIsDirectory(null);
       currentBlobProperty = null;
     }
 
-    if(AbfsHttpConstants.NEXT_MARKER.equals(currentNode)) {
+    if (AbfsHttpConstants.NEXT_MARKER.equals(currentNode)) {
       blobList.setNextMarker(value);
     }
 
-    if(parentNode.equals(AbfsHttpConstants.BLOB_PREFIX)) {
-      if(currentNode.equals(AbfsHttpConstants.NAME)) {
+    if (parentNode.equals(AbfsHttpConstants.BLOB_PREFIX)) {
+      if (currentNode.equals(AbfsHttpConstants.NAME)) {
         currentBlobProperty.setBlobPrefix(value);
       }
     }
-    if(parentNode.equals(AbfsHttpConstants.BLOB)) {
-      if(currentNode.equals(AbfsHttpConstants.NAME)) {
+    if (parentNode.equals(AbfsHttpConstants.BLOB)) {
+      if (currentNode.equals(AbfsHttpConstants.NAME)) {
         currentBlobProperty.setName(value);
       }
     }
-    if(parentNode.equals(AbfsHttpConstants.METADATA)) {
+    if (parentNode.equals(AbfsHttpConstants.METADATA)) {
       currentBlobProperty.addMetadata(currentNode, value);
     }
-    if(parentNode.equals(AbfsHttpConstants.PROPERTIES)) {
-      if(currentNode.equals(AbfsHttpConstants.CONTENT_LEN)) {
+    if (parentNode.equals(AbfsHttpConstants.PROPERTIES)) {
+      if (currentNode.equals(AbfsHttpConstants.CONTENT_LEN)) {
         currentBlobProperty.setContentLength(Long.valueOf(value));
       }
-      if(currentNode.equals(AbfsHttpConstants.RESOURCE_TYPE)) {
-        if("directory".equals(value)) {
+      if (currentNode.equals(AbfsHttpConstants.RESOURCE_TYPE)) {
+        if ("directory".equals(value)) {
           currentBlobProperty.setIsDirectory(true);
         }
       }

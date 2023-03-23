@@ -421,11 +421,12 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
 
         // this is a list operation and need to retrieve the data
         // need a better solution
-        if (AbfsHttpConstants.HTTP_METHOD_GET.equals(this.method) && buffer == null) {
-          if (url.toString().contains(COMP_BLOCKLIST)){
+        if (AbfsHttpConstants.HTTP_METHOD_GET.equals(this.method)
+            && buffer == null) {
+          if (url.toString().contains(COMP_BLOCKLIST)) {
             parseBlockListResponse(stream);
           } else {
-            if(url.toString().contains(COMP_LIST)) {
+            if (url.toString().contains(COMP_LIST)) {
               parsListBlobResponse(stream);
             } else {
               parseListFilesResponse(stream);

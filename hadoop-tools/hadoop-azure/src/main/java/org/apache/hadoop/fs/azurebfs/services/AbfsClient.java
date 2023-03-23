@@ -1151,12 +1151,12 @@ public class AbfsClient implements Closeable {
    * @return list of {@link BlobProperty}
    * @throws AzureBlobFileSystemException thrown from server-call / xml-parsing
    */
-  public AbfsRestOperation getDirectoryBlobProperty(Path sourceDirBlobPath,
+  public AbfsRestOperation getListBlobs(Path sourceDirBlobPath,
       TracingContext tracingContext, String marker, String prefix, Integer maxResult)
       throws AzureBlobFileSystemException {
     AbfsUriQueryBuilder abfsUriQueryBuilder = createDefaultUriQueryBuilder();
     abfsUriQueryBuilder.addQuery(QUERY_PARAM_RESTYPE, CONTAINER);
-    abfsUriQueryBuilder.addQuery(QUERY_PARAM_COMP, LIST);
+    abfsUriQueryBuilder.addQuery(QUERY_PARAM_COMP, QUERY_PARAM_COMP_VALUE_LIST);
     if(prefix == null) {
       prefix = sourceDirBlobPath.toUri().getPath();
     }

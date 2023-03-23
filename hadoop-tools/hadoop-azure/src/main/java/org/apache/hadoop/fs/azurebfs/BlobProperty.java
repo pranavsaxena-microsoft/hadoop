@@ -11,17 +11,13 @@ public class BlobProperty {
   private String name;
   private Path path;
   private String url;
-
   private String copySourceUrl;
   private String copyId;
   private String copyStatus;
   private String statusDescription;
   private Long contentLength = 0L;
-
   private Map<String, String> metadata = new HashMap<>();
-
   private String blobPrefix;
-
   private AzureBlobFileSystemException ex;
 
   BlobProperty() {
