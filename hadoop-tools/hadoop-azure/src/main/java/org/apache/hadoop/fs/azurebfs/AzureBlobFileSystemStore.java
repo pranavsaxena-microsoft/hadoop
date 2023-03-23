@@ -140,6 +140,9 @@ import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.CHAR_HYP
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.CHAR_PLUS;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.CHAR_STAR;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.CHAR_UNDERSCORE;
+import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.COPY_STATUS_ABORTED;
+import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.COPY_STATUS_FAILED;
+import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.COPY_STATUS_SUCCESS;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.ROOT_PATH;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.SINGLE_WHITE_SPACE;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.TOKEN_VERSION;
@@ -489,6 +492,59 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
 
       return parsedXmsProperties;
     }
+  }
+
+  private void copyBlob(Path srcPath,
+      Path dstPath,
+      TracingContext tracingContext) throws AzureBlobFileSystemException {
+    AbfsRestOperation copyOp = null;
+    try {
+      copyOp = client.copyBlob(srcPath, dstPath,
+          tracingContext);
+    } catch (AbfsRestOperationException ex) {
+      if(copyOp == null || !copyOp.hasResult()) {
+        throw ex;
+      }
+      if(copyOp.getResult().getStatusCode() == HttpURLConnection.HTTP_CONFLICT) {
+        final BlobProperty dstBlobProperty = getBlobProperty(dstPath, tracingContext);
+        if(dstBlobProperty.getCopySourceUrl().equals(getCopySource(srcPath))) {
+          return;
+        }
+      }
+      throw ex;
+    }
+    final String progress = copyOp.getResult()
+        .getResponseHeader(X_MS_COPY_STATUS);
+    if (COPY_STATUS_SUCCESS.equals(progress)) {
+      return;
+    }
+    final String copyId = copyOp.getResult().getResponseHeader(X_MS_COPY_ID);
+    int counter = 0;
+    while (counter < 10) {//TODO: better condition.
+      try {
+        Thread.sleep(100); //TODO: better logic for sleep period.
+      } catch (Exception e) {
+
+      }
+      BlobProperty blobProperty = getBlobPropertyWithNotFoundHandling(dstPath,
+          tracingContext);
+      if (blobProperty != null && copyId.equals(blobProperty.getCopyId())) {
+        if (COPY_STATUS_SUCCESS.equals(blobProperty.getCopyStatus())) {
+          return;
+        }
+        if (COPY_STATUS_ABORTED.equals(blobProperty.getCopyStatus())
+            || COPY_STATUS_FAILED.equals(blobProperty.getCopyStatus())) {
+          throw new AbfsRestOperationException(
+              HttpURLConnection.HTTP_INTERNAL_ERROR, "CopyBlobFailed", null,
+              new Exception("CopyBlobFailed"));
+        }
+      }
+      counter++;
+    }
+  }
+
+  private String getCopySource(final Path srcPath) {
+    return null;
   }
 
   private BlobProperty getBlobPropertyWithNotFoundHandling(Path blobPath,

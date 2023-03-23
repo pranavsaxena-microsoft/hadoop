@@ -131,6 +131,10 @@ public final class AbfsHttpConstants {
   public static final String CONTENT_LEN = "Content-Length";
   public static final String RESOURCE_TYPE = "ResourceType";
   public static final String INVALID_XML = "Invalid XML";
+  public static final String COPY_STATUS_SUCCESS = "success";
+  public static final String COPY_STATUS_PENDING = "pending";
+  public static final String COPY_STATUS_ABORTED = "aborted";
+  public static final String COPY_STATUS_FAILED = "failed";
 
   private AbfsHttpConstants() {}
 }

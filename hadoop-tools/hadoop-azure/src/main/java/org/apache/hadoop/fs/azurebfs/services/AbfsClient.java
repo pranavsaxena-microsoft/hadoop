@@ -1117,8 +1117,24 @@ public class AbfsClient implements Closeable {
     return op;
   }
 
-  public String copyBlob(Path sourceBlobPath, Path destinationBlobPath) throws AzureBlobFileSystemException {
-    return;
+  /**
+   * Caller of <a href = "https://learn.microsoft.com/en-us/rest/api/storageservices/copy-blob">
+   * copyBlob API</a>. This is an asynchronous API, it returns copyId and expects client
+   * to poll the server on the destination and check the copy-progress.
+   *
+   * @param sourceBlobPath path of source to be copied
+   * @param destinationBlobPath path of the destination
+   * @param tracingContext tracingContext object
+   *
+   * @return AbfsRestOperation abfsRestOperation which contains the response from the server.
+   * This method owns the logic of triggereing copyBlob API. The caller of this method have
+   * to own the logic of polling the destination with the copyId returned in the response from
+   * this method.
+   *
+   * @throws AzureBlobFileSystemException exception recevied while making server call.
+   * */
+  public AbfsRestOperation copyBlob(Path sourceBlobPath, Path destinationBlobPath, TracingContext tracingContext) throws AzureBlobFileSystemException {
+
   }
 
   /**
