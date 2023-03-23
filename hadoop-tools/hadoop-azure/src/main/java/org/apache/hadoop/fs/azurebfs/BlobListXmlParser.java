@@ -10,6 +10,9 @@ import org.xml.sax.helpers.DefaultHandler;
 
 import org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants;
 
+import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.DIRECTORY;
+import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.INVALID_XML;
+
 /**
  * Sets name, metadata, content-length on {@link BlobProperty} object for now.
  * Generic class which can be extended for more fields.
@@ -44,7 +47,7 @@ public class BlobListXmlParser extends DefaultHandler {
       throws SAXException {
     String currentNode = elements.pop();
     if (!currentNode.equals(localName)) {
-      throw new SAXException("Invalid XML");
+      throw new SAXException(INVALID_XML);
     }
     String parentNode = "";
     if (elements.size() > 0) {
@@ -84,7 +87,7 @@ public class BlobListXmlParser extends DefaultHandler {
         currentBlobProperty.setContentLength(Long.valueOf(value));
       }
       if (currentNode.equals(AbfsHttpConstants.RESOURCE_TYPE)) {
-        if ("directory".equals(value)) {
+        if (DIRECTORY.equals(value)) {
           currentBlobProperty.setIsDirectory(true);
         }
       }
