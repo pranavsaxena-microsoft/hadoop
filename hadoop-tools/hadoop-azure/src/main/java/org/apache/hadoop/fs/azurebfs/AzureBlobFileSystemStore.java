@@ -511,7 +511,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       }
       if(copyOp.getResult().getStatusCode() == HttpURLConnection.HTTP_CONFLICT) {
         final BlobProperty dstBlobProperty = getBlobProperty(dstPath, tracingContext);
-        if(dstBlobProperty.getCopySourceUrl().equals(getCopySource(srcPath))) {
+        if(dstBlobProperty.getCopySourceUrl().equals(copyOp.getResult().getRequestHeaderValue(X_MS_COPY_SOURCE))) {
           return;
         }
       }
@@ -545,10 +545,6 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       }
       counter++;
     }
-  }
-
-  private String getCopySource(final Path srcPath) {
-    return  getBaseUrlString(client.getFileSystem(), client.getAccountName(), useSecureHttp) + FORWARD_SLASH + getNestedPath(srcPath);
   }
 
   private BlobProperty getBlobPropertyWithNotFoundHandling(Path blobPath,
@@ -1010,8 +1006,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         for(BlobProperty blobProperty : blobProperties) {
           futures.add(renameBlobExecutorService.submit(() -> {
             try {
-              renameBlob(destination, blobProperty, tracingContext);
-              client.deleteBlobPath(blobProperty, tracingContext);
+              renameBlob(destination, tracingContext, blobProperty);
             } catch (AzureBlobFileSystemException e) {
               throw new RuntimeException(e);
             }
@@ -1027,7 +1022,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
           }
         }
       } else {
-        client.copyBlob(source, destination);
+        renameBlob(destination, tracingContext, srcProperty);
       }
       return;
     }
@@ -1066,48 +1061,10 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
   }
 
   private void renameBlob(final Path destination,
-      final BlobProperty srcBlobProperty,
-      final TracingContext tracingContext)
-      throws AzureBlobFileSystemException {
-    String copyId;
-    try {
-      copyId = client.copyBlob(
-          srcBlobProperty.getPath(), srcBlobProperty.getBlobDstPath(destination));
-    } catch (AbfsRestOperationException operationException) {
-      if(operationException.getStatusCode() == HttpURLConnection.HTTP_CONFLICT) {
-        BlobProperty dstProperty = getBlobProperty(destination, tracingContext);
-        if(!srcBlobProperty.getUrl().equals(dstProperty.getCopySourceUrl())) {
-          throw operationException;
-        }
-        return;
-      }
-      throw operationException;
-    }
-    while(true) {
-      BlobProperty dstProperty = getBlobPropertyWithNotFoundHandling(destination, tracingContext);
-      if(dstProperty != null) {
-        if(copyId.equals(dstProperty.getCopyId())) {
-          if("success".equals(dstProperty.getCopyStatus())) {
-            return;
-          }
-          if("failed".equals(dstProperty.getCopyStatus()) || "aborted".equals(dstProperty.getCopyStatus())) {
-            LOG.error("Copy blob failed " + dstProperty.getStatusDescription());
-            throw new AbfsRestOperationException(HttpURLConnection.HTTP_INTERNAL_ERROR,
-                "internalError", dstProperty.getStatusDescription(), null);
-          }
-        } else {
-          LOG.error("Before rename operation, blob was not there, but there is a "
-              + "presence of the blob, this is a race condition!");
-          throw new AbfsRestOperationException(HttpURLConnection.HTTP_CONFLICT,
-              AzureServiceErrorCode.PATH_ALREADY_EXISTS.getErrorCode(), null, null);
-        }
-      }
-      try {
-        Thread.sleep(100);
-      } catch (Exception e) {
-
-      }
-    }
+      final TracingContext tracingContext,
+      final BlobProperty blobProperty) throws AzureBlobFileSystemException {
+    copyBlob(destination, blobProperty.getPath(), tracingContext);
+    client.deleteBlobPath(blobProperty, tracingContext);
   }
 
   public void delete(final Path path, final boolean recursive,

@@ -198,10 +198,6 @@ public class AbfsClient implements Closeable {
     return filesystem;
   }
 
-  public String getAccountName() {
-    return accountName;
-  }
-
   protected AbfsPerfTracker getAbfsPerfTracker() {
     return abfsPerfTracker;
   }
@@ -1137,8 +1133,28 @@ public class AbfsClient implements Closeable {
    *
    * @throws AzureBlobFileSystemException exception recevied while making server call.
    * */
-  public AbfsRestOperation copyBlob(Path sourceBlobPath, Path destinationBlobPath, TracingContext tracingContext) throws AzureBlobFileSystemException {
+  public AbfsRestOperation copyBlob(Path sourceBlobPath,
+      Path destinationBlobPath,
+      TracingContext tracingContext) throws AzureBlobFileSystemException {
+    AbfsUriQueryBuilder abfsUriQueryBuilder = createDefaultUriQueryBuilder();
+    String blobRelativePath = destinationBlobPath.toUri().getPath();
+    final URL url = createRequestUrl(blobRelativePath,
+        abfsUriQueryBuilder.toString());
+    final String sourcePathUrl = createRequestUrl(
+        sourceBlobPath.toUri().getPath(),
+        new AbfsUriQueryBuilder().toString()).toString();
+    List<AbfsHttpHeader> requestHeaders = createDefaultHeaders();
+    requestHeaders.add(new AbfsHttpHeader(X_MS_COPY_SOURCE, sourcePathUrl));
 
+    final AbfsRestOperation op = new AbfsRestOperation(
+        AbfsRestOperationType.CopyBlob,
+        this,
+        HTTP_METHOD_PUT,
+        url,
+        requestHeaders);
+    op.execute(tracingContext);
+
+    return op;
   }
 
   /**

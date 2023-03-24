@@ -164,6 +164,10 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
         .getRequestProperty(HttpHeaderConfigurations.X_MS_CLIENT_REQUEST_ID);
   }
 
+  public String getRequestHeaderValue(String requestHeader) {
+    return connection.getRequestProperty(requestHeader);
+  }
+
   public String getExpectedAppendPos() {
     return expectedAppendPos;
   }
