@@ -42,6 +42,10 @@ import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemExc
 import org.apache.hadoop.fs.azurebfs.security.AbfsDelegationTokenManager;
 import org.apache.hadoop.fs.azurebfs.services.AbfsOutputStream;
 import org.apache.hadoop.fs.azurebfs.services.AuthType;
+<<<<<<< HEAD
+=======
+import org.apache.hadoop.fs.azurebfs.services.ITestAbfsClient;
+>>>>>>> c88011c6046... HADOOP-18146: ABFS: Added changes for expect hundred continue header (#4039)
 import org.apache.hadoop.fs.azure.AzureNativeFileSystemStore;
 import org.apache.hadoop.fs.azure.NativeAzureFileSystem;
 import org.apache.hadoop.fs.azure.metrics.AzureFileSystemInstrumentation;
@@ -73,7 +77,7 @@ public abstract class AbstractAbfsIntegrationTest extends
         AbstractAbfsTestWithTimeout {
 
   private static final Logger LOG =
-      LoggerFactory.getLogger(AbstractAbfsIntegrationTest.class);
+          LoggerFactory.getLogger(AbstractAbfsIntegrationTest.class);
 
   private boolean isIPAddress;
   private NativeAzureFileSystem wasb;
@@ -110,11 +114,11 @@ public abstract class AbstractAbfsIntegrationTest extends
 
     if (authType == AuthType.SharedKey) {
       assumeTrue("Not set: " + FS_AZURE_ACCOUNT_KEY,
-          abfsConfig.get(FS_AZURE_ACCOUNT_KEY) != null);
+              abfsConfig.get(FS_AZURE_ACCOUNT_KEY) != null);
       // Update credentials
     } else {
       assumeTrue("Not set: " + FS_AZURE_ACCOUNT_TOKEN_PROVIDER_TYPE_PROPERTY_NAME,
-          abfsConfig.get(FS_AZURE_ACCOUNT_TOKEN_PROVIDER_TYPE_PROPERTY_NAME) != null);
+              abfsConfig.get(FS_AZURE_ACCOUNT_TOKEN_PROVIDER_TYPE_PROPERTY_NAME) != null);
     }
 
     final String abfsUrl = this.getFileSystemName() + "@" + this.getAccountName();
@@ -147,12 +151,12 @@ public abstract class AbstractAbfsIntegrationTest extends
   }
 
   protected boolean getIsNamespaceEnabled(AzureBlobFileSystem fs)
-      throws IOException {
+          throws IOException {
     return fs.getIsNamespaceEnabled(getTestTracingContext(fs, false));
   }
 
   public TracingContext getTestTracingContext(AzureBlobFileSystem fs,
-      boolean needsPrimaryReqId) {
+                                              boolean needsPrimaryReqId) {
     String correlationId, fsId;
     TracingHeaderFormat format;
     if (fs == null) {
@@ -166,7 +170,7 @@ public abstract class AbstractAbfsIntegrationTest extends
       format = abfsConf.getTracingHeaderFormat();
     }
     return new TracingContext(correlationId, fsId,
-        FSOperationType.TEST_OP, needsPrimaryReqId, format, null);
+            FSOperationType.TEST_OP, needsPrimaryReqId, format, null);
   }
 
 
@@ -178,12 +182,12 @@ public abstract class AbstractAbfsIntegrationTest extends
     // Only live account without namespace support can run ABFS&WASB
     // compatibility tests
     if (!isIPAddress && (abfsConfig.getAuthType(accountName) != AuthType.SAS)
-        && !abfs.getIsNamespaceEnabled(getTestTracingContext(
+            && !abfs.getIsNamespaceEnabled(getTestTracingContext(
             getFileSystem(), false))) {
       final URI wasbUri = new URI(
-          abfsUrlToWasbUrl(getTestUrl(), abfsConfig.isHttpsAlwaysUsed()));
+              abfsUrlToWasbUrl(getTestUrl(), abfsConfig.isHttpsAlwaysUsed()));
       final AzureNativeFileSystemStore azureNativeFileSystemStore =
-          new AzureNativeFileSystemStore();
+              new AzureNativeFileSystemStore();
 
       // update configuration with wasb credentials
       String accountNameWithoutDomain = accountName.split("\\.")[0];
@@ -194,9 +198,9 @@ public abstract class AbstractAbfsIntegrationTest extends
       }
 
       azureNativeFileSystemStore.initialize(
-          wasbUri,
-          rawConfig,
-          new AzureFileSystemInstrumentation(rawConfig));
+              wasbUri,
+              rawConfig,
+              new AzureFileSystemInstrumentation(rawConfig));
 
       wasb = new NativeAzureFileSystem(azureNativeFileSystemStore);
       wasb.initialize(wasbUri, rawConfig);
@@ -218,19 +222,18 @@ public abstract class AbstractAbfsIntegrationTest extends
         abfsConfig.set(FS_AZURE_ACCOUNT_AUTH_TYPE_PROPERTY_NAME, AuthType.SharedKey.name());
         AzureBlobFileSystem tempFs = (AzureBlobFileSystem) FileSystem.newInstance(rawConfig);
         tempFs.getAbfsStore().deleteFilesystem(tracingContext);
-      }
-      else if (!useConfiguredFileSystem) {
+      } else if (!useConfiguredFileSystem) {
         // Delete all uniquely created filesystem from the account
         final AzureBlobFileSystemStore abfsStore = abfs.getAbfsStore();
         abfsStore.deleteFilesystem(tracingContext);
 
         AbfsRestOperationException ex = intercept(AbfsRestOperationException.class,
-            new Callable<Hashtable<String, String>>() {
-              @Override
-              public Hashtable<String, String> call() throws Exception {
-                return abfsStore.getFilesystemProperties(tracingContext);
-              }
-            });
+                new Callable<Hashtable<String, String>>() {
+                  @Override
+                  public Hashtable<String, String> call() throws Exception {
+                    return abfsStore.getFilesystemProperties(tracingContext);
+                  }
+                });
         if (FILE_SYSTEM_NOT_FOUND.getStatusCode() != ex.getStatusCode()) {
           LOG.warn("Deleted test filesystem may still exist: {}", abfs, ex);
         }
@@ -243,6 +246,9 @@ public abstract class AbstractAbfsIntegrationTest extends
     }
   }
 
+  public AccessTokenProvider getAccessTokenProvider(final AzureBlobFileSystem fs) {
+    return ITestAbfsClient.getAccessTokenProvider(fs.getAbfsStore().getClient());
+  }
 
   public void loadConfiguredFileSystem() throws Exception {
       // disable auto-creation of filesystem

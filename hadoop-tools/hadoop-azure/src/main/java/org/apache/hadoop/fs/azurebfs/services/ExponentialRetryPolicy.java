@@ -24,6 +24,8 @@ import java.net.HttpURLConnection;
 import org.apache.hadoop.fs.azurebfs.AbfsConfiguration;
 import org.apache.hadoop.thirdparty.com.google.common.annotations.VisibleForTesting;
 
+import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.HTTP_CONTINUE;
+
 /**
  * Retry policy used by AbfsClient.
  * */
@@ -138,7 +140,7 @@ public class ExponentialRetryPolicy {
    */
   public boolean shouldRetry(final int retryCount, final int statusCode) {
     return retryCount < this.retryCount
-        && (statusCode == -1
+        && (statusCode < HTTP_CONTINUE
         || statusCode == HttpURLConnection.HTTP_CLIENT_TIMEOUT
         || statusCode == HttpURLConnection.HTTP_GONE
         || statusCode == HTTP_TOO_MANY_REQUESTS

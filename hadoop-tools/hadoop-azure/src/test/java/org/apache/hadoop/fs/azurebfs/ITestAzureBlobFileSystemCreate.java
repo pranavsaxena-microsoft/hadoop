@@ -60,7 +60,8 @@ import org.apache.hadoop.fs.azurebfs.contracts.exceptions.ConcurrentWriteOperati
 import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
 import org.apache.hadoop.fs.azurebfs.services.AbfsRestOperation;
 import org.apache.hadoop.fs.azurebfs.services.AbfsHttpOperation;
-import org.apache.hadoop.fs.azurebfs.services.TestAbfsClient;
+
+import org.apache.hadoop.fs.azurebfs.services.ITestAbfsClient;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 import org.apache.hadoop.fs.azurebfs.utils.TracingHeaderValidator;
 import org.mockito.Mockito;
@@ -82,7 +83,6 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-import org.assertj.core.api.Assertions;
 
 import static org.apache.hadoop.fs.contract.ContractTestUtils.assertIsFile;
 import static org.apache.hadoop.test.LambdaTestUtils.intercept;
@@ -1159,7 +1159,7 @@ public class ITestAzureBlobFileSystemCreate extends
     // Get mock AbfsClient with current config
     AbfsClient
         mockClient
-        = TestAbfsClient.getMockAbfsClient(
+        = ITestAbfsClient.getMockAbfsClient(
         fs.getAbfsStore().getClient(),
         fs.getAbfsStore().getAbfsConfiguration());
 
