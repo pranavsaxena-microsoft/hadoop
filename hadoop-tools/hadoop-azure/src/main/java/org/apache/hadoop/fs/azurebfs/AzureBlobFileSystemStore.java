@@ -989,8 +989,24 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     boolean shouldContinue;
 
     if(getAbfsConfiguration().getMode() == PrefixMode.BLOB) {
-      BlobProperty dstProperty = getBlobPropertyWithNotFoundHandling(destination, tracingContext);
-      if(dstProperty != null) {
+      /*
+      * Destination can be either a file, directory.
+      * To understand that its directory, we will do a listBlob API with prefix of
+      * the destination with maxResult = 2. In case, the API results only one object,
+      * we will check if there is is_Hdi metadata. If not, we will mark it as a directory.
+      * If there are more than one object, then it is straight a directory.
+      * If there is zero object returned, then we will understand that there is
+      * nothing on the destination.
+      */
+      final Boolean isDstExist;
+      List<BlobProperty> dstProperties = getListBlobs(destination, tracingContext, 2);
+      if(dstProperties.size() > 0) {
+        isDstExist = true;
+      } else {
+        isDstExist = false;
+      }
+
+      if(isDstExist) {
         //destination already there. Rename should not be overwriting.
         throw new AbfsRestOperationException(HttpURLConnection.HTTP_CONFLICT,
             AzureServiceErrorCode.PATH_ALREADY_EXISTS.getErrorCode(), null, null);
