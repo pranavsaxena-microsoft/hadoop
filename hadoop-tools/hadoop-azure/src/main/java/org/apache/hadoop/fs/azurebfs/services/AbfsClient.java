@@ -1200,9 +1200,11 @@ public class AbfsClient implements Closeable {
     AbfsUriQueryBuilder abfsUriQueryBuilder = createDefaultUriQueryBuilder();
     abfsUriQueryBuilder.addQuery(QUERY_PARAM_RESTYPE, CONTAINER);
     abfsUriQueryBuilder.addQuery(QUERY_PARAM_COMP, QUERY_PARAM_COMP_VALUE_LIST);
+    abfsUriQueryBuilder.addQuery(QUERY_PARAM_INCLUDE, QUERY_PARAM_INCLUDE_VALUE_METADATA);
     if (prefix == null) {
       prefix = sourceDirBlobPath.toUri().getPath();
     }
+    prefix = removeInitialSlash(prefix);
     abfsUriQueryBuilder.addQuery(QUERY_PARAM_PREFIX, prefix);
     if (marker != null) {
       abfsUriQueryBuilder.addQuery(QUERY_PARAM_MARKER, marker);
@@ -1221,6 +1223,16 @@ public class AbfsClient implements Closeable {
     );
     op.execute(tracingContext);
     return op;
+  }
+
+  private String removeInitialSlash(final String prefix) {
+    int len = prefix.length();
+    for(int i = 0; i < len; i++) {
+      if(prefix.charAt(i) != '/') {
+        return prefix.substring(i);
+      }
+    }
+    return null;
   }
 
   public void deleteBlobPath(final BlobProperty blobProperty, final TracingContext tracingContext) throws AzureBlobFileSystemException{

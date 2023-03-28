@@ -1011,18 +1011,32 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         throw new AbfsRestOperationException(HttpURLConnection.HTTP_CONFLICT,
             AzureServiceErrorCode.PATH_ALREADY_EXISTS.getErrorCode(), null, null);
       }
-      BlobProperty srcProperty = getBlobPropertyWithNotFoundHandling(source, tracingContext);
-      if(srcProperty == null) {
+
+      final Boolean isSrcExist;
+      final Boolean isSrcDir;
+      List<BlobProperty> srcBlobProperties = getListBlobs(source, tracingContext, null);
+      if(srcBlobProperties.size() > 0) {
+        isSrcExist = true;
+        if(srcBlobProperties.size() > 1 || srcBlobProperties.get(0).getIsDirectory()) {
+          isSrcDir = true;
+        } else {
+          isSrcDir = false;
+        }
+      } else {
+        isSrcExist = false;
+        isSrcDir = false;
+      }
+
+      if(!isSrcExist) {
         throw new AbfsRestOperationException(HttpURLConnection.HTTP_NOT_FOUND,
             AzureServiceErrorCode.PATH_NOT_FOUND.getErrorCode(), null, null);
       }
-      if(srcProperty.getIsDirectory()) {
-        List<BlobProperty> blobProperties = getListBlobs(source, tracingContext, null);
+      if(isSrcDir) {
         List<Future> futures = new ArrayList<>();
-        for(BlobProperty blobProperty : blobProperties) {
+        for(BlobProperty blobProperty : srcBlobProperties) {
           futures.add(renameBlobExecutorService.submit(() -> {
             try {
-              renameBlob(destination, tracingContext, blobProperty);
+              renameBlob(createDestinationPath(destination, blobProperty, source), tracingContext, blobProperty);
             } catch (AzureBlobFileSystemException e) {
               throw new RuntimeException(e);
             }
@@ -1038,7 +1052,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
           }
         }
       } else {
-        renameBlob(destination, tracingContext, srcProperty);
+        renameBlob(destination, tracingContext, srcBlobProperties.get(0));
       }
       return;
     }
@@ -1076,10 +1090,22 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     } while (shouldContinue);
   }
 
+  private Path createDestinationPath(final Path destination,
+      final BlobProperty srcBlobProperty,
+      final Path source) {
+    String destinationPathStr = destination.toUri().getPath();
+    String sourcePathStr = source.toUri().getPath();
+    String srcBlobPropertyPathStr = srcBlobProperty.getPath().toUri().getPath();
+    if(sourcePathStr.equals(srcBlobPropertyPathStr)) {
+      return destination;
+    }
+    return new Path(destinationPathStr + "/" + srcBlobPropertyPathStr.substring(sourcePathStr.length()));
+  }
+
   private void renameBlob(final Path destination,
       final TracingContext tracingContext,
       final BlobProperty blobProperty) throws AzureBlobFileSystemException {
-    copyBlob(destination, blobProperty.getPath(), tracingContext);
+    copyBlob(blobProperty.getPath(), destination, tracingContext);
     client.deleteBlobPath(blobProperty, tracingContext);
   }
 

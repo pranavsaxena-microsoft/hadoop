@@ -473,7 +473,7 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
     try {
       final SAXParser saxParser = Utility.getSAXParser();
       BlobList blobList = new BlobList();
-      saxParser.parse(stream, new BlobListXmlParser(blobList));
+      saxParser.parse(stream, new BlobListXmlParser(blobList, getBaseUrl()));
       this.blobList = blobList;
     } catch (ParserConfigurationException e) {
       throw new RuntimeException(e);
@@ -482,6 +482,15 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  private String getBaseUrl() {
+    String urlStr = url.toString();
+    int queryParamStart = urlStr.indexOf("?");
+    if(queryParamStart == -1) {
+      return urlStr;
+    }
+    return urlStr.substring(0, queryParamStart);
   }
 
   public void setRequestProperty(String key, String value) {

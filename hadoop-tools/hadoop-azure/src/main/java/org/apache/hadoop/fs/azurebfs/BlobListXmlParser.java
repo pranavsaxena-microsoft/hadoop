@@ -8,9 +8,11 @@ import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
 
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants;
 
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.DIRECTORY;
+import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.HDI_ISFOLDER;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.INVALID_XML;
 
 /**
@@ -21,12 +23,14 @@ import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.INVALID_
  */
 public class BlobListXmlParser extends DefaultHandler {
   private final BlobList blobList;
+  private final String url;
   private BlobProperty currentBlobProperty;
   private StringBuilder bld = new StringBuilder();
   private final Stack<String> elements = new Stack<>();
 
-  public BlobListXmlParser(final BlobList blobList) {
+  public BlobListXmlParser(final BlobList blobList, final String url) {
     this.blobList = blobList;
+    this.url = url;
   }
 
   @Override
@@ -61,7 +65,6 @@ public class BlobListXmlParser extends DefaultHandler {
 
     if (AbfsHttpConstants.BLOB.equals(currentNode)) {
       blobList.addBlobProperty(currentBlobProperty);
-      currentBlobProperty.setIsDirectory(null);
       currentBlobProperty = null;
     }
 
@@ -77,10 +80,15 @@ public class BlobListXmlParser extends DefaultHandler {
     if (parentNode.equals(AbfsHttpConstants.BLOB)) {
       if (currentNode.equals(AbfsHttpConstants.NAME)) {
         currentBlobProperty.setName(value);
+        currentBlobProperty.setPath(new Path("/" + value));
+        currentBlobProperty.setUrl(url + "/" + value);
       }
     }
     if (parentNode.equals(AbfsHttpConstants.METADATA)) {
       currentBlobProperty.addMetadata(currentNode, value);
+      if(HDI_ISFOLDER.equals(currentNode)) {
+        currentBlobProperty.setIsDirectory(Boolean.valueOf(value));
+      }
     }
     if (parentNode.equals(AbfsHttpConstants.PROPERTIES)) {
       if (currentNode.equals(AbfsHttpConstants.CONTENT_LEN)) {

@@ -55,6 +55,8 @@ public final class HttpQueryParams {
   public static final String QUERY_PARAM_SKOID = "skoid";
   public static final String QUERY_PARAM_SUOID = "suoid";
   public static final String QUERY_PARAM_SIGNATURE = "sig";
+  public static final String QUERY_PARAM_INCLUDE = "include";
+  public static final String QUERY_PARAM_INCLUDE_VALUE_METADATA = "metadata";
 
   private HttpQueryParams() {}
 }
