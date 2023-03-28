@@ -141,7 +141,7 @@ public class ITestAbfsRestOperation extends AbstractAbfsIntegrationTest {
 
     final Configuration configuration = new Configuration();
     configuration.addResource(TEST_CONFIGURATION_FILE_NAME);
-    AbfsClient abfsClient = fs.getAbfsStore().getClient();
+    AbfsClient abfsClient = getClient(fs);
 
     AbfsConfiguration abfsConfiguration = new AbfsConfiguration(configuration,
         configuration.get(FS_AZURE_ABFS_ACCOUNT_NAME));

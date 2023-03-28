@@ -1668,4 +1668,9 @@ public class AbfsClient implements Closeable {
   AbfsConfiguration getAbfsConfiguration() {
     return abfsConfiguration;
   }
+
+  @VisibleForTesting
+  protected AccessTokenProvider getTokenProvider() {
+    return tokenProvider;
+  }
 }

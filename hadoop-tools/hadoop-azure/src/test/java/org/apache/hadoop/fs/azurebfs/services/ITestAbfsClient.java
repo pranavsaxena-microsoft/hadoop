@@ -458,7 +458,7 @@ public final class ITestAbfsClient extends AbstractAbfsIntegrationTest {
 
     final Configuration configuration = new Configuration();
     configuration.addResource(TEST_CONFIGURATION_FILE_NAME);
-    AbfsClient abfsClient = fs.getAbfsStore().getClient();
+    AbfsClient abfsClient = getClient(fs);
 
     AbfsConfiguration abfsConfiguration = new AbfsConfiguration(configuration,
         configuration.get(FS_AZURE_ABFS_ACCOUNT_NAME));
@@ -585,5 +585,4 @@ public final class ITestAbfsClient extends AbstractAbfsIntegrationTest {
             .describedAs("The expect header is not false")
             .isFalse();
   }
->>>>>>> c88011c6046... HADOOP-18146: ABFS: Added changes for expect hundred continue header (#4039):hadoop-tools/hadoop-azure/src/test/java/org/apache/hadoop/fs/azurebfs/services/ITestAbfsClient.java
 }

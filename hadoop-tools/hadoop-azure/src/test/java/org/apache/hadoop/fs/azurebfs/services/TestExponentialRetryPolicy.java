@@ -18,20 +18,38 @@
 
 package org.apache.hadoop.fs.azurebfs.services;
 
+import static java.net.HttpURLConnection.HTTP_INTERNAL_ERROR;
+import static org.apache.hadoop.fs.azure.integration.AzureTestConstants.TEST_CONFIGURATION_FILE_NAME;
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.AZURE_BACKOFF_INTERVAL;
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.AZURE_MAX_BACKOFF_INTERVAL;
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.AZURE_MAX_IO_RETRIES;
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.AZURE_MIN_BACKOFF_INTERVAL;
+import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_ACCOUNT_LEVEL_THROTTLING_ENABLED;
+import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.MIN_BUFFER_SIZE;
+import static org.apache.hadoop.fs.azurebfs.constants.TestConfigurationKeys.FS_AZURE_ABFS_ACCOUNT1_NAME;
+import static org.apache.hadoop.fs.azurebfs.constants.TestConfigurationKeys.FS_AZURE_ACCOUNT_NAME;
+import static org.apache.hadoop.fs.azurebfs.constants.TestConfigurationKeys.FS_AZURE_ENABLE_AUTOTHROTTLING;
+import static org.junit.Assume.assumeTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
+import java.net.URI;
 import java.util.Random;
 
+import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.azurebfs.AzureBlobFileSystem;
+import org.assertj.core.api.Assertions;
 import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.Test;
 
 import org.apache.hadoop.conf.Configuration;
 
 import org.apache.hadoop.fs.azurebfs.AbfsConfiguration;
 import org.apache.hadoop.fs.azurebfs.AbstractAbfsIntegrationTest;
+import org.mockito.Mockito;
 
 /**
  * Unit test TestExponentialRetryPolicy.
@@ -41,6 +59,9 @@ public class TestExponentialRetryPolicy extends AbstractAbfsIntegrationTest {
   private final int noRetryCount = 0;
   private final int retryCount = new Random().nextInt(maxRetryCount);
   private final int retryCountBeyondMax = maxRetryCount + 1;
+  private static final String TEST_PATH = "/testfile";
+  private static final double MULTIPLYING_FACTOR = 1.5;
+  private static final int ANALYSIS_PERIOD = 10000;
 
 
   public TestExponentialRetryPolicy() throws Exception {
@@ -68,8 +89,6 @@ public class TestExponentialRetryPolicy extends AbstractAbfsIntegrationTest {
   }
 
   @Test
-<<<<<<< HEAD
-=======
   public void testThrottlingIntercept() throws Exception {
     AzureBlobFileSystem fs = getFileSystem();
     final Configuration configuration = new Configuration();
@@ -80,7 +99,7 @@ public class TestExponentialRetryPolicy extends AbstractAbfsIntegrationTest {
     AbfsConfiguration abfsConfiguration = new AbfsConfiguration(configuration,
         "dummy.dfs.core.windows.net");
     AbfsThrottlingIntercept intercept;
-    AbfsClient abfsClient = ITestAbfsClient.createTestClientFromCurrentContext(fs.getAbfsStore().getClient(), abfsConfiguration);
+    AbfsClient abfsClient = ITestAbfsClient.createTestClientFromCurrentContext(getClient(fs), abfsConfiguration);
     intercept = abfsClient.getIntercept();
     Assertions.assertThat(intercept)
         .describedAs("AbfsNoOpThrottlingIntercept instance expected")
@@ -91,7 +110,7 @@ public class TestExponentialRetryPolicy extends AbstractAbfsIntegrationTest {
     // On disabling throttling AbfsClientThrottlingIntercept object is returned
     AbfsConfiguration abfsConfiguration1 = new AbfsConfiguration(configuration,
         "dummy1.dfs.core.windows.net");
-    AbfsClient abfsClient1 = ITestAbfsClient.createTestClientFromCurrentContext(fs.getAbfsStore().getClient(), abfsConfiguration1);
+    AbfsClient abfsClient1 = ITestAbfsClient.createTestClientFromCurrentContext(getClient(fs), abfsConfiguration1);
     intercept = abfsClient1.getIntercept();
     Assertions.assertThat(intercept)
         .describedAs("AbfsClientThrottlingIntercept instance expected")
@@ -156,7 +175,7 @@ public class TestExponentialRetryPolicy extends AbstractAbfsIntegrationTest {
   public void testOperationOnAccountIdle() throws Exception {
     //Get the filesystem.
     AzureBlobFileSystem fs = getFileSystem();
-    AbfsClient client = fs.getAbfsStore().getClient();
+    AbfsClient client = getClient(fs);
     AbfsConfiguration configuration1 = client.getAbfsConfiguration();
     Assume.assumeTrue(configuration1.isAutoThrottlingEnabled());
     Assume.assumeTrue(configuration1.accountThrottlingEnabled());
@@ -191,7 +210,7 @@ public class TestExponentialRetryPolicy extends AbstractAbfsIntegrationTest {
     URI defaultUri1 = null;
     defaultUri1 = new URI("abfss", abfsUrl1, null, null, null);
     fs1.initialize(defaultUri1, getRawConfiguration());
-    AbfsClient client1 = fs1.getAbfsStore().getClient();
+    AbfsClient client1 = getClient(fs1);
     AbfsClientThrottlingIntercept accountIntercept1
         = (AbfsClientThrottlingIntercept) client1.getIntercept();
     try (FSDataOutputStream stream1 = fs1.create(testPath)) {
@@ -237,7 +256,6 @@ public class TestExponentialRetryPolicy extends AbstractAbfsIntegrationTest {
   }
 
   @Test
->>>>>>> c88011c6046... HADOOP-18146: ABFS: Added changes for expect hundred continue header (#4039)
   public void testAbfsConfigConstructor() throws Exception {
     // Ensure we choose expected values that are not defaults
     ExponentialRetryPolicy template = new ExponentialRetryPolicy(

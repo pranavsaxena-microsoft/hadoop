@@ -559,15 +559,6 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
   }
 
   /**
-   * Gets the connection response message.
-   * @return response message.
-   * @throws IOException
-   */
-  String getConnResponseMessage() throws IOException {
-    return connection.getResponseMessage();
-  }
-
-  /**
    * Parses the get block list response and returns list of committed blocks.
    *
    * @param stream InputStream contains the list results.

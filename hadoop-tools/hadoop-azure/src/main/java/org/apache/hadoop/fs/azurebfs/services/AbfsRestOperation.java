@@ -294,7 +294,7 @@ public class AbfsRestOperation {
     AbfsHttpOperation httpOperation;
     try {
       // initialize the HTTP request and open the connection
-      httpOperation = createNewHttpOperation();
+      httpOperation = createHttpOperation();
       incrementCounter(AbfsStatistic.CONNECTIONS_MADE, 1);
       tracingContext.constructHeader(httpOperation);
 
@@ -397,11 +397,6 @@ public class AbfsRestOperation {
   }
 
   @VisibleForTesting
-  AbfsHttpOperation createNewHttpOperation() throws IOException {
-    return new AbfsHttpOperation(url, method, requestHeaders);
-  }
-
-  @VisibleForTesting
   String getMethod() {
     return method;
   }
@@ -409,6 +404,15 @@ public class AbfsRestOperation {
   @VisibleForTesting
   void setResult(AbfsHttpOperation result) {
     this.result = result;
+  }
+
+  /**
+   * Creates new object of {@link AbfsHttpOperation} with the url, method, and
+   * requestHeaders fields of the AbfsRestOperation object.
+   */
+  @VisibleForTesting
+  AbfsHttpOperation createHttpOperation() throws IOException {
+    return new AbfsHttpOperation(url, method, requestHeaders);
   }
 
   /**
