@@ -159,5 +159,6 @@ public class ITestAzureBlobFileSystemRename extends
     assertTrue(fs.exists(new Path("testDir2/test4/test3")));
     assertFalse(fs.exists(new Path("testDir2/test1/test2/test3")));
   }
+  some code added
 
 }
