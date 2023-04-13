@@ -189,6 +189,14 @@ public class ITestAzureBlobFileSystemRename extends
     assertFalse(fs.exists(new Path("testDir2/test1/test2/test3")));
   }
 
+  @Test
+  public void testRenameToRoot() throws Exception {
+    AzureBlobFileSystem fs = getFileSystem();
+    fs.mkdirs(new Path("/src1/src2"));
+    Assert.assertTrue(fs.rename(new Path("/src1/src2"), new Path("/")));
+    Assert.assertTrue(fs.exists(new Path("/src2")));
+  }
+
   /**
    * <pre>
    * Test to check behaviour of rename API if the destination directory is already
