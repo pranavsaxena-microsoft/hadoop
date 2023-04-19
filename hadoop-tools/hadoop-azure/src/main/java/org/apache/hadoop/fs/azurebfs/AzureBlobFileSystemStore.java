@@ -913,7 +913,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       final FsPermission umask, TracingContext tracingContext)
           throws IOException {
     try (AbfsPerfInfo perfInfo = startTracking("createDirectory", "createPath")) {
-      if (getAbfsConfiguration().getPrefixMode() == PrefixMode.BLOB) {
+      if (getAbfsConfiguration().getPrefixMode() == PrefixMode.BLOB && false) {
         checkParentChainForFile(path, tracingContext);
 
         HashMap<String, String> metadata = new HashMap<>();
