@@ -85,6 +85,9 @@ public class ITestAzureBlobFileSystemDelegationSASForBlobEndpoint
   public void testPosixRenameDirectoryWhereDirectoryAlreadyThereOnDestination()
       throws Exception {
     final AzureBlobFileSystem fs = this.getFileSystem();
+    fs.mkdirs(new Path("testDir2"));
+    fs.mkdirs(new Path("testDir2/test1"));
+    fs.mkdirs(new Path("testDir2/test1/test2"));
     fs.mkdirs(new Path("testDir2/test1/test2/test3"));
     fs.create(new Path("testDir2/test1/test2/test3/file"));
     fs.mkdirs(new Path("testDir2/test4/test3"));
@@ -113,6 +116,9 @@ public class ITestAzureBlobFileSystemDelegationSASForBlobEndpoint
   @Test
   public void testPosixRenameDirectory() throws Exception {
     final AzureBlobFileSystem fs = this.getFileSystem();
+    fs.mkdirs(new Path("testDir2"));
+    fs.mkdirs(new Path("testDir2/test1"));
+    fs.mkdirs(new Path("testDir2/test1/test2"));
     fs.mkdirs(new Path("testDir2/test1/test2/test3"));
     fs.mkdirs(new Path("testDir2/test4"));
     Assert.assertTrue(fs.rename(new Path("testDir2/test1/test2/test3"),

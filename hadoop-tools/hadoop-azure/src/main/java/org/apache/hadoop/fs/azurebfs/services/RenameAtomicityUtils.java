@@ -21,6 +21,7 @@ package org.apache.hadoop.fs.azurebfs.services;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.net.HttpURLConnection;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
@@ -44,6 +45,7 @@ import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.azurebfs.AzureBlobFileSystem;
+import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AbfsRestOperationException;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemException;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 
@@ -214,7 +216,7 @@ public class RenameAtomicityUtils {
    * } }</pre>
    * @throws IOException Thrown when fail to write file.
    */
-  public void preRename(List<BlobProperty> blobPropertyList) throws IOException {
+  public void preRename(List<BlobProperty> blobPropertyList, Boolean createOnBlobEndpoint) throws IOException {
     Path path = getRenamePendingFilePath();
     LOG.debug("Preparing to write atomic rename state to {}", path.toString());
     OutputStream output = null;
@@ -228,7 +230,12 @@ public class RenameAtomicityUtils {
       output.flush();
       output.close();
     } catch (IOException e) {
-      if (e instanceof FileNotFoundException) {
+      if ((!createOnBlobEndpoint && e instanceof FileNotFoundException) || (
+          createOnBlobEndpoint && e.getCause()
+              .getCause() instanceof AbfsRestOperationException &&
+              ((AbfsRestOperationException) e.getCause()
+                  .getCause()).getStatusCode()
+                  == HttpURLConnection.HTTP_PRECON_FAILED)) {
         /*
          * In case listStatus done on directory before any content could be written,
          * that particular thread running on some worker-node of the cluster would

@@ -177,6 +177,9 @@ public class ITestAzureBlobFileSystemRename extends
   @Test
   public void testPosixRenameDirectory() throws Exception {
     final AzureBlobFileSystem fs = this.getFileSystem();
+    fs.mkdirs(new Path("testDir2"));
+    fs.mkdirs(new Path("testDir2/test1"));
+    fs.mkdirs(new Path("testDir2/test1/test2"));
     fs.mkdirs(new Path("testDir2/test1/test2/test3"));
     fs.mkdirs(new Path("testDir2/test4"));
     Assert.assertTrue(fs.rename(new Path("testDir2/test1/test2/test3"), new Path("testDir2/test4")));
@@ -213,6 +216,8 @@ public class ITestAzureBlobFileSystemRename extends
   public void testRenameBlobInSameDirectoryWithNoMarker() throws Exception {
     AzureBlobFileSystem fs = getFileSystem();
     assumeNonHnsAccountBlobEndpoint(fs);
+    fs.mkdirs(new Path("/srcDir"));
+    fs.mkdirs(new Path("/srcDir/dir"));
     fs.create(new Path("/srcDir/dir/file"));
     fs.getAbfsStore().getClient().deleteBlobPath(new Path("/srcDir/dir"), Mockito.mock(TracingContext.class));
     Assert.assertTrue(fs.rename(new Path("/srcDir/dir"), new Path("/srcDir")));
@@ -262,6 +267,9 @@ public class ITestAzureBlobFileSystemRename extends
   public void testPosixRenameDirectoryWherePartAlreadyThereOnDestination()
       throws Exception {
     final AzureBlobFileSystem fs = this.getFileSystem();
+    fs.mkdirs(new Path("testDir2"));
+    fs.mkdirs(new Path("testDir2/test1"));
+    fs.mkdirs(new Path("testDir2/test1/test2"));
     fs.mkdirs(new Path("testDir2/test1/test2/test3"));
     fs.create(new Path("testDir2/test1/test2/test3/file"));
     fs.create(new Path("testDir2/test1/test2/test3/file1"));
@@ -335,8 +343,11 @@ public class ITestAzureBlobFileSystemRename extends
   public void testHBaseHandlingForFailedRename() throws Exception {
     final AzureBlobFileSystem fs = this.getFileSystem();
     assumeNonHnsAccountBlobEndpoint(fs);
-    final String failedCopyPath = "hbase/test1/test2/test3/file1";
     fs.setWorkingDirectory(new Path("/"));
+    fs.mkdirs(new Path("hbase"));
+    fs.mkdirs(new Path("hbase/test1"));
+    fs.mkdirs(new Path("hbase/test1/test2"));
+    final String failedCopyPath = "hbase/test1/test2/test3/file1";
     fs.mkdirs(new Path("hbase/test1/test2/test3"));
     fs.create(new Path("hbase/test1/test2/test3/file"));
     fs.create(new Path(failedCopyPath));
@@ -446,6 +457,9 @@ public class ITestAzureBlobFileSystemRename extends
     assumeNonHnsAccountBlobEndpoint(fs);
     final String failedCopyPath = "hbase/test1/test2/test3/file1";
     fs.setWorkingDirectory(new Path("/"));
+    fs.mkdirs(new Path("hbase"));
+    fs.mkdirs(new Path("hbase/test1"));
+    fs.mkdirs(new Path("hbase/test1/test2"));
     fs.mkdirs(new Path("hbase/test1/test2/test3"));
     fs.create(new Path("hbase/test1/test2/test3/file"));
     fs.create(new Path(failedCopyPath));
@@ -686,6 +700,9 @@ public class ITestAzureBlobFileSystemRename extends
     assumeNonHnsAccountBlobEndpoint(fs);
     final String failedCopyPath = "hbase/test1/test2/test3/file1";
     fs.setWorkingDirectory(new Path("/"));
+    fs.mkdirs(new Path("hbase"));
+    fs.mkdirs(new Path("hbase/test1"));
+    fs.mkdirs(new Path("hbase/test1/test2"));
     fs.mkdirs(new Path("hbase/test1/test2/test3"));
     fs.create(new Path("hbase/test1/test2/test3/file"));
     fs.create(new Path(failedCopyPath));
@@ -1282,6 +1299,8 @@ public class ITestAzureBlobFileSystemRename extends
   public void testBlobRenameSrcDirHasNoMarker() throws Exception {
     AzureBlobFileSystem fs = getFileSystem();
     assumeNonHnsAccountBlobEndpoint(fs);
+    fs.mkdirs(new Path("/test1"));
+    fs.mkdirs(new Path("/test1/test2"));
     fs.create(new Path("/test1/test2/file1"));
     fs.getAbfsStore()
         .getClient()
