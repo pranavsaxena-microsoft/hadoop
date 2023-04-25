@@ -41,6 +41,7 @@ triggerRun()
   runTest=$3
   processcount=$4
   cleanUpTestContainers=$5
+  flipToBlob=$6
 
   if [ -z "$accountName" ]; then
     logOutput "ERROR: Test account not configured. Re-run the script and choose SET_OR_CHANGE_TEST_ACCOUNT to configure the test account."
@@ -77,11 +78,19 @@ ENDOFFILE
 
   if [ "$runTest" == true ]
   then
+    if [ "$flipToBlob" == true ]
+    then
+      sed -i "s/dfs.core.windows/blob.core.windows/g" $resourceDir$accountConfigFile
+    fi
     STARTTIME=$(date +%s)
     echo "Running test for combination $combination on account $accountName [ProcessCount=$processcount]"
     logOutput "Test run report can be seen in $testlogfilename"
     mvn -T 1C -Dparallel-tests=abfs -Dscale -DtestsThreadCount="$processcount" verify >> "$testlogfilename" || true
     ENDTIME=$(date +%s)
+    if [ "$flipToBlob" == true ]
+    then
+      sed -i "s/blob.core.windows/dfs.core.windows/g" $resourceDir$accountConfigFile
+    fi
     summary
   fi
 

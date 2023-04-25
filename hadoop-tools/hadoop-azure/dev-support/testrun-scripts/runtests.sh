@@ -53,7 +53,7 @@ runNonHNSSharedKeyTest()
   accountName=$(xmlstarlet sel -t -v '//property[name = "fs.azure.nonHnsTestAccountName"]/value' -n $azureTestXmlPath)
   PROPERTIES=("fs.azure.account.auth.type")
   VALUES=("SharedKey")
-  triggerRun "NonHNS-SharedKey" "$accountName" "$runTest" $processCount "$cleanUpTestContainers"
+  triggerRun "NonHNS-SharedKey" "$accountName" "$runTest" $processCount "$cleanUpTestContainers" "$flipToBlob"
 }
 
 runAppendBlobHNSOAuthTest()
@@ -66,6 +66,7 @@ runAppendBlobHNSOAuthTest()
 
 runTest=false
 cleanUpTestContainers=false
+flipToBlob=true
 echo 'Ensure below are complete before running script:'
 echo '1. Account specific settings file is present.'
 echo '   Copy accountName_settings.xml.template to accountName_settings.xml'
