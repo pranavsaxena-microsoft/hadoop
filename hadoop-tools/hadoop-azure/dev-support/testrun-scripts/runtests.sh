@@ -37,7 +37,12 @@ runHNSOAuthTest()
   accountName=$(xmlstarlet sel -t -v '//property[name = "fs.azure.hnsTestAccountName"]/value' -n $azureTestXmlPath)
   PROPERTIES=("fs.azure.account.auth.type")
   VALUES=("OAuth")
-  triggerRun "HNS-OAuth" "$accountName" "$runTest" $processCount "$cleanUpTestContainers"
+  if [ $runTest == true ]
+  then
+    trigger "HNS-OAuth" "$accountName" "$runTest" $processCount "$cleanUpTestContainers"
+  else
+    triggerRun "HNS-OAuth" "$accountName" "$runTest" $processCount "$cleanUpTestContainers"
+  fi
 }
 
 runHNSSharedKeyTest()
@@ -45,7 +50,12 @@ runHNSSharedKeyTest()
   accountName=$(xmlstarlet sel -t -v '//property[name = "fs.azure.hnsTestAccountName"]/value' -n $azureTestXmlPath)
   PROPERTIES=("fs.azure.account.auth.type")
   VALUES=("SharedKey")
-  triggerRun "HNS-SharedKey" "$accountName"  "$runTest" $processCount "$cleanUpTestContainers"
+  if [ $runTest == true ]
+  then
+    trigger "HNS-SharedKey" "$accountName" "$runTest" $processCount "$cleanUpTestContainers"
+  else
+    triggerRun "HNS-SharedKey" "$accountName" "$runTest" $processCount "$cleanUpTestContainers"
+  fi
 }
 
 runNonHNSSharedKeyTest()
@@ -53,7 +63,12 @@ runNonHNSSharedKeyTest()
   accountName=$(xmlstarlet sel -t -v '//property[name = "fs.azure.nonHnsTestAccountName"]/value' -n $azureTestXmlPath)
   PROPERTIES=("fs.azure.account.auth.type")
   VALUES=("SharedKey")
-  triggerRun "NonHNS-SharedKey" "$accountName" "$runTest" $processCount "$cleanUpTestContainers" "$flipToBlob"
+  if [ $runTest == true ]
+  then
+    trigger "NonHNS-SharedKey" "$accountName" "$runTest" $processCount "$cleanUpTestContainers"
+  else
+    triggerRun "NonHNS-SharedKey" "$accountName" "$runTest" $processCount "$cleanUpTestContainers"
+  fi
 }
 
 runAppendBlobHNSOAuthTest()
@@ -61,12 +76,47 @@ runAppendBlobHNSOAuthTest()
   accountName=$(xmlstarlet sel -t -v '//property[name = "fs.azure.hnsTestAccountName"]/value' -n $azureTestXmlPath)
   PROPERTIES=("fs.azure.account.auth.type" "fs.azure.test.appendblob.enabled")
   VALUES=("OAuth" "true")
-  triggerRun "AppendBlob-HNS-OAuth" "$accountName" "$runTest" $processCount "$cleanUpTestContainers"
+  if [ $runTest == true ]
+  then
+    trigger "AppendBlob-HNS-OAuth" "$accountName" "$runTest" $processCount "$cleanUpTestContainers"
+  else
+    triggerRun "AppendBlob-HNS-OAuth" "$accountName" "$runTest" $processCount "$cleanUpTestContainers"
+  fi
+}
+
+trigger() {
+  for flipToBlob in true false; do
+        for enableBlob in true false; do
+          for mkdirToDFS in true false; do
+            for ingressToDFS in true false; do
+              for redirectDelete in true false; do
+                for redirectRename in true false; do
+                  PROPERTIES[${#PROPERTIES[@]}]="fs.azure.enable.blob.endpoint"
+                  VALUES[${#VALUES[@]}]=$enableBlob;
+
+                  PROPERTIES[${#PROPERTIES[@]}]="fs.azure.mkdirs.fallback.to.dfs"
+                  VALUES[${#VALUES[@]}]=$mkdirToDFS;
+
+                  PROPERTIES[${#PROPERTIES[@]}]="fs.azure.ingress.fallback.to.dfs"
+                  VALUES[${#VALUES[@]}]=$ingressToDFS;
+
+                  PROPERTIES[${#PROPERTIES[@]}]="fs.azure.redirect.delete"
+                  VALUES[${#VALUES[@]}]=$redirectDelete;
+
+                  PROPERTIES[${#PROPERTIES[@]}]="fs.azure.redirect.rename"
+                  VALUES[${#VALUES[@]}]=$redirectRename;
+
+                  triggerRun $1 $2 $3 $4 $5 "$flipToBlob"
+                done
+              done
+            done
+          done
+        done
+      done
 }
 
 runTest=false
 cleanUpTestContainers=false
-flipToBlob=true
 echo 'Ensure below are complete before running script:'
 echo '1. Account specific settings file is present.'
 echo '   Copy accountName_settings.xml.template to accountName_settings.xml'
