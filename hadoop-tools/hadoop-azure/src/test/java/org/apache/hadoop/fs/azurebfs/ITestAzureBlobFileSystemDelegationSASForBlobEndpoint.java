@@ -160,6 +160,7 @@ public class ITestAzureBlobFileSystemDelegationSASForBlobEndpoint
   public void testListBlob() throws Exception {
     AzureBlobFileSystem fs = getFileSystem();
     int i = 0;
+    fs.mkdirs(new Path("/dir/"));
     while (i < 10) {
       fs.create(new Path("/dir/" + i));
       i++;

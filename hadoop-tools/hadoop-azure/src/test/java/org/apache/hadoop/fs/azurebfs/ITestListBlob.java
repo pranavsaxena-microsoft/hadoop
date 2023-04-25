@@ -146,6 +146,7 @@ public class ITestListBlob extends
   private void createBlob(final AzureBlobFileSystem fs, final String pathString)
       throws IOException {
     int i = 0;
+    fs.mkdirs(new Path(pathString));
     while (i < 10) {
       fs.create(new Path(pathString + i));
       i++;
