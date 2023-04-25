@@ -32,6 +32,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.azurebfs.contract.ABFSContractTestBinding;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AbfsRestOperationException;
+import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 import org.apache.hadoop.fs.permission.FsPermission;
 
@@ -57,63 +58,85 @@ public class ITestAzureBlobFileSystemMainOperation extends FSMainOperationsBaseT
   public void setUp() throws Exception {
     binding.setup();
     AzureBlobFileSystem fileSystem = binding.getFileSystem();
-    fSys = Mockito.spy(fileSystem);
-    AzureBlobFileSystemStore spiedStore = Mockito.spy(fileSystem.getAbfsStore());
-    Mockito.doReturn(spiedStore).when((AzureBlobFileSystem) fSys).getAbfsStore();
-    Mockito.doAnswer(answer -> {
-      Path path = answer.getArgument(0);
-      FileSystem.Statistics statistics = answer.getArgument(1);
-      FsPermission permission = answer.getArgument(2);
-      FsPermission umask = answer.getArgument(3);
-      TracingContext tracingContext = answer.getArgument(4);
-      Path parent = path.getParent();
-      Stack<Path> pathStack = new Stack<>();
-      while(parent != null && !parent.isRoot()) {
-        try {
-          fileSystem.getFileStatus(parent);
-          break;
-        } catch (FileNotFoundException ex) {
-        }
-        pathStack.push(parent);
-        parent = parent.getParent();
-      }
-      while(!pathStack.empty()) {
-        Path stackPath = pathStack.pop();
-        fileSystem.getAbfsStore().createDirectory(stackPath, statistics, permission, umask, tracingContext);
-      }
-      return fileSystem.mkdirs(path);
-    }).when(spiedStore).createDirectory(Mockito.nullable(Path.class), Mockito.nullable(
-        FileSystem.Statistics.class), Mockito.nullable(FsPermission.class), Mockito.nullable(FsPermission.class), Mockito.nullable(
-        TracingContext.class));
+    if(fileSystem.getAbfsStore().getAbfsConfiguration().getPrefixMode() == PrefixMode.BLOB) {
+      fSys = Mockito.spy(fileSystem);
+      AzureBlobFileSystemStore spiedStore = Mockito.spy(
+          fileSystem.getAbfsStore());
+      Mockito.doReturn(spiedStore)
+          .when((AzureBlobFileSystem) fSys)
+          .getAbfsStore();
+      Mockito.doAnswer(answer -> {
+            Path path = answer.getArgument(0);
+            FileSystem.Statistics statistics = answer.getArgument(1);
+            FsPermission permission = answer.getArgument(2);
+            FsPermission umask = answer.getArgument(3);
+            TracingContext tracingContext = answer.getArgument(4);
+            Path parent = path.getParent();
+            Stack<Path> pathStack = new Stack<>();
+            while (parent != null && !parent.isRoot()) {
+              try {
+                fileSystem.getFileStatus(parent);
+                break;
+              } catch (FileNotFoundException ex) {
+              }
+              pathStack.push(parent);
+              parent = parent.getParent();
+            }
+            while (!pathStack.empty()) {
+              Path stackPath = pathStack.pop();
+              fileSystem.getAbfsStore()
+                  .createDirectory(stackPath, statistics, permission, umask,
+                      tracingContext);
+            }
+            return fileSystem.mkdirs(path);
+          })
+          .when(spiedStore)
+          .createDirectory(Mockito.nullable(Path.class), Mockito.nullable(
+                  FileSystem.Statistics.class),
+              Mockito.nullable(FsPermission.class),
+              Mockito.nullable(FsPermission.class), Mockito.nullable(
+                  TracingContext.class));
 
-    Mockito.doAnswer(answer -> {
-      Path path = answer.getArgument(0);
-      FileSystem.Statistics statistics = answer.getArgument(1);
-      Boolean overwrite = answer.getArgument(2);
-      FsPermission permission = answer.getArgument(3);
-      FsPermission umask = answer.getArgument(4);
-      TracingContext tracingContext = answer.getArgument(5);
-      HashMap<String, String> hashMap = answer.getArgument(6);
-      Path parent = path.getParent();
-      Stack<Path> pathStack = new Stack<>();
-      while(parent != null && !parent.isRoot()) {
-        try {
-          fileSystem.getFileStatus(parent);
-          break;
-        } catch (FileNotFoundException ex) {
+      Mockito.doAnswer(answer -> {
+            Path path = answer.getArgument(0);
+            FileSystem.Statistics statistics = answer.getArgument(1);
+            Boolean overwrite = answer.getArgument(2);
+            FsPermission permission = answer.getArgument(3);
+            FsPermission umask = answer.getArgument(4);
+            TracingContext tracingContext = answer.getArgument(5);
+            HashMap<String, String> hashMap = answer.getArgument(6);
+            Path parent = path.getParent();
+            Stack<Path> pathStack = new Stack<>();
+            while (parent != null && !parent.isRoot()) {
+              try {
+                fileSystem.getFileStatus(parent);
+                break;
+              } catch (FileNotFoundException ex) {
 
-        }
-        pathStack.push(parent);
-        parent = parent.getParent();
-      }
-      while(!pathStack.empty()) {
-        Path stackPath = pathStack.pop();
-        fileSystem.getAbfsStore().createDirectory(stackPath, statistics, permission, umask, tracingContext);
-      }
-      return fileSystem.getAbfsStore().createFile(path, statistics, overwrite, permission, umask, tracingContext, hashMap);
-    }).when(spiedStore).createFile(Mockito.nullable(Path.class), Mockito.nullable(
-        FileSystem.Statistics.class), Mockito.anyBoolean(), Mockito.nullable(FsPermission.class), Mockito.nullable(FsPermission.class), Mockito.nullable(TracingContext.class), Mockito.nullable(
-        HashMap.class));
+              }
+              pathStack.push(parent);
+              parent = parent.getParent();
+            }
+            while (!pathStack.empty()) {
+              Path stackPath = pathStack.pop();
+              fileSystem.getAbfsStore()
+                  .createDirectory(stackPath, statistics, permission, umask,
+                      tracingContext);
+            }
+            return fileSystem.getAbfsStore()
+                .createFile(path, statistics, overwrite, permission, umask,
+                    tracingContext, hashMap);
+          })
+          .when(spiedStore)
+          .createFile(Mockito.nullable(Path.class), Mockito.nullable(
+                  FileSystem.Statistics.class), Mockito.anyBoolean(),
+              Mockito.nullable(FsPermission.class),
+              Mockito.nullable(FsPermission.class),
+              Mockito.nullable(TracingContext.class), Mockito.nullable(
+                  HashMap.class));
+      return;
+    }
+    fSys = fileSystem;
   }
 
   @Override
