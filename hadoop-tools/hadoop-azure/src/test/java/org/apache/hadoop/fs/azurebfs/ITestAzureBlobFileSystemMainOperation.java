@@ -104,7 +104,7 @@ public class ITestAzureBlobFileSystemMainOperation extends FSMainOperationsBaseT
 
         }
         pathStack.push(parent);
-        parent = parent.getParent();g
+        parent = parent.getParent();
       }
       while(!pathStack.empty()) {
         Path stackPath = pathStack.pop();
