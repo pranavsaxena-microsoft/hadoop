@@ -12,6 +12,7 @@ public class RenameListBlobQueue {
   private int totalConsumed = 0;
 
   private Boolean failed = false;
+  private Boolean isCompleted = false;
 
   private AzureBlobFileSystemException failureFromProducer;
 
@@ -22,6 +23,14 @@ public class RenameListBlobQueue {
 
   Boolean getFailed() {
     return failed;
+  }
+
+  void complete() {
+    isCompleted = true;
+  }
+
+  Boolean getIsCompleted() {
+    return isCompleted;
   }
 
   AzureBlobFileSystemException getException() {

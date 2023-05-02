@@ -14,4 +14,8 @@ public class RenameListBlobConsumer {
     }
     return renameListBlobQueue.dequeue();
   }
+
+  public Boolean isCompleted() {
+    return renameListBlobQueue.getIsCompleted();
+  }
 }
