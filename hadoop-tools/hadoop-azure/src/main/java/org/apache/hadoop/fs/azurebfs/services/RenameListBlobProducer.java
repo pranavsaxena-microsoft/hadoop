@@ -30,12 +30,12 @@ public class RenameListBlobProducer {
         try {
           op = client.getListBlobs(nextMarker, src, null, tracingContext);
         } catch (AzureBlobFileSystemException ex) {
-          renameListBlobQueue.setFailed();
+          renameListBlobQueue.setFailed(ex);
           throw new RuntimeException(ex);
         }
         BlobList blobList = op.getResult().getBlobList();
         nextMarker = blobList.getNextMarker();
-        renameListBlobQueue.enqueue(blobList.getBlobPropertyList());
+        renameListBlobQueue.enqueue(blobList);
         if(nextMarker == null) {
           break;
         }
