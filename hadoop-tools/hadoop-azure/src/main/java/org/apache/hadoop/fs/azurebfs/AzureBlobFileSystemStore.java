@@ -35,6 +35,7 @@ import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CharsetEncoder;
 import java.nio.charset.StandardCharsets;
+import java.sql.Blob;
 import java.text.SimpleDateFormat;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -1252,157 +1253,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     boolean shouldContinue;
 
     if (getAbfsConfiguration().getPrefixMode() == PrefixMode.BLOB) {
-      LOG.debug("Rename for src: {} dst: {} for non-HNS blob-endpoint",
-          source, destination);
-      /*
-       * Fetch the list of blobs in the given sourcePath.
-       */
-      String listSrc = source.toUri().getPath() + (source.isRoot() ? EMPTY_STRING : FORWARD_SLASH);
-      RenameListBlobQueue renameListBlobQueue = new RenameListBlobQueue();
-      RenameListBlobProducer producer = new RenameListBlobProducer(listSrc, client, renameListBlobQueue, tracingContext);
-      RenameListBlobConsumer consumer = new RenameListBlobConsumer(renameListBlobQueue);
-
-      while(true) {
-        final Boolean isSrcExist;
-        final Boolean isSrcDir;
-        BlobList blobList = consumer.consume();
-        if(blobList == null) {
-          if(consumer.isCompleted()) {
-            break;
-          }
-          continue;
-        }
-
-        List<BlobProperty> srcBlobProperties = blobList.getBlobPropertyList();
-
-        BlobProperty blobPropOnSrc;
-        if (srcBlobProperties.size() > 0) {
-          LOG.debug("src {} exists and is a directory", source);
-          isSrcExist = true;
-          isSrcDir = true;
-          /*
-           * Fetch if there is a marker-blob for the source blob.
-           */
-          BlobProperty blobPropOnSrcNullable;
-          try {
-            blobPropOnSrcNullable = getBlobProperty(source, tracingContext);
-          } catch (AbfsRestOperationException ex) {
-            if (ex.getStatusCode() != HttpURLConnection.HTTP_NOT_FOUND) {
-              throw ex;
-            }
-            blobPropOnSrcNullable = null;
-          }
-          if (blobPropOnSrcNullable == null) {
-            /*
-             * There is no marker-blob, the client has to create marker blob before
-             * starting the rename.
-             */
-            //create marker file; add in srcBlobProperties;
-            LOG.debug("Source {} is a directory but there is no marker-blob",
-                source);
-            createDirectory(source, null, FsPermission.getDirDefault(),
-                FsPermission.getUMask(
-                    getAbfsConfiguration().getRawConfiguration()),
-                tracingContext);
-            blobPropOnSrc = new BlobProperty();
-            blobPropOnSrc.setIsDirectory(true);
-            blobPropOnSrc.setPath(source);
-          } else {
-            LOG.debug("Source {} is a directory but there is a marker-blob",
-                source);
-            blobPropOnSrc = blobPropOnSrcNullable;
-          }
-        } else {
-          LOG.debug("source {} doesn't have any blob in its hierarchy. Checking"
-              + "if there is marker blob for it.", source);
-          try {
-            blobPropOnSrc = getBlobProperty(source, tracingContext);
-          } catch (AbfsRestOperationException ex) {
-            if (ex.getStatusCode() != HttpURLConnection.HTTP_NOT_FOUND) {
-              throw ex;
-            }
-            blobPropOnSrc = null;
-          }
-
-          if (blobPropOnSrc != null) {
-            isSrcExist = true;
-            if (blobPropOnSrc.getIsDirectory()) {
-              LOG.debug("source {} is a marker blob", source);
-              isSrcDir = true;
-            } else {
-              LOG.debug("source {} exists but is not a marker blob", source);
-              isSrcDir = false;
-            }
-          } else {
-            LOG.debug("source {} doesn't exist", source);
-            isSrcExist = false;
-            isSrcDir = false;
-          }
-        }
-        srcBlobProperties.add(blobPropOnSrc);
-
-        if (!isSrcExist) {
-          LOG.info("source {} doesn't exists", source);
-          throw new AbfsRestOperationException(HttpURLConnection.HTTP_NOT_FOUND,
-              AzureServiceErrorCode.SOURCE_PATH_NOT_FOUND.getErrorCode(), null,
-              null);
-        }
-
-        if (isSrcDir) {
-          /*
-           * If source is a directory, all the blobs in the directory have to be
-           * individually copied and then deleted at the source.
-           */
-          LOG.debug("source {} is a directory", source);
-          if (isAtomicRenameKey(source.toUri().getPath())) {
-            LOG.debug("source dir {} is an atomicRenameKey",
-                source.toUri().getPath());
-            renameAtomicityUtils.preRename(srcBlobProperties, isCreateOperationOnBlobEndpoint());
-          } else {
-            LOG.debug("source dir {} is not an atomicRenameKey",
-                source.toUri().getPath());
-          }
-          List<Future> futures = new ArrayList<>();
-          for (BlobProperty blobProperty : srcBlobProperties) {
-            futures.add(renameBlobExecutorService.submit(() -> {
-              try {
-                renameBlob(
-                    createDestinationPathForBlobPartOfRenameSrcDir(destination,
-                        blobProperty, source),
-                    tracingContext, blobProperty.getPath());
-              } catch (AzureBlobFileSystemException e) {
-                LOG.error(String.format("rename from %s to %s for blob %s failed",
-                    source, destination, blobProperty.getPath()), e);
-                throw new RuntimeException(e);
-              }
-            }));
-          }
-          for (Future future : futures) {
-            try {
-              future.get();
-            } catch (InterruptedException e) {
-              LOG.error(String.format("rename from %s to %s failed", source,
-                  destination), e);
-              throw new RuntimeException(e);
-            } catch (ExecutionException e) {
-              LOG.error(String.format("rename from %s to %s failed", source,
-                  destination), e);
-              throw new RuntimeException(e);
-            }
-          }
-          if (renameAtomicityUtils != null) {
-            renameAtomicityUtils.cleanup();
-          }
-        } else {
-          LOG.debug("source {} is not directory", source);
-          renameBlob(destination, tracingContext,
-              srcBlobProperties.get(0).getPath());
-        }
-
-      }
-
-      LOG.info("Rename from source {} to destination {} done", source,
-          destination);
+      renameBlobPaths(source, destination, renameAtomicityUtils, tracingContext);
       return;
     }
 
@@ -1437,6 +1288,188 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         }
       }
     } while (shouldContinue);
+  }
+
+  private void renameBlobPaths(final Path source,
+      final Path destination,
+      final RenameAtomicityUtils renameAtomicityUtils,
+      final TracingContext tracingContext) throws IOException {
+    LOG.debug("Rename for src: {} dst: {} for non-HNS blob-endpoint",
+        source, destination);
+    /*
+     * Fetch the list of blobs in the given sourcePath.
+     */
+    String listSrc = source.toUri().getPath() + (source.isRoot() ? EMPTY_STRING : FORWARD_SLASH);
+    BlobList blobList = client.getListBlobs(null, listSrc, null, tracingContext).getResult()
+        .getBlobList();
+    RenameListBlobConsumer consumer = null;
+    
+    BlobProperty blobPropOnSrc;
+    final Boolean isSrcExist;
+    final Boolean isSrcDir;
+    
+    if(blobList == null || blobList.getBlobPropertyList().size() == 0) {
+      LOG.debug("source {} doesn't have any blob in its hierarchy. Checking"
+          + "if there is marker blob for it.", source);
+      try {
+        blobPropOnSrc = getBlobProperty(source, tracingContext);
+      } catch (AbfsRestOperationException ex) {
+        if (ex.getStatusCode() != HttpURLConnection.HTTP_NOT_FOUND) {
+          throw ex;
+        }
+        blobPropOnSrc = null;
+      }
+
+      if (blobPropOnSrc != null) {
+        isSrcExist = true;
+        if (blobPropOnSrc.getIsDirectory()) {
+          LOG.debug("source {} is a marker blob", source);
+          isSrcDir = true;
+        } else {
+          LOG.debug("source {} exists but is not a marker blob", source);
+          isSrcDir = false;
+        }
+      } else {
+        LOG.debug("source {} doesn't exist", source);
+        isSrcExist = false;
+        isSrcDir = false;
+      }
+    } else {
+      LOG.debug("src {} exists and is a directory", source);
+      isSrcExist = true;
+      isSrcDir = true;
+      /*
+       * Fetch if there is a marker-blob for the source blob.
+       */
+      BlobProperty blobPropOnSrcNullable;
+      try {
+        blobPropOnSrcNullable = getBlobProperty(source, tracingContext);
+      } catch (AbfsRestOperationException ex) {
+        if (ex.getStatusCode() != HttpURLConnection.HTTP_NOT_FOUND) {
+          throw ex;
+        }
+        blobPropOnSrcNullable = null;
+      }
+      if (blobPropOnSrcNullable == null) {
+        /*
+         * There is no marker-blob, the client has to create marker blob before
+         * starting the rename.
+         */
+        //create marker file; add in srcBlobProperties;
+        LOG.debug("Source {} is a directory but there is no marker-blob",
+            source);
+        createDirectory(source, null, FsPermission.getDirDefault(),
+            FsPermission.getUMask(
+                getAbfsConfiguration().getRawConfiguration()),
+            tracingContext);
+        blobPropOnSrc = new BlobProperty();
+        blobPropOnSrc.setIsDirectory(true);
+        blobPropOnSrc.setPath(source);
+      } else {
+        LOG.debug("Source {} is a directory but there is a marker-blob",
+            source);
+        blobPropOnSrc = blobPropOnSrcNullable;
+      }
+    }
+
+    if (!isSrcExist) {
+      LOG.info("source {} doesn't exists", source);
+      throw new AbfsRestOperationException(HttpURLConnection.HTTP_NOT_FOUND,
+          AzureServiceErrorCode.SOURCE_PATH_NOT_FOUND.getErrorCode(), null,
+          null);
+    }
+    
+    if(isSrcDir) {
+      if(blobList != null && blobList.getBlobPropertyList().size() > 0 && blobList.getNextMarker() != null) {
+        RenameListBlobQueue renameListBlobQueue = new RenameListBlobQueue();
+        RenameListBlobProducer producer = new RenameListBlobProducer(listSrc, client, renameListBlobQueue,
+            tracingContext);
+        consumer = new RenameListBlobConsumer(renameListBlobQueue);
+        while(true) {
+          blobList = consumer.consume();
+          if(blobList == null) {
+            if(consumer.isCompleted()) {
+              break;
+            }
+            continue;
+          }
+
+          List<BlobProperty> srcBlobProperties = blobList.getBlobPropertyList();
+
+          renameBlobDir(source, destination, renameAtomicityUtils, tracingContext,
+              srcBlobProperties);
+        }
+        List<BlobProperty> blobProperties = blobList.getBlobPropertyList();
+        blobProperties.add(blobPropOnSrc);
+        renameBlobDir(source, destination, renameAtomicityUtils, tracingContext,
+            blobProperties);
+      }
+      if(blobList != null && blobList.getBlobPropertyList().size() >= 0 && blobList.getNextMarker() == null) {
+        List<BlobProperty> blobProperties = blobList.getBlobPropertyList();
+        blobProperties.add(blobPropOnSrc);
+        renameBlobDir(source, destination, renameAtomicityUtils, tracingContext,
+            blobProperties);
+      }
+    } else {
+      LOG.debug("source {} is not directory", source);
+      renameBlob(destination, tracingContext,
+          blobPropOnSrc.getPath());
+    }
+
+    LOG.info("Rename from source {} to destination {} done", source,
+        destination);
+    return;
+  }
+
+  private void renameBlobDir(final Path source,
+      final Path destination,
+      final RenameAtomicityUtils renameAtomicityUtils,
+      final TracingContext tracingContext,
+      final List<BlobProperty> srcBlobProperties) throws IOException {
+    /*
+     * If source is a directory, all the blobs in the directory have to be
+     * individually copied and then deleted at the source.
+     */
+    LOG.debug("source {} is a directory", source);
+    if (isAtomicRenameKey(source.toUri().getPath())) {
+      LOG.debug("source dir {} is an atomicRenameKey",
+          source.toUri().getPath());
+      renameAtomicityUtils.preRename(srcBlobProperties, isCreateOperationOnBlobEndpoint());
+    } else {
+      LOG.debug("source dir {} is not an atomicRenameKey",
+          source.toUri().getPath());
+    }
+    List<Future> futures = new ArrayList<>();
+    for (BlobProperty blobProperty : srcBlobProperties) {
+      futures.add(renameBlobExecutorService.submit(() -> {
+        try {
+          renameBlob(
+              createDestinationPathForBlobPartOfRenameSrcDir(destination,
+                  blobProperty, source),
+              tracingContext, blobProperty.getPath());
+        } catch (AzureBlobFileSystemException e) {
+          LOG.error(String.format("rename from %s to %s for blob %s failed",
+              source, destination, blobProperty.getPath()), e);
+          throw new RuntimeException(e);
+        }
+      }));
+    }
+    for (Future future : futures) {
+      try {
+        future.get();
+      } catch (InterruptedException e) {
+        LOG.error(String.format("rename from %s to %s failed", source,
+            destination), e);
+        throw new RuntimeException(e);
+      } catch (ExecutionException e) {
+        LOG.error(String.format("rename from %s to %s failed", source,
+            destination), e);
+        throw new RuntimeException(e);
+      }
+    }
+    if (renameAtomicityUtils != null) {
+      renameAtomicityUtils.cleanup();
+    }
   }
 
   private Boolean isCreateOperationOnBlobEndpoint() {
