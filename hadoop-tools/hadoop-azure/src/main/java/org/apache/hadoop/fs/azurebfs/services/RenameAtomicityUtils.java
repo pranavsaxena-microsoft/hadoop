@@ -46,7 +46,6 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.azurebfs.AzureBlobFileSystem;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AbfsRestOperationException;
-import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemException;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.FORWARD_SLASH;
@@ -92,14 +91,18 @@ public class RenameAtomicityUtils {
   }
 
   public RenameAtomicityUtils(final AzureBlobFileSystem azureBlobFileSystem,
-      final Path path, final RedoRenameInvocation redoRenameInvocation)
+      final Path source,
+      final Path path, final RedoRenameInvocation redoRenameInvocation,
+      final Boolean[] paginatedRenameJson)
       throws IOException {
     this.azureBlobFileSystem = azureBlobFileSystem;
     final RenamePendingFileInfo renamePendingFileInfo = readFile(path);
     if (renamePendingFileInfo != null) {
-      redoRenameInvocation.redo(renamePendingFileInfo.destination,
+      redoRenameInvocation.redo(source,
+          renamePendingFileInfo.destination,
           renamePendingFileInfo.srcList,
-          renamePendingFileInfo.destinationSuffix);
+          renamePendingFileInfo.destinationSuffix,
+          renamePendingFileInfo.nextMarker, this, paginatedRenameJson);
     }
   }
 
@@ -154,6 +157,7 @@ public class RenameAtomicityUtils {
     // initialize this object's fields
     JsonNode oldFolderName = json.get("OldFolderName");
     JsonNode newFolderName = json.get("NewFolderName");
+    JsonNode nextMarker = json.get("NextMarker");
     if (oldFolderName != null && StringUtils.isNotEmpty(
         oldFolderName.textValue())
         && newFolderName != null && StringUtils.isNotEmpty(
@@ -170,6 +174,7 @@ public class RenameAtomicityUtils {
       }
       renamePendingFileInfo.srcList = srcPaths;
       renamePendingFileInfo.destinationSuffix = destinationSuffix;
+      renamePendingFileInfo.nextMarker = nextMarker.textValue();
       return renamePendingFileInfo;
     }
     return null;
@@ -210,6 +215,7 @@ public class RenameAtomicityUtils {
    *  OperationUTCTime: "2014-07-01 23:50:35.572",
    *  OldFolderName: "user/ehans/folderToRename",
    *  NewFolderName: "user/ehans/renamedFolder",
+   *  NextMarker: "UUID"
    *  FileList: [
    *    "innerFile",
    *    "innerFile2"
@@ -224,7 +230,7 @@ public class RenameAtomicityUtils {
     LOG.debug("Preparing to write atomic rename state to {}", path.toString());
     OutputStream output = null;
 
-    String contents = makeRenamePendingFileContents(blobPropertyList);
+    String contents = makeRenamePendingFileContents(blobPropertyList, nextMarker);
 
     // Write file.
     try {
@@ -297,7 +303,8 @@ public class RenameAtomicityUtils {
    *
    * @return JSON string which represents the operation.
    */
-  private String makeRenamePendingFileContents(List<BlobProperty> blobPropertyList) {
+  private String makeRenamePendingFileContents(List<BlobProperty> blobPropertyList,
+      final String nextMarker) {
     SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
     sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
     String time = sdf.format(new Date());
@@ -353,6 +360,7 @@ public class RenameAtomicityUtils {
         + "  OperationUTCTime: \"" + time + "\",\n"
         + "  OldFolderName: " + quote(srcPath.toUri().getPath()) + ",\n"
         + "  NewFolderName: " + quote(dstPath.toUri().getPath()) + ",\n"
+        + "  NextMarker: " + quote(nextMarker) + ",\n"
         + "  FileList: " + fileList + "\n"
         + "}\n";
 
@@ -458,11 +466,14 @@ public class RenameAtomicityUtils {
      * Relative paths from the destination path.
      */
     public List<String> destinationSuffix;
+    public String nextMarker;
   }
 
   public static interface RedoRenameInvocation {
-    void redo(Path destination, List<Path> sourcePaths,
-        final List<String> destinationSuffix) throws
-        AzureBlobFileSystemException;
+    void redo(final Path sourceDir, Path destination, List<Path> sourcePaths,
+        final List<String> destinationSuffix, final String nextMarker,
+        final RenameAtomicityUtils renameAtomicityUtils,
+        final Boolean[] paginatedRenameJson) throws
+        IOException;
   }
 }

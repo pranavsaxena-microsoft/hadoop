@@ -113,9 +113,11 @@ import static java.net.HttpURLConnection.HTTP_CONFLICT;
 import static org.apache.hadoop.fs.CommonConfigurationKeys.IOSTATISTICS_LOGGING_LEVEL;
 import static org.apache.hadoop.fs.CommonConfigurationKeys.IOSTATISTICS_LOGGING_LEVEL_DEFAULT;
 import static org.apache.hadoop.fs.azurebfs.AbfsStatistic.*;
+import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.EMPTY_STRING;
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_ENABLE_BLOB_ENDPOINT;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemUriSchemes.ABFS_DNS_PREFIX;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemUriSchemes.WASB_DNS_PREFIX;
+import static org.apache.hadoop.fs.azurebfs.services.RenameAtomicityUtils.PAGINATED_SUFFIX;
 import static org.apache.hadoop.fs.azurebfs.services.RenameAtomicityUtils.SUFFIX;
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.DATA_BLOCKS_BUFFER;
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_BLOCK_UPLOAD_ACTIVE_BLOCKS;
@@ -872,13 +874,19 @@ public class AzureBlobFileSystem extends FileSystem
       FileStatus[] result = abfsStore.listStatus(qualifiedPath, tracingContext);
       if (getAbfsStore().getAbfsConfiguration().getPrefixMode()
           == PrefixMode.BLOB) {
+        Boolean[] paginatedJson = new Boolean[1];
+        paginatedJson[0] = false;
         FileStatus renamePendingFileStatus
             = abfsStore.getRenamePendingFileStatus(result);
+        if(renamePendingFileStatus != null) {
+          renamePendingFileStatus = abfsStore.getPaginatedRenamePendingFileStatus(result);
+          paginatedJson[0] = true;
+        }
         if (renamePendingFileStatus != null) {
           RenameAtomicityUtils renameAtomicityUtils =
-              new RenameAtomicityUtils(this,
+              new RenameAtomicityUtils(this, getBasePathFromSuffixPath(paginatedJson[0], renamePendingFileStatus.getPath()),
                   renamePendingFileStatus.getPath(),
-                  abfsStore.getRedoRenameInvocation(tracingContext));
+                  abfsStore.getRedoRenameInvocation(tracingContext), paginatedJson);
           renameAtomicityUtils.cleanup(renamePendingFileStatus.getPath());
           result = abfsStore.listStatus(qualifiedPath, tracingContext);
         }
@@ -888,6 +896,13 @@ public class AzureBlobFileSystem extends FileSystem
       checkException(f, ex);
       return null;
     }
+  }
+
+  private Path getBasePathFromSuffixPath(final Boolean aBoolean, final Path path) {
+    if(aBoolean) {
+      return new Path(path.toUri().getPath().replace(PAGINATED_SUFFIX, EMPTY_STRING));
+    }
+    return new Path(path.toUri().getPath().replace(SUFFIX, EMPTY_STRING));
   }
 
   /**
@@ -1008,25 +1023,45 @@ public class AzureBlobFileSystem extends FileSystem
       if (getAbfsStore().getAbfsConfiguration().getPrefixMode()
           == PrefixMode.BLOB && fileStatus != null && fileStatus.isDirectory()
           &&
-          abfsStore.isAtomicRenameKey(fileStatus.getPath().toUri().getPath()) &&
-          abfsStore.getRenamePendingFileStatusInDirectory(fileStatus,
-              tracingContext)) {
-        RenameAtomicityUtils renameAtomicityUtils = new RenameAtomicityUtils(
-            this,
-            new Path(fileStatus.getPath().toUri().getPath() + SUFFIX),
-            abfsStore.getRedoRenameInvocation(tracingContext));
-        renameAtomicityUtils.cleanup(
-            new Path(fileStatus.getPath().toUri().getPath() + SUFFIX));
-        throw new AbfsRestOperationException(HttpURLConnection.HTTP_NOT_FOUND,
-            AzureServiceErrorCode.PATH_NOT_FOUND.getErrorCode(), null,
-            new FileNotFoundException(
-                qualifiedPath + ": No such file or directory."));
+          abfsStore.isAtomicRenameKey(fileStatus.getPath().toUri().getPath())) {
+        if(abfsStore.getRenamePendingFileStatusInDirectory(fileStatus, tracingContext)) {
+          Boolean[] paginatedRenameJson = new Boolean[1];
+          paginatedRenameJson[0] = false;
+          Path renameJsonPath = new Path(
+              fileStatus.getPath().toUri().getPath() + SUFFIX);
+          recoverCrashedRenameAndThrowException(tracingContext, qualifiedPath, paginatedRenameJson,
+              renameJsonPath);
+        }
+        if(abfsStore.getPaginatedRenamePendingFileStatusInDirectory(fileStatus, tracingContext)) {
+          Boolean[] paginatedRenameJson = new Boolean[1];
+          paginatedRenameJson[0] = true;
+          Path renameJsonPath = new Path(
+              fileStatus.getPath().toUri().getPath() + PAGINATED_SUFFIX);
+          recoverCrashedRenameAndThrowException(tracingContext, qualifiedPath, paginatedRenameJson,
+              renameJsonPath);
+        }
       }
       return fileStatus;
     } catch (AzureBlobFileSystemException ex) {
       checkException(path, ex);
       return null;
     }
+  }
+
+  private void recoverCrashedRenameAndThrowException(final TracingContext tracingContext,
+      final Path qualifiedPath,
+      final Boolean[] paginatedRenameJson,
+      final Path renameJsonPath) throws IOException {
+    RenameAtomicityUtils renameAtomicityUtils = new RenameAtomicityUtils(
+        this, qualifiedPath,
+        renameJsonPath,
+        abfsStore.getRedoRenameInvocation(tracingContext), paginatedRenameJson);
+    renameAtomicityUtils.cleanup(
+        renameJsonPath);
+    throw new AbfsRestOperationException(HttpURLConnection.HTTP_NOT_FOUND,
+        AzureServiceErrorCode.PATH_NOT_FOUND.getErrorCode(), null,
+        new FileNotFoundException(
+            qualifiedPath + ": No such file or directory."));
   }
 
   /**

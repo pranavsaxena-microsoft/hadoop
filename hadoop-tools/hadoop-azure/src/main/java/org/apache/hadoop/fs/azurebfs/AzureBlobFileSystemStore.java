@@ -145,6 +145,7 @@ import org.apache.hadoop.util.concurrent.HadoopExecutors;
 import org.apache.http.client.utils.URIBuilder;
 
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.FORWARD_SLASH;
+import static org.apache.hadoop.fs.azurebfs.services.RenameAtomicityUtils.PAGINATED_SUFFIX;
 import static org.apache.hadoop.fs.azurebfs.services.RenameAtomicityUtils.SUFFIX;
 import static java.net.HttpURLConnection.HTTP_CONFLICT;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.CHAR_EQUALS;
@@ -2151,9 +2152,11 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
   RenameAtomicityUtils.RedoRenameInvocation getRedoRenameInvocation(final TracingContext tracingContext) {
     return new RenameAtomicityUtils.RedoRenameInvocation() {
       @Override
-      public void redo(final Path destination, final List<Path> sourcePaths,
-          final List<String> destinationSuffix)
-          throws AzureBlobFileSystemException {
+      public void redo(final Path sourceDir, final Path destination, final List<Path> sourcePaths,
+          final List<String> destinationSuffix, String nextMarker,
+          final RenameAtomicityUtils renameAtomicityUtils,
+          final Boolean[] paginatedRenameJson)
+          throws IOException {
         for (int i = 0; i < sourcePaths.size(); i++) {
           try {
             final Path destinationPath;
@@ -2168,6 +2171,29 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
               continue;
             }
             throw ex;
+          }
+        }
+        if(nextMarker != null) {
+          RenameListBlobQueue renameListBlobQueue = new RenameListBlobQueue();
+          RenameListBlobProducer producer = new RenameListBlobProducer(sourceDir.toUri().getPath(), client, renameListBlobQueue,
+              tracingContext);
+          RenameListBlobConsumer consumer = new RenameListBlobConsumer(renameListBlobQueue);
+
+          while(true) {
+            BlobList blobList = consumer.consume();
+            if(blobList == null) {
+              if(consumer.isCompleted()) {
+                break;
+              }
+              continue;
+            }
+            nextMarker = blobList.getNextMarker();
+            renameAtomicityUtils.preRename(blobList.getBlobPropertyList(),
+                isCreateOperationOnBlobEndpoint(), paginatedRenameJson, nextMarker);
+            renameBlobDir(sourceDir, destination, renameAtomicityUtils, tracingContext, blobList.getBlobPropertyList(), paginatedRenameJson, nextMarker);
+          }
+          if(renameAtomicityUtils != null) {
+            renameAtomicityUtils.cleanup(paginatedRenameJson);
           }
         }
       }
@@ -2402,6 +2428,15 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     return null;
   }
 
+  public FileStatus getPaginatedRenamePendingFileStatus(final FileStatus[] fileStatuses) {
+    for (FileStatus fileStatus : fileStatuses) {
+      if (fileStatus.getPath().toUri().getPath().endsWith(PAGINATED_SUFFIX)) {
+        return fileStatus;
+      }
+    }
+    return null;
+  }
+
   /**
    * For a given directory, returns back the fileStatus information for the
    * RenamePending JSON file for the directory.
@@ -2418,6 +2453,21 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     try {
       getFileStatus(
           new Path(fileStatus.getPath().toUri().getPath() + SUFFIX),
+          tracingContext);
+      return true;
+    } catch (AbfsRestOperationException ex) {
+      if (ex.getStatusCode() == HttpURLConnection.HTTP_NOT_FOUND) {
+        return false;
+      }
+      throw ex;
+    }
+  }
+
+  public boolean getPaginatedRenamePendingFileStatusInDirectory(final FileStatus fileStatus,
+      final TracingContext tracingContext) throws IOException {
+    try {
+      getFileStatus(
+          new Path(fileStatus.getPath().toUri().getPath() + PAGINATED_SUFFIX),
           tracingContext);
       return true;
     } catch (AbfsRestOperationException ex) {
