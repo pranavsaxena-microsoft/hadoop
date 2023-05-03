@@ -36,13 +36,14 @@ public class RenameNonAtomicUtils extends RenameAtomicityUtils {
 
   @Override
   public void preRename(final List<BlobProperty> blobPropertyList,
-      final Boolean isCreateOperationOnBlobEndpoint)
+      final Boolean isCreateOperationOnBlobEndpoint,
+      final Boolean[] paginatedCount, final String nextMarker)
       throws IOException {
 
   }
 
   @Override
-  public void cleanup() throws IOException {
+  public void cleanup(final Boolean[] paginatedCount) throws IOException {
 
   }
 }

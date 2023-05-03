@@ -35,7 +35,6 @@ import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CharsetEncoder;
 import java.nio.charset.StandardCharsets;
-import java.sql.Blob;
 import java.text.SimpleDateFormat;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -1380,11 +1379,20 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     }
     
     if(isSrcDir) {
+      Boolean[] paginatedCount = new Boolean[1];
+      paginatedCount[0] = false;
+
       if(blobList != null && blobList.getBlobPropertyList().size() > 0 && blobList.getNextMarker() != null) {
         RenameListBlobQueue renameListBlobQueue = new RenameListBlobQueue();
         RenameListBlobProducer producer = new RenameListBlobProducer(listSrc, client, renameListBlobQueue,
             tracingContext);
         consumer = new RenameListBlobConsumer(renameListBlobQueue);
+
+        List<BlobProperty> blobProperties = blobList.getBlobPropertyList();
+        blobProperties.add(blobPropOnSrc);
+        renameBlobDir(source, destination, renameAtomicityUtils, tracingContext,
+            blobProperties, paginatedCount, blobList.getNextMarker());
+
         while(true) {
           blobList = consumer.consume();
           if(blobList == null) {
@@ -1397,18 +1405,17 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
           List<BlobProperty> srcBlobProperties = blobList.getBlobPropertyList();
 
           renameBlobDir(source, destination, renameAtomicityUtils, tracingContext,
-              srcBlobProperties);
+              srcBlobProperties, paginatedCount, blobList.getNextMarker());
         }
-        List<BlobProperty> blobProperties = blobList.getBlobPropertyList();
-        blobProperties.add(blobPropOnSrc);
-        renameBlobDir(source, destination, renameAtomicityUtils, tracingContext,
-            blobProperties);
       }
       if(blobList != null && blobList.getBlobPropertyList().size() >= 0 && blobList.getNextMarker() == null) {
         List<BlobProperty> blobProperties = blobList.getBlobPropertyList();
         blobProperties.add(blobPropOnSrc);
         renameBlobDir(source, destination, renameAtomicityUtils, tracingContext,
-            blobProperties);
+            blobProperties, paginatedCount, blobList.getNextMarker());
+      }
+      if(renameAtomicityUtils != null) {
+        renameAtomicityUtils.cleanup(paginatedCount);
       }
     } else {
       LOG.debug("source {} is not directory", source);
@@ -1425,7 +1432,8 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       final Path destination,
       final RenameAtomicityUtils renameAtomicityUtils,
       final TracingContext tracingContext,
-      final List<BlobProperty> srcBlobProperties) throws IOException {
+      final List<BlobProperty> srcBlobProperties,
+      final Boolean[] paginatedCount, final String nextMarker) throws IOException {
     /*
      * If source is a directory, all the blobs in the directory have to be
      * individually copied and then deleted at the source.
@@ -1434,7 +1442,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     if (isAtomicRenameKey(source.toUri().getPath())) {
       LOG.debug("source dir {} is an atomicRenameKey",
           source.toUri().getPath());
-      renameAtomicityUtils.preRename(srcBlobProperties, isCreateOperationOnBlobEndpoint());
+      renameAtomicityUtils.preRename(srcBlobProperties, isCreateOperationOnBlobEndpoint(), paginatedCount, nextMarker);
     } else {
       LOG.debug("source dir {} is not an atomicRenameKey",
           source.toUri().getPath());
@@ -1468,7 +1476,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       }
     }
     if (renameAtomicityUtils != null) {
-      renameAtomicityUtils.cleanup();
+//      renameAtomicityUtils.cleanup();
     }
   }
 

@@ -75,6 +75,7 @@ public class RenameAtomicityUtils {
   private static final int FORMATTING_BUFFER = 10000;
 
   public static final String SUFFIX = "-RenamePending.json";
+  public static final String PAGINATED_SUFFIX = "-RenamePending2.json";
 
   private static final ObjectReader READER = new ObjectMapper()
       .configure(JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES, true)
@@ -217,8 +218,9 @@ public class RenameAtomicityUtils {
    * @throws IOException Thrown when fail to write file.
    */
   public void preRename(List<BlobProperty> blobPropertyList,
-      final Boolean isCreateOperationOnBlobEndpoint) throws IOException {
-    Path path = getRenamePendingFilePath();
+      final Boolean isCreateOperationOnBlobEndpoint,
+      final Boolean[] paginatedCount, final String nextMarker) throws IOException {
+    Path path = getRenamePendingFilePath(paginatedCount);
     LOG.debug("Preparing to write atomic rename state to {}", path.toString());
     OutputStream output = null;
 
@@ -230,6 +232,7 @@ public class RenameAtomicityUtils {
       output.write(contents.getBytes(Charset.forName("UTF-8")));
       output.flush();
       output.close();
+      deleteNonPaginatedFile(paginatedCount, nextMarker);
     } catch (IOException e) {
       /*
        * Scenario: file has been deleted by parallel thread before the RenameJSON
@@ -259,12 +262,25 @@ public class RenameAtomicityUtils {
         output.write(contents.getBytes(Charset.forName("UTF-8")));
         output.flush();
         output.close();
+        deleteNonPaginatedFile(paginatedCount, nextMarker);
         return;
       }
       throw new IOException(
           "Unable to write RenamePending file for folder rename from "
               + srcPath.toUri().getPath() + " to " + dstPath.toUri().getPath(),
           e);
+    }
+  }
+
+  private void deleteNonPaginatedFile(final Boolean[] paginatedCount,
+      final String nextMarker) throws IOException {
+    if(paginatedCount[0] && nextMarker != null) {
+      paginatedCount[0] = false;
+      azureBlobFileSystem.delete(getRenamePendingFilePath(paginatedCount), false);
+    } else {
+      if(nextMarker != null) {
+        paginatedCount[0] = true;
+      }
     }
   }
 
@@ -409,10 +425,10 @@ public class RenameAtomicityUtils {
   /** Clean up after execution of rename.
    * @throws IOException Thrown when fail to clean up.
    * */
-  public void cleanup() throws IOException {
+  public void cleanup(final Boolean[] paginatedCount) throws IOException {
 
     // Remove RenamePending file
-    azureBlobFileSystem.delete(getRenamePendingFilePath(), false);
+    azureBlobFileSystem.delete(getRenamePendingFilePath(paginatedCount), false);
 
     // Freeing source folder lease is not necessary since the source
     // folder file was deleted.
@@ -422,10 +438,17 @@ public class RenameAtomicityUtils {
     azureBlobFileSystem.delete(redoFile, false);
   }
 
-  private Path getRenamePendingFilePath() {
-    String fileName = srcPath.toUri().getPath() + SUFFIX;
+  private Path getRenamePendingFilePath(final Boolean[] paginatedCount) {
+    String fileName = srcPath.toUri().getPath() + getSuffix(paginatedCount);
     Path fileNamePath = new Path(fileName);
     return fileNamePath;
+  }
+
+  private String getSuffix(final Boolean[] paginatedCount) {
+    if(paginatedCount[0]) {
+      return PAGINATED_SUFFIX;
+    }
+    return SUFFIX;
   }
 
   private static class RenamePendingFileInfo {
