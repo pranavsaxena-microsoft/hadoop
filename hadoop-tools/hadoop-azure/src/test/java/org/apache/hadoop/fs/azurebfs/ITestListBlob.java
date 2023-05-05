@@ -23,12 +23,14 @@ import java.io.IOException;
 import java.util.List;
 
 import org.assertj.core.api.Assertions;
+import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Test;
 import org.mockito.Mockito;
 
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
+import org.apache.hadoop.fs.azurebfs.services.AbfsRestOperation;
 import org.apache.hadoop.fs.azurebfs.services.BlobProperty;
 import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
@@ -44,7 +46,7 @@ public class ITestListBlob extends
   public void testListBlob() throws Exception {
     AzureBlobFileSystem fs = getFileSystem();
     assumeNonHnsAccountBlobEndpoint(fs);
-    createBlob(fs, "/dir/");
+    createBlob(fs, "/dir/", 10);
     List<BlobProperty> blobProperties;
     /*
      * Call getListBlob for a path with isDefinitiveDirSearch = false. Should give
@@ -101,7 +103,7 @@ public class ITestListBlob extends
   public void testListBlobWithMarkers() throws Exception {
     AzureBlobFileSystem fs = getFileSystem();
     assumeNonHnsAccountBlobEndpoint(fs);
-    createBlob(fs, "/dir/");
+    createBlob(fs, "/dir/", 10);
     AbfsClient client = fs.getAbfsClient();
     AbfsClient spiedClient = Mockito.spy(client);
     fs.getAbfsStore().setClient(spiedClient);
@@ -137,16 +139,64 @@ public class ITestListBlob extends
         .isEqualTo(5);
   }
 
+  @Test
+  public void testListBlobWithMarkersWithDeletedBlobs() throws Exception {
+    AzureBlobFileSystem fs = getFileSystem();
+    assumeNonHnsAccountBlobEndpoint(fs);
+    createBlob(fs, "/dir/", 5);
+    AbfsClient client = fs.getAbfsClient();
+    AbfsClient spiedClient = Mockito.spy(client);
+    fs.getAbfsStore().setClient(spiedClient);
+
+    /*
+     * Server can give lesser number of results. In this case, server will give
+     * nextMarker.
+     * In this case, server will return one object, expectation is that the client
+     * uses nextMarker to make calls for the remaining blobs.
+     */
+    int count[] = new int[1];
+    count[0] = 0;
+    Mockito.doAnswer(answer -> {
+      String marker = answer.getArgument(0);
+      String prefix = answer.getArgument(1);
+      TracingContext tracingContext = answer.getArgument(3);
+      count[0]++;
+      AbfsRestOperation op = client.getListBlobs(marker, prefix, 1, tracingContext);
+      if(count[0] == 1) {
+        fs.delete(new Path("/dir/0"), false);
+      }
+      return op;
+    }).when(spiedClient).getListBlobs(Mockito.nullable(String.class),
+        Mockito.anyString(), Mockito.nullable(Integer.class),
+        Mockito.any(TracingContext.class));
+
+    List<BlobProperty> blobProperties = fs.getAbfsStore()
+        .getListBlobs(new Path("dir"), null,
+            Mockito.mock(TracingContext.class), null, false);
+    Assertions.assertThat(blobProperties)
+        .describedAs(
+            "BlobList should match the number of maxResult given")
+        .hasSize(5);
+    Assertions.assertThat(count[0])
+        .describedAs(
+            "Number of calls to backend should be equal to maxResult given")
+        .isEqualTo(5);
+    for(BlobProperty blobProperty : blobProperties) {
+      Assert.assertFalse("/dir/0".equalsIgnoreCase(blobProperty.getPath().toUri().getPath()));
+    }
+  }
+
   private void assumeNonHnsAccountBlobEndpoint(final AzureBlobFileSystem fs) {
     Assume.assumeTrue("To work on only on non-HNS Blob endpoint",
         fs.getAbfsStore().getAbfsConfiguration().getPrefixMode()
             == PrefixMode.BLOB);
   }
 
-  private void createBlob(final AzureBlobFileSystem fs, final String pathString)
+  private void createBlob(final AzureBlobFileSystem fs, final String pathString,
+      final int blobCount)
       throws IOException {
     int i = 0;
-    while (i < 10) {
+    while (i < blobCount) {
       fs.create(new Path(pathString + i));
       i++;
     }
