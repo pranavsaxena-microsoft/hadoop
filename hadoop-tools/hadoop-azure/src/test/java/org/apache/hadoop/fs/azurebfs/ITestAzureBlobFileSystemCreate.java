@@ -45,6 +45,7 @@ import org.apache.hadoop.fs.azurebfs.contracts.exceptions.InvalidConfigurationVa
 import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
 import org.apache.hadoop.test.LambdaTestUtils;
 
+import org.junit.Assert;
 import org.junit.Assume;
 
 import org.junit.Test;
@@ -909,6 +910,18 @@ public class ITestAzureBlobFileSystemCreate extends
     fs.createNonRecursive(testFile, true, 1024, (short) 1, 1024, null)
         .close();
     assertIsFile(fs, testFile);
+  }
+
+  @Test
+  public void testLeasedDirWithCreateFile() throws Exception {
+    AzureBlobFileSystem fs = getFileSystem();
+    fs.setWorkingDirectory(new Path("/"));
+    fs.mkdirs(new Path("/dir"));
+    fs.getAbfsClient().acquireLease("/dir", 60, Mockito.mock(TracingContext.class));
+
+
+    fs.create(new Path("/dir/file1"));
+    Assert.assertTrue(fs.getFileStatus(new Path("/dir/file1")) != null);
   }
 
   /**

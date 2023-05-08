@@ -33,6 +33,7 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 import com.microsoft.azure.storage.StorageException;
@@ -132,6 +133,17 @@ public class ITestNativeAzureFileSystemLive extends
     IOUtils.cleanupWithLogger(null, srcStream);
     IOUtils.cleanupWithLogger(null, dstStream);
   }
+
+  @Test
+  public void testLeasedDirWithCreateFile() throws Exception {
+    fs.mkdirs(new Path("/dir/dir1"));
+    fs.acquireLease(new Path("/dir"));
+
+
+    fs.create(new Path("/dir/dir1/file1"));
+    Assert.assertTrue(fs.getFileStatus(new Path("/dir/dir1/file1")) != null);
+  }
+
   /**
    * Tests fs.delete() function to delete a blob when another blob is holding a
    * lease on it. Delete if called without a lease should fail if another process
