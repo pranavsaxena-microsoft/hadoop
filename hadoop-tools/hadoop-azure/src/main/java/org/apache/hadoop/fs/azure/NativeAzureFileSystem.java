@@ -1597,6 +1597,10 @@ public class NativeAzureFileSystem extends FileSystem {
     return store;
   }
 
+  void setStore(NativeFileSystemStore store) {
+    this.store = store;
+  }
+
   /**
    * @param requestingAccessForPath - The path to the ancestor/parent/subtree/file that needs to be
    *                                checked before granting access to originalPath
