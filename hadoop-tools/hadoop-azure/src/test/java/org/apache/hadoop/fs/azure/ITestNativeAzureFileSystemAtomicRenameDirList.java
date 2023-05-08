@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -73,6 +74,9 @@ public class ITestNativeAzureFileSystemAtomicRenameDirList
     fs.mkdirs(new Path("/hbase/dir1/dir2/dir3"));
     fs.create(new Path("/hbase/dir1/dir2/dir3/file"));
 
+
+    AtomicBoolean failure  = new AtomicBoolean(true);
+
     List<SelfRenewingLease> lease = new ArrayList<>();
     Mockito.doAnswer(answer -> {
       SelfRenewingLease leases = (SelfRenewingLease) answer.callRealMethod();
@@ -83,18 +87,23 @@ public class ITestNativeAzureFileSystemAtomicRenameDirList
     int[] count = new int[1];
     count[0] = 0;
     Mockito.doAnswer(answer -> {
-      count[0]++;
-      if(count[0] == 1) {
-        throw new IOException("");
+      if(failure.get()) {
+        throw  new IOException("");
       }
       return answer.callRealMethod();
-    }).when(store).rename(Mockito.anyString(), Mockito.anyString(), Mockito.anyBoolean(), Mockito.any(SelfRenewingLease.class));
+    }).when(store).rename(Mockito.anyString(), Mockito.anyString(), Mockito.anyBoolean(), Mockito.nullable(SelfRenewingLease.class));
     try {
       fs.rename(new Path("/hbase/dir1/dir2"), new Path("/hbase/dir3"));
     } catch (Exception e) {
 
     }
     fs.create(new Path("/hbase/dir1/dir2/dir3/file1"));
+
+    Assert.assertTrue(fs.exists(new Path("/hbase/dir1/dir2/dir3/file")));
+    Assert.assertTrue(fs.exists(new Path("/hbase/dir1/dir2/file1")));
+
+
+    failure.set(false);
 
     for(SelfRenewingLease lease1 : lease) {
       if(lease1.getLeaseID() != null) {
@@ -107,6 +116,7 @@ public class ITestNativeAzureFileSystemAtomicRenameDirList
     FileStatus[] statuses = fs.listStatus(new Path("/hbase/dir1"));
 
     Assert.assertTrue(fs.exists(new Path("/hbase/dir1/dir2/dir3/file1")));
+    Assert.assertFalse(fs.exists(new Path("/hbase/dir1/dir2/dir3/file")));
     Assert.assertFalse(fs.exists(new Path("/hbase/dir1/dir2/file1")));
   }
 }
