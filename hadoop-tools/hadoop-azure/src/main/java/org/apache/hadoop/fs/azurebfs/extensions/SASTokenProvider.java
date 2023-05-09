@@ -57,6 +57,8 @@ public interface SASTokenProvider {
   String SET_PROPERTIES_OPERATION = "set-properties";
   String WRITE_OPERATION = "write";
 
+  String LEASE_OPERATION = "lease";
+
   /**
    * Initialize authorizer for Azure Blob File System.
    * @param configuration Configuration object
