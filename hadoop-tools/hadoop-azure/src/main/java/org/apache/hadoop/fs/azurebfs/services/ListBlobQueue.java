@@ -16,6 +16,10 @@ public class ListBlobQueue {
 
   private AzureBlobFileSystemException failureFromProducer;
 
+  public ListBlobQueue(BlobList initBlobList) {
+    blobLists.add(initBlobList);
+  }
+
   void setFailed(AzureBlobFileSystemException failure) {
     failed = true;
     failureFromProducer = failure;

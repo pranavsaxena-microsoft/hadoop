@@ -11,11 +11,12 @@ public class ListBlobProducer {
   private String nextMarker;
 
   public ListBlobProducer(final String src, final AbfsClient abfsClient,
-      final ListBlobQueue listBlobQueue, TracingContext tracingContext) {
+      final ListBlobQueue listBlobQueue, final String initNextMarker, TracingContext tracingContext) {
     this.src = src;
     this.client = abfsClient;
     this.tracingContext = tracingContext;
     this.listBlobQueue = listBlobQueue;
+    this.nextMarker = initNextMarker;
     new Thread(() -> {
       while(true) {
         if(listBlobQueue.getConsumerLag() > 7000) {

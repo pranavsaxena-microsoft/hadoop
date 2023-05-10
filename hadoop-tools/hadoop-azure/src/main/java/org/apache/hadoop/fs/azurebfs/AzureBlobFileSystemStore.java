@@ -60,6 +60,9 @@ import org.apache.hadoop.classification.VisibleForTesting;
 
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.InvalidConfigurationValueException;
 import org.apache.hadoop.fs.azurebfs.enums.BlobCopyProgress;
+import org.apache.hadoop.fs.azurebfs.services.ListBlobConsumer;
+import org.apache.hadoop.fs.azurebfs.services.ListBlobProducer;
+import org.apache.hadoop.fs.azurebfs.services.ListBlobQueue;
 import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
 import org.apache.hadoop.fs.azurebfs.services.BlobList;
 import org.apache.hadoop.fs.azurebfs.services.BlobProperty;
@@ -141,6 +144,7 @@ import org.apache.hadoop.util.SemaphoredDelegatingExecutor;
 import org.apache.hadoop.util.concurrent.HadoopExecutors;
 import org.apache.http.client.utils.URIBuilder;
 
+import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.FORWARD_SLASH;
 import static org.apache.hadoop.fs.azurebfs.services.RenameAtomicityUtils.SUFFIX;
 import static java.net.HttpURLConnection.HTTP_CONFLICT;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.CHAR_EQUALS;
@@ -1255,8 +1259,18 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       /*
        * Fetch the list of blobs in the given sourcePath.
        */
-      List<BlobProperty> srcBlobProperties = getListBlobs(source, null,
-          tracingContext, null, true);
+      String listSrc = source.toUri().getPath() + (source.isRoot() ? EMPTY_STRING : FORWARD_SLASH);
+      BlobList blobList = client.getListBlobs(null, listSrc, null, tracingContext).getResult()
+          .getBlobList();
+      String nextMarker = blobList.getNextMarker();
+      List<BlobProperty> srcBlobProperties = blobList.getBlobPropertyList();
+
+      ListBlobQueue listBlobQueue = new ListBlobQueue(blobList);
+      ListBlobProducer listBlobProducer = new ListBlobProducer(listSrc, client, listBlobQueue, nextMarker, tracingContext);
+      ListBlobConsumer listBlobConsumer = new ListBlobConsumer(listBlobQueue);
+
+//    List<BlobProperty> srcBlobProperties = getListBlobs(source, null,
+//        tracingContext, null, true);
       BlobProperty blobPropOnSrc;
       if (srcBlobProperties.size() > 0) {
         LOG.debug("src {} exists and is a directory", source);
@@ -1343,34 +1357,43 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
           LOG.debug("source dir {} is not an atomicRenameKey",
               source.toUri().getPath());
         }
-        List<Future> futures = new ArrayList<>();
-        for (BlobProperty blobProperty : srcBlobProperties) {
-          futures.add(renameBlobExecutorService.submit(() -> {
+
+        while(!listBlobConsumer.isCompleted()) {
+          blobList = listBlobConsumer.consume();
+          if(blobList == null) {
+            continue;
+          }
+          List<Future> futures = new ArrayList<>();
+          for (BlobProperty blobProperty : blobList.getBlobPropertyList()) {
+            futures.add(renameBlobExecutorService.submit(() -> {
+              try {
+                renameBlob(
+                    createDestinationPathForBlobPartOfRenameSrcDir(destination,
+                        blobProperty, source),
+                    tracingContext, blobProperty.getPath());
+              } catch (AzureBlobFileSystemException e) {
+                LOG.error(String.format("rename from %s to %s for blob %s failed",
+                    source, destination, blobProperty.getPath()), e);
+                throw new RuntimeException(e);
+              }
+            }));
+          }
+          for (Future future : futures) {
             try {
-              renameBlob(
-                  createDestinationPathForBlobPartOfRenameSrcDir(destination,
-                      blobProperty, source),
-                  tracingContext, blobProperty.getPath());
-            } catch (AzureBlobFileSystemException e) {
-              LOG.error(String.format("rename from %s to %s for blob %s failed",
-                  source, destination, blobProperty.getPath()), e);
+              future.get();
+            } catch (InterruptedException | ExecutionException e) {
+              LOG.error(String.format("rename from %s to %s failed", source,
+                  destination), e);
               throw new RuntimeException(e);
             }
-          }));
-        }
-        for (Future future : futures) {
-          try {
-            future.get();
-          } catch (InterruptedException e) {
-            LOG.error(String.format("rename from %s to %s failed", source,
-                destination), e);
-            throw new RuntimeException(e);
-          } catch (ExecutionException e) {
-            LOG.error(String.format("rename from %s to %s failed", source,
-                destination), e);
-            throw new RuntimeException(e);
           }
         }
+
+        renameBlob(
+            createDestinationPathForBlobPartOfRenameSrcDir(destination,
+                blobPropOnSrc, source),
+            tracingContext, blobPropOnSrc.getPath());
+
         if (renameAtomicityUtils != null) {
           renameAtomicityUtils.cleanup();
         }
@@ -2190,7 +2213,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       final boolean isSecure) {
     final URIBuilder uriBuilder = getURIBuilder(accountName, isSecure);
 
-    final String url = uriBuilder.toString() + AbfsHttpConstants.FORWARD_SLASH
+    final String url = uriBuilder.toString() + FORWARD_SLASH
         + fileSystemName;
     return url;
   }
@@ -2302,7 +2325,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
 
   private boolean isKeyForDirectorySet(String key, Set<String> dirSet) {
     for (String dir : dirSet) {
-      if (dir.isEmpty() || key.startsWith(dir + AbfsHttpConstants.FORWARD_SLASH)) {
+      if (dir.isEmpty() || key.startsWith(dir + FORWARD_SLASH)) {
         return true;
       }
 
