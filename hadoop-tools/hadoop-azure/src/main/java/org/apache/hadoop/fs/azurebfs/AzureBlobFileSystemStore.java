@@ -60,6 +60,7 @@ import org.apache.hadoop.classification.VisibleForTesting;
 
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.InvalidConfigurationValueException;
 import org.apache.hadoop.fs.azurebfs.enums.BlobCopyProgress;
+import org.apache.hadoop.fs.azurebfs.services.AbfsBlobLease;
 import org.apache.hadoop.fs.azurebfs.services.ListBlobConsumer;
 import org.apache.hadoop.fs.azurebfs.services.ListBlobProducer;
 import org.apache.hadoop.fs.azurebfs.services.ListBlobQueue;
@@ -145,6 +146,7 @@ import org.apache.hadoop.util.concurrent.HadoopExecutors;
 import org.apache.http.client.utils.URIBuilder;
 
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.FORWARD_SLASH;
+import static org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations.X_MS_LEASE_ID;
 import static org.apache.hadoop.fs.azurebfs.services.RenameAtomicityUtils.SUFFIX;
 import static java.net.HttpURLConnection.HTTP_CONFLICT;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.CHAR_EQUALS;
@@ -205,6 +207,8 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
   private PrefixMode prefixMode;
 
   private final ExecutorService renameBlobExecutorService;
+
+  private final Integer ONE_MINUTE = 60;
 
   /**
    * The set of directories where we should store files as append blobs.
@@ -1353,9 +1357,14 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
          * individually copied and then deleted at the source.
          */
         LOG.debug("source {} is a directory", source);
+        String srcLeaseId = null;
+        long srcLeaseLastEpoch = 0;
         if (isAtomicRenameKey(source.toUri().getPath())) {
           LOG.debug("source dir {} is an atomicRenameKey",
               source.toUri().getPath());
+          AbfsRestOperation op = client.acquireLease(source.toUri().getPath(), ONE_MINUTE, tracingContext);
+          srcLeaseId = op.getResult().getResponseHeader(X_MS_LEASE_ID);
+          srcLeaseLastEpoch = System.currentTimeMillis();
           renameAtomicityUtils.preRename(srcBlobProperties, isCreateOperationOnBlobEndpoint());
         } else {
           LOG.debug("source dir {} is not an atomicRenameKey",
@@ -1363,7 +1372,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         }
 
         renameBlobDir(source, destination, tracingContext, listBlobQueue,
-            blobPropOnSrc);
+            blobPropOnSrc, , srcLeaseId);
 
         if (renameAtomicityUtils != null) {
           renameAtomicityUtils.cleanup();
@@ -1371,7 +1380,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       } else {
         LOG.debug("source {} is not directory", source);
         renameBlob(destination, tracingContext,
-            blobPropOnSrc.getPath());
+            blobPropOnSrc.getPath(), null);
       }
       LOG.info("Rename from source {} to destination {} done", source,
           destination);
@@ -1415,7 +1424,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       final Path destination,
       final TracingContext tracingContext,
       final ListBlobQueue listBlobQueue,
-      final BlobProperty blobPropOnSrc) throws AzureBlobFileSystemException {
+      final BlobProperty blobPropOnSrc, final AbfsBlobLease blobLease) throws AzureBlobFileSystemException {
     BlobList blobList;
     ListBlobConsumer listBlobConsumer = new ListBlobConsumer(listBlobQueue);
     while(!listBlobConsumer.isCompleted()) {
@@ -1430,7 +1439,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
             renameBlob(
                 createDestinationPathForBlobPartOfRenameSrcDir(destination,
                     blobProperty, source),
-                tracingContext, blobProperty.getPath());
+                tracingContext, blobProperty.getPath(), );
           } catch (AzureBlobFileSystemException e) {
             LOG.error(String.format("rename from %s to %s for blob %s failed",
                 source, destination, blobProperty.getPath()), e);
@@ -1452,7 +1461,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     renameBlob(
         createDestinationPathForBlobPartOfRenameSrcDir(destination,
             blobPropOnSrc, source),
-        tracingContext, blobPropOnSrc.getPath());
+        tracingContext, blobPropOnSrc.getPath(), );
   }
 
   private Boolean isCreateOperationOnBlobEndpoint() {
@@ -1485,14 +1494,17 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
    * Renames blob.
    * It copies the source blob to the destination. After copy is succesful, it
    * deletes the source blob
+   *
    * @param destination destination path to which the source has to be moved
-   * @param sourcePath source path which gets copied to the destination
    * @param tracingContext tracingContext for tracing the API calls
+   * @param sourcePath source path which gets copied to the destination
+   * @param srcBlobLeaseId
+   *
    * @throws AzureBlobFileSystemException exception in making server calls
    */
   private void renameBlob(final Path destination,
       final TracingContext tracingContext,
-      final Path sourcePath) throws AzureBlobFileSystemException {
+      final Path sourcePath, final String srcBlobLeaseId) throws AzureBlobFileSystemException {
     copyBlob(sourcePath, destination, tracingContext);
     deleteBlob(sourcePath, tracingContext);
   }
@@ -2133,7 +2145,8 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         String listSrc = src.toUri().getPath() + (src.isRoot() ? EMPTY_STRING : FORWARD_SLASH);
         new ListBlobProducer(listSrc, client, listBlobQueue, null, tracingContext);
         BlobProperty srcBlobProperty = getBlobProperty(src, tracingContext);
-        renameBlobDir(src, destination, tracingContext, listBlobQueue, srcBlobProperty);
+        renameBlobDir(src, destination, tracingContext, listBlobQueue, srcBlobProperty, ,
+            null);
       }
     };
   }
