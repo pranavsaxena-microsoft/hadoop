@@ -33,6 +33,7 @@ public class ListBlobProducer {
         nextMarker = blobList.getNextMarker();
         listBlobQueue.enqueue(blobList);
         if(nextMarker == null) {
+          listBlobQueue.complete();
           break;
         }
       }

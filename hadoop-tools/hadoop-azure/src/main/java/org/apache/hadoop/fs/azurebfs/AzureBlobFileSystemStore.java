@@ -2130,7 +2130,8 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
           throws AzureBlobFileSystemException {
 
         ListBlobQueue listBlobQueue = new ListBlobQueue(null);
-        new ListBlobProducer(src.toUri().getPath(), client, listBlobQueue, null, tracingContext);
+        String listSrc = src.toUri().getPath() + (src.isRoot() ? EMPTY_STRING : FORWARD_SLASH);
+        new ListBlobProducer(listSrc, client, listBlobQueue, null, tracingContext);
         BlobProperty srcBlobProperty = getBlobProperty(src, tracingContext);
         renameBlobDir(src, destination, tracingContext, listBlobQueue, srcBlobProperty);
       }

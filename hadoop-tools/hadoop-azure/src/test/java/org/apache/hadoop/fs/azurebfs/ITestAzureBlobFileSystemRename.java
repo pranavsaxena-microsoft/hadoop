@@ -34,6 +34,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.junit.Assert;
 import org.junit.Assume;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.mockito.Mockito;
 
@@ -445,7 +446,9 @@ public class ITestAzureBlobFileSystemRename extends
           Path path = answer.getArgument(0);
           TracingContext tracingContext = answer.getArgument(1);
           Assert.assertTrue(
-              ("/" + failedCopyPath).equalsIgnoreCase(path.toUri().getPath()));
+              ("/" + failedCopyPath).equalsIgnoreCase(path.toUri().getPath())
+                  || "/hbase/test1/test2/test3".equalsIgnoreCase(
+                  path.toUri().getPath()));
           deletedCount.incrementAndGet();
           client.deleteBlobPath(path, tracingContext);
           return null;
@@ -456,7 +459,7 @@ public class ITestAzureBlobFileSystemRename extends
 
     spiedFsForListPath.listStatus(new Path("hbase/test1/test2"));
     Assert.assertTrue(openRequiredFile[0] == 1);
-    Assert.assertTrue(deletedCount.get() == 2);
+    Assert.assertTrue(deletedCount.get() == 3);
     Assert.assertFalse(spiedFsForListPath.exists(new Path(failedCopyPath)));
     Assert.assertTrue(spiedFsForListPath.exists(new Path(
         failedCopyPath.replace("test1/test2/test3/", "test4/test3/"))));
@@ -553,7 +556,8 @@ public class ITestAzureBlobFileSystemRename extends
           Path path = answer.getArgument(0);
           TracingContext tracingContext = answer.getArgument(1);
           Assert.assertTrue(
-              ("/" + failedCopyPath).equalsIgnoreCase(path.toUri().getPath()));
+              ("/" + failedCopyPath).equalsIgnoreCase(path.toUri().getPath())
+                  || "/hbase/test1/test2".equalsIgnoreCase(path.toUri().getPath()));
           deletedCount.incrementAndGet();
           client.deleteBlobPath(path, tracingContext);
           return null;
@@ -569,7 +573,7 @@ public class ITestAzureBlobFileSystemRename extends
     final FileStatus[] listFileResult = spiedFsForListPath.listStatus(
         new Path("hbase/test1"));
     Assert.assertTrue(openRequiredFile[0] == 1);
-    Assert.assertTrue(deletedCount.get() == 2);
+    Assert.assertTrue(deletedCount.get() == 3);
     Assert.assertFalse(spiedFsForListPath.exists(new Path(failedCopyPath)));
     Assert.assertTrue(spiedFsForListPath.exists(new Path(
         failedCopyPath.replace("test1/test2/test3/", "test4/test2/test3/"))));
@@ -668,7 +672,7 @@ public class ITestAzureBlobFileSystemRename extends
           Path path = answer.getArgument(0);
           TracingContext tracingContext = answer.getArgument(1);
           Assert.assertTrue(
-              ("/" + failedCopyPath).equalsIgnoreCase(path.toUri().getPath()));
+              ("/" + failedCopyPath).equalsIgnoreCase(path.toUri().getPath()) || "/hbase/test1/test2".equalsIgnoreCase(path.toUri().getPath()));
           deletedCount.incrementAndGet();
           client.deleteBlobPath(path, tracingContext);
           return null;
@@ -695,7 +699,7 @@ public class ITestAzureBlobFileSystemRename extends
     Assert.assertTrue(notFoundExceptionReceived);
     Assert.assertNull(fileStatus);
     Assert.assertTrue(openRequiredFile[0] == 1);
-    Assert.assertTrue(deletedCount.get() == 2);
+    Assert.assertTrue(deletedCount.get() == 3);
     Assert.assertFalse(spiedFsForListPath.exists(new Path(failedCopyPath)));
     Assert.assertTrue(spiedFsForListPath.exists(new Path(
         failedCopyPath.replace("test1/test2/test3/", "test4/test2/test3/"))));
