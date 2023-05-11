@@ -1266,7 +1266,12 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       List<BlobProperty> srcBlobProperties = blobList.getBlobPropertyList();
 
       ListBlobQueue listBlobQueue = new ListBlobQueue(blobList);
-      ListBlobProducer listBlobProducer = new ListBlobProducer(listSrc, client, listBlobQueue, nextMarker, tracingContext);
+      if(nextMarker != null) {
+       new ListBlobProducer(listSrc,
+            client, listBlobQueue, nextMarker, tracingContext);
+      } else {
+        listBlobQueue.complete();
+      }
 
 //    List<BlobProperty> srcBlobProperties = getListBlobs(source, null,
 //        tracingContext, null, true);
@@ -1334,7 +1339,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
           isSrcDir = false;
         }
       }
-      srcBlobProperties.add(blobPropOnSrc);
+//      srcBlobProperties.add(blobPropOnSrc);
 
       if (!isSrcExist) {
         LOG.info("source {} doesn't exists", source);
@@ -1366,7 +1371,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       } else {
         LOG.debug("source {} is not directory", source);
         renameBlob(destination, tracingContext,
-            srcBlobProperties.get(0).getPath());
+            blobPropOnSrc.getPath());
       }
       LOG.info("Rename from source {} to destination {} done", source,
           destination);
@@ -2124,24 +2129,10 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       public void redo(final Path destination, final Path src)
           throws AzureBlobFileSystemException {
 
-        renameBlobDir();
-
-        for (int i = 0; i < src.size(); i++) {
-          try {
-            final Path destinationPath;g
-            if (destinationSuffix.get(i).isEmpty()) {
-              destinationPath = destination;
-            } else {
-              destinationPath = new Path(destination, destinationSuffix.get(i));
-            }
-            renameBlob(destinationPath, tracingContext, src.get(i));
-          } catch (AbfsRestOperationException ex) {
-            if (ex.getStatusCode() == HttpURLConnection.HTTP_NOT_FOUND) {
-              continue;
-            }
-            throw ex;
-          }
-        }
+        ListBlobQueue listBlobQueue = new ListBlobQueue(null);
+        new ListBlobProducer(src.toUri().getPath(), client, listBlobQueue, null, tracingContext);
+        BlobProperty srcBlobProperty = getBlobProperty(src, tracingContext);
+        renameBlobDir(src, destination, tracingContext, listBlobQueue, srcBlobProperty);
       }
     };
   }

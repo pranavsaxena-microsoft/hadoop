@@ -16,6 +16,6 @@ public class ListBlobConsumer {
   }
 
   public Boolean isCompleted() {
-    return listBlobQueue.getIsCompleted();
+    return listBlobQueue.getIsCompleted() && listBlobQueue.getConsumerLag() == 0;
   }
 }
