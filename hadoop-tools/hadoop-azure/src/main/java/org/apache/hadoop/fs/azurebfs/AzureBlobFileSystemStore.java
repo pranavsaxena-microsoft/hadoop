@@ -146,7 +146,6 @@ import org.apache.hadoop.util.concurrent.HadoopExecutors;
 import org.apache.http.client.utils.URIBuilder;
 
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.FORWARD_SLASH;
-import static org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations.X_MS_LEASE_ID;
 import static org.apache.hadoop.fs.azurebfs.services.RenameAtomicityUtils.SUFFIX;
 import static java.net.HttpURLConnection.HTTP_CONFLICT;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.CHAR_EQUALS;
@@ -558,21 +557,24 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
 
   /**
    * Orchestrates the copying of blob from given source to a given destination.
+   *
    * @param srcPath source path
    * @param dstPath destination path
+   * @param copySrcLeaseId
    * @param tracingContext object of TracingContext used for the tracing of the
    * server calls.
+   *
    * @throws AzureBlobFileSystemException exception thrown from the server calls,
    * or if it is discovered that the copying is failed or aborted.
    */
   @VisibleForTesting
   void copyBlob(Path srcPath,
       Path dstPath,
-      TracingContext tracingContext) throws AzureBlobFileSystemException {
+      final String copySrcLeaseId, TracingContext tracingContext) throws AzureBlobFileSystemException {
     AbfsRestOperation copyOp = null;
     try {
       copyOp = client.copyBlob(srcPath, dstPath,
-          tracingContext);
+          copySrcLeaseId, tracingContext);
     } catch (AbfsRestOperationException ex) {
       if (ex.getStatusCode() == HttpURLConnection.HTTP_CONFLICT) {
         final BlobProperty dstBlobProperty = getBlobProperty(dstPath,
@@ -1512,14 +1514,14 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
   private void renameBlob(final Path destination,
       final TracingContext tracingContext,
       final Path sourcePath, final String srcBlobLeaseId) throws AzureBlobFileSystemException {
-    copyBlob(sourcePath, destination, tracingContext);
-    deleteBlob(sourcePath, tracingContext);
+    copyBlob(sourcePath, destination, srcBlobLeaseId, tracingContext);
+    deleteBlob(sourcePath, srcBlobLeaseId, tracingContext);
   }
 
   private void deleteBlob(final Path sourcePath,
-      final TracingContext tracingContext) throws AzureBlobFileSystemException {
+      final String blobLeaseId, final TracingContext tracingContext) throws AzureBlobFileSystemException {
     try {
-      client.deleteBlobPath(sourcePath, tracingContext);
+      client.deleteBlobPath(sourcePath, blobLeaseId, tracingContext);
     } catch (AbfsRestOperationException ex) {
       if (ex.getStatusCode() != HttpURLConnection.HTTP_NOT_FOUND) {
         throw ex;

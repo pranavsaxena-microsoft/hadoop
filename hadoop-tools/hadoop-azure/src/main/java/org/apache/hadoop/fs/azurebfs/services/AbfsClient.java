@@ -73,7 +73,6 @@ import org.apache.hadoop.util.concurrent.HadoopExecutors;
 
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.*;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.DEFAULT_DELETE_CONSIDERED_IDEMPOTENT;
-import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.IS_FOLDER_METADATA_KEY;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.SERVER_SIDE_ENCRYPTION_ALGORITHM;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemUriSchemes.ABFS_DNS_PREFIX;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemUriSchemes.HTTPS_SCHEME;
@@ -1257,6 +1256,7 @@ public class AbfsClient implements Closeable {
    *
    * @param sourceBlobPath path of source to be copied
    * @param destinationBlobPath path of the destination
+   * @param srcLeaseId
    * @param tracingContext tracingContext object
    *
    * @return AbfsRestOperation abfsRestOperation which contains the response from the server.
@@ -1268,7 +1268,7 @@ public class AbfsClient implements Closeable {
    */
   public AbfsRestOperation copyBlob(Path sourceBlobPath,
       Path destinationBlobPath,
-      TracingContext tracingContext) throws AzureBlobFileSystemException {
+      final String srcLeaseId, TracingContext tracingContext) throws AzureBlobFileSystemException {
     AbfsUriQueryBuilder abfsUriQueryBuilderDst = createDefaultUriQueryBuilder();
     AbfsUriQueryBuilder abfsUriQueryBuilderSrc = new AbfsUriQueryBuilder();
     String dstBlobRelativePath = destinationBlobPath.toUri().getPath();
@@ -1283,6 +1283,9 @@ public class AbfsClient implements Closeable {
         srcBlobRelativePath,
         abfsUriQueryBuilderSrc.toString()).toString();
     List<AbfsHttpHeader> requestHeaders = createDefaultHeaders();
+    if(srcLeaseId != null) {
+      requestHeaders.add(new AbfsHttpHeader(X_MS_SOURCE_LEASE_ID, srcLeaseId));
+    }
     requestHeaders.add(new AbfsHttpHeader(X_MS_COPY_SOURCE, sourcePathUrl));
     requestHeaders.add(new AbfsHttpHeader(IF_NONE_MATCH, STAR));
 
@@ -1403,6 +1406,7 @@ public class AbfsClient implements Closeable {
    * Deletes the blob for which the path is given.
    *
    * @param blobPath path on which blob has to be deleted.
+   * @param leaseId
    * @param tracingContext tracingContext object for tracing the server calls.
    *
    * @return abfsRestOpertion
@@ -1411,7 +1415,7 @@ public class AbfsClient implements Closeable {
    * network issue.
    */
   public AbfsRestOperation deleteBlobPath(final Path blobPath,
-      final TracingContext tracingContext) throws AzureBlobFileSystemException {
+      final String leaseId, final TracingContext tracingContext) throws AzureBlobFileSystemException {
     AbfsUriQueryBuilder abfsUriQueryBuilder = createDefaultUriQueryBuilder();
     String blobRelativePath = blobPath.toUri().getPath();
     appendSASTokenToQuery(blobRelativePath,
@@ -1419,6 +1423,9 @@ public class AbfsClient implements Closeable {
     final URL url = createRequestUrl(blobRelativePath,
         abfsUriQueryBuilder.toString());
     final List<AbfsHttpHeader> requestHeaders = createDefaultHeaders();
+    if(leaseId != null) {
+      requestHeaders.add(new AbfsHttpHeader(X_MS_LEASE_ID, leaseId));
+    }
     final AbfsRestOperation op = new AbfsRestOperation(
         AbfsRestOperationType.DeleteBlob,
         this,

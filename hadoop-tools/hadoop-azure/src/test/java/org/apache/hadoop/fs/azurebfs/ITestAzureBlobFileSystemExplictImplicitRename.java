@@ -24,7 +24,6 @@ import java.net.HttpURLConnection;
 import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Test;
-import org.mockito.Mock;
 import org.mockito.Mockito;
 
 import org.apache.hadoop.fs.Path;
@@ -897,7 +896,7 @@ public class ITestAzureBlobFileSystemExplictImplicitRename
       throws AzureBlobFileSystemException {
     try {
       fs.getAbfsClient()
-          .deleteBlobPath(srcParent, Mockito.mock(TracingContext.class));
+          .deleteBlobPath(srcParent, null, Mockito.mock(TracingContext.class));
     } catch (AbfsRestOperationException ex) {
       if(ex.getStatusCode() != HttpURLConnection.HTTP_NOT_FOUND) {
         throw ex;

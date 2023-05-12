@@ -141,7 +141,7 @@ public class ITestAzureBlobFileSystemDelegationSASForBlobEndpoint
       Mockito.doReturn(httpOp).when(op).getResult();
       return op;
     }).when(spiedClient).copyBlob(Mockito.any(Path.class), Mockito.any(Path.class),
-        Mockito.any(TracingContext.class));
+        null, Mockito.any(TracingContext.class));
     fileSystem.create(new Path("/test1/file"));
     fileSystem.rename(new Path("/test1/file"), new Path("/test1/file2"));
     Assert.assertTrue(fileSystem.exists(new Path("/test1/file2")));
