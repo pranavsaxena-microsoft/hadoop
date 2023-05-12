@@ -1357,30 +1357,32 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
          * individually copied and then deleted at the source.
          */
         LOG.debug("source {} is a directory", source);
-        String srcLeaseId = null;
-        long srcLeaseLastEpoch = 0;
+        final AbfsBlobLease srcDirLease;
         if (isAtomicRenameKey(source.toUri().getPath())) {
           LOG.debug("source dir {} is an atomicRenameKey",
               source.toUri().getPath());
-          AbfsRestOperation op = client.acquireLease(source.toUri().getPath(), ONE_MINUTE, tracingContext);
-          srcLeaseId = op.getResult().getResponseHeader(X_MS_LEASE_ID);
-          srcLeaseLastEpoch = System.currentTimeMillis();
+          srcDirLease = new AbfsBlobLease(client, source.toUri().getPath(), tracingContext);
           renameAtomicityUtils.preRename(srcBlobProperties, isCreateOperationOnBlobEndpoint());
         } else {
+          srcDirLease = null;
           LOG.debug("source dir {} is not an atomicRenameKey",
               source.toUri().getPath());
         }
 
         renameBlobDir(source, destination, tracingContext, listBlobQueue,
-            blobPropOnSrc, , srcLeaseId);
+            blobPropOnSrc, srcDirLease);
 
         if (renameAtomicityUtils != null) {
           renameAtomicityUtils.cleanup();
         }
       } else {
         LOG.debug("source {} is not directory", source);
+        String leaseId = null;
+        if (isAtomicRenameKey(source.toUri().getPath())) {
+          leaseId = new AbfsBlobLease(client, source.toUri().getPath(), tracingContext).getLeaseId();
+        }
         renameBlob(destination, tracingContext,
-            blobPropOnSrc.getPath(), null);
+            blobPropOnSrc.getPath(), leaseId);
       }
       LOG.info("Rename from source {} to destination {} done", source,
           destination);
@@ -1424,7 +1426,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       final Path destination,
       final TracingContext tracingContext,
       final ListBlobQueue listBlobQueue,
-      final BlobProperty blobPropOnSrc, final AbfsBlobLease blobLease) throws AzureBlobFileSystemException {
+      final BlobProperty blobPropOnSrc, final AbfsBlobLease srcDirBlobLease) throws AzureBlobFileSystemException {
     BlobList blobList;
     ListBlobConsumer listBlobConsumer = new ListBlobConsumer(listBlobQueue);
     while(!listBlobConsumer.isCompleted()) {
@@ -1436,10 +1438,15 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       for (BlobProperty blobProperty : blobList.getBlobPropertyList()) {
         futures.add(renameBlobExecutorService.submit(() -> {
           try {
+            AbfsBlobLease blobLease = null;
+            if(srcDirBlobLease != null) {
+              srcDirBlobLease.renewIfRequired();
+              blobLease = new AbfsBlobLease(client, blobProperty.getPath().toUri().getPath(), tracingContext);
+            }
             renameBlob(
                 createDestinationPathForBlobPartOfRenameSrcDir(destination,
                     blobProperty, source),
-                tracingContext, blobProperty.getPath(), );
+                tracingContext, blobProperty.getPath(), blobLease != null ? blobLease.getLeaseId() : null);
           } catch (AzureBlobFileSystemException e) {
             LOG.error(String.format("rename from %s to %s for blob %s failed",
                 source, destination, blobProperty.getPath()), e);
@@ -1461,7 +1468,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     renameBlob(
         createDestinationPathForBlobPartOfRenameSrcDir(destination,
             blobPropOnSrc, source),
-        tracingContext, blobPropOnSrc.getPath(), );
+        tracingContext, blobPropOnSrc.getPath(), srcDirBlobLease != null ? srcDirBlobLease.getLeaseId() : null);
   }
 
   private Boolean isCreateOperationOnBlobEndpoint() {
@@ -2145,8 +2152,8 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         String listSrc = src.toUri().getPath() + (src.isRoot() ? EMPTY_STRING : FORWARD_SLASH);
         new ListBlobProducer(listSrc, client, listBlobQueue, null, tracingContext);
         BlobProperty srcBlobProperty = getBlobProperty(src, tracingContext);
-        renameBlobDir(src, destination, tracingContext, listBlobQueue, srcBlobProperty, ,
-            null);
+        AbfsBlobLease abfsBlobLease = new AbfsBlobLease(client, src.toUri().getPath(), tracingContext);
+        renameBlobDir(src, destination, tracingContext, listBlobQueue, srcBlobProperty, abfsBlobLease);
       }
     };
   }
