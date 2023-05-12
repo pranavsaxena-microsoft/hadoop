@@ -616,7 +616,7 @@ public class AbfsClient implements Closeable {
     final AbfsRestOperation op = new AbfsRestOperation(
         AbfsRestOperationType.LeasePath,
         this,
-        HTTP_METHOD_POST,
+        HTTP_METHOD_PUT,
         url,
         requestHeaders);
     op.execute(tracingContext);

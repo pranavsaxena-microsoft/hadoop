@@ -23,7 +23,9 @@ import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.SocketException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -36,6 +38,7 @@ import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Ignore;
 import org.junit.Test;
+import org.mockito.Mock;
 import org.mockito.Mockito;
 
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -58,6 +61,7 @@ import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_REDIRECT_RENAME;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.TRUE;
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_INGRESS_FALLBACK_TO_DFS;
+import static org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations.X_MS_LEASE_ID;
 import static org.apache.hadoop.fs.azurebfs.services.RenameAtomicityUtils.SUFFIX;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.COPY_STATUS_ABORTED;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.COPY_STATUS_FAILED;
@@ -377,6 +381,15 @@ public class ITestAzureBlobFileSystemRename extends
     final AzureBlobFileSystemStore spiedAbfsStore = Mockito.spy(
         spiedFs.getAbfsStore());
     Mockito.doReturn(spiedAbfsStore).when(spiedFs).getAbfsStore();
+    AbfsClient spiedClient = Mockito.spy(spiedAbfsStore.getClient());
+    spiedAbfsStore.setClient(spiedClient);
+    Map<String, String> pathLeaseIdMap = new HashMap<>();
+    Mockito.doAnswer(answer -> {
+      AbfsRestOperation op = (AbfsRestOperation) answer.callRealMethod();
+      String leaseId = op.getResult().getResponseHeader(X_MS_LEASE_ID);
+      pathLeaseIdMap.put(answer.getArgument(0), leaseId);
+      return op;
+    }).when(spiedClient).acquireBlobLease(Mockito.anyString(), Mockito.anyInt(), Mockito.any(TracingContext.class));
     final Integer[] correctDeletePathCount = new Integer[1];
     correctDeletePathCount[0] = 0;
 
@@ -445,19 +458,29 @@ public class ITestAzureBlobFileSystemRename extends
     spiedFsForListPath.getAbfsStore().setClient(spiedClientForListPath);
     Mockito.doAnswer(answer -> {
           Path path = answer.getArgument(0);
-          TracingContext tracingContext = answer.getArgument(1);
+          String leaseId = answer.getArgument(1);
+          TracingContext tracingContext = answer.getArgument(2);
           Assert.assertTrue(
               ("/" + failedCopyPath).equalsIgnoreCase(path.toUri().getPath())
                   || "/hbase/test1/test2/test3".equalsIgnoreCase(
                   path.toUri().getPath()));
           deletedCount.incrementAndGet();
-          client.deleteBlobPath(path, null, tracingContext);
+          client.deleteBlobPath(path, leaseId, tracingContext);
           return null;
         })
         .when(spiedClientForListPath)
         .deleteBlobPath(Mockito.any(Path.class),
             Mockito.nullable(String.class), Mockito.any(TracingContext.class));
 
+    for(Map.Entry<String, String> entry : pathLeaseIdMap.entrySet()) {
+      try {
+        fs.getAbfsClient()
+            .releaseBlobLease(entry.getKey(), entry.getValue(),
+                Mockito.mock(TracingContext.class));
+      } catch (AbfsRestOperationException ex) {
+
+      }
+    }
     spiedFsForListPath.listStatus(new Path("hbase/test1/test2"));
     Assert.assertTrue(openRequiredFile[0] == 1);
     Assert.assertTrue(deletedCount.get() == 3);
@@ -489,6 +512,15 @@ public class ITestAzureBlobFileSystemRename extends
     final AzureBlobFileSystemStore spiedAbfsStore = Mockito.spy(
         spiedFs.getAbfsStore());
     Mockito.doReturn(spiedAbfsStore).when(spiedFs).getAbfsStore();
+    AbfsClient spiedClient = Mockito.spy(spiedAbfsStore.getClient());
+    spiedAbfsStore.setClient(spiedClient);
+    Map<String, String> pathLeaseIdMap = new HashMap<>();
+    Mockito.doAnswer(answer -> {
+      AbfsRestOperation op = (AbfsRestOperation) answer.callRealMethod();
+      String leaseId = op.getResult().getResponseHeader(X_MS_LEASE_ID);
+      pathLeaseIdMap.put(answer.getArgument(0), leaseId);
+      return op;
+    }).when(spiedClient).acquireBlobLease(Mockito.anyString(), Mockito.anyInt(), Mockito.any(TracingContext.class));
     final Integer[] correctDeletePathCount = new Integer[1];
     correctDeletePathCount[0] = 0;
 
@@ -556,12 +588,13 @@ public class ITestAzureBlobFileSystemRename extends
     spiedFsForListPath.getAbfsStore().setClient(spiedClientForListPath);
     Mockito.doAnswer(answer -> {
           Path path = answer.getArgument(0);
-          TracingContext tracingContext = answer.getArgument(1);
+          String leaseId = answer.getArgument(1);
+          TracingContext tracingContext = answer.getArgument(2);
           Assert.assertTrue(
               ("/" + failedCopyPath).equalsIgnoreCase(path.toUri().getPath())
                   || "/hbase/test1/test2".equalsIgnoreCase(path.toUri().getPath()));
           deletedCount.incrementAndGet();
-          client.deleteBlobPath(path, null, tracingContext);
+          client.deleteBlobPath(path, leaseId, tracingContext);
           return null;
         })
         .when(spiedClientForListPath)
@@ -571,7 +604,17 @@ public class ITestAzureBlobFileSystemRename extends
     /*
      * listFile on /hbase/test1 would give no result because
      * /hbase/test1/test2 would be totally moved to /hbase/test4.
+     *
      */
+    for(Map.Entry<String, String> entry : pathLeaseIdMap.entrySet()) {
+      try {
+        fs.getAbfsClient()
+            .releaseBlobLease(entry.getKey(), entry.getValue(),
+                Mockito.mock(TracingContext.class));
+      } catch (AbfsRestOperationException ex) {
+
+      }
+    }
     final FileStatus[] listFileResult = spiedFsForListPath.listStatus(
         new Path("hbase/test1"));
     Assert.assertTrue(openRequiredFile[0] == 1);
@@ -606,6 +649,15 @@ public class ITestAzureBlobFileSystemRename extends
     final AzureBlobFileSystemStore spiedAbfsStore = Mockito.spy(
         spiedFs.getAbfsStore());
     Mockito.doReturn(spiedAbfsStore).when(spiedFs).getAbfsStore();
+    AbfsClient spiedClient = Mockito.spy(spiedAbfsStore.getClient());
+    spiedAbfsStore.setClient(spiedClient);
+    Map<String, String> pathLeaseIdMap = new HashMap<>();
+    Mockito.doAnswer(answer -> {
+      AbfsRestOperation op = (AbfsRestOperation) answer.callRealMethod();
+      String leaseId = op.getResult().getResponseHeader(X_MS_LEASE_ID);
+      pathLeaseIdMap.put(answer.getArgument(0), leaseId);
+      return op;
+    }).when(spiedClient).acquireBlobLease(Mockito.anyString(), Mockito.anyInt(), Mockito.any(TracingContext.class));
     final Integer[] correctDeletePathCount = new Integer[1];
     correctDeletePathCount[0] = 0;
 
@@ -673,11 +725,12 @@ public class ITestAzureBlobFileSystemRename extends
     spiedFsForListPath.getAbfsStore().setClient(spiedClientForListPath);
     Mockito.doAnswer(answer -> {
           Path path = answer.getArgument(0);
-          TracingContext tracingContext = answer.getArgument(1);
+          String leaseId = answer.getArgument(1);
+          TracingContext tracingContext = answer.getArgument(2);
           Assert.assertTrue(
               ("/" + failedCopyPath).equalsIgnoreCase(path.toUri().getPath()) || "/hbase/test1/test2".equalsIgnoreCase(path.toUri().getPath()));
           deletedCount.incrementAndGet();
-          client.deleteBlobPath(path, null, tracingContext);
+          client.deleteBlobPath(path, leaseId, tracingContext);
           return null;
         })
         .when(spiedClientForListPath)
@@ -690,6 +743,13 @@ public class ITestAzureBlobFileSystemRename extends
      * on the directory, the remaining rename will be made. And as the directory is renamed,
      * the method should give NOT_FOUND exception.
      */
+    for(Map.Entry<String, String> entry : pathLeaseIdMap.entrySet()) {
+      try {
+        fs.getAbfsClient().releaseBlobLease(entry.getKey(), entry.getValue(), Mockito.mock(TracingContext.class));
+      } catch (AbfsRestOperationException ex) {
+
+      }
+    }
     FileStatus fileStatus = null;
     Boolean notFoundExceptionReceived = false;
     try {
@@ -929,6 +989,15 @@ public class ITestAzureBlobFileSystemRename extends
     AzureBlobFileSystemStore spiedAbfsStore = Mockito.spy(
         spiedFs.getAbfsStore());
     Mockito.doReturn(spiedAbfsStore).when(spiedFs).getAbfsStore();
+    AbfsClient spiedClient = Mockito.spy(spiedAbfsStore.getClient());
+    spiedAbfsStore.setClient(spiedClient);
+    Map<String, String> pathLeaseIdMap = new HashMap<>();
+    Mockito.doAnswer(answer -> {
+      AbfsRestOperation op = (AbfsRestOperation) answer.callRealMethod();
+      String leaseId = op.getResult().getResponseHeader(X_MS_LEASE_ID);
+      pathLeaseIdMap.put(answer.getArgument(0), leaseId);
+      return op;
+    }).when(spiedClient).acquireBlobLease(Mockito.anyString(), Mockito.anyInt(), Mockito.any(TracingContext.class));
     Mockito.doAnswer(answer -> {
           final Path srcPath = answer.getArgument(0);
           final Path dstPath = answer.getArgument(1);
@@ -957,6 +1026,10 @@ public class ITestAzureBlobFileSystemRename extends
         new Path(srcDir.replace("test1/test2/test3", "test4/test3/"))));
 
     //call listPath API, it will recover the rename atomicity.
+    for(Map.Entry<String, String> entry : pathLeaseIdMap.entrySet()) {
+      fs.getAbfsClient().releaseBlobLease(entry.getKey(), entry.getValue(), Mockito.mock(TracingContext.class));
+    }
+
     final AzureBlobFileSystem spiedFsForListPath = Mockito.spy(fs);
     final int[] openRequiredFile = new int[1];
     openRequiredFile[0] = 0;
@@ -992,10 +1065,11 @@ public class ITestAzureBlobFileSystemRename extends
     spiedFsForListPath.getAbfsStore().setClient(spiedClientForListPath);
     Mockito.doAnswer(answer -> {
           Path path = answer.getArgument(0);
-          TracingContext tracingContext = answer.getArgument(1);
+          String leaseId = answer.getArgument(1);
+          TracingContext tracingContext = answer.getArgument(2);
           Assert.assertTrue((srcDir).equalsIgnoreCase(path.toUri().getPath()));
           deletedCount.incrementAndGet();
-          client.deleteBlobPath(path, null, tracingContext);
+          client.deleteBlobPath(path, leaseId, tracingContext);
           return null;
         })
         .when(spiedClientForListPath)
