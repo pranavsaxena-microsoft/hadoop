@@ -29,6 +29,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.hadoop.conf.Configuration;
@@ -303,7 +304,7 @@ public class ITestAzureBlobFileSystemAppend extends
    **/
   @Test
   public void testParallelWriteSameOffsetDifferentOutputStreams() throws Exception {
-    Configuration configuration = getRawConfiguration();
+    Configuration configuration = Mockito.spy(getRawConfiguration());
     configuration.set(FS_AZURE_ENABLE_CONDITIONAL_CREATE_OVERWRITE, "false");
     AzureBlobFileSystem fs = (AzureBlobFileSystem) FileSystem.newInstance(configuration);
     ExecutorService executorService = Executors.newFixedThreadPool(5);
@@ -366,7 +367,7 @@ public class ITestAzureBlobFileSystemAppend extends
    **/
   @Test
   public void testParallelWriteDifferentContentLength() throws Exception {
-    Configuration configuration = getRawConfiguration();
+    Configuration configuration = Mockito.spy(getRawConfiguration());
     configuration.set(FS_AZURE_ENABLE_CONDITIONAL_CREATE_OVERWRITE, "false");
     FileSystem fs = FileSystem.newInstance(configuration);
     ExecutorService executorService = Executors.newFixedThreadPool(5);
@@ -422,6 +423,33 @@ public class ITestAzureBlobFileSystemAppend extends
     }
     assertEquals(exceptionCaught, 0);
   }
+
+//  @Test
+//  public void testRunParallel() throws Exception {
+//    AtomicBoolean b1 = new AtomicBoolean(false);
+//    AtomicBoolean b2 = new AtomicBoolean(false);
+//    new Thread(() -> {
+//      try {
+//        testParallelWriteOutputStreamClose();
+//      } catch (Exception e) {
+//
+//      } finally {
+//        b1.set(true);
+//      }
+//    }).start();
+//
+//    new Thread(() -> {
+//      try {
+//        testParallelWriteDifferentContentLength();
+//      } catch (Exception e) {
+//
+//      } finally {
+//        b2.set(true);
+//      }
+//    }).start();
+//
+//    while(!b1.get() || !b2.get()) ;
+//  }
 
   /**
    * Verify that parallel write for different content length will not throw exception.
