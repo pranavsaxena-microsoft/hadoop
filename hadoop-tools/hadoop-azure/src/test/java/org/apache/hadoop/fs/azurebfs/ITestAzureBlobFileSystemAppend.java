@@ -143,7 +143,7 @@ public class ITestAzureBlobFileSystemAppend extends
 
   @Test(expected = IOException.class)
   public void testSmallWriteBlob() throws Exception {
-    Configuration configuration = getRawConfiguration();
+    Configuration configuration = Mockito.spy(getRawConfiguration());
     configuration.set(AZURE_ENABLE_SMALL_WRITE_OPTIMIZATION, "true");
     AzureBlobFileSystem fs = (AzureBlobFileSystem) FileSystem.newInstance(configuration);
     fs.getAbfsStore().getAbfsConfiguration().setPrefixMode(PrefixMode.BLOB);
