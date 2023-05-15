@@ -1360,19 +1360,22 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
          */
         LOG.debug("source {} is a directory", source);
         final AbfsBlobLease srcDirLease;
+        final Boolean isAtomicRename;
         if (isAtomicRenameKey(source.toUri().getPath())) {
           LOG.debug("source dir {} is an atomicRenameKey",
               source.toUri().getPath());
           srcDirLease = new AbfsBlobLease(client, source.toUri().getPath(), tracingContext);
           renameAtomicityUtils.preRename(srcBlobProperties, isCreateOperationOnBlobEndpoint());
+          isAtomicRename = true;
         } else {
           srcDirLease = null;
+          isAtomicRename = false;
           LOG.debug("source dir {} is not an atomicRenameKey",
               source.toUri().getPath());
         }
 
         renameBlobDir(source, destination, tracingContext, listBlobQueue,
-            blobPropOnSrc, srcDirLease);
+            blobPropOnSrc, srcDirLease, isAtomicRename);
 
         if (renameAtomicityUtils != null) {
           renameAtomicityUtils.cleanup();
@@ -1428,7 +1431,8 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       final Path destination,
       final TracingContext tracingContext,
       final ListBlobQueue listBlobQueue,
-      final BlobProperty blobPropOnSrc, final AbfsBlobLease srcDirBlobLease) throws AzureBlobFileSystemException {
+      final BlobProperty blobPropOnSrc, final AbfsBlobLease srcDirBlobLease,
+      final Boolean isAtomicRename) throws AzureBlobFileSystemException {
     BlobList blobList;
     ListBlobConsumer listBlobConsumer = new ListBlobConsumer(listBlobQueue);
     while(!listBlobConsumer.isCompleted()) {
@@ -1441,9 +1445,23 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         futures.add(renameBlobExecutorService.submit(() -> {
           try {
             AbfsBlobLease blobLease = null;
+            if (isAtomicRename) {
+              /*
+               * Conditionally get a lease on the source blob to prevent other writers
+               * from changing it. This is used for correctness in HBase when log files
+               * are renamed. It generally should do no harm other than take a little
+               * more time for other rename scenarios. When the HBase master renames a
+               * log file folder, the lease locks out other writers.  This
+               * prevents a region server that the master thinks is dead, but is still
+               * alive, from committing additional updates.  This is different than
+               * when HBase runs on HDFS, where the region server recovers the lease
+               * on a log file, to gain exclusive access to it, before it splits it.
+               */
+              blobLease = new AbfsBlobLease(client,
+                  blobProperty.getPath().toUri().getPath(), tracingContext);
+            }
             if(srcDirBlobLease != null) {
               srcDirBlobLease.renewIfRequired();
-              blobLease = new AbfsBlobLease(client, blobProperty.getPath().toUri().getPath(), tracingContext);
             }
             renameBlob(
                 createDestinationPathForBlobPartOfRenameSrcDir(destination,
@@ -2155,7 +2173,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         new ListBlobProducer(listSrc, client, listBlobQueue, null, tracingContext);
         BlobProperty srcBlobProperty = getBlobProperty(src, tracingContext);
         AbfsBlobLease abfsBlobLease = new AbfsBlobLease(client, src.toUri().getPath(), tracingContext);
-        renameBlobDir(src, destination, tracingContext, listBlobQueue, srcBlobProperty, abfsBlobLease);
+        renameBlobDir(src, destination, tracingContext, listBlobQueue, srcBlobProperty, abfsBlobLease, true);
       }
     };
   }
