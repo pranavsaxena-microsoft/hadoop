@@ -26,10 +26,12 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.hadoop.conf.Configuration;
@@ -53,6 +55,7 @@ import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
 import org.apache.hadoop.fs.azurebfs.services.AbfsClientTestUtil;
 import org.apache.hadoop.fs.azurebfs.services.AbfsHttpOpTestUtil;
 import org.apache.hadoop.fs.azurebfs.services.AbfsHttpOperation;
+import org.apache.hadoop.fs.azurebfs.services.AbfsOutputStream;
 import org.apache.hadoop.fs.azurebfs.services.AbfsRestOperation;
 import org.apache.hadoop.fs.azurebfs.services.AbfsRestOperationTestUtil;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
@@ -61,6 +64,7 @@ import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_REDIRECT_RENAME;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.TRUE;
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_INGRESS_FALLBACK_TO_DFS;
+import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.ONE_MB;
 import static org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations.X_MS_LEASE_ID;
 import static org.apache.hadoop.fs.azurebfs.services.RenameAtomicityUtils.SUFFIX;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.COPY_STATUS_ABORTED;
@@ -1631,4 +1635,103 @@ public class ITestAzureBlobFileSystemRename extends
     }
     Assert.assertTrue(srcBlobNotFoundExReceived);
   }
+
+  @Test
+  public void testParallelRenameForAtomicDirShouldFail() throws Exception {
+    AzureBlobFileSystem fs = Mockito.spy(getFileSystem());
+    assumeNonHnsAccountBlobEndpoint(fs);
+    fs.setWorkingDirectory(new Path("/"));
+    fs.mkdirs(new Path("/hbase/dir1"));
+    fs.create(new Path("/hbase/dir1/file1"));
+    AzureBlobFileSystemStore store = Mockito.spy(fs.getAbfsStore());
+    Mockito.doReturn(store).when(fs).getAbfsStore();
+    AbfsClient client = Mockito.spy(fs.getAbfsClient());
+    store.setClient(client);
+    AtomicBoolean leaseAcquired = new AtomicBoolean(false);
+    AtomicBoolean exceptionOnParallelRename = new AtomicBoolean(false);
+    AtomicBoolean parallelThreadDone = new AtomicBoolean(false);
+    Mockito.doAnswer(answer -> {
+          AbfsRestOperation op = (AbfsRestOperation) answer.callRealMethod();
+          leaseAcquired.set(true);
+          while (!parallelThreadDone.get()) ;
+          return op;
+        })
+        .when(client)
+        .acquireBlobLease(Mockito.anyString(), Mockito.anyInt(),
+            Mockito.any(TracingContext.class));
+
+    new Thread(() -> {
+      while (!leaseAcquired.get()) ;
+      try {
+        fs.rename(new Path("/hbase/dir1/file1"), new Path("/hbase/dir2/"));
+      } catch (Exception e) {
+        if (e.getCause() instanceof AbfsRestOperationException
+            && ((AbfsRestOperationException) e.getCause()).getStatusCode()
+            == HttpURLConnection.HTTP_CONFLICT) {
+          exceptionOnParallelRename.set(true);
+        }
+      } finally {
+        parallelThreadDone.set(true);
+      }
+    }).start();
+    fs.rename(new Path("/hbase/dir1/file1"), new Path("/hbase/dir2/"));
+    while (!parallelThreadDone.get()) ;
+    Assert.assertTrue(exceptionOnParallelRename.get());
+  }
+
+  @Test
+  public void testParallelAppendToFileBeingCopiedInAtomicDirectory()
+      throws Exception {
+    AzureBlobFileSystem fs = Mockito.spy(getFileSystem());
+    assumeNonHnsAccountBlobEndpoint(fs);
+    fs.setWorkingDirectory(new Path("/"));
+    fs.mkdirs(new Path("/hbase/dir1"));
+    fs.create(new Path("/hbase/dir1/file1"));
+    AzureBlobFileSystemStore store = Mockito.spy(fs.getAbfsStore());
+    Mockito.doReturn(store).when(fs).getAbfsStore();
+    AbfsClient client = Mockito.spy(fs.getAbfsClient());
+    store.setClient(client);
+    AtomicBoolean copyOfSrcFile = new AtomicBoolean(false);
+    AtomicBoolean parallelAppendDone = new AtomicBoolean(false);
+    AtomicBoolean exceptionCaught = new AtomicBoolean(false);
+
+    Mockito.doAnswer(answer -> {
+          answer.callRealMethod();
+          if ("/hbase/dir1/file1".equalsIgnoreCase(
+              ((Path) answer.getArgument(0)).toUri().getPath())) {
+            copyOfSrcFile.set(true);
+            while (!parallelAppendDone.get()) ;
+          }
+          return null;
+        })
+        .when(store)
+        .copyBlob(Mockito.any(Path.class), Mockito.any(Path.class),
+            Mockito.nullable(String.class), Mockito.any(TracingContext.class));
+
+    FSDataOutputStream outputStream = fs.append(new Path("/hbase/dir1/file1"));
+
+    new Thread(() -> {
+      while (!copyOfSrcFile.get()) ;
+      try {
+        byte[] bytes = new byte[4 * ONE_MB];
+        new Random().nextBytes(bytes);
+        outputStream.write(bytes);
+        outputStream.hsync();
+      } catch (Exception e) {
+        if (e.getCause() instanceof AbfsRestOperationException
+            && ((AbfsRestOperationException) e.getCause()).getStatusCode()
+            == HttpURLConnection.HTTP_PRECON_FAILED) {
+          exceptionCaught.set(true);
+        }
+      } finally {
+        parallelAppendDone.set(true);
+      }
+    }).start();
+
+    fs.rename(new Path("/hbase/dir1"), new Path("/hbase/dir2"));
+
+    while (!parallelAppendDone.get()) ;
+    Assert.assertTrue(exceptionCaught.get());
+  }
+
 }
