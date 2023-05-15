@@ -43,6 +43,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.InvalidConfigurationValueException;
+import org.apache.hadoop.fs.azurebfs.services.AbfsBlobLease;
 import org.apache.hadoop.fs.azurebfs.services.BlobProperty;
 import org.apache.hadoop.classification.VisibleForTesting;
 import org.apache.hadoop.fs.azurebfs.services.PathInformation;
@@ -423,6 +424,14 @@ public class AzureBlobFileSystem extends FileSystem
   @Override
   public FSDataOutputStream create(final Path f, final FsPermission permission, final boolean overwrite, final int bufferSize,
       final short replication, final long blockSize, final Progressable progress) throws IOException {
+    return create(f, permission, overwrite, bufferSize, replication, blockSize, progress, false);
+  }
+
+  private FSDataOutputStream create(final Path f,
+      final FsPermission permission,
+      final boolean overwrite, final int bufferSize,
+      final short replication,
+      final long blockSize, final Progressable progress, final Boolean blobParentDirPresentChecked) throws IOException {
     LOG.debug("AzureBlobFileSystem.create path: {} permission: {} overwrite: {} bufferSize: {}",
         f,
         permission,
@@ -446,7 +455,7 @@ public class AzureBlobFileSystem extends FileSystem
       fileOverwrite = true;
     }
 
-    if (prefixMode == PrefixMode.BLOB) {
+    if (prefixMode == PrefixMode.BLOB && !blobParentDirPresentChecked) {
       validatePathOrSubPathDoesNotExist(qualifiedPath, tracingContext);
       Path parent = qualifiedPath.getParent();
       if (parent != null && !parent.isRoot()) {
@@ -477,14 +486,29 @@ public class AzureBlobFileSystem extends FileSystem
     TracingContext tracingContext = new TracingContext(clientCorrelationId,
         fileSystemId, FSOperationType.CREATE_NON_RECURSIVE, tracingHeaderFormat,
         listener);
+    /*
+    * Get exclusive access to foder if this is a directory designated for atomic
+    * rename. The primary use case of the HBase write-ahead log file management.
+    */
+    AbfsBlobLease abfsBlobLease = null;
+    if(getAbfsStore().getAbfsConfiguration().getPrefixMode() == PrefixMode.BLOB && getAbfsStore().isAtomicRenameKey(parent.toUri().getPath())) {
+      abfsBlobLease = new AbfsBlobLease(getAbfsClient(), parent.toUri().getPath(), tracingContext);
+    }
     final FileStatus parentFileStatus = tryGetFileStatus(parent, tracingContext);
 
-    if (parentFileStatus == null) {
+    if (parentFileStatus == null || !parentFileStatus.isDirectory()) {
+      if(abfsBlobLease != null) {
+        abfsBlobLease.free();
+      }
       throw new FileNotFoundException("Cannot create file "
-          + f.getName() + " because parent folder does not exist.");
+          + f.getName() + " because parent folder does not exist or is a file.");
     }
 
-    return create(f, permission, overwrite, bufferSize, replication, blockSize, progress);
+    final FSDataOutputStream outputStream = create(f, permission, overwrite, bufferSize, replication, blockSize, progress, true);
+    if(abfsBlobLease != null) {
+      abfsBlobLease.free();
+    }
+    return outputStream;
   }
 
   @Override
