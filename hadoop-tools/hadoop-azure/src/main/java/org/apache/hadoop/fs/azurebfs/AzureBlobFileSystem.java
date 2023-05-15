@@ -455,11 +455,13 @@ public class AzureBlobFileSystem extends FileSystem
       fileOverwrite = true;
     }
 
-    if (prefixMode == PrefixMode.BLOB && !blobParentDirPresentChecked) {
+    if (prefixMode == PrefixMode.BLOB) {
       validatePathOrSubPathDoesNotExist(qualifiedPath, tracingContext);
-      Path parent = qualifiedPath.getParent();
-      if (parent != null && !parent.isRoot()) {
+      if(!blobParentDirPresentChecked) {
+        Path parent = qualifiedPath.getParent();
+        if (parent != null && !parent.isRoot()) {
           mkdirs(parent);
+        }
       }
     }
 
