@@ -49,6 +49,8 @@ public class AbfsRestOperation {
   private final AbfsRestOperationType operationType;
   // Blob FS client, which has the credentials, retry policy, and logs.
   private final AbfsClient client;
+  // Return intercept instance
+  private final AbfsThrottlingIntercept intercept;
   // the HTTP method (PUT, PATCH, POST, GET, HEAD, or DELETE)
   private final String method;
   // full URL including query parameters
@@ -149,6 +151,7 @@ public class AbfsRestOperation {
             || AbfsHttpConstants.HTTP_METHOD_PATCH.equals(method));
     this.sasToken = sasToken;
     this.abfsCounters = client.getAbfsCounters();
+    this.intercept = client.getIntercept();
   }
 
   /**
@@ -288,7 +291,7 @@ public class AbfsRestOperation {
    */
   private boolean executeHttpOperation(final int retryCount,
     TracingContext tracingContext) throws AzureBlobFileSystemException {
-    AbfsHttpOperation httpOperation = null;
+    AbfsHttpOperation httpOperation;
     try {
       // initialize the HTTP request and open the connection
       httpOperation = createNewHttpOperation();
@@ -325,7 +328,7 @@ public class AbfsRestOperation {
       // dump the headers
       AbfsIoUtils.dumpHeadersToDebugLog("Request Headers",
           httpOperation.getConnection().getRequestProperties());
-      AbfsClientThrottlingIntercept.sendingRequest(operationType, abfsCounters);
+      intercept.sendingRequest(operationType, abfsCounters);
 
       if (hasRequestBody) {
         // HttpUrlConnection requires
@@ -366,9 +369,6 @@ public class AbfsRestOperation {
 
       return false;
     } finally {
-<<<<<<< HEAD
-      AbfsClientThrottlingIntercept.updateMetrics(operationType, httpOperation);
-=======
       int status = httpOperation.getStatusCode();
       /*
         A status less than 300 (2xx range) or greater than or equal
@@ -383,7 +383,6 @@ public class AbfsRestOperation {
       if (updateMetricsResponseCode) {
         intercept.updateMetrics(operationType, httpOperation);
       }
->>>>>>> c88011c6046... HADOOP-18146: ABFS: Added changes for expect hundred continue header (#4039)
     }
 
     LOG.debug("HttpRequest: {}: {}", operationType, httpOperation.toString());

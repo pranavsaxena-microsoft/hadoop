@@ -284,6 +284,14 @@ public class AbfsConfiguration{
       DefaultValue = DEFAULT_ENABLE_AUTOTHROTTLING)
   private boolean enableAutoThrottling;
 
+  @IntegerConfigurationValidatorAnnotation(ConfigurationKey = FS_AZURE_ACCOUNT_OPERATION_IDLE_TIMEOUT,
+          DefaultValue = DEFAULT_ACCOUNT_OPERATION_IDLE_TIMEOUT_MS)
+  private int accountOperationIdleTimeout;
+
+  @IntegerConfigurationValidatorAnnotation(ConfigurationKey = FS_AZURE_ANALYSIS_PERIOD,
+          DefaultValue = DEFAULT_ANALYSIS_PERIOD_MS)
+  private int analysisPeriod;
+
   @StringConfigurationValidatorAnnotation(ConfigurationKey = FS_AZURE_USER_AGENT_PREFIX_KEY,
       DefaultValue = DEFAULT_FS_AZURE_USER_AGENT_PREFIX)
   private String userAgentId;
@@ -822,6 +830,14 @@ public class AbfsConfiguration{
 
   public boolean isAutoThrottlingEnabled() {
     return this.enableAutoThrottling;
+  }
+
+  public int getAccountOperationIdleTimeout() {
+    return accountOperationIdleTimeout;
+  }
+
+  public int getAnalysisPeriod() {
+    return analysisPeriod;
   }
 
   public String getCustomUserAgentPrefix() {

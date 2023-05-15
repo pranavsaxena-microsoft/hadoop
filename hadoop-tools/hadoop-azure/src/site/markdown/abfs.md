@@ -894,6 +894,9 @@ when there are too many writes from the same process.
  time. Effectively this will be the threadpool size within the
  AbfsOutputStream instance. Set the value in between 1 to 8 both inclusive.
 
+`fs.azure.analysis.period`: The time after which sleep duration is recomputed after analyzing metrics. The default value
+for the same is 10 seconds.
+
 `fs.azure.write.max.requests.to.queue`: To set the maximum write requests
  that can be queued. Memory consumption of AbfsOutputStream instance can be
  tuned with this config considering each queued request holds a buffer. Set

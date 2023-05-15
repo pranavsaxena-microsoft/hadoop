@@ -27,11 +27,8 @@ import java.util.List;
 import java.util.Random;
 import java.util.regex.Pattern;
 
-<<<<<<< HEAD:hadoop-tools/hadoop-azure/src/test/java/org/apache/hadoop/fs/azurebfs/services/TestAbfsClient.java
 import org.junit.Ignore;
-=======
 import org.assertj.core.api.Assertions;
->>>>>>> c88011c6046... HADOOP-18146: ABFS: Added changes for expect hundred continue header (#4039):hadoop-tools/hadoop-azure/src/test/java/org/apache/hadoop/fs/azurebfs/services/ITestAbfsClient.java
 import org.junit.Test;
 import org.mockito.Mockito;
 
@@ -339,15 +336,11 @@ public final class ITestAbfsClient extends AbstractAbfsIntegrationTest {
     when(client.getAccessToken()).thenCallRealMethod();
     when(client.getSharedKeyCredentials()).thenCallRealMethod();
     when(client.createDefaultHeaders()).thenCallRealMethod();
-<<<<<<< HEAD:hadoop-tools/hadoop-azure/src/test/java/org/apache/hadoop/fs/azurebfs/services/TestAbfsClient.java
-
-=======
     when(client.getAbfsConfiguration()).thenReturn(abfsConfig);
     when(client.getIntercept()).thenReturn(
         AbfsThrottlingInterceptFactory.getInstance(
             abfsConfig.getAccountName().substring(0,
                 abfsConfig.getAccountName().indexOf(DOT)), abfsConfig));
->>>>>>> c88011c6046... HADOOP-18146: ABFS: Added changes for expect hundred continue header (#4039):hadoop-tools/hadoop-azure/src/test/java/org/apache/hadoop/fs/azurebfs/services/ITestAbfsClient.java
     // override baseurl
     client = ITestAbfsClient.setAbfsClientField(client, "abfsConfiguration",
         abfsConfig);
