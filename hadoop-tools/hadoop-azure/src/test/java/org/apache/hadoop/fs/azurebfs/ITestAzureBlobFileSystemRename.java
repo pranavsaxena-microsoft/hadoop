@@ -1734,4 +1734,61 @@ public class ITestAzureBlobFileSystemRename extends
     Assert.assertTrue(exceptionCaught.get());
   }
 
+  @Test
+  public void testParallelCreateNonRecursiveToFilePartOfAtomicDirectoryInRename()
+      throws Exception {
+    FileSystem fsCreate = FileSystem.newInstance(getRawConfiguration());
+    AzureBlobFileSystem fs = (AzureBlobFileSystem) FileSystem.newInstance(getRawConfiguration());
+    assumeNonHnsAccountBlobEndpoint(fs);
+    fs.setWorkingDirectory(new Path("/"));
+    fs.mkdirs(new Path("/hbase/dir1"));
+    fs.create(new Path("/hbase/dir1/file1"));
+    AbfsClient client = Mockito.spy(fs.getAbfsClient());
+    fs.getAbfsStore().setClient(client);
+    AtomicBoolean leaseAcquired = new AtomicBoolean(false);
+    AtomicBoolean parallelCreateDone = new AtomicBoolean(false);
+    AtomicBoolean exceptionCaught = new AtomicBoolean(false);
+    AtomicBoolean parallelRenameDone = new AtomicBoolean(false);
+
+    Mockito.doAnswer(answer -> {
+          AbfsRestOperation op = (AbfsRestOperation) answer.callRealMethod();
+          leaseAcquired.set(true);
+          while(!parallelCreateDone.get());
+          return op;
+        })
+        .when(client)
+        .acquireBlobLease(Mockito.anyString(), Mockito.anyInt(),
+            Mockito.any(TracingContext.class));
+
+    new Thread(() -> {
+      try {
+        fs.rename(new Path("/hbase/dir1"), new Path("/hbase/dir2"));
+      } catch (Exception e) {} finally {
+        parallelRenameDone.set(true);
+      }
+    }).start();
+
+    Path createNewFilePath = new Path("/hbase/dir1/file2");
+      while (!leaseAcquired.get()) ;
+      try {
+        fsCreate.createFile(createNewFilePath)
+            .overwrite(false)
+            .replication((short) 1)
+            .bufferSize(1024)
+            .blockSize(1024)
+            .build();
+      } catch (AbfsRestOperationException e) {
+        if (e.getStatusCode()
+            == HttpURLConnection.HTTP_CONFLICT) {
+          exceptionCaught.set(true);
+        }
+      } finally {
+        parallelCreateDone.set(true);
+      }
+
+
+    while (!parallelRenameDone.get()) ;
+    Assert.assertTrue(exceptionCaught.get());
+  }
+
 }
