@@ -35,7 +35,7 @@ public class ListBlobQueue {
     isCompleted = true;
   }
 
-  Boolean getIsCompleted() {
+  public Boolean getIsCompleted() {
     return isCompleted;
   }
 
