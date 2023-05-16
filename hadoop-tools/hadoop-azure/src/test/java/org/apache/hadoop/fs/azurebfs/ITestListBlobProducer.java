@@ -1,5 +1,7 @@
 package org.apache.hadoop.fs.azurebfs;
 
+import java.io.IOException;
+import java.net.HttpURLConnection;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -10,6 +12,8 @@ import org.mockito.Mockito;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AbfsRestOperationException;
+import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemException;
 import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
 import org.apache.hadoop.fs.azurebfs.services.AbfsRestOperation;
 import org.apache.hadoop.fs.azurebfs.services.ListBlobConsumer;
@@ -42,7 +46,10 @@ public class ITestListBlobProducer extends AbstractAbfsIntegrationTest {
     AtomicBoolean produced = new AtomicBoolean(true);
 
     AtomicInteger producedBlobs = new AtomicInteger(0);
+    AtomicInteger listBlobInvoked = new AtomicInteger(0);
+
     Mockito.doAnswer(answer -> {
+          listBlobInvoked.incrementAndGet();
           AbfsRestOperation op = client.getListBlobs(answer.getArgument(0),
               answer.getArgument(1), 1, answer.getArgument(3));
           producedBlobs.incrementAndGet();
@@ -63,6 +70,10 @@ public class ITestListBlobProducer extends AbstractAbfsIntegrationTest {
 
     int producedBlobCount = producedBlobs.get();
 
+    int oldInvocation = listBlobInvoked.get();
+    Thread.sleep(10_000L);
+    Assert.assertTrue(listBlobInvoked.get() == oldInvocation);
+
     while (!consumer.isCompleted()) {
       produced.set(false);
       consumer.consume();
@@ -74,5 +85,48 @@ public class ITestListBlobProducer extends AbstractAbfsIntegrationTest {
     }
 
     Assert.assertTrue(producedBlobCount == 20);
+  }
+
+  @Test
+  public void testConsumerWhenProducerThrowException() throws Exception {
+    Configuration configuration = Mockito.spy(getRawConfiguration());
+    configuration.set(FS_AZURE_MAX_CONSUMER_LAG, "10");
+    AzureBlobFileSystem fs = (AzureBlobFileSystem) FileSystem.newInstance(
+        configuration);
+    AbfsClient client = fs.getAbfsClient();
+    AbfsClient spiedClient = Mockito.spy(client);
+    fs.getAbfsStore().setClient(spiedClient);
+    fs.setWorkingDirectory(new Path("/"));
+    fs.mkdirs(new Path("/src"));
+    for (int i = 0; i < 20; i++) {
+      fs.create(new Path("/src/file" + i));
+    }
+
+    Mockito.doAnswer(answer -> {
+          throw new AbfsRestOperationException(HttpURLConnection.HTTP_CONFLICT, "",
+              "", new Exception(""));
+
+        })
+        .when(spiedClient)
+        .getListBlobs(Mockito.nullable(String.class),
+            Mockito.nullable(String.class), Mockito.nullable(Integer.class),
+            Mockito.nullable(TracingContext.class));
+
+    ListBlobQueue queue = new ListBlobQueue(null);
+    ListBlobProducer producer = new ListBlobProducer("src/", spiedClient, queue,
+        null, Mockito.mock(
+        TracingContext.class));
+    ListBlobConsumer consumer = new ListBlobConsumer(queue);
+
+    Boolean exceptionCaught = false;
+    try {
+      while (!consumer.isCompleted()) {
+        consumer.consume();
+      }
+    } catch (AzureBlobFileSystemException e) {
+      exceptionCaught = true;
+    }
+
+    Assert.assertTrue(exceptionCaught);
   }
 }

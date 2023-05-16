@@ -4,22 +4,31 @@ import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemExc
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 
 public class ListBlobProducer {
+
   private final AbfsClient client;
+
   private final ListBlobQueue listBlobQueue;
+
   private final String src;
+
   private final TracingContext tracingContext;
+
   private String nextMarker;
 
-  public ListBlobProducer(final String src, final AbfsClient abfsClient,
-      final ListBlobQueue listBlobQueue, final String initNextMarker, TracingContext tracingContext) {
+  public ListBlobProducer(final String src,
+      final AbfsClient abfsClient,
+      final ListBlobQueue listBlobQueue,
+      final String initNextMarker,
+      TracingContext tracingContext) {
     this.src = src;
     this.client = abfsClient;
     this.tracingContext = tracingContext;
     this.listBlobQueue = listBlobQueue;
     this.nextMarker = initNextMarker;
     new Thread(() -> {
-      while(true) {
-        if(listBlobQueue.getConsumerLag() > client.getAbfsConfiguration().getMaximumConsumerLag()) {
+      while (true) {
+        if (listBlobQueue.getConsumerLag() >= client.getAbfsConfiguration()
+            .getMaximumConsumerLag()) {
           continue;
         }
         AbfsRestOperation op = null;
@@ -32,7 +41,7 @@ public class ListBlobProducer {
         BlobList blobList = op.getResult().getBlobList();
         nextMarker = blobList.getNextMarker();
         listBlobQueue.enqueue(blobList);
-        if(nextMarker == null) {
+        if (nextMarker == null) {
           listBlobQueue.complete();
           break;
         }

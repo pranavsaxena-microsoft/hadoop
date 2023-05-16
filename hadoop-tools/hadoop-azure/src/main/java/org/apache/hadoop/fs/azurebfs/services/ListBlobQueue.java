@@ -8,27 +8,23 @@ import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemExc
 public class ListBlobQueue {
 
   private final Queue<BlobList> blobLists = new ArrayDeque<>();
+
   private int totalProduced = 0;
+
   private int totalConsumed = 0;
 
-  private Boolean failed = false;
   private Boolean isCompleted = false;
 
   private AzureBlobFileSystemException failureFromProducer;
 
   public ListBlobQueue(BlobList initBlobList) {
-    if(initBlobList != null) {
+    if (initBlobList != null) {
       enqueue(initBlobList);
     }
   }
 
   void setFailed(AzureBlobFileSystemException failure) {
-    failed = true;
     failureFromProducer = failure;
-  }
-
-  Boolean getFailed() {
-    return failed;
   }
 
   public void complete() {
