@@ -1265,22 +1265,23 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       /*
        * Fetch the list of blobs in the given sourcePath.
        */
-      String listSrc = source.toUri().getPath() + (source.isRoot() ? EMPTY_STRING : FORWARD_SLASH);
-      BlobList blobList = client.getListBlobs(null, listSrc, null, tracingContext).getResult()
+      String listSrc = source.toUri().getPath() + (source.isRoot()
+          ? EMPTY_STRING
+          : FORWARD_SLASH);
+      BlobList blobList = client.getListBlobs(null, listSrc, null,
+              tracingContext).getResult()
           .getBlobList();
       String nextMarker = blobList.getNextMarker();
       List<BlobProperty> srcBlobProperties = blobList.getBlobPropertyList();
 
       ListBlobQueue listBlobQueue = new ListBlobQueue(blobList);
-      if(nextMarker != null) {
-       new ListBlobProducer(listSrc,
+      if (nextMarker != null) {
+        new ListBlobProducer(listSrc,
             client, listBlobQueue, nextMarker, tracingContext);
       } else {
         listBlobQueue.complete();
       }
 
-//    List<BlobProperty> srcBlobProperties = getListBlobs(source, null,
-//        tracingContext, null, true);
       BlobProperty blobPropOnSrc;
       if (srcBlobProperties.size() > 0) {
         LOG.debug("src {} exists and is a directory", source);
@@ -1345,7 +1346,6 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
           isSrcDir = false;
         }
       }
-//      srcBlobProperties.add(blobPropOnSrc);
 
       if (!isSrcExist) {
         LOG.info("source {} doesn't exists", source);
@@ -1525,7 +1525,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
    * @param destination destination path to which the source has to be moved
    * @param tracingContext tracingContext for tracing the API calls
    * @param sourcePath source path which gets copied to the destination
-   * @param srcBlobLeaseId
+   * @param srcBlobLeaseId leaseId of the srcBlob
    *
    * @throws AzureBlobFileSystemException exception in making server calls
    */
@@ -2169,11 +2169,16 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
           throws AzureBlobFileSystemException {
 
         ListBlobQueue listBlobQueue = new ListBlobQueue(null);
-        String listSrc = src.toUri().getPath() + (src.isRoot() ? EMPTY_STRING : FORWARD_SLASH);
-        new ListBlobProducer(listSrc, client, listBlobQueue, null, tracingContext);
+        String listSrc = src.toUri().getPath() + (src.isRoot()
+            ? EMPTY_STRING
+            : FORWARD_SLASH);
+        new ListBlobProducer(listSrc, client, listBlobQueue, null,
+            tracingContext);
         BlobProperty srcBlobProperty = getBlobProperty(src, tracingContext);
-        AbfsBlobLease abfsBlobLease = new AbfsBlobLease(client, src.toUri().getPath(), tracingContext);
-        renameBlobDir(src, destination, tracingContext, listBlobQueue, srcBlobProperty, abfsBlobLease, true);
+        AbfsBlobLease abfsBlobLease = new AbfsBlobLease(client,
+            src.toUri().getPath(), tracingContext);
+        renameBlobDir(src, destination, tracingContext, listBlobQueue,
+            srcBlobProperty, abfsBlobLease, true);
       }
     };
   }
