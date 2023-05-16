@@ -40,11 +40,13 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.InvalidConfigurationValueException;
 import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
 import org.apache.hadoop.test.LambdaTestUtils;
 
+import org.junit.Assert;
 import org.junit.Assume;
 
 import org.junit.Test;
@@ -909,6 +911,64 @@ public class ITestAzureBlobFileSystemCreate extends
     fs.createNonRecursive(testFile, true, 1024, (short) 1, 1024, null)
         .close();
     assertIsFile(fs, testFile);
+  }
+
+  @Test
+  public void testCreateNonRecursiveForAtomicDirectoryFile() throws Exception {
+    AzureBlobFileSystem fileSystem = getFileSystem();
+    Assume.assumeTrue(fileSystem.getAbfsStore().getAbfsConfiguration().getPrefixMode() == PrefixMode.BLOB);
+    fileSystem.setWorkingDirectory(new Path("/"));
+    fileSystem.mkdirs(new Path("/hbase/dir"));
+    fileSystem.createFile(new Path("/hbase/dir/file"))
+        .overwrite(false)
+        .replication((short) 1)
+        .bufferSize(1024)
+        .blockSize(1024)
+        .build();
+    Assert.assertTrue(fileSystem.exists(new Path("/hbase/dir/file")));
+  }
+
+  @Test
+  public void testActiveCreateNonRecursiveDenyParallelReadOnAtomicDir() throws Exception {
+    AzureBlobFileSystem fileSystem = (AzureBlobFileSystem) FileSystem.newInstance(getRawConfiguration());
+    AbfsClient client = Mockito.spy(fileSystem.getAbfsClient());
+    fileSystem.getAbfsStore().setClient(client);
+    Assume.assumeTrue(fileSystem.getAbfsStore().getAbfsConfiguration().getPrefixMode() == PrefixMode.BLOB);
+    fileSystem.setWorkingDirectory(new Path("/"));
+    fileSystem.mkdirs(new Path("/hbase/dir"));
+    fileSystem.create(new Path("/hbase/dir/file"));
+    AtomicBoolean createCalled = new AtomicBoolean(false);
+    AtomicBoolean parallelRenameDone = new AtomicBoolean(false);
+    AtomicBoolean exceptionCaught = new AtomicBoolean(false);
+
+    Mockito.doAnswer(answer -> {
+      AbfsRestOperation op = (AbfsRestOperation) answer.callRealMethod();
+      createCalled.set(true);
+      while(!parallelRenameDone.get());
+      return op;
+    }).when(client).createPathBlob(Mockito.anyString(), Mockito.anyBoolean(),
+        Mockito.anyBoolean(), Mockito.nullable(HashMap.class), Mockito.nullable(String.class), Mockito.nullable(TracingContext.class));
+
+    new Thread(() -> {
+      try {
+        while(!createCalled.get());
+        getFileSystem().rename(new Path("/hbase/dir/"), new Path("/hbase/dir2"));
+      } catch (Exception e) {
+        exceptionCaught.set(true);
+      } finally {
+        parallelRenameDone.set(true);
+      }
+    }).start();
+
+    fileSystem.createFile(new Path("/hbase/dir/file1"))
+        .overwrite(false)
+        .replication((short) 1)
+        .bufferSize(1024)
+        .blockSize(1024)
+        .build();
+
+    Assert.assertTrue(exceptionCaught.get());
+    Assert.assertTrue(fileSystem.exists(new Path("/hbase/dir/file")));
   }
 
   /**
