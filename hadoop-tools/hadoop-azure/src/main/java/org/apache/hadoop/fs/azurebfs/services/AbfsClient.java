@@ -71,6 +71,7 @@ import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.security.ssl.DelegatingSSLSocketFactory;
 import org.apache.hadoop.util.concurrent.HadoopExecutors;
 
+import static java.net.HttpURLConnection.HTTP_CONFLICT;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.*;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.DEFAULT_DELETE_CONSIDERED_IDEMPOTENT;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.SERVER_SIDE_ENCRYPTION_ALGORITHM;
@@ -427,7 +428,7 @@ public class AbfsClient implements Closeable {
       if (!op.hasResult()) {
         throw ex;
       }
-      if (!isFile && op.getResult().getStatusCode() == HttpURLConnection.HTTP_CONFLICT) {
+      if (!isFile && op.getResult().getStatusCode() == HTTP_CONFLICT) {
         String existingResource =
             op.getResult().getResponseHeader(X_MS_EXISTING_RESOURCE_TYPE);
         if (existingResource != null && existingResource.equals(DIRECTORY)) {
@@ -478,7 +479,7 @@ public class AbfsClient implements Closeable {
       if (!op.hasResult()) {
         throw ex;
       }
-      if (!isFile && op.getResult().getStatusCode() == HttpURLConnection.HTTP_CONFLICT) {
+      if (!isFile && op.getResult().getStatusCode() == HTTP_CONFLICT) {
          // This ensures that we don't throw ex only for existing directory but if a blob exists we throw exception.
         tracingContext.setFallbackDFSAppend(tracingContext.getFallbackDFSAppend() + "M");
         AbfsRestOperation blobProperty = getBlobProperty(new Path(path), tracingContext);
@@ -765,11 +766,14 @@ public class AbfsClient implements Closeable {
          which is created using the error string present in the response header.
       */
       int responseStatusCode = ((AbfsRestOperationException) e).getStatusCode();
-      if (checkUserError(responseStatusCode) && reqParams.isExpectHeaderEnabled()) {
+      if (checkUserErrorBlob(responseStatusCode) && reqParams.isExpectHeaderEnabled()) {
         LOG.debug("User error, retrying without 100 continue enabled for the given path {}", path);
         reqParams.setExpectHeaderEnabled(false);
-        return this.append(path, buffer, reqParams, cachedSasToken,
-                tracingContext);
+        return this.append(blockId, path, buffer, reqParams, cachedSasToken,
+                tracingContext, eTag);
+      }
+      else {
+        throw e;
       }
     }
     return op;
@@ -859,6 +863,17 @@ public class AbfsClient implements Closeable {
   private boolean checkUserError(int responseStatusCode) {
     return (responseStatusCode >= HttpURLConnection.HTTP_BAD_REQUEST
         && responseStatusCode < HttpURLConnection.HTTP_INTERNAL_ERROR);
+  }
+
+  /**
+   * Returns true if the status code lies in the range of user error.
+   * @param responseStatusCode http response status code.
+   * @return True or False.
+   */
+  private boolean checkUserErrorBlob(int responseStatusCode) {
+    return (responseStatusCode >= HttpURLConnection.HTTP_BAD_REQUEST
+            && responseStatusCode < HttpURLConnection.HTTP_INTERNAL_ERROR
+            && responseStatusCode != HttpURLConnection.HTTP_CONFLICT);
   }
 
   // For AppendBlob its possible that the append succeeded in the backend but the request failed.

@@ -68,6 +68,7 @@ public final class TestAbfsOutputStreamBlob {
             boolean isFlushEnabled,
             boolean disableOutputStreamFlush,
             boolean isAppendBlob,
+            boolean isExpectHeaderEnabled,
             AbfsClient client,
             String path,
             TracingContext tracingContext,
@@ -85,6 +86,7 @@ public final class TestAbfsOutputStreamBlob {
 
         return new AbfsOutputStreamContext(2)
                 .withWriteBufferSize(writeBufferSize)
+                .enableExpectHeader(isExpectHeaderEnabled)
                 .enableFlush(isFlushEnabled)
                 .disableOutputStreamFlush(disableOutputStreamFlush)
                 .withStreamStatistics(new AbfsOutputStreamStatisticsImpl())
@@ -134,18 +136,19 @@ public final class TestAbfsOutputStreamBlob {
     }
 
     public AbfsOutputStream getOutputStream(AbfsClient client, AbfsConfiguration abfsConf) throws IOException, IllegalAccessException {
-        AbfsOutputStream out = Mockito.spy(new AbfsOutputStream(
+        AbfsOutputStream out = new AbfsOutputStream(
                 populateAbfsOutputStreamContext(
                         BUFFER_SIZE,
                         true,
                         false,
                         false,
+                        true,
                         client,
                         PATH,
                         new TracingContext(abfsConf.getClientCorrelationId(), "test-fs-id",
                                 FSOperationType.WRITE, abfsConf.getTracingHeaderFormat(),
                                 null),
-                        createExecutorService(abfsConf))));
+                        createExecutorService(abfsConf)));
         return out;
     }
 
@@ -320,6 +323,7 @@ public final class TestAbfsOutputStreamBlob {
                         true,
                         false,
                         true,
+                        true,
                         client,
                         PATH,
                         new TracingContext(abfsConf.getClientCorrelationId(), "test-fs-id",
@@ -345,7 +349,7 @@ public final class TestAbfsOutputStreamBlob {
     @Test
     public void verifyWriteRequestOfBufferSizeAndHFlush() throws Exception {
         AbfsClient client = getClient();
-        AbfsOutputStream out = Mockito.spy(getOutputStream(client, getConf()));
+        AbfsOutputStream out = getOutputStream(client, getConf());
 
         final byte[] b = new byte[BUFFER_SIZE];
         new Random().nextBytes(b);

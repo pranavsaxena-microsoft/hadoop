@@ -246,7 +246,6 @@ public class TestExponentialRetryPolicy extends AbstractAbfsIntegrationTest {
 
     //Verify the write analyzer on first account is not idle.
     Assertions.assertThat(
-
             accountIntercept.getWriteThrottler()
                 .getIsOperationOnAccountIdle()
                 .get())
