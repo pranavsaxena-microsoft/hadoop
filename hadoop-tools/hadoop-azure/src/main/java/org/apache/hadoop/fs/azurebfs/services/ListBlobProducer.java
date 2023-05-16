@@ -19,7 +19,7 @@ public class ListBlobProducer {
     this.nextMarker = initNextMarker;
     new Thread(() -> {
       while(true) {
-        if(listBlobQueue.getConsumerLag() > 7000) {
+        if(listBlobQueue.getConsumerLag() > client.getAbfsConfiguration().getMaximumConsumerLag()) {
           continue;
         }
         AbfsRestOperation op = null;

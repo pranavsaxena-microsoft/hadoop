@@ -326,6 +326,9 @@ public class AbfsConfiguration{
       FS_AZURE_ENABLE_ABFS_LIST_ITERATOR, DefaultValue = DEFAULT_ENABLE_ABFS_LIST_ITERATOR)
   private boolean enableAbfsListIterator;
 
+  @IntegerConfigurationValidatorAnnotation(ConfigurationKey = FS_AZURE_MAX_CONSUMER_LAG, DefaultValue = DEFAULT_FS_AZURE_MAX_CONSUMER_LAG)
+  private int maximumConsumerLag;
+
   public AbfsConfiguration(final Configuration rawConfig, String accountName)
       throws IllegalAccessException, InvalidConfigurationValueException, IOException {
     this.rawConfig = ProviderUtils.excludeIncompatibleCredentialProviders(
@@ -1179,6 +1182,10 @@ public class AbfsConfiguration{
   @VisibleForTesting
   public void setEnableAbfsListIterator(boolean enableAbfsListIterator) {
     this.enableAbfsListIterator = enableAbfsListIterator;
+  }
+
+  public int getMaximumConsumerLag() {
+    return maximumConsumerLag;
   }
 
 }

@@ -265,6 +265,7 @@ public final class ConfigurationKeys {
 
   public static final String FS_AZURE_REDIRECT_DELETE = "fs.azure.redirect.delete";
   public static final String FS_AZURE_REDIRECT_RENAME = "fs.azure.redirect.rename";
+  public static final String FS_AZURE_MAX_CONSUMER_LAG = "fs.azure.max.consumer.lag";
 
   private ConfigurationKeys() {}
 }
