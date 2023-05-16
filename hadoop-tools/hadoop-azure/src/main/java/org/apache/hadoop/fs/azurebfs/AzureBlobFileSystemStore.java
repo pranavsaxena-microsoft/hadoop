@@ -206,6 +206,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
   private PrefixMode prefixMode;
 
   private final ExecutorService renameBlobExecutorService;
+  private final ExecutorService deleteBlobExecutorService;
 
   private final Integer ONE_MINUTE = 60;
 
@@ -307,6 +308,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       renameBlobExecutorService = Executors.newFixedThreadPool(
           abfsConfiguration.getBlobDirRenameMaxThread());
     }
+    deleteBlobExecutorService = Executors.newFixedThreadPool(5);//TODO: config
   }
 
   /**
@@ -1548,7 +1550,11 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
   }
 
   public void delete(final Path path, final boolean recursive,
-      TracingContext tracingContext) throws AzureBlobFileSystemException {
+      TracingContext tracingContext) throws IOException {
+    if(getPrefixMode() == PrefixMode.BLOB) {
+      deleteBlobPath(path, recursive, tracingContext);
+      return;
+    }
     final Instant startAggregate = abfsPerfTracker.getLatencyInstant();
     long countAggregate = 0;
     boolean shouldContinue = true;
@@ -1577,6 +1583,36 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         }
       }
     } while (shouldContinue);
+  }
+
+  private void deleteBlobPath(final Path path,
+      final boolean recursive,
+      final TracingContext tracingContext) throws IOException {
+    final BlobProperty blobProperty = getBlobProperty(path, tracingContext);
+
+    if(blobProperty.getIsDirectory() && !recursive) {
+      throw new IOException("Non-recursive delete of non-empty directory "+ path);
+    }
+
+    if(!blobProperty.getIsDirectory()) {
+      deleteBlob(path, null, tracingContext);
+      return;
+    }
+
+    ListBlobQueue listBlobQueue = new ListBlobQueue(null);
+    String listSrc = path.toUri().getPath() + (path.isRoot()
+        ? EMPTY_STRING
+        : FORWARD_SLASH);
+    ListBlobProducer listBlobProducer = new ListBlobProducer(listSrc, client, listBlobQueue, null, tracingContext);
+    ListBlobConsumer consumer = new ListBlobConsumer(listBlobQueue);
+
+    while(consumer.isCompleted()) {
+      final BlobList blobList = consumer.consume();
+      if(blobList == null) {
+        continue;
+      }
+
+    }
   }
 
   public FileStatus getFileStatus(final Path path,
