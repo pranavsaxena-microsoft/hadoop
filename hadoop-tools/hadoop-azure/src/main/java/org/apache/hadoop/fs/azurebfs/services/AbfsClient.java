@@ -1271,7 +1271,7 @@ public class AbfsClient implements Closeable {
     abfsUriQueryBuilder.addQuery(QUERY_PARAM_RESTYPE, CONTAINER);
 
     appendSASTokenToQuery("",
-        SASTokenProvider.GET_BLOB_METADATA_OPERATION, abfsUriQueryBuilder);
+        SASTokenProvider.GET_CONTAINER_PROPERTIES_OPERATION, abfsUriQueryBuilder);
 
     final URL url = createRequestUrl(abfsUriQueryBuilder.toString());
 
