@@ -26,6 +26,8 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.AccessDeniedException;
 import java.util.Hashtable;
 import java.util.List;
@@ -116,6 +118,7 @@ import static org.apache.hadoop.fs.azurebfs.AbfsStatistic.*;
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_ENABLE_BLOB_ENDPOINT;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemUriSchemes.ABFS_DNS_PREFIX;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemUriSchemes.WASB_DNS_PREFIX;
+import static org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations.X_MS_METADATA_PREFIX;
 import static org.apache.hadoop.fs.azurebfs.services.RenameAtomicityUtils.SUFFIX;
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.DATA_BLOCKS_BUFFER;
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_BLOCK_UPLOAD_ACTIVE_BLOCKS;
@@ -1268,15 +1271,34 @@ public class AzureBlobFileSystem extends FileSystem
       TracingContext tracingContext = new TracingContext(clientCorrelationId,
           fileSystemId, FSOperationType.SET_ATTR, true, tracingHeaderFormat,
           listener);
-      Hashtable<String, String> properties = abfsStore
-          .getPathStatus(qualifiedPath, tracingContext);
+      Hashtable<String, String> properties;
       String xAttrName = ensureValidAttributeName(name);
+      String xAttrValue;
+
+      if (abfsStore.getPrefixMode() == PrefixMode.BLOB) {
+        properties = abfsStore.getBlobMetadata(qualifiedPath, tracingContext);
+        xAttrName = X_MS_METADATA_PREFIX + xAttrName;
+      }
+      else {
+        properties = abfsStore.getPathStatus(qualifiedPath, tracingContext);
+      }
+
       boolean xAttrExists = properties.containsKey(xAttrName);
       XAttrSetFlag.validate(name, xAttrExists, flag);
 
-      String xAttrValue = abfsStore.decodeAttribute(value);
-      properties.put(xAttrName, xAttrValue);
-      abfsStore.setPathProperties(qualifiedPath, properties, tracingContext);
+      if (abfsStore.getPrefixMode() == PrefixMode.BLOB) {
+        // On Blob Endpoint metadata are passed as HTTP Request Headers
+        // Values in UTF_8 needed to be URL encoded after decoding into String
+        xAttrValue = abfsStore.encodeMetadataAttribute(new String(value, StandardCharsets.UTF_8));
+        properties.put(xAttrName, xAttrValue);
+        abfsStore.setBlobMetadata(qualifiedPath, properties, tracingContext);
+      }
+      else {
+        xAttrValue = abfsStore.decodeAttribute(value);
+        properties.put(xAttrName, xAttrValue);
+        abfsStore.setPathProperties(qualifiedPath, properties, tracingContext);
+      }
+
     } catch (AzureBlobFileSystemException ex) {
       checkException(path, ex);
     }
@@ -1308,12 +1330,24 @@ public class AzureBlobFileSystem extends FileSystem
       TracingContext tracingContext = new TracingContext(clientCorrelationId,
           fileSystemId, FSOperationType.GET_ATTR, true, tracingHeaderFormat,
           listener);
-      Hashtable<String, String> properties = abfsStore
-          .getPathStatus(qualifiedPath, tracingContext);
+      Hashtable<String, String> properties;
       String xAttrName = ensureValidAttributeName(name);
+
+      if (abfsStore.getPrefixMode() == PrefixMode.BLOB) {
+        properties = abfsStore.getBlobMetadata(qualifiedPath, tracingContext);
+        xAttrName = X_MS_METADATA_PREFIX + xAttrName;
+      }
+      else {
+        properties = abfsStore.getPathStatus(qualifiedPath, tracingContext);
+      }
+
       if (properties.containsKey(xAttrName)) {
         String xAttrValue = properties.get(xAttrName);
-        value = abfsStore.encodeAttribute(xAttrValue);
+        // On Blob Endpoint Each Metadata is a response header Which needs to be url decoded.
+        value = abfsStore.getPrefixMode() == PrefixMode.BLOB
+            ? abfsStore.decodeMetadataAttribute(xAttrValue).getBytes(
+            StandardCharsets.UTF_8)
+            : abfsStore.encodeAttribute(xAttrValue);
       }
     } catch (AzureBlobFileSystemException ex) {
       checkException(path, ex);

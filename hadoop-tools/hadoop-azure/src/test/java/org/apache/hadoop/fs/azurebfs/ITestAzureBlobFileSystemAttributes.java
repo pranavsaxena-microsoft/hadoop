@@ -19,14 +19,21 @@
 package org.apache.hadoop.fs.azurebfs;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.EnumSet;
+import java.util.Hashtable;
 
+import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Test;
+import org.mockito.Mockito;
 
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.XAttrSetFlag;
 import org.apache.hadoop.fs.azurebfs.constants.FSOperationType;
+import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
+import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 import org.apache.hadoop.fs.azurebfs.utils.TracingHeaderValidator;
 
 import static org.apache.hadoop.test.LambdaTestUtils.intercept;
@@ -40,6 +47,135 @@ public class ITestAzureBlobFileSystemAttributes extends AbstractAbfsIntegrationT
 
   public ITestAzureBlobFileSystemAttributes() throws Exception {
     super();
+  }
+
+  /**
+   * Test GetXAttr() and SetXAttr() over blob endpoint as well as dfs endpoint.
+   * DFS does not support Unicode characters in user-defined metadata properties.
+   * Blob Endpoint supports Unicode encoded in UTF_8 character encoding.
+   * @throws Exception
+   */
+  @Test
+  public void testGetSetXAttr() throws Exception {
+    AzureBlobFileSystem fs = getFileSystem();
+    final Path path = new Path("a/b");
+    fs.create(path);
+
+    String attributeName1 = "user.attribute1";
+    String attributeName2 = "user.attribute2";
+    String decodedAttributeValue1;
+    String decodedAttributeValue2;
+    byte[] attributeValue1;
+    byte[] attributeValue2;
+
+    if(fs.getAbfsStore().getPrefixMode() == PrefixMode.BLOB) {
+      Assume.assumeTrue(!getIsNamespaceEnabled(fs));
+      decodedAttributeValue1 = "hi";
+      decodedAttributeValue2 = "Блюз"; //Блюз //你好
+      attributeValue1 = decodedAttributeValue1.getBytes(StandardCharsets.UTF_8);
+      attributeValue2 = decodedAttributeValue2.getBytes(StandardCharsets.UTF_8);
+    }
+    else {
+      decodedAttributeValue1 = "hi";
+      decodedAttributeValue2 = "hello"; // DFS Endpoint only Supports ASCII
+      attributeValue1 = fs.getAbfsStore().encodeAttribute(decodedAttributeValue1);
+      attributeValue2 = fs.getAbfsStore().encodeAttribute(decodedAttributeValue2);
+    }
+
+    // Attribute not present initially
+    assertNull(fs.getXAttr(path, attributeName1));
+    assertNull(fs.getXAttr(path, attributeName2));
+
+    // Set the Attributes
+    fs.setXAttr(path, attributeName1, attributeValue1);
+
+    // Check if the attribute is retrievable
+    byte[] rv = fs.getXAttr(path, attributeName1);
+    assertTrue(Arrays.equals(rv, attributeValue1));
+    assertEquals(new String(rv, StandardCharsets.UTF_8), decodedAttributeValue1);
+
+    // Set the second Attribute
+    fs.setXAttr(path, attributeName2, attributeValue2);
+
+    // Check all the attributes present and previous Attribute not overridden
+    rv = fs.getXAttr(path, attributeName1);
+    assertTrue(Arrays.equals(rv, attributeValue1));
+    assertEquals(new String(rv, StandardCharsets.UTF_8), decodedAttributeValue1);
+    rv = fs.getXAttr(path, attributeName2);
+    assertTrue(Arrays.equals(rv, attributeValue2));
+    assertEquals(new String(rv, StandardCharsets.UTF_8), decodedAttributeValue2);
+  }
+
+  /**
+   * Trying to set same attribute multiple times should result in no failure
+   * @throws Exception
+   */
+  @Test
+  public void testSetXAttrMultipleOperations() throws Exception {
+    AzureBlobFileSystem fs = getFileSystem();
+    final Path path = new Path("a/b");
+    fs.create(path);
+
+    String attributeName1 = "user.attribute1";
+    byte[] attributeValue1;
+
+    if(fs.getAbfsStore().getPrefixMode() == PrefixMode.BLOB) {
+      Assume.assumeTrue(!getIsNamespaceEnabled(fs));
+      attributeValue1 = "hi".getBytes(StandardCharsets.UTF_8);
+    }
+    else {
+      attributeValue1 = fs.getAbfsStore().encodeAttribute("hi");
+    }
+
+    // Attribute not present initially
+    assertNull(fs.getXAttr(path, attributeName1));
+
+    // Set the Attributes Multiple times
+    fs.setXAttr(path, attributeName1, attributeValue1);
+    fs.setXAttr(path, attributeName1, attributeValue1);
+
+    // Check if the attribute is retrievable
+    byte[] rv = fs.getXAttr(path, attributeName1);
+    assertTrue(Arrays.equals(rv, attributeValue1));
+  }
+
+  /**
+   * Test that setting metadata over marker blob do not override
+   * x-ms-meta-hdi_IsFolder
+   * TODO: Confirm Expected Behavior
+   * @throws Exception
+   */
+  @Test
+  public void testSetXAttrOverMarkerBlob() throws Exception {
+    AzureBlobFileSystem fs = getFileSystem();
+    final Path path = new Path("a/b");
+    fs.mkdirs(path);
+
+    assertTrue(BlobDirectoryStateHelper.isExplicitDirectory(path, fs));
+
+    String attributeName1 = "user.attribute1";
+    byte[] attributeValue1;
+
+    if(fs.getAbfsStore().getPrefixMode() == PrefixMode.BLOB) {
+      Assume.assumeTrue(!getIsNamespaceEnabled(fs));
+      attributeValue1 = "hi".getBytes(StandardCharsets.UTF_8);
+    }
+    else {
+      attributeValue1 = fs.getAbfsStore().encodeAttribute("hi");
+    }
+
+    // Attribute not present initially
+    assertNull(fs.getXAttr(path, attributeName1));
+
+    // Set the Attribute on marker blob
+    fs.setXAttr(path, attributeName1, attributeValue1);
+
+    // Check if the attribute is retrievable
+    byte[] rv = fs.getXAttr(path, attributeName1);
+    assertTrue(Arrays.equals(rv, attributeValue1));
+
+    // Check if Marker blob still exists as marker.
+    assertTrue(BlobDirectoryStateHelper.isExplicitDirectory(path, fs));
   }
 
   @Test

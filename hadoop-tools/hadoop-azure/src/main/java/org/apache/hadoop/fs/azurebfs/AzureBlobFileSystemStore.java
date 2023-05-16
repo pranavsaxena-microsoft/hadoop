@@ -28,6 +28,8 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.net.URLDecoder;
+import java.net.URLEncoder;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.CharacterCodingException;
@@ -61,6 +63,7 @@ import org.apache.hadoop.classification.VisibleForTesting;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.InvalidConfigurationValueException;
 import org.apache.hadoop.fs.azurebfs.enums.BlobCopyProgress;
 import org.apache.hadoop.fs.azurebfs.services.OperativeEndpoint;
+import org.apache.hadoop.fs.azurebfs.services.AbfsHttpHeader;
 import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
 import org.apache.hadoop.fs.azurebfs.services.BlobList;
 import org.apache.hadoop.fs.azurebfs.services.BlobProperty;
@@ -365,6 +368,21 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
   String decodeAttribute(byte[] value) throws UnsupportedEncodingException {
     return new String(value, XMS_PROPERTIES_ENCODING);
   }
+
+  String encodeMetadataAttribute(String value) throws UnsupportedEncodingException {
+    // We have to URL encode the attribute as it could
+    // have URI special characters which unless encoded will result
+    // in 403 errors from the server. This is due to metadata properties
+    // being sent in the HTTP header of the request which is in turn used
+    // on the server side to authorize the request.
+    return value == null ? null : URLEncoder.encode(value, StandardCharsets.UTF_8.name());
+  }
+
+  String decodeMetadataAttribute(String encoded) throws UnsupportedEncodingException {
+    return encoded == null ? null :
+        URLDecoder.decode(encoded, StandardCharsets.UTF_8.name());
+  }
+
 
   private String[] authorityParts(URI uri) throws InvalidUriAuthorityException, InvalidUriException {
     final String authority = uri.getRawAuthority();
@@ -690,6 +708,60 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
 
     return blobProperty;
   }
+
+  /**
+   * Gets  User-defined properties(metadata) of the blob over blob endpoint
+   *
+   */
+  public Hashtable<String, String> getBlobMetadata(final Path path,
+      TracingContext tracingContext) throws AzureBlobFileSystemException {
+
+    final Hashtable<String, String> metadata;
+    final AbfsRestOperation op = client.getBlobMetadata(path, tracingContext);
+
+    metadata = parseResponseHeadersToHashTable(op.getResult());
+    return metadata;
+  }
+
+  public void setBlobMetadata(final Path path, final Hashtable<String, String> metadata,
+      TracingContext tracingContext) throws AzureBlobFileSystemException {
+    try (AbfsPerfInfo perfInfo = startTracking("setPathProperties", "setPathProperties")){
+      LOG.debug("setFilesystemProperties for filesystem: {} path: {} with properties: {}",
+          client.getFileSystem(),
+          path,
+          metadata);
+      final List<AbfsHttpHeader> metadataRequestHeaders = getRequestHeadersForMetadata(metadata);
+      final AbfsRestOperation op = client
+          .setBlobMetadata(path, metadataRequestHeaders,
+              tracingContext);
+      perfInfo.registerResult(op.getResult()).registerSuccess(true);
+    }
+  }
+
+  private Hashtable<String, String> parseResponseHeadersToHashTable(AbfsHttpOperation result) {
+    final Hashtable<String, String> metadata = new Hashtable<>();
+    String name, value;
+    String metadataConstant = "x-ms-meta-";
+    final Map<String, List<String>> responseHeaders = result.getResponseHeaders();
+    for (Map.Entry<String, List<String>> entry : responseHeaders.entrySet()) {
+      name = entry.getKey();
+      if (name != null && name.contains(metadataConstant)) {
+        List<String> headerValues = entry.getValue();
+        value = headerValues.get(0);
+        metadata.put(name, value);
+      }
+    }
+    return metadata;
+  }
+
+  private List<AbfsHttpHeader> getRequestHeadersForMetadata(Hashtable<String, String> metadata) {
+    final List<AbfsHttpHeader> headers = new ArrayList<AbfsHttpHeader>();
+    for(Map.Entry<String,String> entry : metadata.entrySet()) {
+      headers.add(new AbfsHttpHeader(entry.getKey(), entry.getValue()));
+    }
+    return headers;
+  }
+
 
   /**
    * Get the list of a blob on a give path, or blob starting with the given prefix.
