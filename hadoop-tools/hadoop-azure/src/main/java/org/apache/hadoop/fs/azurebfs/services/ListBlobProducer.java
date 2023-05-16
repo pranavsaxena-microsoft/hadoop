@@ -42,6 +42,7 @@ public class ListBlobProducer {
     this.client = abfsClient;
     this.tracingContext = tracingContext;
     this.listBlobQueue = listBlobQueue;
+    listBlobQueue.setProducer(this);
     this.nextMarker = initNextMarker;
     new Thread(() -> {
       while (true) {
