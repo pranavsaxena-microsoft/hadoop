@@ -50,7 +50,7 @@ public class ITestAzureBlobFileSystemAttributes extends AbstractAbfsIntegrationT
   }
 
   /**
-   * Test GetXAttr() and SetXAttr() over blob endpoint as well as dfs endpoint.
+   * Test GetXAttr() and SetXAttr() with Unicode Attribute Values.
    * DFS does not support Unicode characters in user-defined metadata properties.
    * Blob Endpoint supports Unicode encoded in UTF_8 character encoding.
    * @throws Exception
@@ -69,7 +69,7 @@ public class ITestAzureBlobFileSystemAttributes extends AbstractAbfsIntegrationT
     byte[] attributeValue2;
 
     if(fs.getAbfsStore().getPrefixMode() == PrefixMode.BLOB) {
-      Assume.assumeTrue(!getIsNamespaceEnabled(fs));
+      Assume.assumeTrue(!getIsNamespaceEnabled(fs)); // Blob endpoint Currently Supports FNS only
       decodedAttributeValue1 = "hi";
       decodedAttributeValue2 = "Блюз"; //Блюз //你好
       attributeValue1 = decodedAttributeValue1.getBytes(StandardCharsets.UTF_8);
@@ -118,6 +118,7 @@ public class ITestAzureBlobFileSystemAttributes extends AbstractAbfsIntegrationT
 
     String attributeName1 = "user.attribute1";
     byte[] attributeValue1;
+    String decodedAttributeValue1 = "hi";
 
     if(fs.getAbfsStore().getPrefixMode() == PrefixMode.BLOB) {
       Assume.assumeTrue(!getIsNamespaceEnabled(fs));
@@ -137,6 +138,7 @@ public class ITestAzureBlobFileSystemAttributes extends AbstractAbfsIntegrationT
     // Check if the attribute is retrievable
     byte[] rv = fs.getXAttr(path, attributeName1);
     assertTrue(Arrays.equals(rv, attributeValue1));
+    assertEquals(new String(rv, StandardCharsets.UTF_8), decodedAttributeValue1);
   }
 
   /**
@@ -179,69 +181,62 @@ public class ITestAzureBlobFileSystemAttributes extends AbstractAbfsIntegrationT
   }
 
   @Test
-  public void testSetGetXAttr() throws Exception {
-    AzureBlobFileSystem fs = getFileSystem();
-    AbfsConfiguration conf = fs.getAbfsStore().getAbfsConfiguration();
-    Assume.assumeTrue(getIsNamespaceEnabled(fs));
-
-    byte[] attributeValue1 = fs.getAbfsStore().encodeAttribute("hi");
-    byte[] attributeValue2 = fs.getAbfsStore().encodeAttribute("你好");
-    String attributeName1 = "user.asciiAttribute";
-    String attributeName2 = "user.unicodeAttribute";
-    Path testFile = path("setGetXAttr");
-
-    // after creating a file, the xAttr should not be present
-    touch(testFile);
-    assertNull(fs.getXAttr(testFile, attributeName1));
-
-    // after setting the xAttr on the file, the value should be retrievable
-    fs.registerListener(
-        new TracingHeaderValidator(conf.getClientCorrelationId(),
-            fs.getFileSystemId(), FSOperationType.SET_ATTR, true, 0));
-    fs.setXAttr(testFile, attributeName1, attributeValue1);
-    fs.setListenerOperation(FSOperationType.GET_ATTR);
-    assertArrayEquals(attributeValue1, fs.getXAttr(testFile, attributeName1));
-    fs.registerListener(null);
-
-    // after setting a second xAttr on the file, the first xAttr values should not be overwritten
-    fs.setXAttr(testFile, attributeName2, attributeValue2);
-    assertArrayEquals(attributeValue1, fs.getXAttr(testFile, attributeName1));
-    assertArrayEquals(attributeValue2, fs.getXAttr(testFile, attributeName2));
-  }
-
-  @Test
   public void testSetGetXAttrCreateReplace() throws Exception {
     AzureBlobFileSystem fs = getFileSystem();
-    Assume.assumeTrue(getIsNamespaceEnabled(fs));
-    byte[] attributeValue = fs.getAbfsStore().encodeAttribute("one");
-    String attributeName = "user.someAttribute";
-    Path testFile = path("createReplaceXAttr");
+    final Path testFile = new Path("a/b");
+
+    String attributeName = "user.attribute1";
+    String decodedAttributeValue1;
+    byte[] attributeValue;
+
+    if(fs.getAbfsStore().getPrefixMode() == PrefixMode.BLOB) {
+      Assume.assumeTrue(!getIsNamespaceEnabled(fs)); // Blob endpoint Currently Supports FNS only
+      decodedAttributeValue1 = "hi";
+      attributeValue = decodedAttributeValue1.getBytes(StandardCharsets.UTF_8);
+    }
+    else {
+      decodedAttributeValue1 = "hi";
+      attributeValue = fs.getAbfsStore().encodeAttribute(decodedAttributeValue1);
+    }
 
     // after creating a file, it must be possible to create a new xAttr
-    touch(testFile);
+    fs.create(testFile);
     fs.setXAttr(testFile, attributeName, attributeValue, CREATE_FLAG);
     assertArrayEquals(attributeValue, fs.getXAttr(testFile, attributeName));
 
-    // however after the xAttr is created, creating it again must fail
+    // however, after the xAttr is created, creating it again must fail
     intercept(IOException.class, () -> fs.setXAttr(testFile, attributeName, attributeValue, CREATE_FLAG));
   }
 
   @Test
   public void testSetGetXAttrReplace() throws Exception {
     AzureBlobFileSystem fs = getFileSystem();
-    Assume.assumeTrue(getIsNamespaceEnabled(fs));
-    byte[] attributeValue1 = fs.getAbfsStore().encodeAttribute("one");
-    byte[] attributeValue2 = fs.getAbfsStore().encodeAttribute("two");
-    String attributeName = "user.someAttribute";
-    Path testFile = path("replaceXAttr");
+    final Path testFile = new Path("a/b");
+
+    String attributeName = "user.attribute1";
+    String decodedAttributeValue1 = "one";
+    String decodedAttributeValue2 = "two";
+
+    byte[] attributeValue1;
+    byte[] attributeValue2;
+
+    if(fs.getAbfsStore().getPrefixMode() == PrefixMode.BLOB) {
+      Assume.assumeTrue(!getIsNamespaceEnabled(fs)); // Blob endpoint Currently Supports FNS only
+      attributeValue1 = decodedAttributeValue1.getBytes(StandardCharsets.UTF_8);
+      attributeValue2 = decodedAttributeValue2.getBytes(StandardCharsets.UTF_8);
+    }
+    else {
+      attributeValue1 = fs.getAbfsStore().encodeAttribute(decodedAttributeValue1);
+      attributeValue2 = fs.getAbfsStore().encodeAttribute(decodedAttributeValue2);
+    }
 
     // after creating a file, it must not be possible to replace an xAttr
     intercept(IOException.class, () -> {
-      touch(testFile);
+      fs.create(testFile);
       fs.setXAttr(testFile, attributeName, attributeValue1, REPLACE_FLAG);
     });
 
-    // however after the xAttr is created, replacing it must succeed
+    // however, after the xAttr is created, replacing it must succeed
     fs.setXAttr(testFile, attributeName, attributeValue1, CREATE_FLAG);
     fs.setXAttr(testFile, attributeName, attributeValue2, REPLACE_FLAG);
     assertArrayEquals(attributeValue2, fs.getXAttr(testFile, attributeName));
