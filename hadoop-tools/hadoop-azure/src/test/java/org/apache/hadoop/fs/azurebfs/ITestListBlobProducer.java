@@ -23,6 +23,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.Test;
 import org.mockito.Mockito;
 
@@ -36,6 +37,7 @@ import org.apache.hadoop.fs.azurebfs.services.AbfsRestOperation;
 import org.apache.hadoop.fs.azurebfs.services.ListBlobConsumer;
 import org.apache.hadoop.fs.azurebfs.services.ListBlobProducer;
 import org.apache.hadoop.fs.azurebfs.services.ListBlobQueue;
+import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_MAX_CONSUMER_LAG;
@@ -44,6 +46,14 @@ public class ITestListBlobProducer extends AbstractAbfsIntegrationTest {
 
   public ITestListBlobProducer() throws Exception {
     super();
+  }
+
+  @Override
+  public void setup() throws Exception {
+    super.setup();
+    Assume.assumeTrue(
+        getFileSystem().getAbfsStore().getAbfsConfiguration().getPrefixMode()
+            == PrefixMode.BLOB);
   }
 
   @Test
