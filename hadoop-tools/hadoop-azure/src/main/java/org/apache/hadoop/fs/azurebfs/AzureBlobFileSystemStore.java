@@ -1588,13 +1588,14 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
   private void deleteBlobPath(final Path path,
       final boolean recursive,
       final TracingContext tracingContext) throws IOException {
-    final BlobProperty blobProperty = getBlobProperty(path, tracingContext);
+    final BlobProperty pathProperty = getBlobProperty(path, tracingContext);
 
-    if(blobProperty.getIsDirectory() && !recursive) {
-      throw new IOException("Non-recursive delete of non-empty directory "+ path);
+    if (pathProperty.getIsDirectory() && !recursive) {
+      throw new IOException(
+          "Non-recursive delete of non-empty directory " + path);
     }
 
-    if(!blobProperty.getIsDirectory()) {
+    if (!pathProperty.getIsDirectory()) {
       deleteBlob(path, null, tracingContext);
       return;
     }
@@ -1603,15 +1604,39 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     String listSrc = path.toUri().getPath() + (path.isRoot()
         ? EMPTY_STRING
         : FORWARD_SLASH);
-    ListBlobProducer listBlobProducer = new ListBlobProducer(listSrc, client, listBlobQueue, null, tracingContext);
+    ListBlobProducer listBlobProducer = new ListBlobProducer(listSrc, client,
+        listBlobQueue, null, tracingContext);
     ListBlobConsumer consumer = new ListBlobConsumer(listBlobQueue);
 
-    while(consumer.isCompleted()) {
+    while (consumer.isCompleted()) {
       final BlobList blobList = consumer.consume();
-      if(blobList == null) {
+      if (blobList == null) {
         continue;
       }
+      List<Future> futureList = new ArrayList<>();
+      for (BlobProperty blobProperty : blobList.getBlobPropertyList()) {
+        futureList.add(deleteBlobExecutorService.submit(() -> {
+          try {
+            client.deleteBlobPath(blobProperty.getPath(), null, tracingContext);
+          } catch (AbfsRestOperationException ex) {
+            if (ex.getStatusCode() == HttpURLConnection.HTTP_NOT_FOUND) {
+              return;
+            }
+            throw new RuntimeException(ex);
+          } catch (AzureBlobFileSystemException ex) {
+            throw new RuntimeException(ex);
+          }
+        }));
+      }
 
+      for (Future future : futureList) {
+        try {
+          future.get();
+        } catch (InterruptedException | ExecutionException e) {
+          throw new RuntimeException(e);
+        }
+      }
+      client.deleteBlobPath(pathProperty.getPath(), null, tracingContext);
     }
   }
 
