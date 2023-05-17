@@ -1598,7 +1598,9 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         : FORWARD_SLASH);
 
     try {
-      pathProperty = getBlobProperty(path, tracingContext);
+      if(!path.isRoot()) {
+        pathProperty = getBlobProperty(path, tracingContext);
+      }
     } catch (AbfsRestOperationException ex) {
       if(ex.getStatusCode() != HttpURLConnection.HTTP_NOT_FOUND) {
         throw ex;
@@ -1629,7 +1631,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       pathProperty.setPath(path);
     }
 
-    if (!pathProperty.getIsDirectory()) {
+    if (pathProperty != null && !pathProperty.getIsDirectory()) {
       deleteBlob(path, null, tracingContext);
       return;
     }
@@ -1656,7 +1658,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       }
       if(!recursive && blobList.getBlobPropertyList().size() > 0) {
         throw new IOException(
-            "Non-recursive delete of non-empty directory " + pathProperty.getIsDirectory());
+            "Non-recursive delete of non-empty directory " + (pathProperty != null ? pathProperty.getIsDirectory() : ""));
       }
       List<Future> futureList = new ArrayList<>();
       for (BlobProperty blobProperty : blobList.getBlobPropertyList()) {
@@ -1682,7 +1684,9 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         }
       }
     }
-    client.deleteBlobPath(pathProperty.getPath(), null, tracingContext);
+    if(pathProperty != null) {
+      client.deleteBlobPath(pathProperty.getPath(), null, tracingContext);
+    }
   }
 
   public FileStatus getFileStatus(final Path path,
