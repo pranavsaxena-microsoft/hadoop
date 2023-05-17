@@ -1588,7 +1588,42 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
   private void deleteBlobPath(final Path path,
       final boolean recursive,
       final TracingContext tracingContext) throws IOException {
-    final BlobProperty pathProperty = getBlobProperty(path, tracingContext);
+    BlobProperty pathProperty = null;
+    ListBlobQueue listBlobQueue = null;
+    /*
+     * Fetch the list of blobs in the given sourcePath.
+     */
+    String listSrc = path.toUri().getPath() + (path.isRoot()
+        ? EMPTY_STRING
+        : FORWARD_SLASH);
+
+    try {
+      pathProperty = getBlobProperty(path, tracingContext);
+    } catch (AbfsRestOperationException ex) {
+      if(ex.getStatusCode() != HttpURLConnection.HTTP_NOT_FOUND) {
+        throw ex;
+      }
+
+      BlobList blobList = client.getListBlobs(null, listSrc, null,
+              tracingContext).getResult()
+          .getBlobList();
+      String nextMarker = blobList.getNextMarker();
+      listBlobQueue = new ListBlobQueue(blobList);
+      if (nextMarker != null && recursive) {
+        new ListBlobProducer(listSrc,
+            client, listBlobQueue, nextMarker, tracingContext);
+      } else {
+        listBlobQueue.complete();
+      }
+      createDirectory(path, null, FsPermission.getDirDefault(),
+          FsPermission.getUMask(
+              getAbfsConfiguration().getRawConfiguration()),
+          tracingContext);
+
+      pathProperty = new BlobProperty();
+      pathProperty.setIsDirectory(true);
+      pathProperty.setPath(path);
+    }
 
     if (pathProperty.getIsDirectory() && !recursive) {
       throw new IOException(
@@ -1600,14 +1635,19 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       return;
     }
 
-    ListBlobQueue listBlobQueue = new ListBlobQueue(null);
-    String listSrc = path.toUri().getPath() + (path.isRoot()
-        ? EMPTY_STRING
-        : FORWARD_SLASH);
-    ListBlobProducer listBlobProducer = new ListBlobProducer(listSrc, client,
-        listBlobQueue, null, tracingContext);
+    if(listBlobQueue == null) {
+      listBlobQueue = new ListBlobQueue(null);
+      new ListBlobProducer(listSrc, client,
+          listBlobQueue, null, tracingContext);
+    }
     ListBlobConsumer consumer = new ListBlobConsumer(listBlobQueue);
 
+    deleteOnConsumedBlobs(tracingContext, pathProperty, consumer);
+  }
+
+  private void deleteOnConsumedBlobs(final TracingContext tracingContext,
+      final BlobProperty pathProperty,
+      final ListBlobConsumer consumer) throws AzureBlobFileSystemException {
     while (consumer.isCompleted()) {
       final BlobList blobList = consumer.consume();
       if (blobList == null) {
