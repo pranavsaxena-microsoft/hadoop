@@ -126,7 +126,7 @@ public final class FileSystemConfigurations {
 
   // To have functionality similar to drop1 delete is going to wasb by default for now.
   public static final boolean DEFAULT_FS_AZURE_REDIRECT_RENAME = false;
-  public static final boolean DEFAULT_FS_AZURE_REDIRECT_DELETE = true;
+  public static final boolean DEFAULT_FS_AZURE_REDIRECT_DELETE = false;
   public static final int DEFAULT_FS_AZURE_MAX_CONSUMER_LAG = 7000;
 
   /**

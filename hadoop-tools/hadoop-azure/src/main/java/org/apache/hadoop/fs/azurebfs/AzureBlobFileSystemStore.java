@@ -1607,6 +1607,10 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       BlobList blobList = client.getListBlobs(null, listSrc, null,
               tracingContext).getResult()
           .getBlobList();
+      if(blobList.getBlobPropertyList().size() == 0) {
+        throw new AbfsRestOperationException(
+            ex.getStatusCode(), AzureServiceErrorCode.PATH_NOT_FOUND.getErrorCode(), ex.getErrorMessage(), ex);
+      }
       String nextMarker = blobList.getNextMarker();
       listBlobQueue = new ListBlobQueue(blobList);
       if (nextMarker != null && recursive) {
@@ -1625,11 +1629,6 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       pathProperty.setPath(path);
     }
 
-    if (pathProperty.getIsDirectory() && !recursive) {
-      throw new IOException(
-          "Non-recursive delete of non-empty directory " + path);
-    }
-
     if (!pathProperty.getIsDirectory()) {
       deleteBlob(path, null, tracingContext);
       return;
@@ -1642,16 +1641,22 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     }
     ListBlobConsumer consumer = new ListBlobConsumer(listBlobQueue);
 
-    deleteOnConsumedBlobs(tracingContext, pathProperty, consumer);
+
+    deleteOnConsumedBlobs(tracingContext, pathProperty, consumer, recursive);
   }
 
   private void deleteOnConsumedBlobs(final TracingContext tracingContext,
       final BlobProperty pathProperty,
-      final ListBlobConsumer consumer) throws AzureBlobFileSystemException {
-    while (consumer.isCompleted()) {
+      final ListBlobConsumer consumer, final Boolean recursive)
+      throws IOException {
+    while (!consumer.isCompleted()) {
       final BlobList blobList = consumer.consume();
       if (blobList == null) {
         continue;
+      }
+      if(!recursive && blobList.getBlobPropertyList().size() > 0) {
+        throw new IOException(
+            "Non-recursive delete of non-empty directory " + pathProperty.getIsDirectory());
       }
       List<Future> futureList = new ArrayList<>();
       for (BlobProperty blobProperty : blobList.getBlobPropertyList()) {
@@ -1676,8 +1681,8 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
           throw new RuntimeException(e);
         }
       }
-      client.deleteBlobPath(pathProperty.getPath(), null, tracingContext);
     }
+    client.deleteBlobPath(pathProperty.getPath(), null, tracingContext);
   }
 
   public FileStatus getFileStatus(final Path path,
