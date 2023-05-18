@@ -489,7 +489,7 @@ public class AzureBlobFileSystem extends FileSystem
         fileSystemId, FSOperationType.CREATE_NON_RECURSIVE, tracingHeaderFormat,
         listener);
     /*
-     * Get exclusive access to foder if this is a directory designated for atomic
+     * Get exclusive access to folder if this is a directory designated for atomic
      * rename. The primary use case of the HBase write-ahead log file management.
      */
     AbfsBlobLease abfsBlobLease = null;
