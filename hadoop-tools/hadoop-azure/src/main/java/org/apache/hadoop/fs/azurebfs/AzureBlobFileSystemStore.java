@@ -785,7 +785,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     AbfsRestOperation op;
     if (!isNormalBlob) {
       // Marker blob creation flow.
-      if (getPrefixMode() == PrefixMode.DFS || OperativeEndpoint.OperativeEndpointFallback.isMkdirEnabledOnDFS(prefixMode, abfsConfiguration, true)) {
+      if (getPrefixMode() == PrefixMode.DFS || OperativeEndpoint.OperativeEndpointFallback.isMkdirEnabledOnDFS(getPrefixMode(), abfsConfiguration, true)) {
         // Marker blob creation is not possible with dfs endpoint.
         throw new InvalidConfigurationValueException("Incorrect flow for create directory for dfs is hit " + relativePath);
       } else {
@@ -793,7 +793,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       }
     } else {
       // Normal blob creation flow. If config for fallback is not enabled and prefix mode is blob go to blob, else go to dfs.
-      if (!OperativeEndpoint.OperativeEndpointFallback.isIngressEnabledOnDFS(prefixMode, abfsConfiguration)) {
+      if (!OperativeEndpoint.OperativeEndpointFallback.isIngressEnabledOnDFS(getPrefixMode(), abfsConfiguration)) {
         op = createPathBlob(relativePath, true, overwrite, metadata, eTag, tracingContext);
       } else {
         op = createPath(relativePath, true, overwrite, isNamespaceEnabled ? getOctalNotation(permission) : null,
