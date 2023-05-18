@@ -20,6 +20,7 @@ package org.apache.hadoop.fs.azurebfs;
 import java.io.IOException;
 import java.util.concurrent.RejectedExecutionException;
 
+import org.apache.hadoop.fs.azurebfs.services.OperativeEndpoint;
 import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
 import org.junit.Assert;
 import org.junit.Test;
@@ -145,7 +146,8 @@ public class ITestAzureBlobFileSystemLease extends AbstractAbfsIntegrationTest {
     try (FSDataOutputStream out = fs.create(testFilePath)) {
       AbfsConfiguration abfsConfiguration = fs.getAbfsStore().getAbfsConfiguration();
       LambdaTestUtils.intercept(IOException.class, isHNSEnabled ? ERR_PARALLEL_ACCESS_DETECTED
-              : prefixMode == PrefixMode.BLOB && !abfsConfiguration.shouldIngressFallbackToDfs() ? ERR_NO_LEASE_ID_SPECIFIED_BLOB
+              : !OperativeEndpoint.OperativeEndpointFallback.isIngressEnabledOnDFS(prefixMode, abfsConfiguration)
+              ? ERR_NO_LEASE_ID_SPECIFIED_BLOB
               : ERR_NO_LEASE_ID_SPECIFIED, () -> {
         try (FSDataOutputStream out2 = fs.create(testFilePath)) {
         }
@@ -243,14 +245,14 @@ public class ITestAzureBlobFileSystemLease extends AbstractAbfsIntegrationTest {
     fs.registerListener(null);
     PrefixMode prefixMode = getPrefixMode(fs);
     AbfsConfiguration abfsConfiguration = fs.getAbfsStore().getAbfsConfiguration();
-    LambdaTestUtils.intercept(IOException.class, prefixMode == PrefixMode.BLOB && !abfsConfiguration.shouldIngressFallbackToDfs()
+    LambdaTestUtils.intercept(IOException.class, !OperativeEndpoint.OperativeEndpointFallback.isIngressEnabledOnDFS(prefixMode, abfsConfiguration)
             ? ERR_LEASE_EXPIRED : ERR_LEASE_EXPIRED_DFS, () -> {
       out.write(1);
       out.hsync();
       return "Expected exception on write after lease break but got " + out;
     });
 
-    LambdaTestUtils.intercept(IOException.class, prefixMode == PrefixMode.BLOB && !abfsConfiguration.shouldIngressFallbackToDfs()
+    LambdaTestUtils.intercept(IOException.class, !OperativeEndpoint.OperativeEndpointFallback.isIngressEnabledOnDFS(prefixMode, abfsConfiguration)
             ? ERR_LEASE_EXPIRED : ERR_LEASE_EXPIRED_DFS, () -> {
       out.close();
       return "Expected exception on close after lease break but got " + out;
@@ -279,7 +281,7 @@ public class ITestAzureBlobFileSystemLease extends AbstractAbfsIntegrationTest {
     fs.breakLease(testFilePath);
     PrefixMode prefixMode = getPrefixMode(fs);
     AbfsConfiguration abfsConfiguration = fs.getAbfsStore().getAbfsConfiguration();
-    LambdaTestUtils.intercept(IOException.class, prefixMode == PrefixMode.BLOB && !abfsConfiguration.shouldIngressFallbackToDfs()
+    LambdaTestUtils.intercept(IOException.class, !OperativeEndpoint.OperativeEndpointFallback.isIngressEnabledOnDFS(prefixMode, abfsConfiguration)
             ? ERR_LEASE_EXPIRED : ERR_LEASE_EXPIRED_DFS, () -> {
       out.close();
       return "Expected exception on close after lease break but got " + out;

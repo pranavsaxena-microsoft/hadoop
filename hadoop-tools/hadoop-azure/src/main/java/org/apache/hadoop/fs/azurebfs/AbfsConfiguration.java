@@ -413,6 +413,10 @@ public class AbfsConfiguration{
     return ingressFallbackToDfs;
   }
 
+  public void setWriteMaxConcurrentRequestCount(int writeMaxConcurrentRequestCount) {
+    this.writeMaxConcurrentRequestCount = writeMaxConcurrentRequestCount;
+  }
+
   /**
    * Gets the Azure Storage account name corresponding to this instance of configuration.
    * @return the Azure Storage account name

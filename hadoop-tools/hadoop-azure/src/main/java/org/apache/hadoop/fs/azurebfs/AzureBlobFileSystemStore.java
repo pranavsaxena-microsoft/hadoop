@@ -793,7 +793,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       }
     } else {
       // Normal blob creation flow. If config for fallback is not enabled and prefix mode is blob go to blob, else go to dfs.
-      if (!OperativeEndpoint.OperativeEndpointFallback.isIngressEnabledOrDisabledOnDFS(prefixMode, abfsConfiguration)) {
+      if (!OperativeEndpoint.OperativeEndpointFallback.isIngressEnabledOnDFS(prefixMode, abfsConfiguration)) {
         op = createPathBlob(relativePath, true, overwrite, metadata, eTag, tracingContext);
       } else {
         op = createPath(relativePath, true, overwrite, isNamespaceEnabled ? getOctalNotation(permission) : null,
@@ -1419,8 +1419,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
   }
 
   private Boolean isCreateOperationOnBlobEndpoint() {
-    return getAbfsConfiguration().getPrefixMode() == PrefixMode.BLOB
-        && !getAbfsConfiguration().shouldIngressFallbackToDfs();
+    return !OperativeEndpoint.OperativeEndpointFallback.isIngressEnabledOnDFS(prefixMode, abfsConfiguration);
   }
 
   /**
