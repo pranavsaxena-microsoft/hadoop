@@ -89,7 +89,7 @@ public class ListBlobProducer {
           op = client.getListBlobs(nextMarker, src, null, tracingContext);
         } catch (AzureBlobFileSystemException ex) {
           listBlobQueue.setFailed(ex);
-          throw new RuntimeException(ex);
+          return;
         }
         BlobList blobList = op.getResult().getBlobList();
         nextMarker = blobList.getNextMarker();
