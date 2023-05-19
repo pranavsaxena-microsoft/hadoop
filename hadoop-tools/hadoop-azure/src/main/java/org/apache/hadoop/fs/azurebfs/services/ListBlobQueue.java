@@ -42,6 +42,10 @@ public class ListBlobQueue {
    */
   private ListBlobProducer producer;
 
+  public ListBlobQueue() {
+
+  }
+
   public ListBlobQueue(BlobList initBlobList) {
     if (initBlobList != null) {
       enqueue(initBlobList);

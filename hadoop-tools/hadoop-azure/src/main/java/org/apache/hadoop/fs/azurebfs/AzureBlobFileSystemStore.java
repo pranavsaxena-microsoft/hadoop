@@ -1265,9 +1265,11 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       /*
        * Fetch the list of blobs in the given sourcePath.
        */
-      String listSrc = source.toUri().getPath() + (source.isRoot()
-          ? EMPTY_STRING
-          : FORWARD_SLASH);
+      StringBuilder listSrcBuilder = new StringBuilder(source.toUri().getPath());
+      if(!source.isRoot()) {
+        listSrcBuilder.append(FORWARD_SLASH);
+      }
+      String listSrc = listSrcBuilder.toString();
       BlobList blobList = client.getListBlobs(null, listSrc, null,
               tracingContext).getResult()
           .getBlobList();
@@ -2168,10 +2170,12 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       public void redo(final Path destination, final Path src)
           throws AzureBlobFileSystemException {
 
-        ListBlobQueue listBlobQueue = new ListBlobQueue(null);
-        String listSrc = src.toUri().getPath() + (src.isRoot()
-            ? EMPTY_STRING
-            : FORWARD_SLASH);
+        ListBlobQueue listBlobQueue = new ListBlobQueue();
+        StringBuilder listSrcBuilder = new StringBuilder(src.toUri().getPath());
+        if (!src.isRoot()) {
+          listSrcBuilder.append(FORWARD_SLASH);
+        }
+        String listSrc = listSrcBuilder.toString();
         new ListBlobProducer(listSrc, client, listBlobQueue, null,
             tracingContext);
         BlobProperty srcBlobProperty = getBlobProperty(src, tracingContext);
@@ -2262,7 +2266,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       final boolean isSecure) {
     final URIBuilder uriBuilder = getURIBuilder(accountName, isSecure);
 
-    final String url = uriBuilder.toString() + FORWARD_SLASH
+    final String url = uriBuilder.toString() + AbfsHttpConstants.FORWARD_SLASH
         + fileSystemName;
     return url;
   }
@@ -2374,7 +2378,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
 
   private boolean isKeyForDirectorySet(String key, Set<String> dirSet) {
     for (String dir : dirSet) {
-      if (dir.isEmpty() || key.startsWith(dir + FORWARD_SLASH)) {
+      if (dir.isEmpty() || key.startsWith(dir + AbfsHttpConstants.FORWARD_SLASH)) {
         return true;
       }
 

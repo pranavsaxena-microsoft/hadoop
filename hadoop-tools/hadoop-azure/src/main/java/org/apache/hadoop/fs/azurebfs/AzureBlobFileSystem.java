@@ -493,10 +493,11 @@ public class AzureBlobFileSystem extends FileSystem
      * rename. The primary use case of the HBase write-ahead log file management.
      */
     AbfsBlobLease abfsBlobLease = null;
+    String parentPath = parent.toUri().getPath();
     if (getAbfsStore().getAbfsConfiguration().getPrefixMode() == PrefixMode.BLOB
-        && getAbfsStore().isAtomicRenameKey(parent.toUri().getPath())) {
+        && getAbfsStore().isAtomicRenameKey(parentPath)) {
       abfsBlobLease = new AbfsBlobLease(getAbfsClient(),
-          parent.toUri().getPath(), tracingContext);
+          parentPath, tracingContext);
     }
     final FileStatus parentFileStatus = tryGetFileStatus(parent, tracingContext);
 

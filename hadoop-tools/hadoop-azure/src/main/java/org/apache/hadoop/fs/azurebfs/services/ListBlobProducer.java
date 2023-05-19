@@ -30,17 +30,30 @@ import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
  *     the blobs are received. The consumer could have used the time to start
  *     processing the blobs already in memory. The wait for receiving all the blobs
  *     would lead the processing more time. Lets say consumer need m time-units to process
- *     one blob. Lets say that client needs t time to get all the blobs. If consumer
+ *     one blob. Lets assume that each set of blobs have x blobs. In total there
+ *     have to be n sets Lets say that client needs t time to get all the blobs. If consumer
  *     wait for all the blobs to be received, the total time taken would be:
- *     <pre>t + (n * m)</pre>
+ *     <pre>t + (n * x * m)</pre>
  *     Now, lets assume that consumer in parallel work on the available the blobs,
  *     time taken would be:
- *     <pre>t + ((n - t/m) * m)</pre>
+ *     <pre>t + (((n * x) - t/m) * m)</pre>
  *   </li>
  *   <li>
- *
+ *     Since the information of the blobs have to be maintained in memory until the
+ *     computation on the list is done. On low configuration machine, it may lead
+ *     to OOM.
  *   </li>
  * </ol>
+ * In this design, the producer on a parallel thread to the main thread, will call
+ * ListBlob API and will populate {@link ListBlobQueue}, which would be dequeued by
+ * the main thread which will run the computation on the available blobs.<br>
+ *
+ * How its different from {@link AbfsListStatusRemoteIterator}?<br>
+ * It provides an iterator which on {@link AbfsListStatusRemoteIterator#hasNext()} checks
+ * if there are blobs available in memory. If not it will call Listing API on server for
+ * the next set of blobs. But here, it make the process sequential. As in, when the processing
+ * on whole set of blobs available in memory are done, after that only next set of blobs are
+ * fetched.
  */
 public class ListBlobProducer {
 
@@ -66,7 +79,7 @@ public class ListBlobProducer {
     listBlobQueue.setProducer(this);
     this.nextMarker = initNextMarker;
     new Thread(() -> {
-      while (true) {
+      do {
         if (listBlobQueue.getConsumerLag() >= client.getAbfsConfiguration()
             .getMaximumConsumerLag()) {
           continue;
@@ -83,9 +96,8 @@ public class ListBlobProducer {
         listBlobQueue.enqueue(blobList);
         if (nextMarker == null) {
           listBlobQueue.complete();
-          break;
         }
-      }
+      } while(nextMarker != null);
     }).start();
   }
 }
