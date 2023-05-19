@@ -80,6 +80,7 @@ public class ListBlobQueue {
   }
 
   public synchronized BlobList dequeue() {
+    producer.respawnIfProducerInterrupted();
     BlobList blobList = blobLists.poll();
     if (blobList != null) {
       totalConsumed += blobList.getBlobPropertyList().size();

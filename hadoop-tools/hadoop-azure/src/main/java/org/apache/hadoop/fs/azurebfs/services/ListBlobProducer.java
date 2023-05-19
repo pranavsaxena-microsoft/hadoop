@@ -67,6 +67,8 @@ public class ListBlobProducer {
 
   private String nextMarker;
 
+  Thread producerThread;
+
   public ListBlobProducer(final String src,
       final AbfsClient abfsClient,
       final ListBlobQueue listBlobQueue,
@@ -78,7 +80,21 @@ public class ListBlobProducer {
     this.listBlobQueue = listBlobQueue;
     listBlobQueue.setProducer(this);
     this.nextMarker = initNextMarker;
-    new Thread(() -> {
+    spawnProducerThread(src, listBlobQueue, tracingContext);
+  }
+
+  private void spawnProducerThread(final String src,
+      final ListBlobQueue listBlobQueue,
+      final TracingContext tracingContext) {
+    producerThread = new Thread(producerLogic(src, listBlobQueue,
+        tracingContext));
+    producerThread.start();
+  }
+
+  private Runnable producerLogic(final String src,
+      final ListBlobQueue listBlobQueue,
+      final TracingContext tracingContext) {
+    return () -> {
       do {
         if (listBlobQueue.getConsumerLag() >= client.getAbfsConfiguration()
             .getMaximumConsumerLag()) {
@@ -89,7 +105,7 @@ public class ListBlobProducer {
           op = client.getListBlobs(nextMarker, src, null, tracingContext);
         } catch (AzureBlobFileSystemException ex) {
           listBlobQueue.setFailed(ex);
-          throw new RuntimeException(ex);
+          return;
         }
         BlobList blobList = op.getResult().getBlobList();
         nextMarker = blobList.getNextMarker();
@@ -97,7 +113,13 @@ public class ListBlobProducer {
         if (nextMarker == null) {
           listBlobQueue.complete();
         }
-      } while(nextMarker != null);
-    }).start();
+      } while (nextMarker != null);
+    };
+  }
+
+  synchronized void respawnIfProducerInterrupted() {
+    if(producerThread.isInterrupted()) {
+      spawnProducerThread(src, listBlobQueue, tracingContext);
+    }
   }
 }
