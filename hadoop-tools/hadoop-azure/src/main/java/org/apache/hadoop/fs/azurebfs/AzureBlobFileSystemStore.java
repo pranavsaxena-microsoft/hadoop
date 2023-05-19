@@ -1265,8 +1265,9 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       /*
        * Fetch the list of blobs in the given sourcePath.
        */
-      StringBuilder listSrcBuilder = new StringBuilder(source.toUri().getPath());
-      if(!source.isRoot()) {
+      StringBuilder listSrcBuilder = new StringBuilder(
+          source.toUri().getPath());
+      if (!source.isRoot()) {
         listSrcBuilder.append(FORWARD_SLASH);
       }
       String listSrc = listSrcBuilder.toString();
