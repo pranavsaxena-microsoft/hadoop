@@ -1278,27 +1278,24 @@ public class AzureBlobFileSystem extends FileSystem
       if (abfsStore.getPrefixMode() == PrefixMode.BLOB) {
         properties = abfsStore.getBlobMetadata(qualifiedPath, tracingContext);
         xAttrName = X_MS_METADATA_PREFIX + xAttrName;
-      }
-      else {
-        properties = abfsStore.getPathStatus(qualifiedPath, tracingContext);
-      }
 
-      boolean xAttrExists = properties.containsKey(xAttrName);
-      XAttrSetFlag.validate(name, xAttrExists, flag);
+        boolean xAttrExists = properties.containsKey(xAttrName);
+        XAttrSetFlag.validate(name, xAttrExists, flag);
 
-      if (abfsStore.getPrefixMode() == PrefixMode.BLOB) {
         // On Blob Endpoint metadata are passed as HTTP Request Headers
         // Values in UTF_8 needed to be URL encoded after decoding into String
         xAttrValue = abfsStore.encodeMetadataAttribute(new String(value, StandardCharsets.UTF_8));
         properties.put(xAttrName, xAttrValue);
         abfsStore.setBlobMetadata(qualifiedPath, properties, tracingContext);
       }
-      else {
-        xAttrValue = abfsStore.decodeAttribute(value);
-        properties.put(xAttrName, xAttrValue);
-        abfsStore.setPathProperties(qualifiedPath, properties, tracingContext);
-      }
 
+      properties = abfsStore.getPathStatus(qualifiedPath, tracingContext);
+      boolean xAttrExists = properties.containsKey(xAttrName);
+      XAttrSetFlag.validate(name, xAttrExists, flag);
+
+      xAttrValue = abfsStore.decodeAttribute(value);
+      properties.put(xAttrName, xAttrValue);
+      abfsStore.setPathProperties(qualifiedPath, properties, tracingContext);
     } catch (AzureBlobFileSystemException ex) {
       checkException(path, ex);
     }

@@ -132,6 +132,7 @@ public class ITestAzureBlobFileSystemAttributes extends AbstractAbfsIntegrationT
     assertNull(fs.getXAttr(path, attributeName1));
 
     // Set the Attributes Multiple times
+    // Filesystem internally adds create and replace flags
     fs.setXAttr(path, attributeName1, attributeValue1);
     fs.setXAttr(path, attributeName1, attributeValue1);
 
