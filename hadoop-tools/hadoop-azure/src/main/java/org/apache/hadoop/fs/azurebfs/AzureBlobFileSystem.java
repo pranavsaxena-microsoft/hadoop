@@ -128,6 +128,8 @@ import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.D
 import static org.apache.hadoop.fs.azurebfs.services.AbfsErrors.PATH_EXISTS;
 import static org.apache.hadoop.fs.azurebfs.contracts.services.AzureServiceErrorCode.RENAME_DESTINATION_PARENT_PATH_NOT_FOUND;
 import static org.apache.hadoop.fs.azurebfs.constants.InternalConstants.CAPABILITY_SAFE_READAHEAD;
+import static org.apache.hadoop.fs.azurebfs.utils.UriUtils.decodeMetadataAttribute;
+import static org.apache.hadoop.fs.azurebfs.utils.UriUtils.encodeMetadataAttribute;
 import static org.apache.hadoop.fs.impl.PathCapabilitiesSupport.validatePathCapabilityArgs;
 import static org.apache.hadoop.fs.statistics.IOStatisticsLogging.logIOStatisticsAtLevel;
 import static org.apache.hadoop.util.functional.RemoteIterators.filteringRemoteIterator;
@@ -1284,9 +1286,11 @@ public class AzureBlobFileSystem extends FileSystem
 
         // On Blob Endpoint metadata are passed as HTTP Request Headers
         // Values in UTF_8 needed to be URL encoded after decoding into String
-        xAttrValue = abfsStore.encodeMetadataAttribute(new String(value, StandardCharsets.UTF_8));
+        xAttrValue = encodeMetadataAttribute(new String(value, StandardCharsets.UTF_8));
         properties.put(xAttrName, xAttrValue);
         abfsStore.setBlobMetadata(qualifiedPath, properties, tracingContext);
+
+        return;
       }
 
       properties = abfsStore.getPathStatus(qualifiedPath, tracingContext);
@@ -1342,7 +1346,7 @@ public class AzureBlobFileSystem extends FileSystem
         String xAttrValue = properties.get(xAttrName);
         // On Blob Endpoint Each Metadata is a response header Which needs to be url decoded.
         value = abfsStore.getPrefixMode() == PrefixMode.BLOB
-            ? abfsStore.decodeMetadataAttribute(xAttrValue).getBytes(
+            ? decodeMetadataAttribute(xAttrValue).getBytes(
             StandardCharsets.UTF_8)
             : abfsStore.encodeAttribute(xAttrValue);
       }

@@ -370,20 +370,6 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     return new String(value, XMS_PROPERTIES_ENCODING);
   }
 
-  String encodeMetadataAttribute(String value) throws UnsupportedEncodingException {
-    // We have to URL encode the attribute as it could
-    // have URI special characters which unless encoded will result
-    // in 403 errors from the server. This is due to metadata properties
-    // being sent in the HTTP header of the request which is in turn used
-    // on the server side to authorize the request.
-    return value == null ? null : URLEncoder.encode(value, StandardCharsets.UTF_8.name());
-  }
-
-  String decodeMetadataAttribute(String encoded) throws UnsupportedEncodingException {
-    return encoded == null ? null :
-        URLDecoder.decode(encoded, StandardCharsets.UTF_8.name());
-  }
-
 
   private String[] authorityParts(URI uri) throws InvalidUriAuthorityException, InvalidUriException {
     final String authority = uri.getRawAuthority();
