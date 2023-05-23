@@ -427,6 +427,20 @@ public class AzureBlobFileSystem extends FileSystem
         progress, false);
   }
 
+  /**
+   * Creates a file in the file system with the specified parameters.
+   * @param f the path of the file to create
+   * @param permission the permission of the file
+   * @param overwrite whether to overwrite the existing file if any
+   * @param bufferSize the size of the buffer to be used
+   * @param replication the number of replicas for the file
+   * @param blockSize the size of the block for the file
+   * @param progress the progress indicator for the file creation
+   * @param blobParentDirPresentChecked whether the presence of parent directory
+   * been checked
+   * @return a FSDataOutputStream object that can be used to write to the file
+   * @throws IOException if an error occurs while creating the file
+   */
   private FSDataOutputStream create(final Path f,
       final FsPermission permission,
       final boolean overwrite, final int bufferSize,
