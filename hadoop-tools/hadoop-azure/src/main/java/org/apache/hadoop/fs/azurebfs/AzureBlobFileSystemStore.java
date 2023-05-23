@@ -207,8 +207,6 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
 
   private final ExecutorService renameBlobExecutorService;
 
-  private final Integer ONE_MINUTE = 60;
-
   /**
    * The set of directories where we should store files as append blobs.
    */
