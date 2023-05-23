@@ -555,10 +555,9 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
 
   /**
    * Orchestrates the copying of blob from given source to a given destination.
-   *
    * @param srcPath source path
    * @param dstPath destination path
-   * @param copySrcLeaseId
+   * @param copySrcLeaseId leaseId on the source
    * @param tracingContext object of TracingContext used for the tracing of the
    * server calls.
    *
@@ -1387,8 +1386,8 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         if (isAtomicRenameKey(source.toUri().getPath())) {
           leaseId = new AbfsBlobLease(client, source.toUri().getPath(), tracingContext).getLeaseId();
         }
-        renameBlob(destination, tracingContext,
-            blobPropOnSrc.getPath(), leaseId);
+        renameBlob(blobPropOnSrc.getPath(), destination, leaseId, tracingContext
+        );
       }
       LOG.info("Rename from source {} to destination {} done", source,
           destination);
@@ -1465,9 +1464,11 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
               srcDirBlobLease.renewIfRequired();
             }
             renameBlob(
+                blobProperty.getPath(),
                 createDestinationPathForBlobPartOfRenameSrcDir(destination,
                     blobProperty, source),
-                tracingContext, blobProperty.getPath(), blobLease != null ? blobLease.getLeaseId() : null);
+                blobLease != null ? blobLease.getLeaseId() : null,
+                tracingContext);
           } catch (AzureBlobFileSystemException e) {
             LOG.error(String.format("rename from %s to %s for blob %s failed",
                 source, destination, blobProperty.getPath()), e);
@@ -1487,9 +1488,10 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     }
 
     renameBlob(
-        createDestinationPathForBlobPartOfRenameSrcDir(destination,
+        blobPropOnSrc.getPath(), createDestinationPathForBlobPartOfRenameSrcDir(destination,
             blobPropOnSrc, source),
-        tracingContext, blobPropOnSrc.getPath(), srcDirBlobLease != null ? srcDirBlobLease.getLeaseId() : null);
+        srcDirBlobLease != null ? srcDirBlobLease.getLeaseId() : null,
+        tracingContext);
   }
 
   private Boolean isCreateOperationOnBlobEndpoint() {
@@ -1523,16 +1525,15 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
    * It copies the source blob to the destination. After copy is succesful, it
    * deletes the source blob
    *
-   * @param destination destination path to which the source has to be moved
-   * @param tracingContext tracingContext for tracing the API calls
    * @param sourcePath source path which gets copied to the destination
+   * @param destination destination path to which the source has to be moved
    * @param srcBlobLeaseId leaseId of the srcBlob
+   * @param tracingContext tracingContext for tracing the API calls
    *
    * @throws AzureBlobFileSystemException exception in making server calls
    */
-  private void renameBlob(final Path destination,
-      final TracingContext tracingContext,
-      final Path sourcePath, final String srcBlobLeaseId) throws AzureBlobFileSystemException {
+  private void renameBlob(final Path sourcePath, final Path destination,
+      final String srcBlobLeaseId, final TracingContext tracingContext) throws AzureBlobFileSystemException {
     copyBlob(sourcePath, destination, srcBlobLeaseId, tracingContext);
     deleteBlob(sourcePath, srcBlobLeaseId, tracingContext);
   }
