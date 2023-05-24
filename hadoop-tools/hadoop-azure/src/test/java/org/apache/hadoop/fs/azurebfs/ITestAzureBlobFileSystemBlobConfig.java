@@ -232,14 +232,16 @@ public class ITestAzureBlobFileSystemBlobConfig
     isDeleteOverNativeFS[0] = false;
     Boolean[] isDeleteOverDFSEndpoint = new Boolean[1];
     isDeleteOverDFSEndpoint[0] = false;
+    Boolean[] isDeleteOverAbfsBlobEndpoint = new Boolean[1];
+    isDeleteOverAbfsBlobEndpoint[0] = false;
 
     countDeleteOverAbfsAndWasb(nativeAzureFileSystem, client, isDeleteOverNativeFS,
-        isDeleteOverDFSEndpoint);
+        isDeleteOverDFSEndpoint, isDeleteOverAbfsBlobEndpoint);
 
     fs.create(new Path("/file"));
     fs.delete(new Path("/file"), true);
 
-    Assert.assertTrue(isDeleteOverDFSEndpoint[0]);
+    Assert.assertTrue(isDeleteOverDFSEndpoint[0] || isDeleteOverAbfsBlobEndpoint[0]);
     Assert.assertFalse(isDeleteOverNativeFS[0]);
   }
 
@@ -257,9 +259,11 @@ public class ITestAzureBlobFileSystemBlobConfig
     isDeleteOverNativeFS[0] = false;
     Boolean[] isDeleteOverDFSEndpoint = new Boolean[1];
     isDeleteOverDFSEndpoint[0] = false;
+    Boolean[] isDeleteOverAbfsBlobEndpoint = new Boolean[1];
+    isDeleteOverAbfsBlobEndpoint[0] = false;
 
     countDeleteOverAbfsAndWasb(nativeAzureFileSystem, client, isDeleteOverNativeFS,
-        isDeleteOverDFSEndpoint);
+        isDeleteOverDFSEndpoint, isDeleteOverAbfsBlobEndpoint);
 
     fs.create(new Path("/file"));
     fs.delete(new Path("/file"), true);
@@ -282,9 +286,11 @@ public class ITestAzureBlobFileSystemBlobConfig
     isDeleteOverNativeFS[0] = false;
     Boolean[] isDeleteOverDFSEndpoint = new Boolean[1];
     isDeleteOverDFSEndpoint[0] = false;
+    Boolean[] isDeleteOverAbfsBlobEndpoint = new Boolean[1];
+    isDeleteOverAbfsBlobEndpoint[0] = false;
 
     countDeleteOverAbfsAndWasb(nativeAzureFileSystem, client, isDeleteOverNativeFS,
-        isDeleteOverDFSEndpoint);
+        isDeleteOverDFSEndpoint, isDeleteOverAbfsBlobEndpoint);
 
     fs.create(new Path("/file"));
     fs.delete(new Path("/file"), true);
@@ -307,9 +313,11 @@ public class ITestAzureBlobFileSystemBlobConfig
     isDeleteOverNativeFS[0] = false;
     Boolean[] isDeleteOverDFSEndpoint = new Boolean[1];
     isDeleteOverDFSEndpoint[0] = false;
+    Boolean[] isDeleteOverAbfsBlobEndpoint = new Boolean[1];
+    isDeleteOverAbfsBlobEndpoint[0] = false;
 
     countDeleteOverAbfsAndWasb(nativeAzureFileSystem, client, isDeleteOverNativeFS,
-        isDeleteOverDFSEndpoint);
+        isDeleteOverDFSEndpoint, isDeleteOverAbfsBlobEndpoint);
 
     fs.create(new Path("/file"));
     fs.delete(new Path("/file"), true);
@@ -323,7 +331,10 @@ public class ITestAzureBlobFileSystemBlobConfig
     AzureBlobFileSystem fs = Mockito.spy(createFileSystemForEndpointConfigPair(
         FS_AZURE_REDIRECT_RENAME, false, false));
 
-    NativeAzureFileSystem nativeAzureFileSystem = Mockito.spy(fs.getNativeFs());
+    NativeAzureFileSystem nativeAzureFileSystem = null;
+    if (fs.getNativeFs() != null) {
+      nativeAzureFileSystem = Mockito.spy(fs.getNativeFs());
+    }
     AzureBlobFileSystemStore store = Mockito.spy(fs.getAbfsStore());
     AbfsClient client = Mockito.spy(fs.getAbfsClient());
     assignStoreMocksToFs(fs, nativeAzureFileSystem, store, client);
@@ -404,7 +415,10 @@ public class ITestAzureBlobFileSystemBlobConfig
     AzureBlobFileSystem fs = Mockito.spy(createFileSystemForEndpointConfigPair(
         FS_AZURE_REDIRECT_RENAME, false, true));
 
-    NativeAzureFileSystem nativeAzureFileSystem = Mockito.spy(fs.getNativeFs());
+    NativeAzureFileSystem nativeAzureFileSystem = null;
+    if (fs.getNativeFs() != null) {
+      nativeAzureFileSystem = Mockito.spy(fs.getNativeFs());
+    }
     AzureBlobFileSystemStore store = Mockito.spy(fs.getAbfsStore());
     AbfsClient client = Mockito.spy(fs.getAbfsClient());
     assignStoreMocksToFs(fs, nativeAzureFileSystem, store, client);
@@ -431,7 +445,10 @@ public class ITestAzureBlobFileSystemBlobConfig
     AzureBlobFileSystem fs = Mockito.spy(createFileSystemForEndpointConfigPair(
         FS_AZURE_INGRESS_FALLBACK_TO_DFS, true, false));
 
-    NativeAzureFileSystem nativeAzureFileSystem = Mockito.spy(fs.getNativeFs());
+    NativeAzureFileSystem nativeAzureFileSystem = null;
+    if (fs.getNativeFs() != null) {
+      nativeAzureFileSystem = Mockito.spy(fs.getNativeFs());
+    }
     AzureBlobFileSystemStore store = Mockito.spy(fs.getAbfsStore());
     AbfsClient client = Mockito.spy(fs.getAbfsClient());
     assignStoreMocksToFs(fs, nativeAzureFileSystem, store, client);
@@ -469,7 +486,10 @@ public class ITestAzureBlobFileSystemBlobConfig
     AzureBlobFileSystem fs = Mockito.spy(createFileSystemForEndpointConfigPair(
         FS_AZURE_INGRESS_FALLBACK_TO_DFS, false, false));
 
-    NativeAzureFileSystem nativeAzureFileSystem = Mockito.spy(fs.getNativeFs());
+    NativeAzureFileSystem nativeAzureFileSystem = null;
+    if (fs.getNativeFs() != null) {
+      nativeAzureFileSystem = Mockito.spy(fs.getNativeFs());
+    }
     AzureBlobFileSystemStore store = Mockito.spy(fs.getAbfsStore());
     AbfsClient client = Mockito.spy(fs.getAbfsClient());
     assignStoreMocksToFs(fs, nativeAzureFileSystem, store, client);
@@ -507,7 +527,10 @@ public class ITestAzureBlobFileSystemBlobConfig
     AzureBlobFileSystem fs = Mockito.spy(createFileSystemForEndpointConfigPair(
         FS_AZURE_INGRESS_FALLBACK_TO_DFS, true, true));
 
-    NativeAzureFileSystem nativeAzureFileSystem = Mockito.spy(fs.getNativeFs());
+    NativeAzureFileSystem nativeAzureFileSystem = null;
+    if (fs.getNativeFs() != null) {
+      nativeAzureFileSystem = Mockito.spy(fs.getNativeFs());
+    }
     AzureBlobFileSystemStore store = Mockito.spy(fs.getAbfsStore());
     AbfsClient client = Mockito.spy(fs.getAbfsClient());
     assignStoreMocksToFs(fs, nativeAzureFileSystem, store, client);
@@ -609,11 +632,17 @@ public class ITestAzureBlobFileSystemBlobConfig
   private void countDeleteOverAbfsAndWasb(final NativeAzureFileSystem nativeAzureFileSystem,
       final AbfsClient client,
       final Boolean[] isDeleteOverNativeFS,
-      final Boolean[] isDeleteOverDFSEndpoint) throws IOException {
+      final Boolean[] isDeleteOverDFSEndpoint,
+      final Boolean[] isDeleteOverAbfsBlobEndpoint) throws IOException {
     Mockito.doAnswer(answer -> {
       isDeleteOverDFSEndpoint[0] = true;
       return answer.callRealMethod();
     }).when(client).deletePath(Mockito.any(String.class), Mockito.anyBoolean(), Mockito.nullable(String.class), Mockito.any(TracingContext.class));
+
+    Mockito.doAnswer(answer -> {
+      isDeleteOverAbfsBlobEndpoint[0] = true;
+      return answer.callRealMethod();
+    }).when(client).deleteBlobPath(Mockito.any(Path.class), Mockito.nullable(String.class), Mockito.any(TracingContext.class));
 
     if(nativeAzureFileSystem != null) {
       Mockito.doAnswer(answer -> {
