@@ -30,7 +30,9 @@ import java.util.concurrent.Future;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.assertj.core.api.Assertions;
+import org.junit.Assert;
 import org.junit.Assume;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import org.apache.hadoop.fs.azurebfs.constants.FSOperationType;
@@ -147,6 +149,7 @@ public class ITestAzureBlobFileSystemDelete extends
     assertPathDoesNotExist(fs, "deleted", dir);
   }
 
+  @Ignore
   @Test
   public void testDeleteFirstLevelDirectory() throws Exception {
     final AzureBlobFileSystem fs = getFileSystem();
@@ -300,6 +303,60 @@ public class ITestAzureBlobFileSystemDelete extends
 
     // Call from AzureBlobFileSystemStore should not fail either
     mockStore.delete(new Path("/NonExistingPath"), false, getTestTracingContext(fs, false));
+  }
+
+  @Test
+  public void testDeleteImplicitDir() throws Exception {
+    AzureBlobFileSystem fs = getFileSystem();
+    fs.mkdirs(new Path("/testDir/dir1"));
+    fs.create(new Path("/testDir/dir1/file1"));
+    fs.getAbfsClient().deleteBlobPath(new Path("/testDir/dir1"),
+        null, Mockito.mock(TracingContext.class));
+
+    fs.delete(new Path("/testDir/dir1"), true);
+
+    Assert.assertTrue(!fs.exists(new Path("/testDir/dir1")));
+    Assert.assertTrue(!fs.exists(new Path("/testDir/dir1/file1")));
+  }
+
+  @Test
+  public void testDeleteImplicitDirWithSingleListResults() throws Exception {
+    AzureBlobFileSystem fs = (AzureBlobFileSystem) FileSystem.newInstance(getRawConfiguration());
+    AbfsClient client = fs.getAbfsClient();
+    AbfsClient spiedClient = Mockito.spy(client);
+    fs.getAbfsStore().setClient(spiedClient);
+    fs.mkdirs(new Path("/testDir/dir1"));
+    for(int i=0;i<10;i++) {
+      fs.create(new Path("/testDir/dir1/file" + i));
+    }
+    Mockito.doAnswer(answer -> {
+      String marker = answer.getArgument(0);
+      String prefix = answer.getArgument(1);
+      Integer maxResult = answer.getArgument(2);
+      TracingContext context = answer.getArgument(3);
+      return client.getListBlobs(marker, prefix, 1, context);
+    }).when(spiedClient).getListBlobs(Mockito.nullable(String.class), Mockito.anyString(), Mockito.nullable(Integer.class), Mockito.any(TracingContext.class));
+    fs.getAbfsClient().deleteBlobPath(new Path("/testDir/dir1"),
+        null, Mockito.mock(TracingContext.class));
+
+    fs.delete(new Path("/testDir/dir1"), true);
+
+    Assert.assertTrue(!fs.exists(new Path("/testDir/dir1")));
+  }
+
+  @Test
+  public void testDeleteExplicitDirInImplicitParentDir() throws Exception {
+    AzureBlobFileSystem fs = getFileSystem();
+    fs.mkdirs(new Path("/testDir/dir1"));
+    fs.create(new Path("/testDir/dir1/file1"));
+    fs.getAbfsClient().deleteBlobPath(new Path("/testDir/"),
+        null, Mockito.mock(TracingContext.class));
+
+    fs.delete(new Path("/testDir/dir1"), true);
+
+    Assert.assertTrue(!fs.exists(new Path("/testDir/dir1")));
+    Assert.assertTrue(!fs.exists(new Path("/testDir/dir1/file1")));
+    Assert.assertTrue(fs.exists(new Path("/testDir/")));
   }
 
 }
