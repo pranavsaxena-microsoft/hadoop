@@ -35,9 +35,26 @@ public class ListBlobQueue {
 
   private AzureBlobFileSystemException failureFromProducer;
 
+  /**
+   * Since, Producer just spawns a thread and there are no public method for the
+   * class. Keeping its address in this object will prevent accidental GC close
+   * on the producer object.
+   */
+  private ListBlobProducer producer;
+
+  public ListBlobQueue() {
+
+  }
+
   public ListBlobQueue(BlobList initBlobList) {
     if (initBlobList != null) {
       enqueue(initBlobList);
+    }
+  }
+
+  void setProducer(ListBlobProducer producer) {
+    if (this.producer == null) {
+      this.producer = producer;
     }
   }
 

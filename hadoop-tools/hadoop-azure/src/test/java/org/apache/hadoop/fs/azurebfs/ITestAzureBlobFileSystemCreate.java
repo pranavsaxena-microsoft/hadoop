@@ -932,7 +932,9 @@ public class ITestAzureBlobFileSystemCreate extends
   @Test
   public void testCreateNonRecursiveForAtomicDirectoryFile() throws Exception {
     AzureBlobFileSystem fileSystem = getFileSystem();
-    Assume.assumeTrue(fileSystem.getAbfsStore().getAbfsConfiguration().getPrefixMode() == PrefixMode.BLOB);
+    Assume.assumeTrue(
+        fileSystem.getAbfsStore().getAbfsConfiguration().getPrefixMode()
+            == PrefixMode.BLOB);
     fileSystem.setWorkingDirectory(new Path("/"));
     fileSystem.mkdirs(new Path("/hbase/dir"));
     fileSystem.createFile(new Path("/hbase/dir/file"))
@@ -946,10 +948,12 @@ public class ITestAzureBlobFileSystemCreate extends
 
   @Test
   public void testActiveCreateNonRecursiveDenyParallelReadOnAtomicDir() throws Exception {
+    Assume.assumeTrue(
+        getFileSystem().getAbfsStore().getAbfsConfiguration().getPrefixMode()
+            == PrefixMode.BLOB);
     AzureBlobFileSystem fileSystem = (AzureBlobFileSystem) FileSystem.newInstance(getRawConfiguration());
     AbfsClient client = Mockito.spy(fileSystem.getAbfsClient());
     fileSystem.getAbfsStore().setClient(client);
-    Assume.assumeTrue(fileSystem.getAbfsStore().getAbfsConfiguration().getPrefixMode() == PrefixMode.BLOB);
     fileSystem.setWorkingDirectory(new Path("/"));
     fileSystem.mkdirs(new Path("/hbase/dir"));
     fileSystem.create(new Path("/hbase/dir/file"));

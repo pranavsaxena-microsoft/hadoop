@@ -1283,7 +1283,7 @@ public class AbfsClient implements Closeable {
         srcBlobRelativePath,
         abfsUriQueryBuilderSrc.toString()).toString();
     List<AbfsHttpHeader> requestHeaders = createDefaultHeaders();
-    if(srcLeaseId != null) {
+    if (srcLeaseId != null) {
       requestHeaders.add(new AbfsHttpHeader(X_MS_SOURCE_LEASE_ID, srcLeaseId));
     }
     requestHeaders.add(new AbfsHttpHeader(X_MS_COPY_SOURCE, sourcePathUrl));

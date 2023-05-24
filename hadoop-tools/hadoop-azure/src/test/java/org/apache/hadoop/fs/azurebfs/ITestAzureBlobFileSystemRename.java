@@ -165,7 +165,6 @@ public class ITestAzureBlobFileSystemRename extends
     assertPathDoesNotExist(fs, "rename source dir", test1);
   }
 
-  @Ignore
   @Test
   public void testRenameFirstLevelDirectory() throws Exception {
     final AzureBlobFileSystem fs = getFileSystem();
@@ -1363,7 +1362,6 @@ public class ITestAzureBlobFileSystemRename extends
     Assert.assertTrue(connectionResetThrown[0]);
   }
 
-  @Ignore
   @Test
   public void testRenameLargeNestedDir() throws Exception {
     AzureBlobFileSystem fs = getFileSystem();

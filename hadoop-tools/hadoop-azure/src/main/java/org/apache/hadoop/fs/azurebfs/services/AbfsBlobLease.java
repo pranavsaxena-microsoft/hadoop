@@ -33,12 +33,15 @@ public class AbfsBlobLease {
   private final Long RENEW_TIME = 30 * 1_000L;
   private Boolean freed = false;
 
-  public AbfsBlobLease(AbfsClient client, String path, TracingContext tracingContext) throws
+  public AbfsBlobLease(AbfsClient client,
+      String path,
+      TracingContext tracingContext) throws
       AzureBlobFileSystemException {
     this.client = client;
     this.path = path;
     this.tracingContext = tracingContext;
-    AbfsRestOperation op = client.acquireBlobLease(path, ONE_MINUTE, tracingContext);
+    AbfsRestOperation op = client.acquireBlobLease(path, ONE_MINUTE,
+        tracingContext);
     extractLeaseInfo(op);
   }
 
@@ -52,13 +55,13 @@ public class AbfsBlobLease {
   }
 
   public void renewIfRequired() throws AzureBlobFileSystemException {
-    if(System.currentTimeMillis() - leaseRenewLastEpoch >= RENEW_TIME) {
+    if (System.currentTimeMillis() - leaseRenewLastEpoch >= RENEW_TIME) {
       renew();
     }
   }
 
   private synchronized void renew() throws AzureBlobFileSystemException {
-    if(System.currentTimeMillis() - leaseRenewLastEpoch < RENEW_TIME) {
+    if (System.currentTimeMillis() - leaseRenewLastEpoch < RENEW_TIME) {
       return;
     }
     AbfsRestOperation op = client.renewBlobLease(path, leaseId, tracingContext);
@@ -66,7 +69,7 @@ public class AbfsBlobLease {
   }
 
   public synchronized void free() throws AzureBlobFileSystemException {
-    if(freed) {
+    if (freed) {
       return;
     }
     client.releaseBlobLease(path, leaseId, tracingContext);

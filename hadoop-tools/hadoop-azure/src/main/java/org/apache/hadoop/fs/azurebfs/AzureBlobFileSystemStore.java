@@ -208,8 +208,6 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
   private final ExecutorService renameBlobExecutorService;
   private final ExecutorService deleteBlobExecutorService;
 
-  private final Integer ONE_MINUTE = 60;
-
   /**
    * The set of directories where we should store files as append blobs.
    */
@@ -559,10 +557,9 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
 
   /**
    * Orchestrates the copying of blob from given source to a given destination.
-   *
    * @param srcPath source path
    * @param dstPath destination path
-   * @param copySrcLeaseId
+   * @param copySrcLeaseId leaseId on the source
    * @param tracingContext object of TracingContext used for the tracing of the
    * server calls.
    *
@@ -1267,9 +1264,12 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       /*
        * Fetch the list of blobs in the given sourcePath.
        */
-      String listSrc = source.toUri().getPath() + (source.isRoot()
-          ? EMPTY_STRING
-          : FORWARD_SLASH);
+      StringBuilder listSrcBuilder = new StringBuilder(
+          source.toUri().getPath());
+      if (!source.isRoot()) {
+        listSrcBuilder.append(FORWARD_SLASH);
+      }
+      String listSrc = listSrcBuilder.toString();
       BlobList blobList = client.getListBlobs(null, listSrc, null,
               tracingContext).getResult()
           .getBlobList();
@@ -1388,8 +1388,8 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         if (isAtomicRenameKey(source.toUri().getPath())) {
           leaseId = new AbfsBlobLease(client, source.toUri().getPath(), tracingContext).getLeaseId();
         }
-        renameBlob(destination, tracingContext,
-            blobPropOnSrc.getPath(), leaseId);
+        renameBlob(blobPropOnSrc.getPath(), destination, leaseId, tracingContext
+        );
       }
       LOG.info("Rename from source {} to destination {} done", source,
           destination);
@@ -1466,9 +1466,11 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
               srcDirBlobLease.renewIfRequired();
             }
             renameBlob(
+                blobProperty.getPath(),
                 createDestinationPathForBlobPartOfRenameSrcDir(destination,
                     blobProperty, source),
-                tracingContext, blobProperty.getPath(), blobLease != null ? blobLease.getLeaseId() : null);
+                blobLease != null ? blobLease.getLeaseId() : null,
+                tracingContext);
           } catch (AzureBlobFileSystemException e) {
             LOG.error(String.format("rename from %s to %s for blob %s failed",
                 source, destination, blobProperty.getPath()), e);
@@ -1488,9 +1490,10 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     }
 
     renameBlob(
-        createDestinationPathForBlobPartOfRenameSrcDir(destination,
+        blobPropOnSrc.getPath(), createDestinationPathForBlobPartOfRenameSrcDir(destination,
             blobPropOnSrc, source),
-        tracingContext, blobPropOnSrc.getPath(), srcDirBlobLease != null ? srcDirBlobLease.getLeaseId() : null);
+        srcDirBlobLease != null ? srcDirBlobLease.getLeaseId() : null,
+        tracingContext);
   }
 
   private Boolean isCreateOperationOnBlobEndpoint() {
@@ -1524,16 +1527,15 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
    * It copies the source blob to the destination. After copy is succesful, it
    * deletes the source blob
    *
-   * @param destination destination path to which the source has to be moved
-   * @param tracingContext tracingContext for tracing the API calls
    * @param sourcePath source path which gets copied to the destination
+   * @param destination destination path to which the source has to be moved
    * @param srcBlobLeaseId leaseId of the srcBlob
+   * @param tracingContext tracingContext for tracing the API calls
    *
    * @throws AzureBlobFileSystemException exception in making server calls
    */
-  private void renameBlob(final Path destination,
-      final TracingContext tracingContext,
-      final Path sourcePath, final String srcBlobLeaseId) throws AzureBlobFileSystemException {
+  private void renameBlob(final Path sourcePath, final Path destination,
+      final String srcBlobLeaseId, final TracingContext tracingContext) throws AzureBlobFileSystemException {
     copyBlob(sourcePath, destination, srcBlobLeaseId, tracingContext);
     deleteBlob(sourcePath, srcBlobLeaseId, tracingContext);
   }
@@ -2278,10 +2280,12 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       public void redo(final Path destination, final Path src)
           throws AzureBlobFileSystemException {
 
-        ListBlobQueue listBlobQueue = new ListBlobQueue(null);
-        String listSrc = src.toUri().getPath() + (src.isRoot()
-            ? EMPTY_STRING
-            : FORWARD_SLASH);
+        ListBlobQueue listBlobQueue = new ListBlobQueue();
+        StringBuilder listSrcBuilder = new StringBuilder(src.toUri().getPath());
+        if (!src.isRoot()) {
+          listSrcBuilder.append(FORWARD_SLASH);
+        }
+        String listSrc = listSrcBuilder.toString();
         new ListBlobProducer(listSrc, client, listBlobQueue, null,
             tracingContext);
         BlobProperty srcBlobProperty = getBlobProperty(src, tracingContext);
@@ -2372,7 +2376,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       final boolean isSecure) {
     final URIBuilder uriBuilder = getURIBuilder(accountName, isSecure);
 
-    final String url = uriBuilder.toString() + FORWARD_SLASH
+    final String url = uriBuilder.toString() + AbfsHttpConstants.FORWARD_SLASH
         + fileSystemName;
     return url;
   }
@@ -2484,7 +2488,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
 
   private boolean isKeyForDirectorySet(String key, Set<String> dirSet) {
     for (String dir : dirSet) {
-      if (dir.isEmpty() || key.startsWith(dir + FORWARD_SLASH)) {
+      if (dir.isEmpty() || key.startsWith(dir + AbfsHttpConstants.FORWARD_SLASH)) {
         return true;
       }
 
