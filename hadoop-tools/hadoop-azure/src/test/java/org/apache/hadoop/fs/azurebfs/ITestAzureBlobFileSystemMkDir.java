@@ -20,6 +20,7 @@ package org.apache.hadoop.fs.azurebfs;
 
 import java.util.UUID;
 
+import org.apache.hadoop.fs.azurebfs.services.OperativeEndpoint;
 import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
 import org.junit.Assume;
 import org.junit.Test;
@@ -124,7 +125,7 @@ public class ITestAzureBlobFileSystemMkDir extends AbstractAbfsIntegrationTest {
     fs.mkdirs(dirPath);
 
     // One request to server for dfs and 2 for blob because child calls mkdir for parent.
-    if (getPrefixMode(fs) == PrefixMode.BLOB) {
+    if (!OperativeEndpoint.OperativeEndpointFallback.isMkdirEnabledOnDFS(getPrefixMode(fs), getAbfsStore(fs).getAbfsConfiguration(), true)) {
       mkdirRequestCount += 2;
     } else {
       mkdirRequestCount++;
@@ -140,7 +141,7 @@ public class ITestAzureBlobFileSystemMkDir extends AbstractAbfsIntegrationTest {
     fs.mkdirs(dirPath);
 
     // One request to server for dfs and 3 for blob because child calls mkdir for parent.
-    if (getPrefixMode(fs) == PrefixMode.BLOB) {
+    if (!OperativeEndpoint.OperativeEndpointFallback.isMkdirEnabledOnDFS(getPrefixMode(fs), getAbfsStore(fs).getAbfsConfiguration(), true)) {
       mkdirRequestCount += 3;
     } else {
       mkdirRequestCount++;

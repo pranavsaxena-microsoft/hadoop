@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Random;
 
+import org.apache.hadoop.fs.azurebfs.services.OperativeEndpoint;
 import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
 import org.junit.Test;
 
@@ -216,7 +217,7 @@ public class ITestAzureBlobFileSystemE2E extends AbstractAbfsIntegrationTest {
     assertFalse(fs.exists(testFilePath));
 
     // No call goes to backend for empty map in case of blob endpoint.
-    if (getPrefixMode(fs) == PrefixMode.DFS) {
+    if (OperativeEndpoint.OperativeEndpointFallback.isIngressEnabledOnDFS(getPrefixMode(fs), fs.getAbfsStore().getAbfsConfiguration())) {
       intercept(FileNotFoundException.class,
               () -> stream.close());
     } else {

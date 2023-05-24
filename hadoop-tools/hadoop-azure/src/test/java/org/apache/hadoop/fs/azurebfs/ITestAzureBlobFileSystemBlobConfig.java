@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Random;
 
+import org.apache.hadoop.fs.azurebfs.services.OperativeEndpoint;
 import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Test;
@@ -88,6 +89,7 @@ public class ITestAzureBlobFileSystemBlobConfig
       throws Exception {
     AzureBlobFileSystem fs = createFileSystemForEndpointConfigPair(
         FS_AZURE_ENABLE_BLOB_ENDPOINT, true, true);
+    Assume.assumeTrue(!OperativeEndpoint.OperativeEndpointFallback.isIngressEnabledOnDFS(getPrefixMode(fs), fs.getAbfsStore().getAbfsConfiguration()));
     AbfsClient client = Mockito.spy(fs.getAbfsClient());
     fs.getAbfsStore().setClient(client);
     fs.create(new Path("/tmp"));
@@ -99,6 +101,7 @@ public class ITestAzureBlobFileSystemBlobConfig
       throws Exception {
     AzureBlobFileSystem fs = createFileSystemForEndpointConfigPair(
         FS_AZURE_ENABLE_BLOB_ENDPOINT, true, false);
+    Assume.assumeTrue(!OperativeEndpoint.OperativeEndpointFallback.isIngressEnabledOnDFS(getPrefixMode(fs), fs.getAbfsStore().getAbfsConfiguration()));
     AbfsClient client = Mockito.spy(fs.getAbfsClient());
     fs.getAbfsStore().setClient(client);
     fs.create(new Path("/tmp"));
@@ -110,6 +113,7 @@ public class ITestAzureBlobFileSystemBlobConfig
       throws Exception {
     AzureBlobFileSystem fs = createFileSystemForEndpointConfigPair(
         FS_AZURE_ENABLE_BLOB_ENDPOINT, false, false);
+    Assume.assumeTrue(!OperativeEndpoint.OperativeEndpointFallback.isIngressEnabledOnDFS(getPrefixMode(fs), fs.getAbfsStore().getAbfsConfiguration()));
     AbfsClient client = Mockito.spy(fs.getAbfsClient());
     fs.getAbfsStore().setClient(client);
     fs.create(new Path("/tmp"));
@@ -121,6 +125,7 @@ public class ITestAzureBlobFileSystemBlobConfig
       throws Exception {
     AzureBlobFileSystem fs = createFileSystemForEndpointConfigPair(
         FS_AZURE_ENABLE_BLOB_ENDPOINT, null, false);
+    Assume.assumeTrue(!OperativeEndpoint.OperativeEndpointFallback.isIngressEnabledOnDFS(getPrefixMode(fs), fs.getAbfsStore().getAbfsConfiguration()));
     AbfsClient client = Mockito.spy(fs.getAbfsClient());
     fs.getAbfsStore().setClient(client);
     fs.create(new Path("/tmp"));
@@ -131,6 +136,7 @@ public class ITestAzureBlobFileSystemBlobConfig
   public void testBlobEndpointWithMkdirsOnDFS() throws Exception {
     AzureBlobFileSystem fs = createFileSystemForEndpointConfigPair(
         FS_AZURE_MKDIRS_FALLBACK_TO_DFS, true, false);
+    Assume.assumeTrue(!OperativeEndpoint.OperativeEndpointFallback.isIngressEnabledOnDFS(getPrefixMode(fs), fs.getAbfsStore().getAbfsConfiguration()));
     AbfsClient client = Mockito.spy(fs.getAbfsClient());
     fs.getAbfsStore().setClient(client);
     int[] dirCreatedOverDFSExecCount = new int[1];
@@ -149,6 +155,7 @@ public class ITestAzureBlobFileSystemBlobConfig
   public void testBlobEndpointWithMkdirsOnDfsNoOverride() throws Exception {
     AzureBlobFileSystem fs = createFileSystemForEndpointConfigPair(
         FS_AZURE_MKDIRS_FALLBACK_TO_DFS, false, false);
+    Assume.assumeTrue(!OperativeEndpoint.OperativeEndpointFallback.isIngressEnabledOnDFS(getPrefixMode(fs), fs.getAbfsStore().getAbfsConfiguration()));
     AbfsClient client = Mockito.spy(fs.getAbfsClient());
     fs.getAbfsStore().setClient(client);
     int[] dirCreatedOverBlobExecCount = new int[1];
@@ -686,7 +693,6 @@ public class ITestAzureBlobFileSystemBlobConfig
           url);
     } else {
       String url = getTestUrl();
-
       url = url.replace(ABFS_DNS_PREFIX, WASB_DNS_PREFIX);
       configuration.set(CommonConfigurationKeysPublic.FS_DEFAULT_NAME_KEY,
           url);

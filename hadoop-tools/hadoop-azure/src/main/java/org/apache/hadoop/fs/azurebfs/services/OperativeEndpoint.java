@@ -25,15 +25,13 @@ public class OperativeEndpoint {
             if (mode == PrefixMode.BLOB) {
                 boolean configEnabled = abfsConfiguration.shouldMkdirFallbackToDfs();
                 return configEnabled && isMarkerBlob;
-            }
-            return false;
+            }  else return mode == PrefixMode.DFS;
         }
 
         public static boolean isIngressEnabledOnDFS(PrefixMode mode, AbfsConfiguration abfsConfiguration) {
             if (mode == PrefixMode.BLOB) {
                 return abfsConfiguration.shouldIngressFallbackToDfs();
-            }
-            return false;
+            } else return mode == PrefixMode.DFS;
         }
     }
 }
