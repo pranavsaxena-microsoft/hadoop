@@ -23,7 +23,6 @@ import java.net.HttpURLConnection;
 
 import org.junit.Assert;
 import org.junit.Assume;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.mockito.Mockito;
 
@@ -35,7 +34,6 @@ import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 
 import static org.apache.hadoop.test.LambdaTestUtils.intercept;
 
-@Ignore
 public class ITestAzureBlobFileSystemExplictImplicitRename
     extends AbstractAbfsIntegrationTest {
 
