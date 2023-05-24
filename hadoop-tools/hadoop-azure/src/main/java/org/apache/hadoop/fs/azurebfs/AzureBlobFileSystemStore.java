@@ -1610,20 +1610,22 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     String listSrc = listSrcBuilder.toString();
 
     try {
-      if(!path.isRoot()) {
+      if (!path.isRoot()) {
         pathProperty = getBlobProperty(path, tracingContext);
       }
     } catch (AbfsRestOperationException ex) {
-      if(ex.getStatusCode() != HttpURLConnection.HTTP_NOT_FOUND) {
+      if (ex.getStatusCode() != HttpURLConnection.HTTP_NOT_FOUND) {
         throw ex;
       }
 
       BlobList blobList = client.getListBlobs(null, listSrc, null,
               tracingContext).getResult()
           .getBlobList();
-      if(blobList.getBlobPropertyList().size() == 0) {
+      if (blobList.getBlobPropertyList().size() == 0) {
         throw new AbfsRestOperationException(
-            ex.getStatusCode(), AzureServiceErrorCode.PATH_NOT_FOUND.getErrorCode(), ex.getErrorMessage(), ex);
+            ex.getStatusCode(),
+            AzureServiceErrorCode.PATH_NOT_FOUND.getErrorCode(),
+            ex.getErrorMessage(), ex);
       }
       String nextMarker = blobList.getNextMarker();
       listBlobQueue = new ListBlobQueue(blobList);
@@ -1643,12 +1645,33 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       pathProperty.setPath(path);
     }
 
+    /*
+     * ParentPath can be implicit. So, before deleting a path, check if the parentPath
+     * is implicit. If yes, there can be a chance where in path being deleted is the
+     * only child path of the parentPath. So, for implicit parentPath, createDirectory
+     * to be called for the parentPath before deleting.
+     */
+    if (!path.isRoot()) {
+      Path parentPath = path.getParent();
+      try {
+        getBlobProperty(parentPath, tracingContext);
+      } catch (AbfsRestOperationException ex) {
+        if (ex.getStatusCode() != HttpURLConnection.HTTP_NOT_FOUND) {
+          throw ex;
+        }
+        createDirectory(parentPath, null, FsPermission.getDirDefault(),
+            FsPermission.getUMask(
+                getAbfsConfiguration().getRawConfiguration()),
+            tracingContext);
+      }
+    }
+
     if (pathProperty != null && !pathProperty.getIsDirectory()) {
       deleteBlob(path, null, tracingContext);
       return;
     }
 
-    if(listBlobQueue == null) {
+    if (listBlobQueue == null) {
       listBlobQueue = new ListBlobQueue(null);
       new ListBlobProducer(listSrc, client,
           listBlobQueue, null, tracingContext);
@@ -1668,9 +1691,10 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       if (blobList == null) {
         continue;
       }
-      if(!recursive && blobList.getBlobPropertyList().size() > 0) {
+      if (!recursive && blobList.getBlobPropertyList().size() > 0) {
         throw new IOException(
-            "Non-recursive delete of non-empty directory " + (pathProperty != null ? pathProperty.getIsDirectory() : ""));
+            "Non-recursive delete of non-empty directory " + (
+                pathProperty != null ? pathProperty.getIsDirectory() : ""));
       }
       List<Future> futureList = new ArrayList<>();
       for (BlobProperty blobProperty : blobList.getBlobPropertyList()) {
@@ -1696,7 +1720,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         }
       }
     }
-    if(pathProperty != null) {
+    if (pathProperty != null) {
       client.deleteBlobPath(pathProperty.getPath(), null, tracingContext);
     }
   }
