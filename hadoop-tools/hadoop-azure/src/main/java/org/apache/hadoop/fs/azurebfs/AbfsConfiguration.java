@@ -249,6 +249,10 @@ public class AbfsConfiguration{
       DefaultValue = 0)
   private int blobDirRenameMaxThread;
 
+  @IntegerConfigurationValidatorAnnotation(ConfigurationKey = FS_AZURE_BLOB_DIR_DELETE_MAX_THREAD,
+      DefaultValue = 0)
+  private int blobDirDeleteMaxThread;
+
   @LongConfigurationValidatorAnnotation(ConfigurationKey = FS_AZURE_BLOB_COPY_PROGRESS_POLL_WAIT_MILLIS,
       DefaultValue = 1_000L)
   private long blobCopyProgressPollWaitMillis;
@@ -1108,6 +1112,10 @@ public class AbfsConfiguration{
 
   public int getBlobDirRenameMaxThread() {
     return blobDirRenameMaxThread;
+  }
+
+  public int getBlobDirDeleteMaxThread() {
+    return blobDirDeleteMaxThread;
   }
 
   public long getBlobCopyProgressPollWaitMillis() {

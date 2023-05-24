@@ -306,7 +306,14 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       renameBlobExecutorService = Executors.newFixedThreadPool(
           abfsConfiguration.getBlobDirRenameMaxThread());
     }
-    deleteBlobExecutorService = Executors.newFixedThreadPool(5);//TODO: config
+    if (abfsConfiguration.getBlobDirDeleteMaxThread() == 0) {
+      deleteBlobExecutorService = Executors.newFixedThreadPool(
+          Runtime.getRuntime()
+              .availableProcessors());
+    } else {
+      deleteBlobExecutorService = Executors.newFixedThreadPool(
+          abfsConfiguration.getBlobDirDeleteMaxThread());
+    }
   }
 
   /**
@@ -1595,9 +1602,12 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     /*
      * Fetch the list of blobs in the given sourcePath.
      */
-    String listSrc = path.toUri().getPath() + (path.isRoot()
-        ? EMPTY_STRING
-        : FORWARD_SLASH);
+    StringBuilder listSrcBuilder = new StringBuilder();
+    listSrcBuilder.append(path.toUri().getPath());
+    if (!path.isRoot()) {
+      listSrcBuilder.append(FORWARD_SLASH);
+    }
+    String listSrc = listSrcBuilder.toString();
 
     try {
       if(!path.isRoot()) {
