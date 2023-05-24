@@ -752,7 +752,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
   /**
    * User-Defined Properties over blob endpoint are actually response headers
    * with prefix "x-ms-meta-". Each property is a different response header.
-   * This parses all the headers and create a hashmap.
+   * This parses all the headers, removes the prefix and create a hashmap.
    * @param result AbfsHttpOperation result containing response headers.
    * @return Hashmap defining user defined metadata.
    */
@@ -767,7 +767,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
 
       if (name != null && name.startsWith(X_MS_METADATA_PREFIX)) {
         value = entry.getValue().get(0);
-        metadata.put(name, value);
+        metadata.put(name.substring(X_MS_METADATA_PREFIX.length()), value);
       }
     }
     return metadata;
@@ -776,7 +776,8 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
   /**
    * User-defined properties over blob endpoint are required to be set
    * as request header with prefix "x-ms-meta-". Each property need to be made
-   * into a different request header.
+   * into a different request header. This parses all the properties, add prefix
+   * and create request headers.
    * @param metadata Hashmap
    * @return List of request headers to be passed with API call.
    */
@@ -784,7 +785,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     final List<AbfsHttpHeader> headers = new ArrayList<AbfsHttpHeader>();
 
     for(Map.Entry<String,String> entry : metadata.entrySet()) {
-      headers.add(new AbfsHttpHeader(entry.getKey(), entry.getValue()));
+      headers.add(new AbfsHttpHeader(X_MS_METADATA_PREFIX + entry.getKey(), entry.getValue()));
     }
     return headers;
   }

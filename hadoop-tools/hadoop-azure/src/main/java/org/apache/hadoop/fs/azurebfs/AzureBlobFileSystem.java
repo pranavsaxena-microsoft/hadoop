@@ -1279,7 +1279,6 @@ public class AzureBlobFileSystem extends FileSystem
 
       if (abfsStore.getPrefixMode() == PrefixMode.BLOB) {
         properties = abfsStore.getBlobMetadata(qualifiedPath, tracingContext);
-        xAttrName = X_MS_METADATA_PREFIX + xAttrName;
 
         boolean xAttrExists = properties.containsKey(xAttrName);
         XAttrSetFlag.validate(name, xAttrExists, flag);
@@ -1336,7 +1335,6 @@ public class AzureBlobFileSystem extends FileSystem
 
       if (abfsStore.getPrefixMode() == PrefixMode.BLOB) {
         properties = abfsStore.getBlobMetadata(qualifiedPath, tracingContext);
-        xAttrName = X_MS_METADATA_PREFIX + xAttrName;
         if (properties.containsKey(xAttrName)) {
           String xAttrValue = properties.get(xAttrName);
           return decodeMetadataAttribute(xAttrValue).getBytes(
