@@ -1295,7 +1295,6 @@ public class AbfsClient implements Closeable {
   public AbfsRestOperation getBlobMetadata(Path blobPath,
       TracingContext tracingContext) throws AzureBlobFileSystemException {
     final List<AbfsHttpHeader> requestHeaders = createDefaultHeaders();
-
     AbfsUriQueryBuilder abfsUriQueryBuilder = createDefaultUriQueryBuilder();
     abfsUriQueryBuilder.addQuery(QUERY_PARAM_COMP, QUERY_PARAM_INCLUDE_VALUE_METADATA);
 
@@ -1325,8 +1324,8 @@ public class AbfsClient implements Closeable {
    */
   public AbfsRestOperation setBlobMetadata(Path blobPath, List<AbfsHttpHeader> metadataRequestHeaders,
       TracingContext tracingContext) throws AzureBlobFileSystemException {
+    // Request Header for this call will also contain metadata headers
     final List<AbfsHttpHeader> defaultRequestHeaders = createDefaultHeaders();
-
     final List<AbfsHttpHeader> requestHeaders = new ArrayList<AbfsHttpHeader>();
     requestHeaders.addAll(defaultRequestHeaders);
     requestHeaders.addAll(metadataRequestHeaders);

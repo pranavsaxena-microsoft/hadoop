@@ -28,8 +28,6 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.net.URLDecoder;
-import java.net.URLEncoder;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.CharacterCodingException;
@@ -691,8 +689,8 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
 
       AbfsRestOperation op = client.getContainerProperty(tracingContext);
       perfInfo.registerResult(op.getResult()).registerSuccess(true);
-      BlobProperty blobProperty = new BlobProperty();
 
+      BlobProperty blobProperty = new BlobProperty();
       blobProperty.setIsDirectory(true);
       blobProperty.setPath(new Path("/"));
 
@@ -713,11 +711,11 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       LOG.debug("getBlobMetadata for filesystem: {} path: {}",
           client.getFileSystem(),
           path);
-      final Hashtable<String, String> metadata;
+
       final AbfsRestOperation op = client.getBlobMetadata(path, tracingContext);
       perfInfo.registerResult(op.getResult()).registerSuccess(true);
 
-      metadata = parseResponseHeadersToHashTable(op.getResult());
+      final Hashtable<String, String> metadata = parseResponseHeadersToHashTable(op.getResult());
       return metadata;
     }
   }
@@ -733,17 +731,14 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       final Hashtable<String, String> metadata, TracingContext tracingContext)
       throws AzureBlobFileSystemException {
     try (AbfsPerfInfo perfInfo = startTracking("setBlobMetadata", "setBlobMetadata")) {
-
       LOG.debug("setBlobMetadata for filesystem: {} path: {} with properties: {}",
           client.getFileSystem(),
           path,
           metadata);
 
       final List<AbfsHttpHeader> metadataRequestHeaders = getRequestHeadersForMetadata(metadata);
-
-      final AbfsRestOperation op = client
-          .setBlobMetadata(path, metadataRequestHeaders,
-              tracingContext);
+      final AbfsRestOperation op = client.setBlobMetadata(
+          path, metadataRequestHeaders, tracingContext);
 
       perfInfo.registerResult(op.getResult()).registerSuccess(true);
     }

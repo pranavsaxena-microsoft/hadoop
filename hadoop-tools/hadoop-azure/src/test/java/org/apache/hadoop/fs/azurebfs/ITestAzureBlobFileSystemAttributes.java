@@ -22,19 +22,13 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.EnumSet;
-import java.util.Hashtable;
 
-import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Test;
-import org.mockito.Mockito;
 
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.XAttrSetFlag;
-import org.apache.hadoop.fs.azurebfs.constants.FSOperationType;
 import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
-import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
-import org.apache.hadoop.fs.azurebfs.utils.TracingHeaderValidator;
 
 import static org.apache.hadoop.test.LambdaTestUtils.intercept;
 
