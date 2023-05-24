@@ -1337,18 +1337,18 @@ public class AzureBlobFileSystem extends FileSystem
       if (abfsStore.getPrefixMode() == PrefixMode.BLOB) {
         properties = abfsStore.getBlobMetadata(qualifiedPath, tracingContext);
         xAttrName = X_MS_METADATA_PREFIX + xAttrName;
+        if (properties.containsKey(xAttrName)) {
+          String xAttrValue = properties.get(xAttrName);
+          return decodeMetadataAttribute(xAttrValue).getBytes(
+              StandardCharsets.UTF_8);
+        }
       }
-      else {
-        properties = abfsStore.getPathStatus(qualifiedPath, tracingContext);
-      }
+
+      properties = abfsStore.getPathStatus(qualifiedPath, tracingContext);
 
       if (properties.containsKey(xAttrName)) {
         String xAttrValue = properties.get(xAttrName);
-        // On Blob Endpoint Each Metadata is a response header Which needs to be url decoded.
-        value = abfsStore.getPrefixMode() == PrefixMode.BLOB
-            ? decodeMetadataAttribute(xAttrValue).getBytes(
-            StandardCharsets.UTF_8)
-            : abfsStore.encodeAttribute(xAttrValue);
+        value = abfsStore.encodeAttribute(xAttrValue);
       }
     } catch (AzureBlobFileSystemException ex) {
       checkException(path, ex);

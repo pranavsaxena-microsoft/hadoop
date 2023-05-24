@@ -370,7 +370,6 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     return new String(value, XMS_PROPERTIES_ENCODING);
   }
 
-
   private String[] authorityParts(URI uri) throws InvalidUriAuthorityException, InvalidUriException {
     final String authority = uri.getRawAuthority();
     if (null == authority) {
@@ -687,11 +686,12 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
   BlobProperty getContainerProperty(TracingContext tracingContext)
       throws AzureBlobFileSystemException {
     try (AbfsPerfInfo perfInfo = startTracking("getContainerProperty", "getContainerProperty")) {
+      LOG.debug("getContainerProperty for filesystem: {} path: {}",
+          client.getFileSystem());
+
       AbfsRestOperation op = client.getContainerProperty(tracingContext);
       perfInfo.registerResult(op.getResult()).registerSuccess(true);
       BlobProperty blobProperty = new BlobProperty();
-
-      final AbfsHttpOperation opResult = op.getResult();
 
       blobProperty.setIsDirectory(true);
       blobProperty.setPath(new Path("/"));
@@ -710,7 +710,9 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
   public Hashtable<String, String> getBlobMetadata(final Path path,
       TracingContext tracingContext) throws AzureBlobFileSystemException {
     try (AbfsPerfInfo perfInfo = startTracking("getBlobMetadata", "getBlobMetadata")) {
-
+      LOG.debug("getBlobMetadata for filesystem: {} path: {}",
+          client.getFileSystem(),
+          path);
       final Hashtable<String, String> metadata;
       final AbfsRestOperation op = client.getBlobMetadata(path, tracingContext);
       perfInfo.registerResult(op.getResult()).registerSuccess(true);

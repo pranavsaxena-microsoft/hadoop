@@ -1285,6 +1285,13 @@ public class AbfsClient implements Closeable {
     return op;
   }
 
+  /**
+   * Gets user-defined properties(metadata) of the blob over blob endpoint.
+   * @param blobPath
+   * @param tracingContext
+   * @return the user-defined properties on blob path
+   * @throws AzureBlobFileSystemException
+   */
   public AbfsRestOperation getBlobMetadata(Path blobPath,
       TracingContext tracingContext) throws AzureBlobFileSystemException {
     final List<AbfsHttpHeader> requestHeaders = createDefaultHeaders();
@@ -1309,6 +1316,13 @@ public class AbfsClient implements Closeable {
     return op;
   }
 
+  /**
+   * Sets user-defined properties(metadata) of the blob over blob endpoint.
+   * @param blobPath
+   * @param metadataRequestHeaders
+   * @param tracingContext
+   * @throws AzureBlobFileSystemException
+   */
   public AbfsRestOperation setBlobMetadata(Path blobPath, List<AbfsHttpHeader> metadataRequestHeaders,
       TracingContext tracingContext) throws AzureBlobFileSystemException {
     final List<AbfsHttpHeader> defaultRequestHeaders = createDefaultHeaders();
