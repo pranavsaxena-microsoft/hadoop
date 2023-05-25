@@ -1219,6 +1219,13 @@ public class ITestAzureBlobFileSystemCreate extends
         .when(mockClient)
         .getPathStatus(any(String.class), eq(false), any(TracingContext.class));
 
+    doThrow(fileNotFoundResponseEx) // Scn1: GFS fails with Http404
+            .doThrow(serverErrorResponseEx) // Scn2: GFS fails with Http500
+            .doReturn(successOp) // Scn3: create overwrite=true fails with Http412
+            .doReturn(successOp) // Scn4: create overwrite=true fails with Http500
+            .when(mockClient)
+            .getBlobProperty(any(Path.class), any(TracingContext.class));
+
     // mock for overwrite=true
     doThrow(
         preConditionResponseEx) // Scn3: create overwrite=true fails with Http412
@@ -1365,7 +1372,7 @@ public class ITestAzureBlobFileSystemCreate extends
     final AzureBlobFileSystem fs = getFileSystem();
     final AbfsClient client = fs.getAbfsClient();
     final TracingContext testTracingContext = getTestTracingContext(fs, false);
-    AbfsRestOperation op = client.getPathStatus(fileName, true, testTracingContext);
+    AbfsRestOperation op = client.getBlobProperty(new Path(fileName), testTracingContext);
     return AzureBlobFileSystemStore.extractEtagHeader(op.getResult());
   }
 }

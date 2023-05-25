@@ -918,7 +918,11 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       if (e.getStatusCode() == HTTP_CONFLICT) {
         // File pre-exists, fetch eTag
         try {
-          op = client.getPathStatus(relativePath, false, tracingContext);
+          if (getPrefixMode() == PrefixMode.BLOB) {
+            op = client.getBlobProperty(new Path(relativePath), tracingContext);
+          } else {
+            op = client.getPathStatus(relativePath, false, tracingContext);
+          }
         } catch (AbfsRestOperationException ex) {
           if (ex.getStatusCode() == HttpURLConnection.HTTP_NOT_FOUND) {
             // Is a parallel access case, as file which was found to be
@@ -1175,14 +1179,24 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
 
       String relativePath = getRelativePath(path);
 
-      final AbfsRestOperation op = client
-          .getPathStatus(relativePath, false, tracingContext);
+      final AbfsRestOperation op;
+      if (getPrefixMode() == PrefixMode.BLOB) {
+        op = client.getBlobProperty(path, tracingContext);
+      } else {
+        op = client.getPathStatus(relativePath, false, tracingContext);
+      }
       perfInfo.registerResult(op.getResult());
 
       final String resourceType = op.getResult().getResponseHeader(HttpHeaderConfigurations.X_MS_RESOURCE_TYPE);
       final Long contentLength = Long.valueOf(op.getResult().getResponseHeader(HttpHeaderConfigurations.CONTENT_LENGTH));
 
-      if (parseIsDirectory(resourceType)) {
+      boolean isDirectory;
+      if (getPrefixMode() == PrefixMode.BLOB) {
+        isDirectory = op.getResult().getResponseHeader(X_MS_META_HDI_ISFOLDER) != null;
+      } else {
+        isDirectory = parseIsDirectory(resourceType);
+      }
+      if (isDirectory) {
         throw new AbfsRestOperationException(
                 AzureServiceErrorCode.PATH_NOT_FOUND.getStatusCode(),
                 AzureServiceErrorCode.PATH_NOT_FOUND.getErrorCode(),
@@ -1522,7 +1536,11 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         }
       } else {
         perfInfo.registerCallee("getPathStatus");
-        op = client.getPathStatus(getRelativePath(path), false, tracingContext);
+        if (getPrefixMode() == PrefixMode.BLOB) {
+          op = client.getBlobProperty(path, tracingContext);
+        } else {
+          op = client.getPathStatus(getRelativePath(path), false, tracingContext);
+        }
       }
 
       perfInfo.registerResult(op.getResult());
@@ -1541,7 +1559,11 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         resourceIsDir = true;
       } else {
         contentLength = parseContentLength(result.getResponseHeader(HttpHeaderConfigurations.CONTENT_LENGTH));
-        resourceIsDir = parseIsDirectory(result.getResponseHeader(HttpHeaderConfigurations.X_MS_RESOURCE_TYPE));
+        if (getPrefixMode() == PrefixMode.BLOB) {
+          resourceIsDir = result.getResponseHeader(X_MS_META_HDI_ISFOLDER) != null;
+        } else {
+          resourceIsDir = parseIsDirectory(result.getResponseHeader(HttpHeaderConfigurations.X_MS_RESOURCE_TYPE));
+        }
       }
 
       final String transformedOwner = identityTransformer.transformIdentityForGetRequest(
