@@ -1372,7 +1372,12 @@ public class ITestAzureBlobFileSystemCreate extends
     final AzureBlobFileSystem fs = getFileSystem();
     final AbfsClient client = fs.getAbfsClient();
     final TracingContext testTracingContext = getTestTracingContext(fs, false);
-    AbfsRestOperation op = client.getBlobProperty(new Path(fileName), testTracingContext);
+    AbfsRestOperation op;
+    if (fs.getAbfsStore().getPrefixMode() == PrefixMode.BLOB) {
+      op = client.getBlobProperty(new Path(fileName), testTracingContext);
+    } else {
+      op = client.getPathStatus(fileName, true, testTracingContext);
+    }
     return AzureBlobFileSystemStore.extractEtagHeader(op.getResult());
   }
 }
