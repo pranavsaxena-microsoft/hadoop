@@ -1003,10 +1003,17 @@ public class AzureBlobFileSystem extends FileSystem
     LOG.debug("AzureBlobFileSystem.getFileStatus path: {}", path);
     statIncrement(CALL_GET_FILE_STATUS);
     Path qualifiedPath = makeQualified(path);
+    FileStatus fileStatus;
 
     try {
-      FileStatus fileStatus = abfsStore.getFileStatus(qualifiedPath,
-          tracingContext);
+      if (abfsStore.getPrefixMode() == PrefixMode.BLOB) {
+        fileStatus = abfsStore.getFileStatusOverBlob(qualifiedPath,
+            tracingContext);
+      }
+      else {
+        fileStatus = abfsStore.getFileStatus(qualifiedPath,
+            tracingContext);
+      }
       if (getAbfsStore().getAbfsConfiguration().getPrefixMode()
           == PrefixMode.BLOB && fileStatus != null && fileStatus.isDirectory()
           &&

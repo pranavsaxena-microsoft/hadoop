@@ -1667,6 +1667,68 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     }
   }
 
+  public FileStatus getFileStatusOverBlob(final Path path,
+      TracingContext tracingContext) throws IOException {
+    try (AbfsPerfInfo perfInfo = startTracking("getFileStatus", "undetermined")) {
+      LOG.debug("getFileStatus filesystem call over blob endpoint: {} path: {}",
+          client.getFileSystem(),
+          path);
+
+      final AbfsRestOperation op;
+      if (path.isRoot()) {
+        perfInfo.registerCallee("getContainerProperties");
+        op = client.getContainerProperty(tracingContext);
+      } else {
+        perfInfo.registerCallee("getBlobProperty");
+        op = client.getBlobProperty(path, tracingContext);
+      }
+
+      perfInfo.registerResult(op.getResult());
+      final long blockSize = abfsConfiguration.getAzureBlockSize();
+      final AbfsHttpOperation result = op.getResult();
+
+      String eTag = extractEtagHeader(result);
+      final String lastModified = result.getResponseHeader(HttpHeaderConfigurations.LAST_MODIFIED);
+      final long contentLength;
+      final boolean resourceIsDir;
+
+      if (path.isRoot()) {
+        contentLength = 0;
+        resourceIsDir = true;
+      } else {
+        contentLength = parseContentLength(result.getResponseHeader(
+            HttpHeaderConfigurations.CONTENT_LENGTH));
+        resourceIsDir = result.getResponseHeader(
+            X_MS_META_HDI_ISFOLDER) != null;
+      }
+
+      final String transformedOwner = identityTransformer.transformIdentityForGetRequest(
+          result.getResponseHeader(HttpHeaderConfigurations.X_MS_OWNER),
+          true,
+          userName);
+
+      final String transformedGroup = identityTransformer.transformIdentityForGetRequest(
+          result.getResponseHeader(HttpHeaderConfigurations.X_MS_GROUP),
+          false,
+          primaryUserGroup);
+
+      perfInfo.registerSuccess(true);
+
+      return new VersionedFileStatus(
+          transformedOwner,
+          transformedGroup,
+          new AbfsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL),
+          false,
+          contentLength,
+          resourceIsDir,
+          1,
+          blockSize,
+          DateTimeUtils.parseLastModifiedTime(lastModified),
+          path,
+          eTag);
+    }
+  }
+
   /**
    * @param path The list path.
    * @param tracingContext Tracks identifiers for request header
