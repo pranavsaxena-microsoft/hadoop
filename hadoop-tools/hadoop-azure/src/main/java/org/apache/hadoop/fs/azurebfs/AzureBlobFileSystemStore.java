@@ -1727,6 +1727,30 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
           path,
           eTag);
     }
+    catch (AbfsRestOperationException ex) {
+      if (ex.getStatusCode() == HttpURLConnection.HTTP_NOT_FOUND) {
+        List<BlobProperty> blobProperties = getListBlobs(path,null, tracingContext, 2, true);
+        if (blobProperties.size() == 0) {
+          throw ex;
+        }
+        else {
+          return new VersionedFileStatus(
+              userName,
+              primaryUserGroup,
+              new AbfsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL),
+              false,
+              0L,
+              true,
+              1,
+              abfsConfiguration.getAzureBlockSize(),
+              DateTimeUtils.parseLastModifiedTime(null),
+              path,
+              null);
+        }
+      }
+    }
+
+    return null;
   }
 
   /**
