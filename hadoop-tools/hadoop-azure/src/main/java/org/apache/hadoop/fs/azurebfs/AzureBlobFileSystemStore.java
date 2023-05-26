@@ -1536,11 +1536,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         }
       } else {
         perfInfo.registerCallee("getPathStatus");
-        if (getPrefixMode() == PrefixMode.BLOB) {
-          op = client.getBlobProperty(path, tracingContext);
-        } else {
-          op = client.getPathStatus(getRelativePath(path), false, tracingContext);
-        }
+        op = client.getPathStatus(getRelativePath(path), false, tracingContext);
       }
 
       perfInfo.registerResult(op.getResult());
@@ -1559,11 +1555,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         resourceIsDir = true;
       } else {
         contentLength = parseContentLength(result.getResponseHeader(HttpHeaderConfigurations.CONTENT_LENGTH));
-        if (getPrefixMode() == PrefixMode.BLOB) {
-          resourceIsDir = result.getResponseHeader(X_MS_META_HDI_ISFOLDER) != null;
-        } else {
-          resourceIsDir = parseIsDirectory(result.getResponseHeader(HttpHeaderConfigurations.X_MS_RESOURCE_TYPE));
-        }
+        resourceIsDir = parseIsDirectory(result.getResponseHeader(HttpHeaderConfigurations.X_MS_RESOURCE_TYPE));
       }
 
       final String transformedOwner = identityTransformer.transformIdentityForGetRequest(
