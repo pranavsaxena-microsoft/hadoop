@@ -1734,6 +1734,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
           throw ex;
         }
         else {
+          // TODO: return properties of first child blob here like in wasb after listFileStatus is implemented over blob
           return new VersionedFileStatus(
               userName,
               primaryUserGroup,
@@ -1748,9 +1749,10 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
               null);
         }
       }
+      else {
+        throw ex;
+      }
     }
-
-    return null;
   }
 
   /**
