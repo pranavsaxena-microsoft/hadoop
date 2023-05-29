@@ -36,6 +36,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemException;
 import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
 import org.apache.hadoop.fs.azurebfs.services.AbfsOutputStream;
+import org.apache.hadoop.fs.azurebfs.services.OperativeEndpoint;
 import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
 import org.apache.hadoop.fs.azurebfs.services.TestAbfsClient;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
@@ -188,8 +189,7 @@ public class ITestAzureBlobFileSystemAppend extends
   @Test(expected = IOException.class)
   public void testRecreateAppendAndFlush() throws IOException {
     final AzureBlobFileSystem fs = getFileSystem();
-    Assume.assumeTrue(fs.getAbfsStore().getAbfsConfiguration().getPrefixMode() == PrefixMode.BLOB);
-    Assume.assumeTrue(!fs.getAbfsStore().getAbfsConfiguration().shouldIngressFallbackToDfs());
+    Assume.assumeTrue(!OperativeEndpoint.isIngressEnabledOnDFS(getPrefixMode(fs), getAbfsStore(fs).getAbfsConfiguration()));
     fs.create(TEST_FILE_PATH);
     FSDataOutputStream outputStream = fs.append(TEST_FILE_PATH);
     outputStream.write(10);
@@ -427,9 +427,9 @@ public class ITestAzureBlobFileSystemAppend extends
    **/
   @Test
   public void testParallelWriteOutputStreamClose() throws Exception {
-    Assume.assumeTrue(getFileSystem().getAbfsStore().getPrefixMode() == PrefixMode.BLOB);
-    final Path SECONDARY_FILE_PATH = new Path("secondarytestfile");
     AzureBlobFileSystem fs = getFileSystem();
+    Assume.assumeTrue(!OperativeEndpoint.isIngressEnabledOnDFS(getPrefixMode(fs), getAbfsStore(fs).getAbfsConfiguration()));
+    final Path SECONDARY_FILE_PATH = new Path("secondarytestfile");
     ExecutorService executorService = Executors.newFixedThreadPool(2);
     List<Future<?>> futures = new ArrayList<>();
 
@@ -510,8 +510,8 @@ public class ITestAzureBlobFileSystemAppend extends
    **/
   @Test
   public void testEtagMismatch() throws Exception {
-    Assume.assumeTrue(getFileSystem().getAbfsStore().getPrefixMode() == PrefixMode.BLOB);
     AzureBlobFileSystem fs = getFileSystem();
+    Assume.assumeTrue(!OperativeEndpoint.isIngressEnabledOnDFS(getPrefixMode(fs), getAbfsStore(fs).getAbfsConfiguration()));
     FSDataOutputStream out1 = fs.create(TEST_FILE_PATH);
     FSDataOutputStream out2 = fs.create(TEST_FILE_PATH);
 
@@ -549,8 +549,8 @@ public class ITestAzureBlobFileSystemAppend extends
    **/
   @Test
   public void testNoNetworkCallsForSecondFlush() throws Exception {
-    Assume.assumeTrue(getFileSystem().getAbfsStore().getPrefixMode() == PrefixMode.BLOB);
     AzureBlobFileSystem fs = Mockito.spy(getFileSystem());
+    Assume.assumeTrue(!OperativeEndpoint.isIngressEnabledOnDFS(getPrefixMode(fs), getAbfsStore(fs).getAbfsConfiguration()));
     AzureBlobFileSystemStore store = Mockito.spy(fs.getAbfsStore());
     Mockito.doReturn(store).when(fs).getAbfsStore();
     AbfsClient client = store.getClient();

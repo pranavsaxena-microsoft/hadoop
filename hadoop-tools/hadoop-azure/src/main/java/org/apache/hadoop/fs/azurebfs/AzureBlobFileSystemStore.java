@@ -60,6 +60,7 @@ import org.apache.hadoop.classification.VisibleForTesting;
 
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.InvalidConfigurationValueException;
 import org.apache.hadoop.fs.azurebfs.enums.BlobCopyProgress;
+import org.apache.hadoop.fs.azurebfs.services.OperativeEndpoint;
 import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
 import org.apache.hadoop.fs.azurebfs.services.BlobList;
 import org.apache.hadoop.fs.azurebfs.services.BlobProperty;
@@ -784,15 +785,15 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     AbfsRestOperation op;
     if (!isNormalBlob) {
       // Marker blob creation flow.
-      if (getPrefixMode() == PrefixMode.DFS || abfsConfiguration.shouldMkdirFallbackToDfs()) {
+      if (OperativeEndpoint.isMkdirEnabledOnDFS(getPrefixMode(), abfsConfiguration)) {
         // Marker blob creation is not possible with dfs endpoint.
         throw new InvalidConfigurationValueException("Incorrect flow for create directory for dfs is hit " + relativePath);
       } else {
         op = createPathBlob(relativePath, false, overwrite, metadata, eTag, tracingContext);
       }
     } else {
-      // Normal blob creation flow. If config for fallback is not enabled and prefix mode is blob got to blob, else go to dfs.
-      if (getPrefixMode() == PrefixMode.BLOB && !abfsConfiguration.shouldIngressFallbackToDfs()) {
+      // Normal blob creation flow. If config for fallback is not enabled and prefix mode is blob go to blob, else go to dfs.
+      if (!OperativeEndpoint.isIngressEnabledOnDFS(getPrefixMode(), abfsConfiguration)) {
         op = createPathBlob(relativePath, true, overwrite, metadata, eTag, tracingContext);
       } else {
         op = createPath(relativePath, true, overwrite, isNamespaceEnabled ? getOctalNotation(permission) : null,
@@ -1014,7 +1015,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       final FsPermission umask, TracingContext tracingContext)
           throws IOException {
     try (AbfsPerfInfo perfInfo = startTracking("createDirectory", "createPath")) {
-      if (!abfsConfiguration.shouldMkdirFallbackToDfs() && getAbfsConfiguration().getPrefixMode() == PrefixMode.BLOB) {
+      if (!OperativeEndpoint.isMkdirEnabledOnDFS(getPrefixMode(), abfsConfiguration)) {
         ArrayList<Path> keysToCreateAsFolder = new ArrayList<>();
         checkParentChainForFile(path, tracingContext, keysToCreateAsFolder);
         boolean blobOverwrite = abfsConfiguration.isEnabledBlobMkdirOverwrite();
@@ -1431,8 +1432,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
   }
 
   private Boolean isCreateOperationOnBlobEndpoint() {
-    return getAbfsConfiguration().getPrefixMode() == PrefixMode.BLOB
-        && !getAbfsConfiguration().shouldIngressFallbackToDfs();
+    return !OperativeEndpoint.isIngressEnabledOnDFS(prefixMode, abfsConfiguration);
   }
 
   /**
