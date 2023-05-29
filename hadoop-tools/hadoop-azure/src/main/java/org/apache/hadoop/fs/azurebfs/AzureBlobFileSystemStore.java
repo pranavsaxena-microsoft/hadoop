@@ -143,6 +143,7 @@ import org.apache.hadoop.util.SemaphoredDelegatingExecutor;
 import org.apache.hadoop.util.concurrent.HadoopExecutors;
 import org.apache.http.client.utils.URIBuilder;
 
+import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.FORWARD_SLASH;
 import static org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations.X_MS_METADATA_PREFIX;
 import static org.apache.hadoop.fs.azurebfs.services.RenameAtomicityUtils.SUFFIX;
 import static java.net.HttpURLConnection.HTTP_CONFLICT;
@@ -692,7 +693,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
 
       BlobProperty blobProperty = new BlobProperty();
       blobProperty.setIsDirectory(true);
-      blobProperty.setPath(new Path("/"));
+      blobProperty.setPath(new Path(FORWARD_SLASH));
 
       return blobProperty;
     }
@@ -702,7 +703,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
    * Gets user-defined properties(metadata) of the blob over blob endpoint.
    * @param path
    * @param tracingContext
-   * @return
+   * @return hashmap containing key value pairs for blob metadata
    * @throws AzureBlobFileSystemException
    */
   public Hashtable<String, String> getBlobMetadata(final Path path,
