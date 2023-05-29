@@ -405,12 +405,21 @@ public class AbfsConfiguration{
           DefaultValue = DEFAULT_FS_AZURE_INGRESS_FALLBACK_TO_DFS)
   private boolean ingressFallbackToDfs;
 
+  @BooleanConfigurationValidatorAnnotation(
+          ConfigurationKey = FS_AZURE_READ_FALLBACK_TO_DFS,
+          DefaultValue = DEFAULT_AZURE_READ_FALLBACK_TO_DFS)
+  private boolean readFallbackToDfs;
+
   public boolean shouldMkdirFallbackToDfs() {
     return mkdirFallbackToDfs;
   }
 
   public boolean shouldIngressFallbackToDfs() {
     return ingressFallbackToDfs;
+  }
+
+  public boolean shouldReadFallbackToDfs() {
+    return readFallbackToDfs;
   }
 
   /**
