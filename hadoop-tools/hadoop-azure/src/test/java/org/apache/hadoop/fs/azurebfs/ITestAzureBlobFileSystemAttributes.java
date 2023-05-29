@@ -65,9 +65,10 @@ public class ITestAzureBlobFileSystemAttributes extends AbstractAbfsIntegrationT
     if(fs.getAbfsStore().getPrefixMode() == PrefixMode.BLOB) {
       Assume.assumeTrue(!getIsNamespaceEnabled(fs)); // Blob endpoint Currently Supports FNS only
       decodedAttributeValue1 = "hi";
-      decodedAttributeValue2 = "Блюз"; //Блюз //你好
-      attributeValue1 = decodedAttributeValue1.getBytes(StandardCharsets.UTF_8);
-      attributeValue2 = decodedAttributeValue2.getBytes(StandardCharsets.UTF_8);
+      decodedAttributeValue2 = "hello"; //Блюз //你好
+      // TODO: Modify them to unicode characters when support is added
+      attributeValue1 = fs.getAbfsStore().encodeAttribute(decodedAttributeValue1);
+      attributeValue2 = fs.getAbfsStore().encodeAttribute(decodedAttributeValue2);
     }
     else {
       decodedAttributeValue1 = "hi";
@@ -116,7 +117,8 @@ public class ITestAzureBlobFileSystemAttributes extends AbstractAbfsIntegrationT
 
     if(fs.getAbfsStore().getPrefixMode() == PrefixMode.BLOB) {
       Assume.assumeTrue(!getIsNamespaceEnabled(fs));
-      attributeValue1 = "hi".getBytes(StandardCharsets.UTF_8);
+      // TODO: Modify them to unicode characters when support is added
+      attributeValue1 = fs.getAbfsStore().encodeAttribute("hi");
     }
     else {
       attributeValue1 = fs.getAbfsStore().encodeAttribute("hi");
@@ -155,7 +157,8 @@ public class ITestAzureBlobFileSystemAttributes extends AbstractAbfsIntegrationT
 
     if(fs.getAbfsStore().getPrefixMode() == PrefixMode.BLOB) {
       Assume.assumeTrue(!getIsNamespaceEnabled(fs));
-      attributeValue1 = "hi".getBytes(StandardCharsets.UTF_8);
+      // TODO: Modify them to unicode characters when support is added
+      attributeValue1 = fs.getAbfsStore().encodeAttribute("hi");
     }
     else {
       attributeValue1 = fs.getAbfsStore().encodeAttribute("hi");

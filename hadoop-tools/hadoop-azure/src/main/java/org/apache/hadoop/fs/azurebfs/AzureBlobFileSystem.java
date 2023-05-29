@@ -1342,9 +1342,10 @@ public class AzureBlobFileSystem extends FileSystem
         properties = abfsStore.getBlobMetadata(qualifiedPath, tracingContext);
         if (properties.containsKey(xAttrName)) {
           String xAttrValue = properties.get(xAttrName);
-          return decodeMetadataAttribute(xAttrValue).getBytes(
+          value =  decodeMetadataAttribute(xAttrValue).getBytes(
               StandardCharsets.UTF_8);
         }
+        return value;
       }
 
       properties = abfsStore.getPathStatus(qualifiedPath, tracingContext);
