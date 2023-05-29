@@ -1180,10 +1180,30 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       String relativePath = getRelativePath(path);
 
       final AbfsRestOperation op;
-      if (getPrefixMode() == PrefixMode.BLOB) {
-        op = client.getBlobProperty(path, tracingContext);
-      } else {
-        op = client.getPathStatus(relativePath, false, tracingContext);
+      try {
+        if (getPrefixMode() == PrefixMode.BLOB) {
+          op = client.getBlobProperty(path, tracingContext);
+        } else {
+          op = client.getPathStatus(relativePath, false, tracingContext);
+        }
+      } catch (AbfsRestOperationException ex) {
+        // The path does not exist explicitly.
+        // Check here if the path is an implicit dir
+        if (getPrefixMode() == PrefixMode.BLOB && ex.getStatusCode() == HttpURLConnection.HTTP_NOT_FOUND) {
+          List<BlobProperty> blobProperties = getListBlobs(path, null,
+                  tracingContext, 2, true);
+          if (blobProperties.size() != 0) {
+            throw new AbfsRestOperationException(
+                    AzureServiceErrorCode.PATH_NOT_FOUND.getStatusCode(),
+                    AzureServiceErrorCode.PATH_NOT_FOUND.getErrorCode(),
+                    "openFileForWrite must be used with files and not directories",
+                    null);
+          } else {
+            throw ex;
+          }
+        } else {
+          throw ex;
+        }
       }
       perfInfo.registerResult(op.getResult());
 

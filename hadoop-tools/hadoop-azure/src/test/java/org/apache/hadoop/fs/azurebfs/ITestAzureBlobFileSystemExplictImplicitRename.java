@@ -18,9 +18,13 @@
 
 package org.apache.hadoop.fs.azurebfs;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 
+import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
+import org.apache.hadoop.fs.azurebfs.services.TestAbfsClient;
 import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Test;
@@ -74,6 +78,43 @@ public class ITestAzureBlobFileSystemExplictImplicitRename
         .getRawConfiguration(), getFileSystem().getAbfsStore().getPrefixMode());
     azcopyHelper.createFileUsingAzcopy(
         getFileSystem().makeQualified(path).toUri().getPath().substring(1));
+  }
+
+  @Test
+  public void testAppendImplicitDirectory() throws Exception {
+    AzureBlobFileSystem fs = getFileSystem();
+    createAzCopyDirectory(new Path("/src"));
+    createAzCopyFile(new Path("/src/file"));
+    intercept(AbfsRestOperationException.class, () -> {
+      fs.getAbfsStore().getBlobProperty(new Path("/src"), Mockito.mock(
+              TracingContext.class));
+    });
+    intercept(FileNotFoundException.class, () -> fs.append(new Path("/src")));
+  }
+
+  @Test
+  public void testVerifyGetBlobProperty() throws Exception {
+    Assume.assumeTrue(getFileSystem().getAbfsStore().getPrefixMode() == PrefixMode.BLOB);
+    AzureBlobFileSystem fs = Mockito.spy(getFileSystem());
+    AzureBlobFileSystemStore store = Mockito.spy(fs.getAbfsStore());
+    Mockito.doReturn(store).when(fs).getAbfsStore();
+    AbfsClient client = store.getClient();
+    AbfsClient testClient = Mockito.spy(TestAbfsClient.createTestClientFromCurrentContext(
+            client,
+            fs.getAbfsStore().getAbfsConfiguration()));
+    store.setClient(testClient);
+
+    createAzCopyDirectory(new Path("/src"));
+    intercept(AbfsRestOperationException.class, () -> {
+      store.getBlobProperty(new Path("/src"), Mockito.mock(
+              TracingContext.class));
+    });
+    fs.mkdirs(new Path("/src/dir"));
+    Mockito.verify(testClient, Mockito.times(0)).getPathStatus(Mockito.any(String.class),
+            Mockito.anyBoolean(), Mockito.any(TracingContext.class));
+    Mockito.verify(testClient, Mockito.times(1)).getBlobProperty(Mockito.any(Path.class),
+            Mockito.any(TracingContext.class));
+
   }
 
   @Test
