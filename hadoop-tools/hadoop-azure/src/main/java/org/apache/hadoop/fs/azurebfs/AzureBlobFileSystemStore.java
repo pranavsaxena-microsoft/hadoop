@@ -1675,6 +1675,8 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
           path);
 
       final AbfsRestOperation op;
+
+      // Try to getBlobProperty for explicit blobs
       if (path.isRoot()) {
         perfInfo.registerCallee("getContainerProperties");
         op = client.getContainerProperty(tracingContext);
@@ -1728,7 +1730,9 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
           eTag);
     }
     catch (AbfsRestOperationException ex) {
-      if (ex.getStatusCode() == HttpURLConnection.HTTP_NOT_FOUND) {
+      // The path does not exist explicitly.
+      // Check here if the path is an implicit dir
+      if (ex.getStatusCode() == HttpURLConnection.HTTP_NOT_FOUND && !path.isRoot()) {
         List<BlobProperty> blobProperties = getListBlobs(path,null, tracingContext, 2, true);
         if (blobProperties.size() == 0) {
           throw ex;

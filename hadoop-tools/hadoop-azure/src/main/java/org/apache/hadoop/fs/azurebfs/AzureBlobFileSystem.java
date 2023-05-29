@@ -1007,6 +1007,10 @@ public class AzureBlobFileSystem extends FileSystem
 
     try {
       if (abfsStore.getPrefixMode() == PrefixMode.BLOB) {
+        /**
+         * Get File Status over Blob Endpoint will Have an additional call
+         * to check if directory is implicit.
+         */
         fileStatus = abfsStore.getFileStatusOverBlob(qualifiedPath,
             tracingContext);
       }
