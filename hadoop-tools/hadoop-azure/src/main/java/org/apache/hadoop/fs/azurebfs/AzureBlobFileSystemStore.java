@@ -718,6 +718,25 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       final Hashtable<String, String> metadata = parseResponseHeadersToHashTable(op.getResult());
       return metadata;
     }
+    catch (AbfsRestOperationException ex) {
+      // The path does not exist explicitly.
+      // Check here if the path is an implicit dir
+      if (ex.getStatusCode() == HttpURLConnection.HTTP_NOT_FOUND && !path.isRoot()) {
+        List<BlobProperty> blobProperties = getListBlobs(path, null,
+            tracingContext, 2, true);
+        if (blobProperties.size() == 0) {
+          throw ex;
+        }
+        else {
+          // Path exists as implicit directory.
+          // Return empty hashmap for properties
+          return new Hashtable<>();
+        }
+      }
+      else {
+        throw ex;
+      }
+    }
   }
 
   /**

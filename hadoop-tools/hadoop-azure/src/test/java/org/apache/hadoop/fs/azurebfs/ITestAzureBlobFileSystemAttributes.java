@@ -101,6 +101,26 @@ public class ITestAzureBlobFileSystemAttributes extends AbstractAbfsIntegrationT
     assertEquals(new String(rv, StandardCharsets.UTF_8), decodedAttributeValue2);
   }
 
+  @Test
+  public void testGetXAttrOnImplicitPath() throws Exception {
+    final AzureBlobFileSystem fs = getFileSystem();
+    AzcopyHelper azcopyHelper = new AzcopyHelper(
+        getAccountName(),
+        getFileSystemName(),
+        getRawConfiguration(),
+        fs.getAbfsStore().getPrefixMode()
+    );
+
+    Path testPath = new Path("a/b");
+    azcopyHelper.createFolderUsingAzcopy(fs.makeQualified(testPath).toUri().getPath().substring(1));
+
+    assertTrue("Path is implicit.",
+        BlobDirectoryStateHelper.isImplicitDirectory(testPath, fs));
+
+    String attributeName1 = "user.attribute1";
+    assertNull(fs.getXAttr(testPath, attributeName1));
+  }
+
   /**
    * Trying to set same attribute multiple times should result in no failure
    * @throws Exception
