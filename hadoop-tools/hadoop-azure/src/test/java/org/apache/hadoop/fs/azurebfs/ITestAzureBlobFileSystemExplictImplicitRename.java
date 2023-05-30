@@ -18,17 +18,12 @@
 
 package org.apache.hadoop.fs.azurebfs;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 
-import org.apache.hadoop.fs.FSDataOutputStream;
-import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
-import org.apache.hadoop.fs.azurebfs.services.TestAbfsClient;
 import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Test;
-import org.mockito.Mock;
 import org.mockito.Mockito;
 
 import org.apache.hadoop.fs.Path;

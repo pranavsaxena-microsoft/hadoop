@@ -298,26 +298,7 @@ public class AbfsRestOperation {
       incrementCounter(AbfsStatistic.CONNECTIONS_MADE, 1);
       tracingContext.constructHeader(httpOperation);
 
-      switch(client.getAuthType()) {
-        case Custom:
-        case OAuth:
-          LOG.debug("Authenticating request with OAuth2 access token");
-          httpOperation.setRequestProperty(HttpHeaderConfigurations.AUTHORIZATION,
-              client.getAccessToken());
-          break;
-        case SAS:
-          // do nothing; the SAS token should already be appended to the query string
-          httpOperation.setMaskForSAS(); //mask sig/oid from url for logs
-          break;
-        case SharedKey:
-          // sign the HTTP request
-          LOG.debug("Signing request with shared key");
-          // sign the HTTP request
-          client.getSharedKeyCredentials().signRequest(
-              httpOperation.getConnection(),
-              hasRequestBody ? bufferLength : 0);
-          break;
-      }
+      signRequest(httpOperation, hasRequestBody ? bufferLength : 0);
     } catch (IOException e) {
       LOG.debug("Auth failure: {}, {}", method, url);
       throw new AbfsRestOperationException(-1, null,
@@ -329,7 +310,6 @@ public class AbfsRestOperation {
       AbfsIoUtils.dumpHeadersToDebugLog("Request Headers",
           httpOperation.getConnection().getRequestProperties());
       intercept.sendingRequest(operationType, abfsCounters);
-
       if (hasRequestBody) {
         // HttpUrlConnection requires
         httpOperation.sendRequest(buffer, bufferOffset, bufferLength);

@@ -867,6 +867,8 @@ public class AbfsClient implements Closeable {
 
   /**
    * Returns true if the status code lies in the range of user error.
+   * In the case of HTTP_CONFLICT for PutBlockList we fallback to DFS and hence
+   * this retry handling is not needed.
    * @param responseStatusCode http response status code.
    * @return True or False.
    */
