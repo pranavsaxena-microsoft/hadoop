@@ -34,7 +34,6 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.Path;
 
 import java.util.HashMap;
-import java.util.concurrent.Callable;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -74,6 +73,7 @@ import static java.net.HttpURLConnection.HTTP_PRECON_FAILED;
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_CLIENT_PROVIDED_ENCRYPTION_KEY;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.TRUE;
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_ENABLE_BLOB_MKDIR_OVERWRITE;
+import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_MKDIRS_FALLBACK_TO_DFS;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemUriSchemes.ABFS_DNS_PREFIX;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemUriSchemes.WASB_DNS_PREFIX;
 import static org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations.X_MS_META_HDI_ISFOLDER;
@@ -82,7 +82,6 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-import org.assertj.core.api.Assertions;
 
 import static org.apache.hadoop.fs.contract.ContractTestUtils.assertIsFile;
 import static org.apache.hadoop.test.LambdaTestUtils.intercept;
@@ -807,7 +806,9 @@ public class ITestAzureBlobFileSystemCreate extends
    */
   @Test
   public void testImplicitExplicitFolder() throws Exception {
-    final AzureBlobFileSystem fs = getFileSystem();
+    Configuration configuration = Mockito.spy(getRawConfiguration());
+    configuration.setBoolean(FS_AZURE_MKDIRS_FALLBACK_TO_DFS, false);
+    final AzureBlobFileSystem fs = (AzureBlobFileSystem) FileSystem.newInstance(configuration);
     final Path implicitPath = new Path("a/b/c");
 
     AzcopyHelper azcopyHelper = new AzcopyHelper(
@@ -841,7 +842,9 @@ public class ITestAzureBlobFileSystemCreate extends
    */
   @Test
   public void testImplicitExplicitFolder1() throws Exception {
-    final AzureBlobFileSystem fs = getFileSystem();
+    Configuration configuration = Mockito.spy(getRawConfiguration());
+    configuration.setBoolean(FS_AZURE_MKDIRS_FALLBACK_TO_DFS, false);
+    final AzureBlobFileSystem fs = (AzureBlobFileSystem) FileSystem.newInstance(configuration);
     final Path implicitPath = new Path("a/b/c");
 
     AzcopyHelper azcopyHelper = new AzcopyHelper(

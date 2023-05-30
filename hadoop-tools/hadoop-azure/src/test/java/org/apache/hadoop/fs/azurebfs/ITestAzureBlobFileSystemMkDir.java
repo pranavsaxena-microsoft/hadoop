@@ -22,6 +22,7 @@ import java.util.UUID;
 
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AbfsRestOperationException;
 import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
+import org.apache.hadoop.fs.azurebfs.services.OperativeEndpoint;
 import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
 import org.apache.hadoop.fs.azurebfs.services.TestAbfsClient;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
@@ -129,7 +130,7 @@ public class ITestAzureBlobFileSystemMkDir extends AbstractAbfsIntegrationTest {
     fs.mkdirs(dirPath);
 
     // One request to server for dfs and 2 for blob because child calls mkdir for parent.
-    if (getPrefixMode(fs) == PrefixMode.BLOB) {
+    if (!OperativeEndpoint.isMkdirEnabledOnDFS(getPrefixMode(fs), getAbfsStore(fs).getAbfsConfiguration())) {
       mkdirRequestCount += 2;
     } else {
       mkdirRequestCount++;
@@ -145,7 +146,7 @@ public class ITestAzureBlobFileSystemMkDir extends AbstractAbfsIntegrationTest {
     fs.mkdirs(dirPath);
 
     // One request to server for dfs and 3 for blob because child calls mkdir for parent.
-    if (getPrefixMode(fs) == PrefixMode.BLOB) {
+    if (!OperativeEndpoint.isMkdirEnabledOnDFS(getPrefixMode(fs), getAbfsStore(fs).getAbfsConfiguration())) {
       mkdirRequestCount += 3;
     } else {
       mkdirRequestCount++;
