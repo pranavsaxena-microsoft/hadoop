@@ -940,7 +940,7 @@ public class AbfsClient implements Closeable {
         abfsUriQueryBuilder, cachedSasToken);
 
     URL url = createRequestUrl(path, abfsUriQueryBuilder.toString());
-    AbfsRestOperationType opType;
+    final AbfsRestOperationType opType;
     if (!OperativeEndpoint.isReadEnabledOnDFS(
             getAbfsConfiguration().getPrefixMode(), getAbfsConfiguration())) {
       opType = AbfsRestOperationType.GetBlob;

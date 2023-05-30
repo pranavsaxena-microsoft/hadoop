@@ -142,6 +142,7 @@ import org.apache.hadoop.util.SemaphoredDelegatingExecutor;
 import org.apache.hadoop.util.concurrent.HadoopExecutors;
 import org.apache.http.client.utils.URIBuilder;
 
+import static java.net.HttpURLConnection.HTTP_NOT_FOUND;
 import static org.apache.hadoop.fs.azurebfs.services.RenameAtomicityUtils.SUFFIX;
 import static java.net.HttpURLConnection.HTTP_CONFLICT;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.CHAR_EQUALS;
@@ -1118,9 +1119,24 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
 
       String relativePath = getRelativePath(path);
 
-      AbfsRestOperation op;
+      AbfsRestOperation op = null;
       if (OperativeEndpoint.isReadEnabledOnDFS(getPrefixMode(), abfsConfiguration)) {
-        op = client.getBlobProperty(new Path(relativePath), tracingContext);
+        try {
+          op = client.getBlobProperty(new Path(relativePath), tracingContext);
+        } catch (AbfsRestOperationException e) {
+          if (e.getStatusCode() != HTTP_NOT_FOUND) {
+            throw e;
+          }
+          List<BlobProperty> blobsList = getListBlobs(new Path(relativePath), null,
+                  tracingContext, 2, true);
+          if (blobsList.size() > 0) {
+            throw new AbfsRestOperationException(
+                    AzureServiceErrorCode.PATH_NOT_FOUND.getStatusCode(),
+                    AzureServiceErrorCode.PATH_NOT_FOUND.getErrorCode(),
+                    "openFileForRead must be used with files and not directories",
+                    null);
+          }
+        }
       } else {
         op = client
                 .getPathStatus(relativePath, false, tracingContext);
