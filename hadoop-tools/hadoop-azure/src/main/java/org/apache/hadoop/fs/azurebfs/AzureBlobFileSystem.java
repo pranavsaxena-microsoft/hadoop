@@ -46,6 +46,7 @@ import java.util.concurrent.Future;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.InvalidConfigurationValueException;
 import org.apache.hadoop.fs.azurebfs.services.BlobProperty;
 import org.apache.hadoop.classification.VisibleForTesting;
+import org.apache.hadoop.fs.azurebfs.services.OperativeEndpoint;
 import org.apache.hadoop.fs.azurebfs.services.PathInformation;
 import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
 import org.apache.hadoop.fs.azurebfs.services.RenameAtomicityUtils;
@@ -990,6 +991,7 @@ public class AzureBlobFileSystem extends FileSystem
     }
   }
 
+  // Fallback plan : default to v1 Mkdir flow which will hit dfs endpoint. Config to enable: "fs.azure.get.file.status.fallback.to.dfs".
   @Override
   public FileStatus getFileStatus(final Path f) throws IOException {
       TracingContext tracingContext = new TracingContext(clientCorrelationId,
@@ -1006,7 +1008,8 @@ public class AzureBlobFileSystem extends FileSystem
     FileStatus fileStatus;
 
     try {
-      if (abfsStore.getPrefixMode() == PrefixMode.BLOB) {
+      if (!OperativeEndpoint.isGetFileStatusEnabledOnDFS(getAbfsStore().getPrefixMode(),
+          abfsStore.getAbfsConfiguration())) {
         /**
          * Get File Status over Blob Endpoint will Have an additional call
          * to check if directory is implicit.
@@ -1266,6 +1269,7 @@ public class AzureBlobFileSystem extends FileSystem
    * @param flag The mode in which to set the attribute
    * @throws IOException If there was an issue setting the attribute on Azure
    * @throws IllegalArgumentException If name is null or empty or if value is null
+   * // Fallback plan : default to v1 Mkdir flow which will hit dfs endpoint. Config to enable: "fs.azure.set.attr.fallback.to.dfs".
    */
   @Override
   public void setXAttr(final Path path, final String name, final byte[] value, final EnumSet<XAttrSetFlag> flag)
@@ -1286,7 +1290,8 @@ public class AzureBlobFileSystem extends FileSystem
       String xAttrName = ensureValidAttributeName(name);
       String xAttrValue;
 
-      if (abfsStore.getPrefixMode() == PrefixMode.BLOB) {
+      if (!OperativeEndpoint.isSetAttrEnabledOnDFS(getAbfsStore().getPrefixMode(),
+          abfsStore.getAbfsConfiguration())) {
         properties = abfsStore.getBlobMetadata(qualifiedPath, tracingContext);
 
         boolean xAttrExists = properties.containsKey(xAttrName);
@@ -1322,6 +1327,7 @@ public class AzureBlobFileSystem extends FileSystem
    *         or null if the attribute does not exist
    * @throws IOException If there was an issue getting the attribute from Azure
    * @throws IllegalArgumentException If name is null or empty
+   * // Fallback plan : default to v1 Mkdir flow which will hit dfs endpoint. Config to enable: "fs.azure.get.attr.fallback.to.dfs".
    */
   @Override
   public byte[] getXAttr(final Path path, final String name)
@@ -1342,7 +1348,8 @@ public class AzureBlobFileSystem extends FileSystem
       Hashtable<String, String> properties;
       String xAttrName = ensureValidAttributeName(name);
 
-      if (abfsStore.getPrefixMode() == PrefixMode.BLOB) {
+      if (!OperativeEndpoint.isGetAttrEnabledOnDFS(getAbfsStore().getPrefixMode(),
+          abfsStore.getAbfsConfiguration())) {
         properties = abfsStore.getBlobMetadata(qualifiedPath, tracingContext);
         if (properties.containsKey(xAttrName)) {
           String xAttrValue = properties.get(xAttrName);

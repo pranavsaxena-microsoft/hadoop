@@ -23,19 +23,43 @@ import org.apache.hadoop.fs.azurebfs.AbfsConfiguration;
  * This class is mainly to unify the fallback for all API's to DFS endpoint at a single spot.
  */
 public class OperativeEndpoint {
-    public static boolean isMkdirEnabledOnDFS(PrefixMode mode, AbfsConfiguration abfsConfiguration) {
-        if (mode == PrefixMode.BLOB) {
-            return abfsConfiguration.shouldMkdirFallbackToDfs();
-        } else {
-            return true;
-        }
-    }
+  public static boolean isMkdirEnabledOnDFS(PrefixMode mode, AbfsConfiguration abfsConfiguration) {
+      if (mode == PrefixMode.BLOB) {
+          return abfsConfiguration.shouldMkdirFallbackToDfs();
+      } else {
+          return true;
+      }
+  }
 
-    public static boolean isIngressEnabledOnDFS(PrefixMode mode, AbfsConfiguration abfsConfiguration) {
-        if (mode == PrefixMode.BLOB) {
-            return abfsConfiguration.shouldIngressFallbackToDfs();
-        } else {
-            return true;
-        }
+  public static boolean isIngressEnabledOnDFS(PrefixMode mode, AbfsConfiguration abfsConfiguration) {
+      if (mode == PrefixMode.BLOB) {
+          return abfsConfiguration.shouldIngressFallbackToDfs();
+      } else {
+          return true;
+      }
+  }
+
+  public static boolean isGetFileStatusEnabledOnDFS(PrefixMode mode, AbfsConfiguration abfsConfiguration) {
+    if (mode == PrefixMode.BLOB) {
+      return abfsConfiguration.shouldGetFileStatusFallbackToDfs();
+    } else {
+      return true;
     }
+  }
+
+  public static boolean isGetAttrEnabledOnDFS(PrefixMode mode, AbfsConfiguration abfsConfiguration) {
+    if (mode == PrefixMode.BLOB) {
+      return abfsConfiguration.shouldGetAttrFallbackToDfs();
+    } else {
+      return true;
+    }
+  }
+
+  public static boolean isSetAttrEnabledOnDFS(PrefixMode mode, AbfsConfiguration abfsConfiguration) {
+    if (mode == PrefixMode.BLOB) {
+      return abfsConfiguration.shouldSetAttrFallbackToDfs();
+    } else {
+      return true;
+    }
+  }
 }
