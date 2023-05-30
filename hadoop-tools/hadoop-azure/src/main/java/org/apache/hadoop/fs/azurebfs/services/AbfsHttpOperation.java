@@ -27,6 +27,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLSocketFactory;
@@ -209,6 +210,10 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
 
   public String getResponseHeader(String httpHeader) {
     return connection.getHeaderField(httpHeader);
+  }
+
+  public Map<String, List<String>> getResponseHeaders() {
+    return connection.getHeaderFields();
   }
 
   public List<String> getBlockIdList() {

@@ -1180,5 +1180,4 @@ public class AbfsConfiguration{
   public void setEnableAbfsListIterator(boolean enableAbfsListIterator) {
     this.enableAbfsListIterator = enableAbfsListIterator;
   }
-
 }
