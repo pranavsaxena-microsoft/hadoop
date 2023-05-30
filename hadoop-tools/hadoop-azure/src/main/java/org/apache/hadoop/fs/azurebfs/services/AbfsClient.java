@@ -1370,12 +1370,80 @@ public class AbfsClient implements Closeable {
     final AbfsUriQueryBuilder abfsUriQueryBuilder = createDefaultUriQueryBuilder();
     abfsUriQueryBuilder.addQuery(QUERY_PARAM_RESTYPE, CONTAINER);
 
+    appendSASTokenToQuery("",
+        SASTokenProvider.GET_CONTAINER_PROPERTIES_OPERATION, abfsUriQueryBuilder);
+
     final URL url = createRequestUrl(abfsUriQueryBuilder.toString());
 
     final AbfsRestOperation op = new AbfsRestOperation(
         AbfsRestOperationType.GetContainerProperties,
         this,
         HTTP_METHOD_HEAD,
+        url,
+        requestHeaders);
+    op.execute(tracingContext);
+    return op;
+  }
+
+  /**
+   * Gets user-defined properties(metadata) of the blob over blob endpoint.
+   * @param blobPath
+   * @param tracingContext
+   * @return the user-defined properties on blob path
+   * @throws AzureBlobFileSystemException
+   */
+  public AbfsRestOperation getBlobMetadata(Path blobPath,
+      TracingContext tracingContext) throws AzureBlobFileSystemException {
+    final List<AbfsHttpHeader> requestHeaders = createDefaultHeaders();
+    AbfsUriQueryBuilder abfsUriQueryBuilder = createDefaultUriQueryBuilder();
+    abfsUriQueryBuilder.addQuery(QUERY_PARAM_COMP, QUERY_PARAM_INCLUDE_VALUE_METADATA);
+
+    String blobRelativePath = blobPath.toUri().getPath();
+    appendSASTokenToQuery(blobRelativePath,
+        SASTokenProvider.GET_BLOB_METADATA_OPERATION, abfsUriQueryBuilder);
+
+    final URL url = createRequestUrl(blobRelativePath,
+        abfsUriQueryBuilder.toString());
+
+    final AbfsRestOperation op = new AbfsRestOperation(
+        AbfsRestOperationType.GetBlobMetadata,
+        this,
+        HTTP_METHOD_HEAD,
+        url,
+        requestHeaders);
+    op.execute(tracingContext);
+    return op;
+  }
+
+  /**
+   * Sets user-defined properties(metadata) of the blob over blob endpoint.
+   * @param blobPath
+   * @param metadataRequestHeaders
+   * @param tracingContext
+   * @throws AzureBlobFileSystemException
+   */
+  public AbfsRestOperation setBlobMetadata(Path blobPath, List<AbfsHttpHeader> metadataRequestHeaders,
+      TracingContext tracingContext) throws AzureBlobFileSystemException {
+    // Request Header for this call will also contain metadata headers
+    final List<AbfsHttpHeader> defaultRequestHeaders = createDefaultHeaders();
+    final List<AbfsHttpHeader> requestHeaders = new ArrayList<AbfsHttpHeader>();
+    requestHeaders.addAll(defaultRequestHeaders);
+    requestHeaders.addAll(metadataRequestHeaders);
+
+    AbfsUriQueryBuilder abfsUriQueryBuilder = createDefaultUriQueryBuilder();
+    abfsUriQueryBuilder.addQuery(QUERY_PARAM_COMP, QUERY_PARAM_INCLUDE_VALUE_METADATA);
+
+    String blobRelativePath = blobPath.toUri().getPath();
+    appendSASTokenToQuery(blobRelativePath,
+        SASTokenProvider.SET_BLOB_METADATA_OPERATION, abfsUriQueryBuilder);
+
+    final URL url = createRequestUrl(blobRelativePath,
+        abfsUriQueryBuilder.toString());
+
+    final AbfsRestOperation op = new AbfsRestOperation(
+        AbfsRestOperationType.SetBlobMetadata,
+        this,
+        HTTP_METHOD_PUT,
         url,
         requestHeaders);
     op.execute(tracingContext);

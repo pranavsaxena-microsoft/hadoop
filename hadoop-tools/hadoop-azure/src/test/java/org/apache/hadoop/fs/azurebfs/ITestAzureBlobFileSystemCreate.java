@@ -73,6 +73,7 @@ import static java.net.HttpURLConnection.HTTP_PRECON_FAILED;
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_CLIENT_PROVIDED_ENCRYPTION_KEY;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.TRUE;
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_ENABLE_BLOB_MKDIR_OVERWRITE;
+import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_MKDIRS_FALLBACK_TO_DFS;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemUriSchemes.ABFS_DNS_PREFIX;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemUriSchemes.WASB_DNS_PREFIX;
 import static org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations.X_MS_META_HDI_ISFOLDER;
@@ -805,7 +806,9 @@ public class ITestAzureBlobFileSystemCreate extends
    */
   @Test
   public void testImplicitExplicitFolder() throws Exception {
-    final AzureBlobFileSystem fs = getFileSystem();
+    Configuration configuration = Mockito.spy(getRawConfiguration());
+    configuration.setBoolean(FS_AZURE_MKDIRS_FALLBACK_TO_DFS, false);
+    final AzureBlobFileSystem fs = (AzureBlobFileSystem) FileSystem.newInstance(configuration);
     final Path implicitPath = new Path("a/b/c");
 
     AzcopyHelper azcopyHelper = new AzcopyHelper(
@@ -839,7 +842,9 @@ public class ITestAzureBlobFileSystemCreate extends
    */
   @Test
   public void testImplicitExplicitFolder1() throws Exception {
-    final AzureBlobFileSystem fs = getFileSystem();
+    Configuration configuration = Mockito.spy(getRawConfiguration());
+    configuration.setBoolean(FS_AZURE_MKDIRS_FALLBACK_TO_DFS, false);
+    final AzureBlobFileSystem fs = (AzureBlobFileSystem) FileSystem.newInstance(configuration);
     final Path implicitPath = new Path("a/b/c");
 
     AzcopyHelper azcopyHelper = new AzcopyHelper(
@@ -1054,9 +1059,9 @@ public class ITestAzureBlobFileSystemCreate extends
 
     // One request to server to create path should be issued
     // two calls added for -
-    // 1. getFileStatus
-    // 2. actual create call
-    createRequestCount+=2;
+    // 1. getFileStatus : 2 (One getBlobProperty and one for listBlobProperties)
+    // 2. actual create call: 1
+    createRequestCount+=3;
     createRequestCount+=ifBlobCheckIfPathDir;
 
     assertAbfsStatistics(
@@ -1217,6 +1222,13 @@ public class ITestAzureBlobFileSystemCreate extends
         .when(mockClient)
         .getPathStatus(any(String.class), eq(false), any(TracingContext.class));
 
+    doThrow(fileNotFoundResponseEx) // Scn1: GFS fails with Http404
+            .doThrow(serverErrorResponseEx) // Scn2: GFS fails with Http500
+            .doReturn(successOp) // Scn3: create overwrite=true fails with Http412
+            .doReturn(successOp) // Scn4: create overwrite=true fails with Http500
+            .when(mockClient)
+            .getBlobProperty(any(Path.class), any(TracingContext.class));
+
     // mock for overwrite=true
     doThrow(
         preConditionResponseEx) // Scn3: create overwrite=true fails with Http412
@@ -1363,7 +1375,12 @@ public class ITestAzureBlobFileSystemCreate extends
     final AzureBlobFileSystem fs = getFileSystem();
     final AbfsClient client = fs.getAbfsClient();
     final TracingContext testTracingContext = getTestTracingContext(fs, false);
-    AbfsRestOperation op = client.getPathStatus(fileName, true, testTracingContext);
+    AbfsRestOperation op;
+    if (fs.getAbfsStore().getPrefixMode() == PrefixMode.BLOB) {
+      op = client.getBlobProperty(new Path(fileName), testTracingContext);
+    } else {
+      op = client.getPathStatus(fileName, true, testTracingContext);
+    }
     return AzureBlobFileSystemStore.extractEtagHeader(op.getResult());
   }
 }

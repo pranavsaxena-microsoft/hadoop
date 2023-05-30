@@ -435,6 +435,7 @@ public final class TestAbfsOutputStream {
 
     AbfsClient client = mock(AbfsClient.class);
     AbfsRestOperation op = mock(AbfsRestOperation.class);
+    AbfsHttpOperation abfsHttpOperation = mock(AbfsHttpOperation.class);
     when(op.getSasToken()).thenReturn("");
     AbfsConfiguration abfsConf = getConf();
 
@@ -442,6 +443,8 @@ public final class TestAbfsOutputStream {
     TracingContext tracingContext = new TracingContext(
         abfsConf.getClientCorrelationId(), "test-fs-id",
         FSOperationType.WRITE, abfsConf.getTracingHeaderFormat(), null);
+
+    when(op.getResult()).thenReturn(abfsHttpOperation);
 
     when(client.getAbfsConfiguration()).thenReturn(abfsConf);
     when(client.getAbfsPerfTracker()).thenReturn(tracker);
