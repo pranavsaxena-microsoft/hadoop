@@ -506,4 +506,30 @@ public abstract class AbstractAbfsIntegrationTest extends
         (long) metricMap.get(statistic.getStatName()));
     return expectedValue;
   }
+
+  /**
+   * For creating directory with implicit parents. Doesn't change already explicit
+   * parents.
+   */
+  void createAzCopyDirectory(Path path) throws Exception {
+    AzcopyHelper azcopyHelper = new AzcopyHelper(
+            getAccountName(), getFileSystemName(),  getFileSystem().getAbfsStore()
+            .getAbfsConfiguration()
+            .getRawConfiguration(), getFileSystem().getAbfsStore().getPrefixMode());
+    azcopyHelper.createFolderUsingAzcopy(
+            getFileSystem().makeQualified(path).toUri().getPath().substring(1));
+  }
+
+  /**
+   * For creating files with implicit parents. Doesn't change already explicit
+   * parents.
+   */
+  void createAzCopyFile(Path path) throws Exception {
+    AzcopyHelper azcopyHelper = new AzcopyHelper(getAccountName(),
+            getFileSystemName(), getFileSystem().getAbfsStore()
+            .getAbfsConfiguration()
+            .getRawConfiguration(), getFileSystem().getAbfsStore().getPrefixMode());
+    azcopyHelper.createFileUsingAzcopy(
+            getFileSystem().makeQualified(path).toUri().getPath().substring(1));
+  }
 }

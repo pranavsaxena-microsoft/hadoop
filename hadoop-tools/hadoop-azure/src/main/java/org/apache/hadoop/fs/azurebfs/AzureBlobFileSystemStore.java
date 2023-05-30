@@ -1034,7 +1034,11 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       if (e.getStatusCode() == HTTP_CONFLICT) {
         // File pre-exists, fetch eTag
         try {
-          op = client.getPathStatus(relativePath, false, tracingContext);
+          if (getPrefixMode() == PrefixMode.BLOB) {
+            op = client.getBlobProperty(new Path(relativePath), tracingContext);
+          } else {
+            op = client.getPathStatus(relativePath, false, tracingContext);
+          }
         } catch (AbfsRestOperationException ex) {
           if (ex.getStatusCode() == HttpURLConnection.HTTP_NOT_FOUND) {
             // Is a parallel access case, as file which was found to be
@@ -1291,14 +1295,44 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
 
       String relativePath = getRelativePath(path);
 
-      final AbfsRestOperation op = client
-          .getPathStatus(relativePath, false, tracingContext);
+      final AbfsRestOperation op;
+      try {
+        if (getPrefixMode() == PrefixMode.BLOB) {
+          op = client.getBlobProperty(path, tracingContext);
+        } else {
+          op = client.getPathStatus(relativePath, false, tracingContext);
+        }
+      } catch (AbfsRestOperationException ex) {
+        // The path does not exist explicitly.
+        // Check here if the path is an implicit dir
+        if (getPrefixMode() == PrefixMode.BLOB && ex.getStatusCode() == HttpURLConnection.HTTP_NOT_FOUND) {
+          List<BlobProperty> blobProperties = getListBlobs(path, null,
+                  tracingContext, 2, true);
+          if (blobProperties.size() != 0) {
+            throw new AbfsRestOperationException(
+                    AzureServiceErrorCode.PATH_NOT_FOUND.getStatusCode(),
+                    AzureServiceErrorCode.PATH_NOT_FOUND.getErrorCode(),
+                    "openFileForWrite must be used with files and not directories",
+                    null);
+          } else {
+            throw ex;
+          }
+        } else {
+          throw ex;
+        }
+      }
       perfInfo.registerResult(op.getResult());
 
       final String resourceType = op.getResult().getResponseHeader(HttpHeaderConfigurations.X_MS_RESOURCE_TYPE);
       final Long contentLength = Long.valueOf(op.getResult().getResponseHeader(HttpHeaderConfigurations.CONTENT_LENGTH));
 
-      if (parseIsDirectory(resourceType)) {
+      boolean isDirectory;
+      if (getPrefixMode() == PrefixMode.BLOB) {
+        isDirectory = op.getResult().getResponseHeader(X_MS_META_HDI_ISFOLDER) != null;
+      } else {
+        isDirectory = parseIsDirectory(resourceType);
+      }
+      if (isDirectory) {
         throw new AbfsRestOperationException(
                 AzureServiceErrorCode.PATH_NOT_FOUND.getStatusCode(),
                 AzureServiceErrorCode.PATH_NOT_FOUND.getErrorCode(),
