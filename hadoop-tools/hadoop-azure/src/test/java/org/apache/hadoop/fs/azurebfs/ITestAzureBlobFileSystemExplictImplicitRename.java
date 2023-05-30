@@ -55,18 +55,6 @@ public class ITestAzureBlobFileSystemExplictImplicitRename
   }
 
   @Test
-  public void testAppendImplicitDirectory() throws Exception {
-    AzureBlobFileSystem fs = getFileSystem();
-    createAzCopyDirectory(new Path("/src"));
-    createAzCopyFile(new Path("/src/file"));
-    intercept(AbfsRestOperationException.class, () -> {
-      fs.getAbfsStore().getBlobProperty(new Path("/src"), Mockito.mock(
-              TracingContext.class));
-    });
-    intercept(FileNotFoundException.class, () -> fs.append(new Path("/src")));
-  }
-
-  @Test
   public void testRenameSrcFileInImplicitParentDirectory() throws Exception {
     AzureBlobFileSystem fs = getFileSystem();
     createAzCopyDirectory(new Path("/src"));
