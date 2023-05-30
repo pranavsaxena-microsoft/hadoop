@@ -18,9 +18,13 @@
 
 package org.apache.hadoop.fs.azurebfs;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 
+import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
+import org.apache.hadoop.fs.azurebfs.services.TestAbfsClient;
 import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Test;
@@ -48,32 +52,6 @@ public class ITestAzureBlobFileSystemExplictImplicitRename
     Assume.assumeTrue(
         getFileSystem().getAbfsStore().getAbfsConfiguration().getPrefixMode()
             == PrefixMode.BLOB);
-  }
-
-  /**
-   * For creating directory with implicit parents. Doesn't change already explicit
-   * parents.
-   */
-  void createAzCopyDirectory(Path path) throws Exception {
-    AzcopyHelper azcopyHelper = new AzcopyHelper(
-        getAccountName(), getFileSystemName(),  getFileSystem().getAbfsStore()
-        .getAbfsConfiguration()
-        .getRawConfiguration(), getFileSystem().getAbfsStore().getPrefixMode());
-    azcopyHelper.createFolderUsingAzcopy(
-        getFileSystem().makeQualified(path).toUri().getPath().substring(1));
-  }
-
-  /**
-   * For creating files with implicit parents. Doesn't change already explicit
-   * parents.
-   */
-  void createAzCopyFile(Path path) throws Exception {
-    AzcopyHelper azcopyHelper = new AzcopyHelper(getAccountName(),
-        getFileSystemName(), getFileSystem().getAbfsStore()
-        .getAbfsConfiguration()
-        .getRawConfiguration(), getFileSystem().getAbfsStore().getPrefixMode());
-    azcopyHelper.createFileUsingAzcopy(
-        getFileSystem().makeQualified(path).toUri().getPath().substring(1));
   }
 
   @Test

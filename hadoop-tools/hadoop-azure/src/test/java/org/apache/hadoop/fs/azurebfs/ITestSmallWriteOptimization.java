@@ -24,6 +24,7 @@ import java.util.UUID;
 import java.util.Map;
 import java.io.IOException;
 
+import org.apache.hadoop.fs.azurebfs.services.OperativeEndpoint;
 import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
 import org.assertj.core.api.Assertions;
 import org.junit.Assume;
@@ -431,7 +432,7 @@ public class ITestSmallWriteOptimization extends AbstractAbfsScaleTest {
           ? 1 // 1 append (with flush and close param)
           : (wasDataPendingToBeWrittenToServer)
               ? 2 // 1 append + 1 flush (with close)
-              : (recurringWriteSize == 0 && prefixMode == PrefixMode.BLOB)
+              : (recurringWriteSize == 0 && !OperativeEndpoint.isIngressEnabledOnDFS(prefixMode, fs.getAbfsStore().getAbfsConfiguration()))
                   ? 0 // no flush or close on prefix mode blob
                   : 1); //1 flush (with close)
 
@@ -461,7 +462,7 @@ public class ITestSmallWriteOptimization extends AbstractAbfsScaleTest {
      */
 
     opStream.close();
-    if (prefixMode == PrefixMode.DFS) {
+    if (OperativeEndpoint.isIngressEnabledOnDFS(prefixMode, fs.getAbfsStore().getAbfsConfiguration())) {
       expectedTotalRequestsMade += 1;
       expectedRequestsMadeWithData += 1;
     }
