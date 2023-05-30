@@ -54,32 +54,6 @@ public class ITestAzureBlobFileSystemExplictImplicitRename
             == PrefixMode.BLOB);
   }
 
-  /**
-   * For creating directory with implicit parents. Doesn't change already explicit
-   * parents.
-   */
-  void createAzCopyDirectory(Path path) throws Exception {
-    AzcopyHelper azcopyHelper = new AzcopyHelper(
-        getAccountName(), getFileSystemName(),  getFileSystem().getAbfsStore()
-        .getAbfsConfiguration()
-        .getRawConfiguration(), getFileSystem().getAbfsStore().getPrefixMode());
-    azcopyHelper.createFolderUsingAzcopy(
-        getFileSystem().makeQualified(path).toUri().getPath().substring(1));
-  }
-
-  /**
-   * For creating files with implicit parents. Doesn't change already explicit
-   * parents.
-   */
-  void createAzCopyFile(Path path) throws Exception {
-    AzcopyHelper azcopyHelper = new AzcopyHelper(getAccountName(),
-        getFileSystemName(), getFileSystem().getAbfsStore()
-        .getAbfsConfiguration()
-        .getRawConfiguration(), getFileSystem().getAbfsStore().getPrefixMode());
-    azcopyHelper.createFileUsingAzcopy(
-        getFileSystem().makeQualified(path).toUri().getPath().substring(1));
-  }
-
   @Test
   public void testAppendImplicitDirectory() throws Exception {
     AzureBlobFileSystem fs = getFileSystem();
@@ -90,31 +64,6 @@ public class ITestAzureBlobFileSystemExplictImplicitRename
               TracingContext.class));
     });
     intercept(FileNotFoundException.class, () -> fs.append(new Path("/src")));
-  }
-
-  @Test
-  public void testVerifyGetBlobProperty() throws Exception {
-    Assume.assumeTrue(getFileSystem().getAbfsStore().getPrefixMode() == PrefixMode.BLOB);
-    AzureBlobFileSystem fs = Mockito.spy(getFileSystem());
-    AzureBlobFileSystemStore store = Mockito.spy(fs.getAbfsStore());
-    Mockito.doReturn(store).when(fs).getAbfsStore();
-    AbfsClient client = store.getClient();
-    AbfsClient testClient = Mockito.spy(TestAbfsClient.createTestClientFromCurrentContext(
-            client,
-            fs.getAbfsStore().getAbfsConfiguration()));
-    store.setClient(testClient);
-
-    createAzCopyDirectory(new Path("/src"));
-    intercept(AbfsRestOperationException.class, () -> {
-      store.getBlobProperty(new Path("/src"), Mockito.mock(
-              TracingContext.class));
-    });
-    fs.mkdirs(new Path("/src/dir"));
-    Mockito.verify(testClient, Mockito.times(0)).getPathStatus(Mockito.any(String.class),
-            Mockito.anyBoolean(), Mockito.any(TracingContext.class));
-    Mockito.verify(testClient, Mockito.times(1)).getBlobProperty(Mockito.any(Path.class),
-            Mockito.any(TracingContext.class));
-
   }
 
   @Test

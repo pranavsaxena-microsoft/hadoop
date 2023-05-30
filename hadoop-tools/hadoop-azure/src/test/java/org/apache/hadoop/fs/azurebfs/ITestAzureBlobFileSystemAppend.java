@@ -33,6 +33,7 @@ import java.util.concurrent.Future;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AbfsRestOperationException;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemException;
 import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
 import org.apache.hadoop.fs.azurebfs.services.AbfsOutputStream;
@@ -240,6 +241,19 @@ public class ITestAzureBlobFileSystemAppend extends
     Mockito.verify(spiedClient, Mockito.times(0))
             .getBlockList(Mockito.any(String.class),
                     Mockito.any(TracingContext.class));
+  }
+
+  @Test
+  public void testAppendImplicitDirectoryAzcopy() throws Exception {
+    Assume.assumeTrue(getFileSystem().getAbfsStore().getPrefixMode() == PrefixMode.BLOB);
+    AzureBlobFileSystem fs = getFileSystem();
+    createAzCopyDirectory(new Path("/src"));
+    createAzCopyFile(new Path("/src/file"));
+    intercept(AbfsRestOperationException.class, () -> {
+      fs.getAbfsStore().getBlobProperty(new Path("/src"), Mockito.mock(
+              TracingContext.class));
+    });
+    intercept(FileNotFoundException.class, () -> fs.append(new Path("/src")));
   }
 
   /**
