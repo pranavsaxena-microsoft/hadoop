@@ -42,7 +42,7 @@ import org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations;
  */
 public final class AbfsClientThrottlingIntercept implements AbfsThrottlingIntercept {
   private static final Logger LOG = LoggerFactory.getLogger(
-          AbfsClientThrottlingIntercept.class);
+      AbfsClientThrottlingIntercept.class);
   private static final String RANGE_PREFIX = "bytes=";
   private static AbfsClientThrottlingIntercept singleton; // singleton, initialized in static initialization block
   private static final ReentrantLock LOCK = new ReentrantLock();
@@ -121,7 +121,7 @@ public final class AbfsClientThrottlingIntercept implements AbfsThrottlingInterc
    */
   @Override
   public void updateMetrics(AbfsRestOperationType operationType,
-                            AbfsHttpOperation abfsHttpOperation) {
+      AbfsHttpOperation abfsHttpOperation) {
     if (abfsHttpOperation == null) {
       return;
     }
@@ -132,14 +132,14 @@ public final class AbfsClientThrottlingIntercept implements AbfsThrottlingInterc
     // status may be 0 or -1.  A status less than 200 or greater than or equal
     // to 500 is considered an error.
     boolean isFailedOperation = (status < HttpURLConnection.HTTP_OK
-            || status >= HttpURLConnection.HTTP_INTERNAL_ERROR);
+        || status >= HttpURLConnection.HTTP_INTERNAL_ERROR);
 
     switch (operationType) {
       case Append:
         contentLength = abfsHttpOperation.getBytesSent();
         if (contentLength > 0) {
           writeThrottler.addBytesTransferred(contentLength,
-                  isFailedOperation);
+              isFailedOperation);
         }
         break;
       case ReadFile:
@@ -147,7 +147,7 @@ public final class AbfsClientThrottlingIntercept implements AbfsThrottlingInterc
         contentLength = getContentLengthIfKnown(range);
         if (contentLength > 0) {
           readThrottler.addBytesTransferred(contentLength,
-                  isFailedOperation);
+              isFailedOperation);
         }
         break;
       default:
@@ -162,17 +162,17 @@ public final class AbfsClientThrottlingIntercept implements AbfsThrottlingInterc
    */
   @Override
   public void sendingRequest(AbfsRestOperationType operationType,
-                             AbfsCounters abfsCounters) {
+      AbfsCounters abfsCounters) {
     switch (operationType) {
       case ReadFile:
         if (readThrottler.suspendIfNecessary()
-                && abfsCounters != null) {
+            && abfsCounters != null) {
           abfsCounters.incrementCounter(AbfsStatistic.READ_THROTTLES, 1);
         }
         break;
       case Append:
         if (writeThrottler.suspendIfNecessary()
-                && abfsCounters != null) {
+            && abfsCounters != null) {
           abfsCounters.incrementCounter(AbfsStatistic.WRITE_THROTTLES, 1);
         }
         break;
