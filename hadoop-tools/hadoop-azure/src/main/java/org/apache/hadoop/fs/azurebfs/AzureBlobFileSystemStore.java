@@ -1119,7 +1119,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       String relativePath = getRelativePath(path);
 
       AbfsRestOperation op;
-      if (getPrefixMode() == PrefixMode.BLOB) {
+      if (OperativeEndpoint.isReadEnabledOnDFS(getPrefixMode(), abfsConfiguration)) {
         op = client.getBlobProperty(new Path(relativePath), tracingContext);
       } else {
         op = client
