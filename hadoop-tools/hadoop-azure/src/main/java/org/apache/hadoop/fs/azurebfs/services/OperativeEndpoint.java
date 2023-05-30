@@ -38,28 +38,4 @@ public class OperativeEndpoint {
           return true;
       }
   }
-
-  public static boolean isGetFileStatusEnabledOnDFS(PrefixMode mode, AbfsConfiguration abfsConfiguration) {
-    if (mode == PrefixMode.BLOB) {
-      return abfsConfiguration.shouldGetFileStatusFallbackToDfs();
-    } else {
-      return true;
-    }
-  }
-
-  public static boolean isGetAttrEnabledOnDFS(PrefixMode mode, AbfsConfiguration abfsConfiguration) {
-    if (mode == PrefixMode.BLOB) {
-      return abfsConfiguration.shouldGetAttrFallbackToDfs();
-    } else {
-      return true;
-    }
-  }
-
-  public static boolean isSetAttrEnabledOnDFS(PrefixMode mode, AbfsConfiguration abfsConfiguration) {
-    if (mode == PrefixMode.BLOB) {
-      return abfsConfiguration.shouldSetAttrFallbackToDfs();
-    } else {
-      return true;
-    }
-  }
 }

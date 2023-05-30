@@ -262,9 +262,6 @@ public final class ConfigurationKeys {
   public static final String FS_AZURE_ENABLE_BLOB_ENDPOINT = "fs.azure.enable.blob.endpoint";
   public static final String FS_AZURE_MKDIRS_FALLBACK_TO_DFS = "fs.azure.mkdirs.fallback.to.dfs";
   public static final String FS_AZURE_INGRESS_FALLBACK_TO_DFS = "fs.azure.ingress.fallback.to.dfs";
-  public static final String FS_AZURE_GET_FILE_STATUS_FALLBACK_TO_DFS = "fs.azure.get.file.status.fallback.to.dfs";
-  public static final String FS_AZURE_GET_ATTR_FALLBACK_TO_DFS = "fs.azure.get.attr.fallback.to.dfs";
-  public static final String FS_AZURE_SET_ATTR_FALLBACK_TO_DFS = "fs.azure.set.attr.fallback.to.dfs";
 
   public static final String FS_AZURE_REDIRECT_DELETE = "fs.azure.redirect.delete";
   public static final String FS_AZURE_REDIRECT_RENAME = "fs.azure.redirect.rename";

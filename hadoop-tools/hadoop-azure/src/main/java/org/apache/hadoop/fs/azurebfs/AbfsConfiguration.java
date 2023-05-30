@@ -405,39 +405,12 @@ public class AbfsConfiguration{
           DefaultValue = DEFAULT_FS_AZURE_INGRESS_FALLBACK_TO_DFS)
   private boolean ingressFallbackToDfs;
 
-  @BooleanConfigurationValidatorAnnotation(
-      ConfigurationKey = FS_AZURE_GET_FILE_STATUS_FALLBACK_TO_DFS,
-      DefaultValue = DEFAULT_FS_AZURE_GET_FILE_STATUS_FALLBACK_TO_DFS)
-  private boolean getFileStatusFallbackToDfs;
-
-  @BooleanConfigurationValidatorAnnotation(
-      ConfigurationKey = FS_AZURE_GET_ATTR_FALLBACK_TO_DFS,
-      DefaultValue = DEFAULT_FS_AZURE_GET_ATTR_FALLBACK_TO_DFS)
-  private boolean getAttrFallbackToDfs;
-
-  @BooleanConfigurationValidatorAnnotation(
-      ConfigurationKey = FS_AZURE_SET_ATTR_FALLBACK_TO_DFS,
-      DefaultValue = DEFAULT_FS_AZURE_SET_ATTR_FALLBACK_TO_DFS)
-  private boolean setAttrFallbackToDfs;
-
   public boolean shouldMkdirFallbackToDfs() {
     return mkdirFallbackToDfs;
   }
 
   public boolean shouldIngressFallbackToDfs() {
     return ingressFallbackToDfs;
-  }
-
-  public boolean shouldGetFileStatusFallbackToDfs() {
-    return getFileStatusFallbackToDfs;
-  }
-
-  public boolean shouldGetAttrFallbackToDfs() {
-    return getAttrFallbackToDfs;
-  }
-
-  public boolean shouldSetAttrFallbackToDfs() {
-    return setAttrFallbackToDfs;
   }
 
   /**
@@ -1207,10 +1180,4 @@ public class AbfsConfiguration{
   public void setEnableAbfsListIterator(boolean enableAbfsListIterator) {
     this.enableAbfsListIterator = enableAbfsListIterator;
   }
-
-  @VisibleForTesting
-  public void setGetFileStatusFallbackToDfs(boolean getFileStatusFallbackToDfs) {
-    this.getFileStatusFallbackToDfs = getFileStatusFallbackToDfs;
-  }
-
 }

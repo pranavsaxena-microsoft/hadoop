@@ -25,8 +25,6 @@ import org.junit.Test;
 
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AbfsRestOperationException;
-import org.apache.hadoop.fs.azurebfs.services.OperativeEndpoint;
 import org.apache.hadoop.fs.permission.FsPermission;
 
 import static org.apache.hadoop.test.LambdaTestUtils.intercept;
@@ -297,38 +295,5 @@ public class ITestAzureBlobFileSystemFileStatus extends
     FileStatus fileStatus = fs.getFileStatus(path);
     assertTrue(fileStatus.isDirectory());
     assertTrue(fileStatus.getLen() == 0L);
-  }
-
-  @Test
-  public void testFileStatusFallbackMechanism() throws Exception {
-    final AzureBlobFileSystem fs = getFileSystem();
-    final Path path = new Path("a/b.txt");
-
-    // Setting fallback to true
-    fs.getAbfsStore().getAbfsConfiguration().setGetFileStatusFallbackToDfs(true);
-
-    try {
-      FileStatus fileStatus = fs.getFileStatus(path);
-    }
-    catch (Exception ex) {
-      String errorMessage = ex.getLocalizedMessage();
-      String[] errorFields = errorMessage.split(",");
-
-      // Status message on dfs endpoint
-      assertEquals("Operation failed: \"The specified path does not exist.\"", errorFields[0].trim());
-    }
-
-    // Setting fallback to true
-    fs.getAbfsStore().getAbfsConfiguration().setGetFileStatusFallbackToDfs(false);
-    try {
-      FileStatus fileStatus = fs.getFileStatus(path);
-    }
-    catch (Exception ex) {
-      String errorMessage = ex.getLocalizedMessage();
-      String[] errorFields = errorMessage.split(",");
-
-      // Status message on blob endpoint
-      assertEquals("Operation failed: \"The specified blob does not exist.\"", errorFields[0].trim());
-    }
   }
 }
