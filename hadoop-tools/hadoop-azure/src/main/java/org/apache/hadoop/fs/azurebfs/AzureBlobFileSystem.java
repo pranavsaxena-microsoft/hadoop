@@ -1976,4 +1976,9 @@ public class AzureBlobFileSystem extends FileSystem
   public IOStatistics getIOStatistics() {
     return abfsCounters != null ? abfsCounters.getIOStatistics() : null;
   }
+
+  @VisibleForTesting
+  void setAbfsStore(AzureBlobFileSystemStore store) {
+    this.abfsStore = store;
+  }
 }

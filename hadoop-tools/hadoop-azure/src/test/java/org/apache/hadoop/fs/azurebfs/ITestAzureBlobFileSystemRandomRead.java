@@ -18,14 +18,20 @@
 package org.apache.hadoop.fs.azurebfs;
 
 import java.io.EOFException;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Random;
 import java.util.concurrent.Callable;
 import java.util.UUID;
 
+import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
+import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
+import org.apache.hadoop.fs.azurebfs.services.TestAbfsClient;
+import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 import org.junit.Assume;
 import org.junit.Ignore;
 import org.junit.Test;
+import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -574,6 +580,47 @@ public class ITestAzureBlobFileSystemRandomRead extends
     assertAbfsStatistics(BYTES_RECEIVED, dateSizeReadStatAtStart + newDataSizeRead, fs.getInstrumentationMap());
   }
 
+  @Test
+  public void testReadBlob() throws IOException {
+    Assume.assumeTrue(PrefixMode.BLOB == getFileSystem().getAbfsStore().getPrefixMode());
+    AzureBlobFileSystem fs = Mockito.spy(getFileSystem());
+    AzureBlobFileSystemStore store = Mockito.spy(fs.getAbfsStore());
+    AbfsClient client = store.getClient();
+    AbfsClient mockClient = Mockito.spy(TestAbfsClient.createTestClientFromCurrentContext(
+            client,
+            fs.getAbfsStore().getAbfsConfiguration()
+    ));
+    store.setClient(mockClient);
+    Mockito.doReturn(mockClient).when(store).getClient();
+    fs.setAbfsStore(store);
+    Mockito.doReturn(store).when(fs).getAbfsStore();
+
+    Path testPath = new Path("/testReadFile");
+    fs.create(testPath);
+    FSDataInputStream in = fs.open(testPath);
+    Mockito.verify(mockClient, Mockito.atLeast(1)).getBlobProperty(
+            Mockito.any(Path.class), Mockito.any(TracingContext.class));
+    Mockito.verify(mockClient, Mockito.times(0)).getPathStatus(
+            Mockito.any(String.class), Mockito.anyBoolean(), Mockito.any(TracingContext.class));
+  }
+
+  @Test
+  public void testInvalidImplicitDirRead() throws Exception {
+    AzureBlobFileSystem fs = (AzureBlobFileSystem) getFileSystem();
+    AzcopyHelper azcopyhelper = new AzcopyHelper(getAccountName(),
+            getFileSystemName(),
+            getRawConfiguration(),
+            fs.getAbfsStore().getPrefixMode());
+    String fullPath = "/implicitDirPath/testFile";
+    String path = "/implicitDirPath";
+    azcopyhelper.createFolderUsingAzcopy(
+            fs.makeQualified(new Path(fullPath)).toUri().getPath().substring(1)
+    );
+
+    intercept(FileNotFoundException.class, () ->
+            fs.open(new Path(path)));
+
+  }
   private long sequentialRead(String version,
                               Path testPath,
                               FileSystem fs,
