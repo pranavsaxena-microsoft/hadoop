@@ -71,15 +71,16 @@ import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.security.ssl.DelegatingSSLSocketFactory;
 import org.apache.hadoop.util.concurrent.HadoopExecutors;
 
+import static java.net.HttpURLConnection.HTTP_CONFLICT;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.*;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.DEFAULT_DELETE_CONSIDERED_IDEMPOTENT;
-import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.IS_FOLDER_METADATA_KEY;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.SERVER_SIDE_ENCRYPTION_ALGORITHM;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemUriSchemes.ABFS_DNS_PREFIX;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemUriSchemes.HTTPS_SCHEME;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemUriSchemes.WASB_DNS_PREFIX;
 import static org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations.*;
 import static org.apache.hadoop.fs.azurebfs.constants.HttpQueryParams.*;
+import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AbfsRestOperationException;
 
 /**
  * AbfsClient.
@@ -103,6 +104,7 @@ public class AbfsClient implements Closeable {
   private AccessTokenProvider tokenProvider;
   private SASTokenProvider sasTokenProvider;
   private final AbfsCounters abfsCounters;
+  private final AbfsThrottlingIntercept intercept;
 
   private final ListeningScheduledExecutorService executorService;
 
@@ -118,6 +120,7 @@ public class AbfsClient implements Closeable {
     this.retryPolicy = abfsClientContext.getExponentialRetryPolicy();
     this.accountName = abfsConfiguration.getAccountName().substring(0, abfsConfiguration.getAccountName().indexOf(AbfsHttpConstants.DOT));
     this.authType = abfsConfiguration.getAuthType(accountName);
+    this.intercept = AbfsThrottlingInterceptFactory.getInstance(accountName, abfsConfiguration);
 
     String encryptionKey = this.abfsConfiguration
         .getClientProvidedEncryptionKey();
@@ -221,6 +224,10 @@ public class AbfsClient implements Closeable {
 
   SharedKeyCredentials getSharedKeyCredentials() {
     return sharedKeyCredentials;
+  }
+
+  AbfsThrottlingIntercept getIntercept() {
+    return intercept;
   }
 
   List<AbfsHttpHeader> createDefaultHeaders() {
@@ -421,7 +428,7 @@ public class AbfsClient implements Closeable {
       if (!op.hasResult()) {
         throw ex;
       }
-      if (!isFile && op.getResult().getStatusCode() == HttpURLConnection.HTTP_CONFLICT) {
+      if (!isFile && op.getResult().getStatusCode() == HTTP_CONFLICT) {
         String existingResource =
             op.getResult().getResponseHeader(X_MS_EXISTING_RESOURCE_TYPE);
         if (existingResource != null && existingResource.equals(DIRECTORY)) {
@@ -472,7 +479,7 @@ public class AbfsClient implements Closeable {
       if (!op.hasResult()) {
         throw ex;
       }
-      if (!isFile && op.getResult().getStatusCode() == HttpURLConnection.HTTP_CONFLICT) {
+      if (!isFile && op.getResult().getStatusCode() == HTTP_CONFLICT) {
          // This ensures that we don't throw ex only for existing directory but if a blob exists we throw exception.
         tracingContext.setFallbackDFSAppend(tracingContext.getFallbackDFSAppend() + "M");
         AbfsRestOperation blobProperty = getBlobProperty(new Path(path), tracingContext);
@@ -619,6 +626,9 @@ public class AbfsClient implements Closeable {
       throws AzureBlobFileSystemException {
     final List<AbfsHttpHeader> requestHeaders = createDefaultHeaders();
     addCustomerProvidedKeyHeaders(requestHeaders);
+    if (reqParams.isExpectHeaderEnabled()) {
+      requestHeaders.add(new AbfsHttpHeader(EXPECT, HUNDRED_CONTINUE));
+    }
     // JDK7 does not support PATCH, so to workaround the issue we will use
     // PUT and specify the real method in the X-Http-Method-Override header.
     requestHeaders.add(new AbfsHttpHeader(X_HTTP_METHOD_OVERRIDE,
@@ -647,29 +657,7 @@ public class AbfsClient implements Closeable {
     if (url.toString().contains(WASB_DNS_PREFIX)) {
       url = changePrefixFromBlobtoDfs(url);
     }
-    final AbfsRestOperation op = new AbfsRestOperation(
-        AbfsRestOperationType.Append,
-        this,
-        HTTP_METHOD_PUT,
-        url,
-        requestHeaders,
-        buffer,
-        reqParams.getoffset(),
-        reqParams.getLength(),
-        sasTokenForReuse);
-    try {
-      op.execute(tracingContext);
-    } catch (AzureBlobFileSystemException e) {
-      // If we have no HTTP response, throw the original exception.
-      if (!op.hasResult()) {
-        throw e;
-      }
-      if (reqParams.isAppendBlob()
-          && appendSuccessCheckOp(op, path,
-          (reqParams.getPosition() + reqParams.getLength()), tracingContext)) {
-        final AbfsRestOperation successOp = new AbfsRestOperation(
-            AbfsRestOperationType.Append,
-            this,
+    final AbfsRestOperation op = getAbfsRestOperationForAppend(AbfsRestOperationType.Append,
             HTTP_METHOD_PUT,
             url,
             requestHeaders,
@@ -677,6 +665,41 @@ public class AbfsClient implements Closeable {
             reqParams.getoffset(),
             reqParams.getLength(),
             sasTokenForReuse);
+    try {
+      op.execute(tracingContext);
+    } catch (AzureBlobFileSystemException e) {
+      /*
+         If the http response code indicates a user error we retry
+         the same append request with expect header being disabled.
+         When "100-continue" header is enabled but a non Http 100 response comes,
+         the response message might not get set correctly by the server.
+         So, this handling is to avoid breaking of backward compatibility
+         if someone has taken dependency on the exception message,
+         which is created using the error string present in the response header.
+      */
+      int responseStatusCode = ((AbfsRestOperationException) e).getStatusCode();
+      if (checkUserError(responseStatusCode) && reqParams.isExpectHeaderEnabled()) {
+        LOG.debug("User error, retrying without 100 continue enabled for the given path {}", path);
+        reqParams.setExpectHeaderEnabled(false);
+        return this.append(path, buffer, reqParams, cachedSasToken,
+            tracingContext);
+      }
+      // If we have no HTTP response, throw the original exception.
+      if (!op.hasResult()) {
+        throw e;
+      }
+      if (reqParams.isAppendBlob()
+          && appendSuccessCheckOp(op, path,
+          (reqParams.getPosition() + reqParams.getLength()), tracingContext)) {
+        final AbfsRestOperation successOp = getAbfsRestOperationForAppend(
+                AbfsRestOperationType.Append,
+                HTTP_METHOD_PUT,
+                url,
+                requestHeaders,
+                buffer,
+                reqParams.getoffset(),
+                reqParams.getLength(),
+                sasTokenForReuse);
         successOp.hardSetResult(HttpURLConnection.HTTP_OK);
         return successOp;
       }
@@ -706,7 +729,9 @@ public class AbfsClient implements Closeable {
     if (reqParams.getLeaseId() != null) {
       requestHeaders.add(new AbfsHttpHeader(X_MS_LEASE_ID, reqParams.getLeaseId()));
     }
-
+    if (reqParams.isExpectHeaderEnabled()) {
+      requestHeaders.add(new AbfsHttpHeader(EXPECT, HUNDRED_CONTINUE));
+    }
     final AbfsUriQueryBuilder abfsUriQueryBuilder = createDefaultUriQueryBuilder();
     abfsUriQueryBuilder.addQuery(QUERY_PARAM_COMP, BLOCK);
     abfsUriQueryBuilder.addQuery(QUERY_PARAM_BLOCKID, blockId);
@@ -728,7 +753,29 @@ public class AbfsClient implements Closeable {
             reqParams.getoffset(),
             reqParams.getLength(),
             sasTokenForReuse);
-    op.execute(tracingContext);
+    try {
+      op.execute(tracingContext);
+    } catch (AzureBlobFileSystemException e) {
+      /*
+         If the http response code indicates a user error we retry
+         the same append request with expect header being disabled.
+         When "100-continue" header is enabled but a non Http 100 response comes,
+         the response message might not get set correctly by the server.
+         So, this handling is to avoid breaking of backward compatibility
+         if someone has taken dependency on the exception message,
+         which is created using the error string present in the response header.
+      */
+      int responseStatusCode = ((AbfsRestOperationException) e).getStatusCode();
+      if (checkUserErrorBlob(responseStatusCode) && reqParams.isExpectHeaderEnabled()) {
+        LOG.debug("User error, retrying without 100 continue enabled for the given path {}", path);
+        reqParams.setExpectHeaderEnabled(false);
+        return this.append(blockId, path, buffer, reqParams, cachedSasToken,
+                tracingContext, eTag);
+      }
+      else {
+        throw e;
+      }
+    }
     return op;
   }
 
@@ -774,6 +821,61 @@ public class AbfsClient implements Closeable {
             sasTokenForReuse);
     op.execute(tracingContext);
     return op;
+  }
+
+  /*
+   * Returns the rest operation for append.
+   * @param operationType The AbfsRestOperationType.
+   * @param httpMethod specifies the httpMethod.
+   * @param url specifies the url.
+   * @param requestHeaders This includes the list of request headers.
+   * @param buffer The buffer to write into.
+   * @param bufferOffset The buffer offset.
+   * @param bufferLength The buffer Length.
+   * @param sasTokenForReuse The sasToken.
+   * @return AbfsRestOperation op.
+   */
+  @VisibleForTesting
+  AbfsRestOperation getAbfsRestOperationForAppend(final AbfsRestOperationType operationType,
+      final String httpMethod,
+      final URL url,
+      final List<AbfsHttpHeader> requestHeaders,
+      final byte[] buffer,
+      final int bufferOffset,
+      final int bufferLength,
+      final String sasTokenForReuse) {
+    return new AbfsRestOperation(
+        operationType,
+        this,
+        httpMethod,
+        url,
+        requestHeaders,
+        buffer,
+        bufferOffset,
+        bufferLength, sasTokenForReuse);
+  }
+
+  /**
+   * Returns true if the status code lies in the range of user error.
+   * @param responseStatusCode http response status code.
+   * @return True or False.
+   */
+  private boolean checkUserError(int responseStatusCode) {
+    return (responseStatusCode >= HttpURLConnection.HTTP_BAD_REQUEST
+        && responseStatusCode < HttpURLConnection.HTTP_INTERNAL_ERROR);
+  }
+
+  /**
+   * Returns true if the status code lies in the range of user error.
+   * In the case of HTTP_CONFLICT for PutBlockList we fallback to DFS and hence
+   * this retry handling is not needed.
+   * @param responseStatusCode http response status code.
+   * @return True or False.
+   */
+  private boolean checkUserErrorBlob(int responseStatusCode) {
+    return (responseStatusCode >= HttpURLConnection.HTTP_BAD_REQUEST
+            && responseStatusCode < HttpURLConnection.HTTP_INTERNAL_ERROR
+            && responseStatusCode != HttpURLConnection.HTTP_CONFLICT);
   }
 
   // For AppendBlob its possible that the append succeeded in the backend but the request failed.
@@ -1650,5 +1752,10 @@ public class AbfsClient implements Closeable {
 
   AbfsConfiguration getAbfsConfiguration() {
     return abfsConfiguration;
+  }
+
+  @VisibleForTesting
+  protected AccessTokenProvider getTokenProvider() {
+    return tokenProvider;
   }
 }
