@@ -59,7 +59,7 @@ import org.apache.hadoop.fs.azurebfs.contracts.exceptions.ConcurrentWriteOperati
 import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
 import org.apache.hadoop.fs.azurebfs.services.AbfsRestOperation;
 import org.apache.hadoop.fs.azurebfs.services.AbfsHttpOperation;
-import org.apache.hadoop.fs.azurebfs.services.TestAbfsClient;
+import org.apache.hadoop.fs.azurebfs.services.ITestAbfsClient;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 import org.apache.hadoop.fs.azurebfs.utils.TracingHeaderValidator;
 import org.mockito.Mockito;
@@ -1059,9 +1059,15 @@ public class ITestAzureBlobFileSystemCreate extends
 
     // One request to server to create path should be issued
     // two calls added for -
-    // 1. getFileStatus : 2 (One getBlobProperty and one for listBlobProperties)
+    // 1. getFileStatus : 1
     // 2. actual create call: 1
-    createRequestCount+=3;
+    createRequestCount+=2;
+
+    // In case of blob endpoint getFileStatus makes additional call to check if path is implicit
+    if (fs.getAbfsStore().getPrefixMode() == PrefixMode.BLOB) {
+      createRequestCount++;
+    }
+
     createRequestCount+=ifBlobCheckIfPathDir;
 
     assertAbfsStatistics(
@@ -1162,7 +1168,7 @@ public class ITestAzureBlobFileSystemCreate extends
     // Get mock AbfsClient with current config
     AbfsClient
         mockClient
-        = TestAbfsClient.getMockAbfsClient(
+        = ITestAbfsClient.getMockAbfsClient(
         fs.getAbfsStore().getClient(),
         fs.getAbfsStore().getAbfsConfiguration());
 

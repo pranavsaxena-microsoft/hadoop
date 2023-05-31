@@ -119,6 +119,15 @@ public class AbfsConfiguration{
       DefaultValue = DEFAULT_OPTIMIZE_FOOTER_READ)
   private boolean optimizeFooterRead;
 
+  @BooleanConfigurationValidatorAnnotation(
+      ConfigurationKey = FS_AZURE_ACCOUNT_IS_EXPECT_HEADER_ENABLED,
+      DefaultValue = DEFAULT_FS_AZURE_ACCOUNT_IS_EXPECT_HEADER_ENABLED)
+  private boolean isExpectHeaderEnabled;
+
+  @BooleanConfigurationValidatorAnnotation(ConfigurationKey = FS_AZURE_ACCOUNT_LEVEL_THROTTLING_ENABLED,
+      DefaultValue = DEFAULT_FS_AZURE_ACCOUNT_LEVEL_THROTTLING_ENABLED)
+  private boolean accountThrottlingEnabled;
+
   @IntegerConfigurationValidatorAnnotation(ConfigurationKey = AZURE_READ_BUFFER_SIZE,
       MinValue = MIN_BUFFER_SIZE,
       MaxValue = MAX_BUFFER_SIZE,
@@ -274,6 +283,14 @@ public class AbfsConfiguration{
   @BooleanConfigurationValidatorAnnotation(ConfigurationKey = FS_AZURE_ENABLE_AUTOTHROTTLING,
       DefaultValue = DEFAULT_ENABLE_AUTOTHROTTLING)
   private boolean enableAutoThrottling;
+
+  @IntegerConfigurationValidatorAnnotation(ConfigurationKey = FS_AZURE_ACCOUNT_OPERATION_IDLE_TIMEOUT,
+          DefaultValue = DEFAULT_ACCOUNT_OPERATION_IDLE_TIMEOUT_MS)
+  private int accountOperationIdleTimeout;
+
+  @IntegerConfigurationValidatorAnnotation(ConfigurationKey = FS_AZURE_ANALYSIS_PERIOD,
+          DefaultValue = DEFAULT_ANALYSIS_PERIOD_MS)
+  private int analysisPeriod;
 
   @StringConfigurationValidatorAnnotation(ConfigurationKey = FS_AZURE_USER_AGENT_PREFIX_KEY,
       DefaultValue = DEFAULT_FS_AZURE_USER_AGENT_PREFIX)
@@ -774,6 +791,14 @@ public class AbfsConfiguration{
     return this.azureAppendBlobDirs;
   }
 
+  public boolean isExpectHeaderEnabled() {
+    return this.isExpectHeaderEnabled;
+  }
+
+  public boolean accountThrottlingEnabled() {
+    return accountThrottlingEnabled;
+  }
+
   public String getAzureInfiniteLeaseDirs() {
     return this.azureInfiniteLeaseDirs;
   }
@@ -816,8 +841,16 @@ public class AbfsConfiguration{
     return this.enableAutoThrottling;
   }
 
+  public int getAccountOperationIdleTimeout() {
+    return accountOperationIdleTimeout;
+  }
+
+  public int getAnalysisPeriod() {
+    return analysisPeriod;
+  }
+
   public String getCustomUserAgentPrefix() {
-    return "abfsdriverV2.1";
+    return "abfsdriverV2.2";
   }
 
   public String getClusterName() {
