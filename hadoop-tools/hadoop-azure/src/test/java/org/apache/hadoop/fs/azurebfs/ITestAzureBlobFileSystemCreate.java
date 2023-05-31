@@ -1059,9 +1059,15 @@ public class ITestAzureBlobFileSystemCreate extends
 
     // One request to server to create path should be issued
     // two calls added for -
-    // 1. getFileStatus : 2 (One getBlobProperty and one for listBlobProperties)
+    // 1. getFileStatus : 1
     // 2. actual create call: 1
-    createRequestCount+=3;
+    createRequestCount+=2;
+
+    // In case of blob endpoint getFileStatus makes additional call to check if path is implicit
+    if (fs.getAbfsStore().getPrefixMode() == PrefixMode.BLOB) {
+      createRequestCount++;
+    }
+
     createRequestCount+=ifBlobCheckIfPathDir;
 
     assertAbfsStatistics(
