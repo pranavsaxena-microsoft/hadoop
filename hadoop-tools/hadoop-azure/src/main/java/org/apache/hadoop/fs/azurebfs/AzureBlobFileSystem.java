@@ -365,7 +365,7 @@ public class AzureBlobFileSystem extends FileSystem
       TracingContext tracingContext = new TracingContext(clientCorrelationId,
           fileSystemId, FSOperationType.OPEN, tracingHeaderFormat,
           listener);
-      InputStream inputStream = abfsStore.openFileForRead(qualifiedPath,
+      InputStream inputStream = getAbfsStore().openFileForRead(qualifiedPath,
           options, statistics, tracingContext);
       return new FSDataInputStream(inputStream);
     } catch(AzureBlobFileSystemException ex) {
@@ -2017,4 +2017,5 @@ public class AzureBlobFileSystem extends FileSystem
   public IOStatistics getIOStatistics() {
     return abfsCounters != null ? abfsCounters.getIOStatistics() : null;
   }
+
 }

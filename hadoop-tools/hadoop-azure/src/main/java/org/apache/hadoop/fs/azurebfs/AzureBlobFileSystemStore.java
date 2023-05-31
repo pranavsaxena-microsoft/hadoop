@@ -143,10 +143,12 @@ import org.apache.hadoop.util.SemaphoredDelegatingExecutor;
 import org.apache.hadoop.util.concurrent.HadoopExecutors;
 import org.apache.http.client.utils.URIBuilder;
 
+import static java.net.HttpURLConnection.HTTP_CONFLICT;
+import static java.net.HttpURLConnection.HTTP_NOT_FOUND;
+
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.FORWARD_SLASH;
 import static org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations.X_MS_METADATA_PREFIX;
 import static org.apache.hadoop.fs.azurebfs.services.RenameAtomicityUtils.SUFFIX;
-import static java.net.HttpURLConnection.HTTP_CONFLICT;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.CHAR_EQUALS;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.CHAR_FORWARD_SLASH;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.CHAR_HYPHEN;
@@ -1238,15 +1240,45 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
 
       String relativePath = getRelativePath(path);
 
-      final AbfsRestOperation op = client
-          .getPathStatus(relativePath, false, tracingContext);
+      AbfsRestOperation op;
+      if (getPrefixMode() == PrefixMode.BLOB) {
+        try {
+          op = client.getBlobProperty(new Path(relativePath), tracingContext);
+        } catch (AbfsRestOperationException e) {
+          if (e.getStatusCode() != HTTP_NOT_FOUND) {
+            throw e;
+          }
+          List<BlobProperty> blobsList = getListBlobs(new Path(relativePath), null,
+                  tracingContext, 2, true);
+          if (blobsList.size() > 0) {
+            throw new AbfsRestOperationException(
+                    AzureServiceErrorCode.PATH_NOT_FOUND.getStatusCode(),
+                    AzureServiceErrorCode.PATH_NOT_FOUND.getErrorCode(),
+                    "openFileForRead must be used with files and not directories",
+                    null);
+          } else {
+            throw e;
+          }
+        }
+      } else {
+        op = client
+                .getPathStatus(relativePath, false, tracingContext);
+      }
+
       perfInfo.registerResult(op.getResult());
 
-      final String resourceType = op.getResult().getResponseHeader(HttpHeaderConfigurations.X_MS_RESOURCE_TYPE);
+      boolean isDirectory;
+      if (getPrefixMode() == PrefixMode.BLOB) {
+        isDirectory = Boolean.parseBoolean(op.getResult().getResponseHeader(X_MS_META_HDI_ISFOLDER));
+      } else {
+        final String resourceType = op.getResult().getResponseHeader(HttpHeaderConfigurations.X_MS_RESOURCE_TYPE);
+        isDirectory = parseIsDirectory(resourceType);
+      }
+
       final long contentLength = Long.parseLong(op.getResult().getResponseHeader(HttpHeaderConfigurations.CONTENT_LENGTH));
       final String eTag = op.getResult().getResponseHeader(HttpHeaderConfigurations.ETAG);
 
-      if (parseIsDirectory(resourceType)) {
+      if (isDirectory) {
         throw new AbfsRestOperationException(
                 AzureServiceErrorCode.PATH_NOT_FOUND.getStatusCode(),
                 AzureServiceErrorCode.PATH_NOT_FOUND.getErrorCode(),

@@ -31,11 +31,18 @@ public class OperativeEndpoint {
       }
   }
 
-  public static boolean isIngressEnabledOnDFS(PrefixMode mode, AbfsConfiguration abfsConfiguration) {
-      if (mode == PrefixMode.BLOB) {
-          return abfsConfiguration.shouldIngressFallbackToDfs();
-      } else {
-          return true;
-      }
-  }
+    public static boolean isIngressEnabledOnDFS(PrefixMode mode, AbfsConfiguration abfsConfiguration) {
+        if (mode == PrefixMode.BLOB) {
+            return abfsConfiguration.shouldIngressFallbackToDfs();
+        } else {
+            return true;
+        }
+    }
+
+    public static boolean isReadEnabledOnDFS(PrefixMode mode, AbfsConfiguration abfsConfiguration) {
+        if (mode == PrefixMode.BLOB) {
+            return abfsConfiguration.shouldReadFallbackToDfs();
+        }
+        return true;
+    }
 }
