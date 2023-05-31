@@ -1256,11 +1256,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
                     "openFileForRead must be used with files and not directories",
                     null);
           } else {
-            throw new AbfsRestOperationException(
-                    AzureServiceErrorCode.PATH_NOT_FOUND.getStatusCode(),
-                    AzureServiceErrorCode.PATH_NOT_FOUND.getErrorCode(),
-                    "Resource does not exist",
-                    null);
+            throw e;
           }
         }
       } else {
