@@ -592,7 +592,6 @@ public class ITestAzureBlobFileSystemRandomRead extends
     ));
     store.setClient(mockClient);
     Mockito.doReturn(mockClient).when(store).getClient();
-    fs.setAbfsStore(store);
     Mockito.doReturn(store).when(fs).getAbfsStore();
 
     Path testPath = new Path("/testReadFile");
