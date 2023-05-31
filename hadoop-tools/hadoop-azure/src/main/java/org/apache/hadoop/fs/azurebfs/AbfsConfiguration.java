@@ -841,7 +841,7 @@ public class AbfsConfiguration{
   }
 
   public String getCustomUserAgentPrefix() {
-    return "abfsdriverV2.1";
+    return "abfsdriverV2.2";
   }
 
   public String getClusterName() {
