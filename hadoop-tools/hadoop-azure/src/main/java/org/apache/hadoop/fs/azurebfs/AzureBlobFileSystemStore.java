@@ -1653,16 +1653,18 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
      */
     if (!path.isRoot()) {
       Path parentPath = path.getParent();
-      try {
-        getBlobProperty(parentPath, tracingContext);
-      } catch (AbfsRestOperationException ex) {
-        if (ex.getStatusCode() != HttpURLConnection.HTTP_NOT_FOUND) {
-          throw ex;
+      if (!parentPath.isRoot()) {
+        try {
+          getBlobProperty(parentPath, tracingContext);
+        } catch (AbfsRestOperationException ex) {
+          if (ex.getStatusCode() != HttpURLConnection.HTTP_NOT_FOUND) {
+            throw ex;
+          }
+          createDirectory(parentPath, null, FsPermission.getDirDefault(),
+              FsPermission.getUMask(
+                  getAbfsConfiguration().getRawConfiguration()),
+              tracingContext);
         }
-        createDirectory(parentPath, null, FsPermission.getDirDefault(),
-            FsPermission.getUMask(
-                getAbfsConfiguration().getRawConfiguration()),
-            tracingContext);
       }
     }
 
