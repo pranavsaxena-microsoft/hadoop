@@ -40,6 +40,7 @@ import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AbfsRestOperationExcep
 import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
 import org.apache.hadoop.fs.azurebfs.services.AbfsHttpOperation;
 import org.apache.hadoop.fs.azurebfs.services.AbfsRestOperation;
+import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
 import org.apache.hadoop.fs.azurebfs.services.TestAbfsClient;
 import org.apache.hadoop.fs.azurebfs.services.TestAbfsPerfTracker;
 import org.apache.hadoop.fs.azurebfs.utils.TestMockHelpers;
@@ -48,9 +49,12 @@ import org.apache.hadoop.fs.azurebfs.utils.TracingHeaderValidator;
 import org.apache.hadoop.fs.FileAlreadyExistsException;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.test.LambdaTestUtils;
+
 import org.mockito.Mockito;
 
 import static java.net.HttpURLConnection.HTTP_BAD_REQUEST;
+import static java.net.HttpURLConnection.HTTP_FORBIDDEN;
 import static java.net.HttpURLConnection.HTTP_NOT_FOUND;
 import static java.net.HttpURLConnection.HTTP_OK;
 
@@ -308,6 +312,7 @@ public class ITestAzureBlobFileSystemDelete extends
   @Test
   public void testDeleteImplicitDir() throws Exception {
     AzureBlobFileSystem fs = getFileSystem();
+    Assume.assumeTrue(fs.getAbfsStore().getPrefixMode() == PrefixMode.BLOB);
     fs.mkdirs(new Path("/testDir/dir1"));
     fs.create(new Path("/testDir/dir1/file1"));
     fs.getAbfsClient().deleteBlobPath(new Path("/testDir/dir1"),
@@ -321,21 +326,26 @@ public class ITestAzureBlobFileSystemDelete extends
 
   @Test
   public void testDeleteImplicitDirWithSingleListResults() throws Exception {
-    AzureBlobFileSystem fs = (AzureBlobFileSystem) FileSystem.newInstance(getRawConfiguration());
+    AzureBlobFileSystem fs = (AzureBlobFileSystem) FileSystem.newInstance(
+        getRawConfiguration());
+    Assume.assumeTrue(fs.getAbfsStore().getPrefixMode() == PrefixMode.BLOB);
     AbfsClient client = fs.getAbfsClient();
     AbfsClient spiedClient = Mockito.spy(client);
     fs.getAbfsStore().setClient(spiedClient);
     fs.mkdirs(new Path("/testDir/dir1"));
-    for(int i=0;i<10;i++) {
+    for (int i = 0; i < 10; i++) {
       fs.create(new Path("/testDir/dir1/file" + i));
     }
     Mockito.doAnswer(answer -> {
-      String marker = answer.getArgument(0);
-      String prefix = answer.getArgument(1);
-      Integer maxResult = answer.getArgument(2);
-      TracingContext context = answer.getArgument(3);
-      return client.getListBlobs(marker, prefix, 1, context);
-    }).when(spiedClient).getListBlobs(Mockito.nullable(String.class), Mockito.anyString(), Mockito.nullable(Integer.class), Mockito.any(TracingContext.class));
+          String marker = answer.getArgument(0);
+          String prefix = answer.getArgument(1);
+          Integer maxResult = answer.getArgument(2);
+          TracingContext context = answer.getArgument(3);
+          return client.getListBlobs(marker, prefix, 1, context);
+        })
+        .when(spiedClient)
+        .getListBlobs(Mockito.nullable(String.class), Mockito.anyString(),
+            Mockito.nullable(Integer.class), Mockito.any(TracingContext.class));
     fs.getAbfsClient().deleteBlobPath(new Path("/testDir/dir1"),
         null, Mockito.mock(TracingContext.class));
 
@@ -347,6 +357,7 @@ public class ITestAzureBlobFileSystemDelete extends
   @Test
   public void testDeleteExplicitDirInImplicitParentDir() throws Exception {
     AzureBlobFileSystem fs = getFileSystem();
+    Assume.assumeTrue(fs.getAbfsStore().getPrefixMode() == PrefixMode.BLOB);
     fs.mkdirs(new Path("/testDir/dir1"));
     fs.create(new Path("/testDir/dir1/file1"));
     fs.getAbfsClient().deleteBlobPath(new Path("/testDir/"),
@@ -359,4 +370,28 @@ public class ITestAzureBlobFileSystemDelete extends
     Assert.assertTrue(fs.exists(new Path("/testDir/")));
   }
 
+  @Test
+  public void testDeleteParallelBlobFailure() throws Exception {
+    AzureBlobFileSystem fs = Mockito.spy(getFileSystem());
+    Assume.assumeTrue(fs.getAbfsStore().getPrefixMode() == PrefixMode.BLOB);
+    AbfsClient client = Mockito.spy(fs.getAbfsClient());
+    AzureBlobFileSystemStore store = Mockito.spy(fs.getAbfsStore());
+    store.setClient(client);
+    Mockito.doReturn(store).when(fs).getAbfsStore();
+
+    fs.mkdirs(new Path("/testDir"));
+    fs.create(new Path("/testDir/file1"));
+    fs.create(new Path("/testDir/file2"));
+    fs.create(new Path("/testDir/file3"));
+
+    Mockito.doThrow(
+            new AbfsRestOperationException(HTTP_FORBIDDEN, "", "", new Exception()))
+        .when(client)
+        .deleteBlobPath(Mockito.any(Path.class), Mockito.nullable(String.class),
+            Mockito.any(TracingContext.class));
+
+    LambdaTestUtils.intercept(RuntimeException.class, () -> {
+      fs.delete(new Path("/testDir"), true);
+    });
+  }
 }

@@ -1622,10 +1622,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
               tracingContext).getResult()
           .getBlobList();
       if (blobList.getBlobPropertyList().size() == 0) {
-        throw new AbfsRestOperationException(
-            ex.getStatusCode(),
-            AzureServiceErrorCode.PATH_NOT_FOUND.getErrorCode(),
-            ex.getErrorMessage(), ex);
+        throw ex;
       }
       String nextMarker = blobList.getNextMarker();
       listBlobQueue = new ListBlobQueue(blobList);
@@ -1669,7 +1666,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     }
 
     if (pathProperty != null && !pathProperty.getIsDirectory()) {
-      deleteBlob(path, null, tracingContext);
+      client.deleteBlobPath(path, null, tracingContext);
       return;
     }
 
@@ -1703,12 +1700,12 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         futureList.add(deleteBlobExecutorService.submit(() -> {
           try {
             client.deleteBlobPath(blobProperty.getPath(), null, tracingContext);
-          } catch (AbfsRestOperationException ex) {
-            if (ex.getStatusCode() == HttpURLConnection.HTTP_NOT_FOUND) {
+          } catch (AzureBlobFileSystemException ex) {
+            if (ex instanceof AbfsRestOperationException
+                && ((AbfsRestOperationException) ex).getStatusCode()
+                == HttpURLConnection.HTTP_NOT_FOUND) {
               return;
             }
-            throw new RuntimeException(ex);
-          } catch (AzureBlobFileSystemException ex) {
             throw new RuntimeException(ex);
           }
         }));
