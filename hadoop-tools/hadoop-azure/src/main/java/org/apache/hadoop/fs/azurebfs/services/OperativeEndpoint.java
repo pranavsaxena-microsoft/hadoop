@@ -23,24 +23,24 @@ import org.apache.hadoop.fs.azurebfs.AbfsConfiguration;
  * This class is mainly to unify the fallback for all API's to DFS endpoint at a single spot.
  */
 public class OperativeEndpoint {
-  public static boolean isMkdirEnabledOnDFS(PrefixMode mode, AbfsConfiguration abfsConfiguration) {
-      if (mode == PrefixMode.BLOB) {
+  public static boolean isMkdirEnabledOnDFS(AbfsConfiguration abfsConfiguration) {
+      if (abfsConfiguration.getPrefixMode() == PrefixMode.BLOB) {
           return abfsConfiguration.shouldMkdirFallbackToDfs();
       } else {
           return true;
       }
   }
 
-    public static boolean isIngressEnabledOnDFS(PrefixMode mode, AbfsConfiguration abfsConfiguration) {
-        if (mode == PrefixMode.BLOB) {
+    public static boolean isIngressEnabledOnDFS(AbfsConfiguration abfsConfiguration) {
+        if (abfsConfiguration.getPrefixMode() == PrefixMode.BLOB) {
             return abfsConfiguration.shouldIngressFallbackToDfs();
         } else {
             return true;
         }
     }
 
-    public static boolean isReadEnabledOnDFS(PrefixMode mode, AbfsConfiguration abfsConfiguration) {
-        if (mode == PrefixMode.BLOB) {
+    public static boolean isReadEnabledOnDFS(AbfsConfiguration abfsConfiguration) {
+        if (abfsConfiguration.getPrefixMode() == PrefixMode.BLOB) {
             return abfsConfiguration.shouldReadFallbackToDfs();
         }
         return true;

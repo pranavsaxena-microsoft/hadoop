@@ -902,7 +902,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     AbfsRestOperation op;
     if (!isNormalBlob) {
       // Marker blob creation flow.
-      if (OperativeEndpoint.isMkdirEnabledOnDFS(getPrefixMode(), abfsConfiguration)) {
+      if (OperativeEndpoint.isMkdirEnabledOnDFS(abfsConfiguration)) {
         // Marker blob creation is not possible with dfs endpoint.
         throw new InvalidConfigurationValueException("Incorrect flow for create directory for dfs is hit " + relativePath);
       } else {
@@ -910,7 +910,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       }
     } else {
       // Normal blob creation flow. If config for fallback is not enabled and prefix mode is blob go to blob, else go to dfs.
-      if (!OperativeEndpoint.isIngressEnabledOnDFS(getPrefixMode(), abfsConfiguration)) {
+      if (!OperativeEndpoint.isIngressEnabledOnDFS(abfsConfiguration)) {
         op = createPathBlob(relativePath, true, overwrite, metadata, eTag, tracingContext);
       } else {
         op = createPath(relativePath, true, overwrite, isNamespaceEnabled ? getOctalNotation(permission) : null,
@@ -1137,7 +1137,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       final FsPermission umask, TracingContext tracingContext)
           throws IOException {
     try (AbfsPerfInfo perfInfo = startTracking("createDirectory", "createPath")) {
-      if (!OperativeEndpoint.isMkdirEnabledOnDFS(getPrefixMode(), abfsConfiguration)) {
+      if (!OperativeEndpoint.isMkdirEnabledOnDFS(abfsConfiguration)) {
         ArrayList<Path> keysToCreateAsFolder = new ArrayList<>();
         checkParentChainForFile(path, tracingContext, keysToCreateAsFolder);
         boolean blobOverwrite = abfsConfiguration.isEnabledBlobMkdirOverwrite();
@@ -1601,7 +1601,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
   }
 
   private Boolean isCreateOperationOnBlobEndpoint() {
-    return !OperativeEndpoint.isIngressEnabledOnDFS(prefixMode, abfsConfiguration);
+    return !OperativeEndpoint.isIngressEnabledOnDFS(abfsConfiguration);
   }
 
   /**
