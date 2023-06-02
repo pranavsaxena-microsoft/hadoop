@@ -1622,7 +1622,10 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
               tracingContext).getResult()
           .getBlobList();
       if (blobList.getBlobPropertyList().size() == 0) {
-        throw ex;
+        throw new AbfsRestOperationException(
+            ex.getStatusCode(),
+            AzureServiceErrorCode.PATH_NOT_FOUND.getErrorCode(),
+            ex.getErrorMessage(), ex);
       }
       String nextMarker = blobList.getNextMarker();
       listBlobQueue = new ListBlobQueue(blobList);
