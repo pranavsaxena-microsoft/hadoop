@@ -146,7 +146,7 @@ public class ITestAzureBlobFileSystemLease extends AbstractAbfsIntegrationTest {
     try (FSDataOutputStream out = fs.create(testFilePath)) {
       AbfsConfiguration abfsConfiguration = fs.getAbfsStore().getAbfsConfiguration();
       LambdaTestUtils.intercept(IOException.class, isHNSEnabled ? ERR_PARALLEL_ACCESS_DETECTED
-              : !OperativeEndpoint.isIngressEnabledOnDFS(abfsConfiguration)
+              : !OperativeEndpoint.isIngressEnabledOnDFS(prefixMode, abfsConfiguration)
               ? ERR_NO_LEASE_ID_SPECIFIED_BLOB
               : ERR_NO_LEASE_ID_SPECIFIED, () -> {
         try (FSDataOutputStream out2 = fs.create(testFilePath)) {
@@ -245,14 +245,14 @@ public class ITestAzureBlobFileSystemLease extends AbstractAbfsIntegrationTest {
     fs.registerListener(null);
     PrefixMode prefixMode = getPrefixMode(fs);
     AbfsConfiguration abfsConfiguration = fs.getAbfsStore().getAbfsConfiguration();
-    LambdaTestUtils.intercept(IOException.class, !OperativeEndpoint.isIngressEnabledOnDFS(abfsConfiguration)
+    LambdaTestUtils.intercept(IOException.class, !OperativeEndpoint.isIngressEnabledOnDFS(prefixMode, abfsConfiguration)
             ? ERR_LEASE_EXPIRED : ERR_LEASE_EXPIRED_DFS, () -> {
       out.write(1);
       out.hsync();
       return "Expected exception on write after lease break but got " + out;
     });
 
-    LambdaTestUtils.intercept(IOException.class, !OperativeEndpoint.isIngressEnabledOnDFS(abfsConfiguration)
+    LambdaTestUtils.intercept(IOException.class, !OperativeEndpoint.isIngressEnabledOnDFS(prefixMode, abfsConfiguration)
             ? ERR_LEASE_EXPIRED : ERR_LEASE_EXPIRED_DFS, () -> {
       out.close();
       return "Expected exception on close after lease break but got " + out;
@@ -281,7 +281,7 @@ public class ITestAzureBlobFileSystemLease extends AbstractAbfsIntegrationTest {
     fs.breakLease(testFilePath);
     PrefixMode prefixMode = getPrefixMode(fs);
     AbfsConfiguration abfsConfiguration = fs.getAbfsStore().getAbfsConfiguration();
-    LambdaTestUtils.intercept(IOException.class, !OperativeEndpoint.isIngressEnabledOnDFS(abfsConfiguration)
+    LambdaTestUtils.intercept(IOException.class, !OperativeEndpoint.isIngressEnabledOnDFS(prefixMode, abfsConfiguration)
             ? ERR_LEASE_EXPIRED : ERR_LEASE_EXPIRED_DFS, () -> {
       out.close();
       return "Expected exception on close after lease break but got " + out;

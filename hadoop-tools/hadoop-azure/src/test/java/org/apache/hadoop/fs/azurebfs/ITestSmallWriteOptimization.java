@@ -432,7 +432,7 @@ public class ITestSmallWriteOptimization extends AbstractAbfsScaleTest {
           ? 1 // 1 append (with flush and close param)
           : (wasDataPendingToBeWrittenToServer)
               ? 2 // 1 append + 1 flush (with close)
-              : (recurringWriteSize == 0 && !OperativeEndpoint.isIngressEnabledOnDFS(fs.getAbfsStore().getAbfsConfiguration()))
+              : (recurringWriteSize == 0 && !OperativeEndpoint.isIngressEnabledOnDFS(getPrefixMode(fs), fs.getAbfsStore().getAbfsConfiguration()))
                   ? 0 // no flush or close on prefix mode blob
                   : 1); //1 flush (with close)
 
@@ -462,7 +462,7 @@ public class ITestSmallWriteOptimization extends AbstractAbfsScaleTest {
      */
 
     opStream.close();
-    if (OperativeEndpoint.isIngressEnabledOnDFS(fs.getAbfsStore().getAbfsConfiguration())) {
+    if (OperativeEndpoint.isIngressEnabledOnDFS(getPrefixMode(fs), fs.getAbfsStore().getAbfsConfiguration())) {
       expectedTotalRequestsMade += 1;
       expectedRequestsMadeWithData += 1;
     }

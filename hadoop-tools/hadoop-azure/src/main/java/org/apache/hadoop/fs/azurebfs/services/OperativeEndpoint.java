@@ -31,8 +31,8 @@ public class OperativeEndpoint {
       }
   }
 
-    public static boolean isIngressEnabledOnDFS(AbfsConfiguration abfsConfiguration) {
-        if (abfsConfiguration.getPrefixMode() == PrefixMode.BLOB) {
+    public static boolean isIngressEnabledOnDFS(PrefixMode prefixMode, AbfsConfiguration abfsConfiguration) {
+        if (prefixMode == PrefixMode.BLOB) {
             return abfsConfiguration.shouldIngressFallbackToDfs();
         } else {
             return true;
