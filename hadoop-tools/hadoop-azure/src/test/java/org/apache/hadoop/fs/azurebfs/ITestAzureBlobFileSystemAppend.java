@@ -22,6 +22,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.lang.reflect.Field;
+import java.net.HttpURLConnection;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -30,6 +31,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -42,6 +44,7 @@ import org.apache.hadoop.fs.azurebfs.services.AbfsOutputStream;
 import org.apache.hadoop.fs.azurebfs.services.OperativeEndpoint;
 import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
 import org.apache.hadoop.fs.azurebfs.services.ITestAbfsClient;
+import org.apache.hadoop.fs.azurebfs.services.SharedKeyCredentials;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 import org.junit.Assume;
 import org.junit.Test;
@@ -614,15 +617,38 @@ public class ITestAzureBlobFileSystemAppend extends
     AbfsClient client = Mockito.spy(store.getClient());
     store.setClient(client);
     Mockito.doReturn(store).when(fs).getAbfsStore();
-    Mockito.doThrow(new AbfsRestOperationException(503, "", "", new Exception()))
-        .when(client).append(Mockito.anyString(), Mockito.anyString(), Mockito.any(byte[].class), Mockito.any(
-        AppendRequestParameters.class), Mockito.nullable(String.class), Mockito.any(TracingContext.class), Mockito.nullable(String.class));
 
     FSDataOutputStream os = fs.create(new Path("/test/file"));
-    byte[] bytes = new byte[1024 * 1024 * 8];
+    AtomicInteger counter = new AtomicInteger(0);
+
+    Mockito.doReturn("").when(client).getAccessToken();
+    SharedKeyCredentials credentials = Mockito.mock(SharedKeyCredentials.class);
+    Mockito.doNothing().when(credentials).signRequest(Mockito.any(HttpURLConnection.class), Mockito.anyLong());
+    Mockito.doReturn(credentials).when(client).getSharedKeyCredentials();
+
+    Mockito.doAnswer(answer -> {
+      try {
+        Object result = answer.callRealMethod();
+        return result;
+      } catch (Exception e) {
+        counter.incrementAndGet();
+        throw e;
+      }
+        })
+        .when(client)
+        .append(Mockito.anyString(), Mockito.anyString(),
+            Mockito.any(byte[].class), Mockito.any(
+                AppendRequestParameters.class), Mockito.nullable(String.class),
+            Mockito.any(TracingContext.class), Mockito.nullable(String.class));
+
+    byte[] bytes = new byte[1024 * 1024 * 8 * 4];
     new Random().nextBytes(bytes);
-    LambdaTestUtils.intercept(Exception.class, () -> {
+    LambdaTestUtils.intercept(AbfsRestOperationException.class, () -> {
       os.write(bytes);
+      while(counter.get() == 0) {
+        Thread.sleep(100);
+      }
+      Thread.sleep(100);
       os.write(bytes);
     });
   }
