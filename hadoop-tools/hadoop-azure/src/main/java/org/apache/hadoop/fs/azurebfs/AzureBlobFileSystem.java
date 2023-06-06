@@ -511,8 +511,10 @@ public class AzureBlobFileSystem extends FileSystem
     String parentPath = parent.toUri().getPath();
     if (getAbfsStore().getAbfsConfiguration().getPrefixMode() == PrefixMode.BLOB
         && getAbfsStore().isAtomicRenameKey(parentPath)) {
-      abfsBlobLease = new AbfsBlobLease(getAbfsClient(),
-          parentPath, BLOB_LEASE_ONE_MINUTE_DURATION, tracingContext);
+      if(getAbfsStore().getAbfsConfiguration().isLeaseOnCreateNonRecursive()) {
+        abfsBlobLease = new AbfsBlobLease(getAbfsClient(),
+            parentPath, BLOB_LEASE_ONE_MINUTE_DURATION, tracingContext);
+      }
     }
     final FileStatus parentFileStatus = tryGetFileStatus(parent, tracingContext);
 

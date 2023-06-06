@@ -128,6 +128,7 @@ public final class FileSystemConfigurations {
   public static final boolean DEFAULT_FS_AZURE_REDIRECT_RENAME = false;
   public static final boolean DEFAULT_FS_AZURE_REDIRECT_DELETE = true;
   public static final int DEFAULT_FS_AZURE_PRODUCER_QUEUE_MAX_SIZE = 10000;
+  public static final boolean DEFAULT_FS_AZURE_LEASE_CREATE_NON_RECURSIVE = false;
 
   public static final int DEFAULT_FS_AZURE_BLOB_RENAME_THREAD = 5;
 

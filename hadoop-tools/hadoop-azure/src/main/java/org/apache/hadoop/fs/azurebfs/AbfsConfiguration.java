@@ -21,6 +21,7 @@ package org.apache.hadoop.fs.azurebfs;
 import java.io.IOException;
 import java.lang.reflect.Field;
 
+import org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys;
 import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
 import org.apache.hadoop.thirdparty.com.google.common.annotations.VisibleForTesting;
 import org.apache.hadoop.thirdparty.com.google.common.base.Preconditions;
@@ -329,6 +330,9 @@ public class AbfsConfiguration{
   @IntegerConfigurationValidatorAnnotation(ConfigurationKey =
       FS_AZURE_PRODUCER_QUEUE_MAX_SIZE, DefaultValue = DEFAULT_FS_AZURE_PRODUCER_QUEUE_MAX_SIZE)
   private int producerQueueMaxSize;
+
+  @BooleanConfigurationValidatorAnnotation(ConfigurationKey=FS_AZURE_LEASE_CREATE_NON_RECURSIVE, DefaultValue = DEFAULT_FS_AZURE_LEASE_CREATE_NON_RECURSIVE)
+  private boolean leaseOnCreateNonRecursive;
 
   public AbfsConfiguration(final Configuration rawConfig, String accountName)
       throws IllegalAccessException, InvalidConfigurationValueException, IOException {
@@ -1187,6 +1191,10 @@ public class AbfsConfiguration{
 
   public int getProducerQueueMaxSize() {
     return producerQueueMaxSize;
+  }
+
+  public boolean isLeaseOnCreateNonRecursive() {
+    return leaseOnCreateNonRecursive;
   }
 
 }
