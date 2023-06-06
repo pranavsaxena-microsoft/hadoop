@@ -1269,7 +1269,10 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       String nextMarker = blobList.getNextMarker();
       List<BlobProperty> srcBlobProperties = blobList.getBlobPropertyList();
 
-      ListBlobQueue listBlobQueue = new ListBlobQueue(blobList);
+      ListBlobQueue listBlobQueue = new ListBlobQueue(
+          blobList.getBlobPropertyList(),
+          getAbfsConfiguration().getProducerQueueMaxSize(),
+          getAbfsConfiguration().getBlobDirRenameMaxThread());
       if (nextMarker != null) {
         new ListBlobProducer(listSrc,
             client, listBlobQueue, nextMarker, tracingContext);
@@ -1428,7 +1431,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       final ListBlobQueue listBlobQueue,
       final BlobProperty blobPropOnSrc, final AbfsBlobLease srcDirBlobLease,
       final Boolean isAtomicRename) throws AzureBlobFileSystemException {
-    BlobList blobList;
+    List<BlobProperty> blobList;
     ListBlobConsumer listBlobConsumer = new ListBlobConsumer(listBlobQueue);
     while(!listBlobConsumer.isCompleted()) {
       blobList = listBlobConsumer.consume();
@@ -1436,7 +1439,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         continue;
       }
       List<Future> futures = new ArrayList<>();
-      for (BlobProperty blobProperty : blobList.getBlobPropertyList()) {
+      for (BlobProperty blobProperty : blobList) {
         futures.add(renameBlobExecutorService.submit(() -> {
           try {
             AbfsBlobLease blobLease = null;
@@ -2164,7 +2167,9 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       public void redo(final Path destination, final Path src)
           throws AzureBlobFileSystemException {
 
-        ListBlobQueue listBlobQueue = new ListBlobQueue();
+        ListBlobQueue listBlobQueue = new ListBlobQueue(
+            getAbfsConfiguration().getProducerQueueMaxSize(),
+            getAbfsConfiguration().getBlobDirRenameMaxThread());
         StringBuilder listSrcBuilder = new StringBuilder(src.toUri().getPath());
         if (!src.isRoot()) {
           listSrcBuilder.append(FORWARD_SLASH);

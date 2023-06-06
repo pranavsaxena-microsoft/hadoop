@@ -40,7 +40,7 @@ import org.apache.hadoop.fs.azurebfs.services.ListBlobQueue;
 import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 
-import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_MAX_CONSUMER_LAG;
+import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_PRODUCER_QUEUE_MAX_SIZE;
 
 public class ITestListBlobProducer extends AbstractAbfsIntegrationTest {
 
@@ -59,7 +59,7 @@ public class ITestListBlobProducer extends AbstractAbfsIntegrationTest {
   @Test
   public void testProducerWaitingForConsumerLagToGoDown() throws Exception {
     Configuration configuration = Mockito.spy(getRawConfiguration());
-    configuration.set(FS_AZURE_MAX_CONSUMER_LAG, "10");
+    configuration.set(FS_AZURE_PRODUCER_QUEUE_MAX_SIZE, "10");
     AzureBlobFileSystem fs = (AzureBlobFileSystem) FileSystem.newInstance(
         configuration);
     AbfsClient client = fs.getAbfsClient();
@@ -88,7 +88,9 @@ public class ITestListBlobProducer extends AbstractAbfsIntegrationTest {
             Mockito.nullable(String.class), Mockito.nullable(Integer.class),
             Mockito.nullable(TracingContext.class));
 
-    ListBlobQueue queue = new ListBlobQueue(null);
+    ListBlobQueue queue = new ListBlobQueue(
+        getConfiguration().getProducerQueueMaxSize(),
+        getConfiguration().getBlobDirRenameMaxThread());
     ListBlobProducer producer = new ListBlobProducer("src/", spiedClient, queue,
         null, Mockito.mock(
         TracingContext.class));
@@ -117,7 +119,7 @@ public class ITestListBlobProducer extends AbstractAbfsIntegrationTest {
   @Test
   public void testConsumerWhenProducerThrowException() throws Exception {
     Configuration configuration = Mockito.spy(getRawConfiguration());
-    configuration.set(FS_AZURE_MAX_CONSUMER_LAG, "10");
+    configuration.set(FS_AZURE_PRODUCER_QUEUE_MAX_SIZE, "10");
     AzureBlobFileSystem fs = (AzureBlobFileSystem) FileSystem.newInstance(
         configuration);
     AbfsClient client = fs.getAbfsClient();
@@ -139,7 +141,8 @@ public class ITestListBlobProducer extends AbstractAbfsIntegrationTest {
             Mockito.nullable(String.class), Mockito.nullable(Integer.class),
             Mockito.nullable(TracingContext.class));
 
-    ListBlobQueue queue = new ListBlobQueue(null);
+    ListBlobQueue queue = new ListBlobQueue(getConfiguration().getProducerQueueMaxSize(),
+        getConfiguration().getProducerQueueMaxSize());
     ListBlobProducer producer = new ListBlobProducer("src/", spiedClient, queue,
         null, Mockito.mock(
         TracingContext.class));

@@ -18,6 +18,8 @@
 
 package org.apache.hadoop.fs.azurebfs.services;
 
+import java.util.List;
+
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemException;
 
 public class ListBlobConsumer {
@@ -28,7 +30,7 @@ public class ListBlobConsumer {
     this.listBlobQueue = listBlobQueue;
   }
 
-  public BlobList consume() throws AzureBlobFileSystemException {
+  public List<BlobProperty> consume() throws AzureBlobFileSystemException {
     if (listBlobQueue.getException() != null) {
       throw listBlobQueue.getException();
     }
@@ -37,6 +39,6 @@ public class ListBlobConsumer {
 
   public Boolean isCompleted() {
     return listBlobQueue.getIsCompleted()
-        && listBlobQueue.getConsumerLag() == 0;
+        && listBlobQueue.size() == 0;
   }
 }

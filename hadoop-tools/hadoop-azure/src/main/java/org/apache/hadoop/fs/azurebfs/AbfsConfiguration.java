@@ -326,8 +326,9 @@ public class AbfsConfiguration{
       FS_AZURE_ENABLE_ABFS_LIST_ITERATOR, DefaultValue = DEFAULT_ENABLE_ABFS_LIST_ITERATOR)
   private boolean enableAbfsListIterator;
 
-  @IntegerConfigurationValidatorAnnotation(ConfigurationKey = FS_AZURE_MAX_CONSUMER_LAG, DefaultValue = DEFAULT_FS_AZURE_MAX_CONSUMER_LAG)
-  private int maximumConsumerLag;
+  @IntegerConfigurationValidatorAnnotation(ConfigurationKey =
+      FS_AZURE_PRODUCER_QUEUE_MAX_SIZE, DefaultValue = DEFAULT_FS_AZURE_PRODUCER_QUEUE_MAX_SIZE)
+  private int producerQueueMaxSize;
 
   public AbfsConfiguration(final Configuration rawConfig, String accountName)
       throws IllegalAccessException, InvalidConfigurationValueException, IOException {
@@ -1184,8 +1185,8 @@ public class AbfsConfiguration{
     this.enableAbfsListIterator = enableAbfsListIterator;
   }
 
-  public int getMaximumConsumerLag() {
-    return maximumConsumerLag;
+  public int getProducerQueueMaxSize() {
+    return producerQueueMaxSize;
   }
 
 }
