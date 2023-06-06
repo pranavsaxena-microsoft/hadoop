@@ -298,14 +298,8 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         abfsConfiguration.getMaxWriteRequestsToQueue(),
         10L, TimeUnit.SECONDS,
         "abfs-bounded");
-    if (abfsConfiguration.getBlobDirRenameMaxThread() == 0) {
-      renameBlobExecutorService = Executors.newFixedThreadPool(
-          Runtime.getRuntime()
-              .availableProcessors());
-    } else {
-      renameBlobExecutorService = Executors.newFixedThreadPool(
+    renameBlobExecutorService = Executors.newFixedThreadPool(
           abfsConfiguration.getBlobDirRenameMaxThread());
-    }
   }
 
   /**

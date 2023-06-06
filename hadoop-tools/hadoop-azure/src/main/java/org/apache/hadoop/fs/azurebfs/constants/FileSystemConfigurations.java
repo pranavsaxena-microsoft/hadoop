@@ -129,6 +129,8 @@ public final class FileSystemConfigurations {
   public static final boolean DEFAULT_FS_AZURE_REDIRECT_DELETE = true;
   public static final int DEFAULT_FS_AZURE_MAX_CONSUMER_LAG = 7000;
 
+  public static final int DEFAULT_FS_AZURE_BLOB_RENAME_THREAD = 5;
+
   /**
    * Limit of queued block upload operations before writes
    * block for an OutputStream. Value: {@value}

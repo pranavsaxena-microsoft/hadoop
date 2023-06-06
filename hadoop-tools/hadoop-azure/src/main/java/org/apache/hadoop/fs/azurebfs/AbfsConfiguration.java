@@ -246,7 +246,7 @@ public class AbfsConfiguration{
   private int readAheadQueueDepth;
 
   @IntegerConfigurationValidatorAnnotation(ConfigurationKey = FS_AZURE_BLOB_DIR_RENAME_MAX_THREAD,
-      DefaultValue = 0)
+      DefaultValue = DEFAULT_FS_AZURE_BLOB_RENAME_THREAD)
   private int blobDirRenameMaxThread;
 
   @LongConfigurationValidatorAnnotation(ConfigurationKey = FS_AZURE_BLOB_COPY_PROGRESS_POLL_WAIT_MILLIS,
