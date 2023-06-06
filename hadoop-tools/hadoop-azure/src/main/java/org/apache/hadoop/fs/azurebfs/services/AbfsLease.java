@@ -174,14 +174,18 @@ public abstract class AbfsLease {
     timer.schedule(new TimerTask() {
       @Override
       public void run() {
-        leaseID.set(callRenewLeaseAPI(path, leaseID.get(), tracingContext));
+        try {
+          leaseID.set(callRenewLeaseAPI(path, leaseID.get(), tracingContext));
+        } catch (AzureBlobFileSystemException e) {
+          throw new RuntimeException(e);
+        }
       }
     }, leaseDuration / 2);
   }
 
   abstract String callRenewLeaseAPI(final String path,
       final String s,
-      final TracingContext tracingContext);
+      final TracingContext tracingContext) throws AzureBlobFileSystemException;
 
   abstract AbfsRestOperation callAcquireLeaseAPI(final String path,
       final Integer leaseDuration,

@@ -18,10 +18,22 @@
 
 package org.apache.hadoop.fs.azurebfs.services;
 
+import org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants;
+import org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemException;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 
 public class AbfsDfsLease extends AbfsLease {
+
+  public AbfsDfsLease(final AbfsClient client,
+      final String path,
+      final int acquireMaxRetries,
+      final int acquireRetryInterval,
+      final Integer leaseDuration,
+      final TracingContext tracingContext) throws AzureBlobFileSystemException {
+    super(client, path, acquireMaxRetries, acquireRetryInterval, leaseDuration,
+        tracingContext);
+  }
 
   public AbfsDfsLease(final AbfsClient client,
       final String path,
@@ -32,9 +44,10 @@ public class AbfsDfsLease extends AbfsLease {
 
   @Override
   String callRenewLeaseAPI(final String path,
-      final String s,
-      final TracingContext tracingContext) {
-    return null;
+      final String leaseId,
+      final TracingContext tracingContext) throws AzureBlobFileSystemException {
+    AbfsRestOperation op = client.renewLease(path, leaseId, tracingContext);
+    return op.getResult().getResponseHeader(HttpHeaderConfigurations.X_MS_LEASE_ID);
   }
 
   @Override

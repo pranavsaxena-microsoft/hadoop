@@ -23,56 +23,47 @@ import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 
 import static org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations.X_MS_LEASE_ID;
 
-public class AbfsBlobLease {
-  private String leaseId;
-  private Long leaseRenewLastEpoch;
-  private final TracingContext tracingContext;
-  private final AbfsClient client;
-  private final String path;
-  private final Integer ONE_MINUTE = 60;
-  private final Long RENEW_TIME = 30 * 1_000L;
-  private Boolean freed = false;
+public class AbfsBlobLease extends AbfsLease {
 
-  public AbfsBlobLease(AbfsClient client,
-      String path,
-      TracingContext tracingContext) throws
-      AzureBlobFileSystemException {
-    this.client = client;
-    this.path = path;
-    this.tracingContext = tracingContext;
-    AbfsRestOperation op = client.acquireBlobLease(path, ONE_MINUTE,
+  public AbfsBlobLease(final AbfsClient client,
+      final String path,
+      final Integer leaseDuration,
+      final TracingContext tracingContext) throws AzureBlobFileSystemException {
+    super(client, path, leaseDuration, tracingContext);
+  }
+
+  public AbfsBlobLease(final AbfsClient client,
+      final String path,
+      final int acquireMaxRetries,
+      final int acquireRetryInterval,
+      final Integer leaseDuration,
+      final TracingContext tracingContext) throws AzureBlobFileSystemException {
+    super(client, path, acquireMaxRetries, acquireRetryInterval, leaseDuration,
         tracingContext);
-    extractLeaseInfo(op);
   }
 
-  private void extractLeaseInfo(final AbfsRestOperation op) {
-    leaseId = op.getResult().getResponseHeader(X_MS_LEASE_ID);
-    leaseRenewLastEpoch = System.currentTimeMillis();
+  @Override
+  String callRenewLeaseAPI(final String path,
+      final String leaseId,
+      final TracingContext tracingContext) throws AzureBlobFileSystemException {
+    return extractLeaseInfo(client.renewBlobLease(path, leaseId, tracingContext));
   }
 
-  public String getLeaseId() {
-    return leaseId;
+  @Override
+  AbfsRestOperation callAcquireLeaseAPI(final String path,
+      final Integer leaseDuration,
+      final TracingContext tracingContext) throws AzureBlobFileSystemException {
+    return client.acquireBlobLease(path, leaseDuration, tracingContext);
   }
 
-  public void renewIfRequired() throws AzureBlobFileSystemException {
-    if (System.currentTimeMillis() - leaseRenewLastEpoch >= RENEW_TIME) {
-      renew();
-    }
+  @Override
+  void callReleaseLeaseAPI(final String path,
+      final String leaseID,
+      final TracingContext tracingContext) throws AzureBlobFileSystemException {
+    client.releaseBlobLease(path, leaseID, tracingContext);
   }
 
-  private synchronized void renew() throws AzureBlobFileSystemException {
-    if (System.currentTimeMillis() - leaseRenewLastEpoch < RENEW_TIME) {
-      return;
-    }
-    AbfsRestOperation op = client.renewBlobLease(path, leaseId, tracingContext);
-    extractLeaseInfo(op);
-  }
-
-  public synchronized void free() throws AzureBlobFileSystemException {
-    if (freed) {
-      return;
-    }
-    client.releaseBlobLease(path, leaseId, tracingContext);
-    freed = true;
+  private String extractLeaseInfo(final AbfsRestOperation op) {
+    return op.getResult().getResponseHeader(X_MS_LEASE_ID);
   }
 }
