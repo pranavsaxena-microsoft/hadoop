@@ -206,8 +206,6 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
   private final AbfsCounters abfsCounters;
   private PrefixMode prefixMode;
 
-  private final ExecutorService renameBlobExecutorService;
-
   /**
    * The set of directories where we should store files as append blobs.
    */
@@ -298,8 +296,6 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         abfsConfiguration.getMaxWriteRequestsToQueue(),
         10L, TimeUnit.SECONDS,
         "abfs-bounded");
-    renameBlobExecutorService = Executors.newFixedThreadPool(
-          abfsConfiguration.getBlobDirRenameMaxThread());
   }
 
   /**
@@ -1433,6 +1429,9 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       final Boolean isAtomicRename) throws AzureBlobFileSystemException {
     List<BlobProperty> blobList;
     ListBlobConsumer listBlobConsumer = new ListBlobConsumer(listBlobQueue);
+    final ExecutorService renameBlobExecutorService
+        = Executors.newFixedThreadPool(
+        getAbfsConfiguration().getBlobDirRenameMaxThread());
     while(!listBlobConsumer.isCompleted()) {
       blobList = listBlobConsumer.consume();
       if(blobList == null) {
@@ -1484,6 +1483,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         }
       }
     }
+    renameBlobExecutorService.shutdown();
 
     renameBlob(
         blobPropOnSrc.getPath(), createDestinationPathForBlobPartOfRenameSrcDir(destination,
