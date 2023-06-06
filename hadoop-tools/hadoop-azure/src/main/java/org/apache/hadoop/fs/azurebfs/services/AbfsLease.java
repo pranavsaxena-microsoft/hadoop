@@ -70,6 +70,7 @@ public final class AbfsLease {
   private volatile Throwable exception = null;
   private volatile int acquireRetryCount = 0;
   private volatile ListenableScheduledFuture<AbfsRestOperation> future = null;
+  private final Integer leaseDuration;
 
   public static class LeaseException extends AzureBlobFileSystemException {
     public LeaseException(Throwable t) {
@@ -81,18 +82,21 @@ public final class AbfsLease {
     }
   }
 
-  public AbfsLease(AbfsClient client, String path, TracingContext tracingContext) throws AzureBlobFileSystemException {
+  public AbfsLease(AbfsClient client, String path,
+      final Integer leaseDuration,
+      TracingContext tracingContext) throws AzureBlobFileSystemException {
     this(client, path, DEFAULT_LEASE_ACQUIRE_MAX_RETRIES,
-        DEFAULT_LEASE_ACQUIRE_RETRY_INTERVAL, tracingContext);
+        DEFAULT_LEASE_ACQUIRE_RETRY_INTERVAL, leaseDuration, tracingContext);
   }
 
   @VisibleForTesting
   public AbfsLease(AbfsClient client, String path, int acquireMaxRetries,
-      int acquireRetryInterval, TracingContext tracingContext) throws AzureBlobFileSystemException {
+      int acquireRetryInterval, final Integer leaseDuration, TracingContext tracingContext) throws AzureBlobFileSystemException {
     this.leaseFreed = false;
     this.client = client;
     this.path = path;
     this.tracingContext = tracingContext;
+    this.leaseDuration = leaseDuration;
 
     if (client.getNumLeaseThreads() < 1) {
       throw new LeaseException(ERR_NO_LEASE_THREADS);

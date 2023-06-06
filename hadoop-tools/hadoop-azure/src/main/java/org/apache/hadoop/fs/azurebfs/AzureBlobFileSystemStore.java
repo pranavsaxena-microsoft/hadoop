@@ -2617,7 +2617,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     if (!enableInfiniteLease) {
       return null;
     }
-    AbfsLease lease = new AbfsLease(client, relativePath, tracingContext);
+    AbfsLease lease = new AbfsLease(client, relativePath, null, tracingContext);
     leaseRefs.put(lease, null);
     return lease;
   }
