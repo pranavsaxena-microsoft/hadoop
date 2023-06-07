@@ -18,41 +18,8 @@
 
 package org.apache.hadoop.fs.azurebfs.services;
 
-/**
- * The REST operation type (Read, Append, Other ).
- */
-public enum AbfsRestOperationType {
-    CreateFileSystem,
-    GetFileSystemProperties,
-    SetFileSystemProperties,
-    ListPaths,
-    DeleteFileSystem,
-    CreatePath,
-    RenamePath,
-    GetAcl,
-    GetPathProperties,
-    GetPathStatus,
-    SetAcl,
-    SetOwner,
-    SetPathProperties,
-    SetPermissions,
-    SetBlobMetadata,
-    Append,
-    Flush,
-    ReadFile,
-    DeletePath,
-    CheckAccess,
-    LeasePath,
-    LeaseBlob,
-    PutBlob,
-    GetBlobProperties,
-    GetContainerProperties,
-    GetBlobMetadata,
-    PutBlock,
-    PutBlockList,
-    GetBlockList,
-    DeleteBlob,
-    GetListBlobProperties,
-    CopyBlob,
-    GetBlob
+public enum TimerFunctionality {
+    RESUME,
+
+    SUSPEND
 }

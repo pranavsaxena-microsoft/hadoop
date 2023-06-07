@@ -61,7 +61,7 @@ import org.apache.hadoop.fs.azurebfs.contracts.exceptions.ConcurrentWriteOperati
 import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
 import org.apache.hadoop.fs.azurebfs.services.AbfsRestOperation;
 import org.apache.hadoop.fs.azurebfs.services.AbfsHttpOperation;
-import org.apache.hadoop.fs.azurebfs.services.TestAbfsClient;
+import org.apache.hadoop.fs.azurebfs.services.ITestAbfsClient;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 import org.apache.hadoop.fs.azurebfs.utils.TracingHeaderValidator;
 import org.mockito.Mockito;
@@ -1173,9 +1173,15 @@ public class ITestAzureBlobFileSystemCreate extends
 
     // One request to server to create path should be issued
     // two calls added for -
-    // 1. getFileStatus
-    // 2. actual create call
+    // 1. getFileStatus : 1
+    // 2. actual create call: 1
     createRequestCount+=2;
+
+    // In case of blob endpoint getFileStatus makes additional call to check if path is implicit
+    if (fs.getAbfsStore().getPrefixMode() == PrefixMode.BLOB) {
+      createRequestCount++;
+    }
+
     createRequestCount+=ifBlobCheckIfPathDir;
 
     assertAbfsStatistics(
@@ -1276,7 +1282,7 @@ public class ITestAzureBlobFileSystemCreate extends
     // Get mock AbfsClient with current config
     AbfsClient
         mockClient
-        = TestAbfsClient.getMockAbfsClient(
+        = ITestAbfsClient.getMockAbfsClient(
         fs.getAbfsStore().getClient(),
         fs.getAbfsStore().getAbfsConfiguration());
 
@@ -1335,6 +1341,13 @@ public class ITestAzureBlobFileSystemCreate extends
         .doReturn(successOp) // Scn4: create overwrite=true fails with Http500
         .when(mockClient)
         .getPathStatus(any(String.class), eq(false), any(TracingContext.class));
+
+    doThrow(fileNotFoundResponseEx) // Scn1: GFS fails with Http404
+            .doThrow(serverErrorResponseEx) // Scn2: GFS fails with Http500
+            .doReturn(successOp) // Scn3: create overwrite=true fails with Http412
+            .doReturn(successOp) // Scn4: create overwrite=true fails with Http500
+            .when(mockClient)
+            .getBlobProperty(any(Path.class), any(TracingContext.class));
 
     // mock for overwrite=true
     doThrow(
@@ -1482,7 +1495,12 @@ public class ITestAzureBlobFileSystemCreate extends
     final AzureBlobFileSystem fs = getFileSystem();
     final AbfsClient client = fs.getAbfsClient();
     final TracingContext testTracingContext = getTestTracingContext(fs, false);
-    AbfsRestOperation op = client.getPathStatus(fileName, true, testTracingContext);
+    AbfsRestOperation op;
+    if (fs.getAbfsStore().getPrefixMode() == PrefixMode.BLOB) {
+      op = client.getBlobProperty(new Path(fileName), testTracingContext);
+    } else {
+      op = client.getPathStatus(fileName, true, testTracingContext);
+    }
     return AzureBlobFileSystemStore.extractEtagHeader(op.getResult());
   }
 }

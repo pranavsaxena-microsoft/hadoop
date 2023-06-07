@@ -18,41 +18,20 @@
 
 package org.apache.hadoop.fs.azurebfs.services;
 
-/**
- * The REST operation type (Read, Append, Other ).
- */
-public enum AbfsRestOperationType {
-    CreateFileSystem,
-    GetFileSystemProperties,
-    SetFileSystemProperties,
-    ListPaths,
-    DeleteFileSystem,
-    CreatePath,
-    RenamePath,
-    GetAcl,
-    GetPathProperties,
-    GetPathStatus,
-    SetAcl,
-    SetOwner,
-    SetPathProperties,
-    SetPermissions,
-    SetBlobMetadata,
-    Append,
-    Flush,
-    ReadFile,
-    DeletePath,
-    CheckAccess,
-    LeasePath,
-    LeaseBlob,
-    PutBlob,
-    GetBlobProperties,
-    GetContainerProperties,
-    GetBlobMetadata,
-    PutBlock,
-    PutBlockList,
-    GetBlockList,
-    DeleteBlob,
-    GetListBlobProperties,
-    CopyBlob,
-    GetBlob
+final class AbfsNoOpThrottlingIntercept implements AbfsThrottlingIntercept {
+
+    public static final AbfsNoOpThrottlingIntercept INSTANCE = new AbfsNoOpThrottlingIntercept();
+
+    private AbfsNoOpThrottlingIntercept() {
+    }
+
+    @Override
+    public void updateMetrics(final AbfsRestOperationType operationType,
+                              final AbfsHttpOperation abfsHttpOperation) {
+    }
+
+    @Override
+    public void sendingRequest(final AbfsRestOperationType operationType,
+                               final AbfsCounters abfsCounters) {
+    }
 }

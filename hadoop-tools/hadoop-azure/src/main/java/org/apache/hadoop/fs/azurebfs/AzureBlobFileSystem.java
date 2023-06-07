@@ -26,6 +26,7 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.AccessDeniedException;
 import java.util.Hashtable;
 import java.util.List;
@@ -58,7 +59,6 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
-import org.apache.hadoop.fs.azurebfs.services.AbfsClientThrottlingIntercept;
 import org.apache.hadoop.fs.azurebfs.services.AbfsListStatusRemoteIterator;
 import org.apache.hadoop.fs.RemoteIterator;
 import org.apache.hadoop.classification.InterfaceStability;
@@ -127,6 +127,8 @@ import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.D
 import static org.apache.hadoop.fs.azurebfs.services.AbfsErrors.PATH_EXISTS;
 import static org.apache.hadoop.fs.azurebfs.contracts.services.AzureServiceErrorCode.RENAME_DESTINATION_PARENT_PATH_NOT_FOUND;
 import static org.apache.hadoop.fs.azurebfs.constants.InternalConstants.CAPABILITY_SAFE_READAHEAD;
+import static org.apache.hadoop.fs.azurebfs.utils.UriUtils.decodeMetadataAttribute;
+import static org.apache.hadoop.fs.azurebfs.utils.UriUtils.encodeMetadataAttribute;
 import static org.apache.hadoop.fs.impl.PathCapabilitiesSupport.validatePathCapabilityArgs;
 import static org.apache.hadoop.fs.statistics.IOStatisticsLogging.logIOStatisticsAtLevel;
 import static org.apache.hadoop.util.functional.RemoteIterators.filteringRemoteIterator;
@@ -263,7 +265,6 @@ public class AzureBlobFileSystem extends FileSystem
       }
     }
 
-    AbfsClientThrottlingIntercept.initializeSingleton(abfsConfiguration.isAutoThrottlingEnabled());
     boolean isRedirect = abfsConfiguration.isRedirection();
     if (isRedirect) {
       String abfsUrl = uri.toString();
@@ -366,7 +367,7 @@ public class AzureBlobFileSystem extends FileSystem
       TracingContext tracingContext = new TracingContext(clientCorrelationId,
           fileSystemId, FSOperationType.OPEN, tracingHeaderFormat,
           listener);
-      InputStream inputStream = abfsStore.openFileForRead(qualifiedPath,
+      InputStream inputStream = getAbfsStore().openFileForRead(qualifiedPath,
           options, statistics, tracingContext);
       return new FSDataInputStream(inputStream);
     } catch(AzureBlobFileSystemException ex) {
@@ -1049,10 +1050,21 @@ public class AzureBlobFileSystem extends FileSystem
     LOG.debug("AzureBlobFileSystem.getFileStatus path: {}", path);
     statIncrement(CALL_GET_FILE_STATUS);
     Path qualifiedPath = makeQualified(path);
+    FileStatus fileStatus;
 
     try {
-      FileStatus fileStatus = abfsStore.getFileStatus(qualifiedPath,
-          tracingContext);
+      if (abfsStore.getPrefixMode() == PrefixMode.BLOB) {
+        /**
+         * Get File Status over Blob Endpoint will Have an additional call
+         * to check if directory is implicit.
+         */
+        fileStatus = abfsStore.getFileStatusOverBlob(qualifiedPath,
+            tracingContext);
+      }
+      else {
+        fileStatus = abfsStore.getFileStatus(qualifiedPath,
+            tracingContext);
+      }
       if (getAbfsStore().getAbfsConfiguration().getPrefixMode()
           == PrefixMode.BLOB && fileStatus != null && fileStatus.isDirectory()
           &&
@@ -1317,13 +1329,30 @@ public class AzureBlobFileSystem extends FileSystem
       TracingContext tracingContext = new TracingContext(clientCorrelationId,
           fileSystemId, FSOperationType.SET_ATTR, true, tracingHeaderFormat,
           listener);
-      Hashtable<String, String> properties = abfsStore
-          .getPathStatus(qualifiedPath, tracingContext);
+      Hashtable<String, String> properties;
       String xAttrName = ensureValidAttributeName(name);
+      String xAttrValue;
+
+      if (abfsStore.getPrefixMode() == PrefixMode.BLOB) {
+        properties = abfsStore.getBlobMetadata(qualifiedPath, tracingContext);
+
+        boolean xAttrExists = properties.containsKey(xAttrName);
+        XAttrSetFlag.validate(name, xAttrExists, flag);
+
+        // On Blob Endpoint metadata are passed as HTTP Request Headers
+        // Values in UTF_8 needed to be URL encoded after decoding into String
+        xAttrValue = encodeMetadataAttribute(new String(value, StandardCharsets.UTF_8));
+        properties.put(xAttrName, xAttrValue);
+        abfsStore.setBlobMetadata(qualifiedPath, properties, tracingContext);
+
+        return;
+      }
+
+      properties = abfsStore.getPathStatus(qualifiedPath, tracingContext);
       boolean xAttrExists = properties.containsKey(xAttrName);
       XAttrSetFlag.validate(name, xAttrExists, flag);
 
-      String xAttrValue = abfsStore.decodeAttribute(value);
+      xAttrValue = abfsStore.decodeAttribute(value);
       properties.put(xAttrName, xAttrValue);
       abfsStore.setPathProperties(qualifiedPath, properties, tracingContext);
     } catch (AzureBlobFileSystemException ex) {
@@ -1357,9 +1386,21 @@ public class AzureBlobFileSystem extends FileSystem
       TracingContext tracingContext = new TracingContext(clientCorrelationId,
           fileSystemId, FSOperationType.GET_ATTR, true, tracingHeaderFormat,
           listener);
-      Hashtable<String, String> properties = abfsStore
-          .getPathStatus(qualifiedPath, tracingContext);
+      Hashtable<String, String> properties;
       String xAttrName = ensureValidAttributeName(name);
+
+      if (abfsStore.getPrefixMode() == PrefixMode.BLOB) {
+        properties = abfsStore.getBlobMetadata(qualifiedPath, tracingContext);
+        if (properties.containsKey(xAttrName)) {
+          String xAttrValue = properties.get(xAttrName);
+          value = decodeMetadataAttribute(xAttrValue).getBytes(
+              StandardCharsets.UTF_8);
+        }
+        return value;
+      }
+
+      properties = abfsStore.getPathStatus(qualifiedPath, tracingContext);
+
       if (properties.containsKey(xAttrName)) {
         String xAttrValue = properties.get(xAttrName);
         value = abfsStore.encodeAttribute(xAttrValue);
@@ -2025,4 +2066,5 @@ public class AzureBlobFileSystem extends FileSystem
   public IOStatistics getIOStatistics() {
     return abfsCounters != null ? abfsCounters.getIOStatistics() : null;
   }
+
 }
