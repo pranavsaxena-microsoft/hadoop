@@ -33,12 +33,13 @@ import java.util.concurrent.Future;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AbfsRestOperationException;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemException;
 import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
 import org.apache.hadoop.fs.azurebfs.services.AbfsOutputStream;
 import org.apache.hadoop.fs.azurebfs.services.OperativeEndpoint;
 import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
-import org.apache.hadoop.fs.azurebfs.services.TestAbfsClient;
+import org.apache.hadoop.fs.azurebfs.services.ITestAbfsClient;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 import org.junit.Assume;
 import org.junit.Test;
@@ -242,6 +243,19 @@ public class ITestAzureBlobFileSystemAppend extends
                     Mockito.any(TracingContext.class));
   }
 
+  @Test
+  public void testAppendImplicitDirectoryAzcopy() throws Exception {
+    Assume.assumeTrue(getFileSystem().getAbfsStore().getPrefixMode() == PrefixMode.BLOB);
+    AzureBlobFileSystem fs = getFileSystem();
+    createAzCopyDirectory(new Path("/src"));
+    createAzCopyFile(new Path("/src/file"));
+    intercept(AbfsRestOperationException.class, () -> {
+      fs.getAbfsStore().getBlobProperty(new Path("/src"), Mockito.mock(
+              TracingContext.class));
+    });
+    intercept(FileNotFoundException.class, () -> fs.append(new Path("/src")));
+  }
+
   /**
    * Verify that no calls to getBlockList were made.
    */
@@ -252,7 +266,7 @@ public class ITestAzureBlobFileSystemAppend extends
     AzureBlobFileSystemStore store = Mockito.spy(fs.getAbfsStore());
     Mockito.doReturn(store).when(fs).getAbfsStore();
     AbfsClient client = store.getClient();
-    AbfsClient testClient = Mockito.spy(TestAbfsClient.createTestClientFromCurrentContext(
+    AbfsClient testClient = Mockito.spy(ITestAbfsClient.createTestClientFromCurrentContext(
             client,
             fs.getAbfsStore().getAbfsConfiguration()));
     store.setClient(testClient);
@@ -277,7 +291,7 @@ public class ITestAzureBlobFileSystemAppend extends
     AzureBlobFileSystemStore store = Mockito.spy(fs.getAbfsStore());
     Mockito.doReturn(store).when(fs).getAbfsStore();
     AbfsClient client = store.getClient();
-    AbfsClient testClient = Mockito.spy(TestAbfsClient.createTestClientFromCurrentContext(
+    AbfsClient testClient = Mockito.spy(ITestAbfsClient.createTestClientFromCurrentContext(
             client,
             fs.getAbfsStore().getAbfsConfiguration()));
     store.setClient(testClient);

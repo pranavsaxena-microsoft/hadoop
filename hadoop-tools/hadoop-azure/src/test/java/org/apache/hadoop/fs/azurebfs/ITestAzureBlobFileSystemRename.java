@@ -61,6 +61,7 @@ import org.apache.hadoop.fs.azurebfs.services.AbfsRestOperationTestUtil;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
 
+import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_LEASE_CREATE_NON_RECURSIVE;
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_REDIRECT_RENAME;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.TRUE;
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_INGRESS_FALLBACK_TO_DFS;
@@ -1735,8 +1736,10 @@ public class ITestAzureBlobFileSystemRename extends
   @Test
   public void testParallelCreateNonRecursiveToFilePartOfAtomicDirectoryInRename()
       throws Exception {
-    FileSystem fsCreate = FileSystem.newInstance(getRawConfiguration());
-    AzureBlobFileSystem fs = (AzureBlobFileSystem) FileSystem.newInstance(getRawConfiguration());
+    Configuration configuration = Mockito.spy(getRawConfiguration());
+    configuration.set(FS_AZURE_LEASE_CREATE_NON_RECURSIVE, "true");
+    FileSystem fsCreate = FileSystem.newInstance(configuration);
+    AzureBlobFileSystem fs = (AzureBlobFileSystem) FileSystem.newInstance(configuration);
     assumeNonHnsAccountBlobEndpoint(fs);
     fs.setWorkingDirectory(new Path("/"));
     fs.mkdirs(new Path("/hbase/dir1"));

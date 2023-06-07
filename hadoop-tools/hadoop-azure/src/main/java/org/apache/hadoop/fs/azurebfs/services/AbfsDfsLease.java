@@ -18,21 +18,14 @@
 
 package org.apache.hadoop.fs.azurebfs.services;
 
+import org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants;
+import org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemException;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 
-import static org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations.X_MS_LEASE_ID;
+public class AbfsDfsLease extends AbfsLease {
 
-public class AbfsBlobLease extends AbfsLease {
-
-  public AbfsBlobLease(final AbfsClient client,
-      final String path,
-      final Integer leaseDuration,
-      final TracingContext tracingContext) throws AzureBlobFileSystemException {
-    super(client, path, leaseDuration, tracingContext);
-  }
-
-  public AbfsBlobLease(final AbfsClient client,
+  public AbfsDfsLease(final AbfsClient client,
       final String path,
       final int acquireMaxRetries,
       final int acquireRetryInterval,
@@ -42,28 +35,32 @@ public class AbfsBlobLease extends AbfsLease {
         tracingContext);
   }
 
+  public AbfsDfsLease(final AbfsClient client,
+      final String path,
+      final Integer leaseDuration,
+      final TracingContext tracingContext) throws AzureBlobFileSystemException {
+    super(client, path, leaseDuration, tracingContext);
+  }
+
   @Override
   String callRenewLeaseAPI(final String path,
       final String leaseId,
       final TracingContext tracingContext) throws AzureBlobFileSystemException {
-    return extractLeaseInfo(client.renewBlobLease(path, leaseId, tracingContext));
+    AbfsRestOperation op = client.renewLease(path, leaseId, tracingContext);
+    return op.getResult().getResponseHeader(HttpHeaderConfigurations.X_MS_LEASE_ID);
   }
 
   @Override
-  AbfsRestOperation callAcquireLeaseAPI(final String path,
-      final Integer leaseDuration,
-      final TracingContext tracingContext) throws AzureBlobFileSystemException {
-    return client.acquireBlobLease(path, leaseDuration, tracingContext);
+  AbfsRestOperation callAcquireLeaseAPI(final String path, final Integer leaseDuration,
+      final TracingContext tracingContext)
+      throws AzureBlobFileSystemException {
+    return client.acquireLease(path,
+        leaseDuration, tracingContext);
   }
 
   @Override
-  void callReleaseLeaseAPI(final String path,
-      final String leaseID,
-      final TracingContext tracingContext) throws AzureBlobFileSystemException {
-    client.releaseBlobLease(path, leaseID, tracingContext);
-  }
-
-  private String extractLeaseInfo(final AbfsRestOperation op) {
-    return op.getResult().getResponseHeader(X_MS_LEASE_ID);
+  void callReleaseLeaseAPI(final String path, final String leaseID, final TracingContext tracingContext)
+      throws AzureBlobFileSystemException {
+    client.releaseLease(path, leaseID, tracingContext);
   }
 }

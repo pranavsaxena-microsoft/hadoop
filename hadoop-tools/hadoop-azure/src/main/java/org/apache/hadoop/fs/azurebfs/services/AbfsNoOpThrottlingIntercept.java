@@ -18,27 +18,20 @@
 
 package org.apache.hadoop.fs.azurebfs.services;
 
-import java.util.List;
+final class AbfsNoOpThrottlingIntercept implements AbfsThrottlingIntercept {
 
-import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemException;
+    public static final AbfsNoOpThrottlingIntercept INSTANCE = new AbfsNoOpThrottlingIntercept();
 
-public class ListBlobConsumer {
-
-  private final ListBlobQueue listBlobQueue;
-
-  public ListBlobConsumer(final ListBlobQueue listBlobQueue) {
-    this.listBlobQueue = listBlobQueue;
-  }
-
-  public List<BlobProperty> consume() throws AzureBlobFileSystemException {
-    if (listBlobQueue.getException() != null) {
-      throw listBlobQueue.getException();
+    private AbfsNoOpThrottlingIntercept() {
     }
-    return listBlobQueue.dequeue();
-  }
 
-  public Boolean isCompleted() {
-    return listBlobQueue.getIsCompleted()
-        && listBlobQueue.size() == 0;
-  }
+    @Override
+    public void updateMetrics(final AbfsRestOperationType operationType,
+                              final AbfsHttpOperation abfsHttpOperation) {
+    }
+
+    @Override
+    public void sendingRequest(final AbfsRestOperationType operationType,
+                               final AbfsCounters abfsCounters) {
+    }
 }

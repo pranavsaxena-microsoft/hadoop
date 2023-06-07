@@ -19,6 +19,12 @@
 package org.apache.hadoop.fs.azurebfs;
 
 import java.net.HttpURLConnection;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -34,13 +40,14 @@ import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AbfsRestOperationExcep
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemException;
 import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
 import org.apache.hadoop.fs.azurebfs.services.AbfsRestOperation;
+import org.apache.hadoop.fs.azurebfs.services.BlobProperty;
 import org.apache.hadoop.fs.azurebfs.services.ListBlobConsumer;
 import org.apache.hadoop.fs.azurebfs.services.ListBlobProducer;
 import org.apache.hadoop.fs.azurebfs.services.ListBlobQueue;
 import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 
-import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_MAX_CONSUMER_LAG;
+import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_PRODUCER_QUEUE_MAX_SIZE;
 
 public class ITestListBlobProducer extends AbstractAbfsIntegrationTest {
 
@@ -59,7 +66,7 @@ public class ITestListBlobProducer extends AbstractAbfsIntegrationTest {
   @Test
   public void testProducerWaitingForConsumerLagToGoDown() throws Exception {
     Configuration configuration = Mockito.spy(getRawConfiguration());
-    configuration.set(FS_AZURE_MAX_CONSUMER_LAG, "10");
+    configuration.set(FS_AZURE_PRODUCER_QUEUE_MAX_SIZE, "10");
     AzureBlobFileSystem fs = (AzureBlobFileSystem) FileSystem.newInstance(
         configuration);
     AbfsClient client = fs.getAbfsClient();
@@ -67,57 +74,67 @@ public class ITestListBlobProducer extends AbstractAbfsIntegrationTest {
     fs.getAbfsStore().setClient(spiedClient);
     fs.setWorkingDirectory(new Path("/"));
     fs.mkdirs(new Path("/src"));
+    ExecutorService executor = Executors.newFixedThreadPool(5);
+    List<Future> futureList = new ArrayList<>();
     for (int i = 0; i < 20; i++) {
-      fs.create(new Path("/src/file" + i));
+      int iter = i;
+      futureList.add(executor.submit(() -> {
+        return fs.create(new Path("/src/file" + iter));
+      }));
     }
-    AtomicBoolean produced = new AtomicBoolean(true);
+    for(Future future : futureList) {
+      future.get();
+    }
 
     AtomicInteger producedBlobs = new AtomicInteger(0);
     AtomicInteger listBlobInvoked = new AtomicInteger(0);
 
+    final ITestListBlobProducer testObj = this;
+    final ListBlobQueue queue = new ListBlobQueue(
+        fs.getAbfsStore().getAbfsConfiguration().getProducerQueueMaxSize(),
+        1);
+
     Mockito.doAnswer(answer -> {
-          listBlobInvoked.incrementAndGet();
-          AbfsRestOperation op = client.getListBlobs(answer.getArgument(0),
-              answer.getArgument(1), 1, answer.getArgument(3));
-          producedBlobs.incrementAndGet();
-          produced.set(true);
-          return op;
+      synchronized (testObj) {
+        listBlobInvoked.incrementAndGet();
+        AbfsRestOperation op = client.getListBlobs(answer.getArgument(0),
+            answer.getArgument(1), 1, answer.getArgument(3));
+        producedBlobs.incrementAndGet();
+        if(producedBlobs.get() > 10) {
+          Assert.assertTrue(queue.availableSize() > 0);
+        }
+        return op;
+      }
         })
         .when(spiedClient)
         .getListBlobs(Mockito.nullable(String.class),
             Mockito.nullable(String.class), Mockito.nullable(Integer.class),
             Mockito.nullable(TracingContext.class));
 
-    ListBlobQueue queue = new ListBlobQueue(null);
+
     ListBlobProducer producer = new ListBlobProducer("src/", spiedClient, queue,
         null, Mockito.mock(
         TracingContext.class));
     ListBlobConsumer consumer = new ListBlobConsumer(queue);
     while (producedBlobs.get() < 10) ;
 
-    int producedBlobCount = producedBlobs.get();
-
     int oldInvocation = listBlobInvoked.get();
-    Thread.sleep(10_000L);
     Assert.assertTrue(listBlobInvoked.get() == oldInvocation);
 
     while (!consumer.isCompleted()) {
-      produced.set(false);
-      consumer.consume();
-      while (!produced.get() && !queue.getIsCompleted()) ;
-      if (!queue.getIsCompleted()) {
-        Assert.assertEquals(producedBlobs.get() - 1, producedBlobCount);
+      synchronized (testObj) {
+        consumer.consume();
+        Assert.assertTrue(queue.availableSize() > 0);
       }
-      producedBlobCount = producedBlobs.get();
     }
 
-    Assert.assertTrue(producedBlobCount == 20);
+    Assert.assertTrue(producedBlobs.get() == 20);
   }
 
   @Test
   public void testConsumerWhenProducerThrowException() throws Exception {
     Configuration configuration = Mockito.spy(getRawConfiguration());
-    configuration.set(FS_AZURE_MAX_CONSUMER_LAG, "10");
+    configuration.set(FS_AZURE_PRODUCER_QUEUE_MAX_SIZE, "10");
     AzureBlobFileSystem fs = (AzureBlobFileSystem) FileSystem.newInstance(
         configuration);
     AbfsClient client = fs.getAbfsClient();
@@ -139,7 +156,8 @@ public class ITestListBlobProducer extends AbstractAbfsIntegrationTest {
             Mockito.nullable(String.class), Mockito.nullable(Integer.class),
             Mockito.nullable(TracingContext.class));
 
-    ListBlobQueue queue = new ListBlobQueue(null);
+    ListBlobQueue queue = new ListBlobQueue(getConfiguration().getProducerQueueMaxSize(),
+        getConfiguration().getProducerQueueMaxSize());
     ListBlobProducer producer = new ListBlobProducer("src/", spiedClient, queue,
         null, Mockito.mock(
         TracingContext.class));

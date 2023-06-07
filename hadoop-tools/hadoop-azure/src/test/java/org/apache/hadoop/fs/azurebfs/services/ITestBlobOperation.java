@@ -92,7 +92,7 @@ public class ITestBlobOperation extends AbstractAbfsIntegrationTest {
                 configuration.get(FS_AZURE_ABFS_ACCOUNT_NAME));
 
         // Gets the client.
-        AbfsClient testClient = Mockito.spy(TestAbfsClient.createTestClientFromCurrentContext(
+        AbfsClient testClient = Mockito.spy(ITestAbfsClient.createTestClientFromCurrentContext(
                 abfsClient,
                 abfsConfiguration));
 
@@ -103,7 +103,7 @@ public class ITestBlobOperation extends AbstractAbfsIntegrationTest {
         String finalTestPath = testPath.toString().substring(testPath.toString().lastIndexOf("/"));
 
         // Creates a list of request headers.
-        final List<AbfsHttpHeader> requestHeaders = TestAbfsClient.getTestRequestHeaders(testClient);
+        final List<AbfsHttpHeader> requestHeaders = ITestAbfsClient.getTestRequestHeaders(testClient);
         requestHeaders.add(new AbfsHttpHeader(CONTENT_LENGTH, String.valueOf(buffer.length)));
         requestHeaders.add(new AbfsHttpHeader(X_MS_BLOB_TYPE, BLOCK_BLOB_TYPE));
         String ContentMD5 = computeMd5(buffer);
@@ -160,7 +160,7 @@ public class ITestBlobOperation extends AbstractAbfsIntegrationTest {
         AbfsConfiguration abfsConfiguration = new AbfsConfiguration(configuration,
                 configuration.get(FS_AZURE_ABFS_ACCOUNT_NAME));
 
-        AbfsClient testClient = Mockito.spy(TestAbfsClient.createTestClientFromCurrentContext(
+        AbfsClient testClient = Mockito.spy(ITestAbfsClient.createTestClientFromCurrentContext(
                 abfsClient,
                 abfsConfiguration));
 
@@ -168,7 +168,7 @@ public class ITestBlobOperation extends AbstractAbfsIntegrationTest {
         byte[] data = null;
         Path testPath = path(TEST_PATH);
         String finalTestPath = testPath.toString().substring(testPath.toString().lastIndexOf("/"));
-        final List<AbfsHttpHeader> requestHeaders = TestAbfsClient.getTestRequestHeaders(testClient);
+        final List<AbfsHttpHeader> requestHeaders = ITestAbfsClient.getTestRequestHeaders(testClient);
         final AbfsUriQueryBuilder abfsUriQueryBuilder = testClient.createDefaultUriQueryBuilder();
         abfsUriQueryBuilder.addQuery(QUERY_PARAM_COMP, BLOCK);
 
@@ -211,13 +211,13 @@ public class ITestBlobOperation extends AbstractAbfsIntegrationTest {
                 "world".getBytes(),
                 "!".getBytes()
         ));
-        AbfsClient testClient = Mockito.spy(TestAbfsClient.createTestClientFromCurrentContext(
+        AbfsClient testClient = Mockito.spy(ITestAbfsClient.createTestClientFromCurrentContext(
                 abfsClient,
                 abfsConfiguration));
 
         Path testPath = path(TEST_PATH);
         String finalTestPath = testPath.toString().substring(testPath.toString().lastIndexOf("/"));
-        final List<AbfsHttpHeader> requestHeaders = TestAbfsClient.getTestRequestHeaders(testClient);
+        final List<AbfsHttpHeader> requestHeaders = ITestAbfsClient.getTestRequestHeaders(testClient);
         final AbfsUriQueryBuilder abfsUriQueryBuilder = testClient.createDefaultUriQueryBuilder();
         abfsUriQueryBuilder.addQuery(QUERY_PARAM_COMP, BLOCK);
 
@@ -273,12 +273,12 @@ public class ITestBlobOperation extends AbstractAbfsIntegrationTest {
                 "world".getBytes(),
                 "!".getBytes()
         ));
-        AbfsClient testClient = Mockito.spy(TestAbfsClient.createTestClientFromCurrentContext(
+        AbfsClient testClient = Mockito.spy(ITestAbfsClient.createTestClientFromCurrentContext(
                 abfsClient,
                 abfsConfiguration));
         Path testPath = path(TEST_PATH);
         String finalTestPath = testPath.toString().substring(testPath.toString().lastIndexOf("/"));
-        final List<AbfsHttpHeader> requestHeaders = TestAbfsClient.getTestRequestHeaders(testClient);
+        final List<AbfsHttpHeader> requestHeaders = ITestAbfsClient.getTestRequestHeaders(testClient);
         final AbfsUriQueryBuilder abfsUriQueryBuilder = testClient.createDefaultUriQueryBuilder();
         abfsUriQueryBuilder.addQuery(QUERY_PARAM_COMP, BLOCK);
         List<String> encodedBlockIds = new ArrayList<>();
@@ -306,7 +306,7 @@ public class ITestBlobOperation extends AbstractAbfsIntegrationTest {
         }
         byte[] bufferString = generateBlockListXml(blockIds).getBytes(StandardCharsets.UTF_8);
         final AbfsUriQueryBuilder abfsUriQueryBuilder1 = testClient.createDefaultUriQueryBuilder();
-        final List<AbfsHttpHeader> requestHeaders1 = TestAbfsClient.getTestRequestHeaders(testClient);
+        final List<AbfsHttpHeader> requestHeaders1 = ITestAbfsClient.getTestRequestHeaders(testClient);
         abfsUriQueryBuilder1.addQuery(QUERY_PARAM_COMP, BLOCKLIST);
         requestHeaders1.add(new AbfsHttpHeader(CONTENT_LENGTH, String.valueOf(bufferString.length)));
         requestHeaders1.add(new AbfsHttpHeader(CONTENT_TYPE, "application/xml"));
@@ -351,12 +351,12 @@ public class ITestBlobOperation extends AbstractAbfsIntegrationTest {
                 "world".getBytes(),
                 "!".getBytes()
         ));
-        AbfsClient testClient = Mockito.spy(TestAbfsClient.createTestClientFromCurrentContext(
+        AbfsClient testClient = Mockito.spy(ITestAbfsClient.createTestClientFromCurrentContext(
                 abfsClient,
                 abfsConfiguration));
         Path testPath = path(TEST_PATH);
         String finalTestPath = testPath.toString().substring(testPath.toString().lastIndexOf("/"));
-        final List<AbfsHttpHeader> requestHeaders = TestAbfsClient.getTestRequestHeaders(testClient);
+        final List<AbfsHttpHeader> requestHeaders = ITestAbfsClient.getTestRequestHeaders(testClient);
         final AbfsUriQueryBuilder abfsUriQueryBuilder = testClient.createDefaultUriQueryBuilder();
         abfsUriQueryBuilder.addQuery(QUERY_PARAM_COMP, BLOCK);
 
@@ -383,7 +383,7 @@ public class ITestBlobOperation extends AbstractAbfsIntegrationTest {
         }
         byte[] bufferString = generateBlockListXml(blockIds).getBytes(StandardCharsets.UTF_8);
         final AbfsUriQueryBuilder abfsUriQueryBuilder1 = testClient.createDefaultUriQueryBuilder();
-        final List<AbfsHttpHeader> requestHeaders1 = TestAbfsClient.getTestRequestHeaders(testClient);
+        final List<AbfsHttpHeader> requestHeaders1 = ITestAbfsClient.getTestRequestHeaders(testClient);
         abfsUriQueryBuilder1.addQuery(QUERY_PARAM_COMP, BLOCKLIST);
         requestHeaders1.add(new AbfsHttpHeader(CONTENT_LENGTH, String.valueOf(bufferString.length)));
         requestHeaders1.add(new AbfsHttpHeader(CONTENT_TYPE, "application/xml"));

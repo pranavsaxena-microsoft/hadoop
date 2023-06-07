@@ -32,7 +32,7 @@ import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.EMPTY_ST
 public final class FileSystemConfigurations {
 
   public static final String DEFAULT_FS_AZURE_ACCOUNT_IS_HNS_ENABLED = "";
-
+  public static final boolean DEFAULT_FS_AZURE_ACCOUNT_IS_EXPECT_HEADER_ENABLED = true;
   public static final String USER_HOME_DIRECTORY_PREFIX = "/user";
 
   private static final int SIXTY_SECONDS = 60 * 1000;
@@ -98,6 +98,9 @@ public final class FileSystemConfigurations {
   public static final boolean DEFAULT_ENABLE_FLUSH = true;
   public static final boolean DEFAULT_DISABLE_OUTPUTSTREAM_FLUSH = true;
   public static final boolean DEFAULT_ENABLE_AUTOTHROTTLING = true;
+  public static final boolean DEFAULT_FS_AZURE_ACCOUNT_LEVEL_THROTTLING_ENABLED = true;
+  public static final int DEFAULT_ACCOUNT_OPERATION_IDLE_TIMEOUT_MS = 60_000;
+  public static final int DEFAULT_ANALYSIS_PERIOD_MS = 10_000;
 
   public static final DelegatingSSLSocketFactory.SSLChannelMode DEFAULT_FS_AZURE_SSL_CHANNEL_MODE
       = DelegatingSSLSocketFactory.SSLChannelMode.Default;
@@ -123,11 +126,15 @@ public final class FileSystemConfigurations {
   public static final boolean DEFAULT_FS_AZURE_ENABLE_BLOBENDPOINT = false;
   public static final boolean DEFAULT_FS_AZURE_MKDIRS_FALLBACK_TO_DFS = false;
   public static final boolean DEFAULT_FS_AZURE_INGRESS_FALLBACK_TO_DFS = false;
+  public static final boolean DEFAULT_AZURE_READ_FALLBACK_TO_DFS = false;
 
   // To have functionality similar to drop1 delete is going to wasb by default for now.
   public static final boolean DEFAULT_FS_AZURE_REDIRECT_RENAME = false;
   public static final boolean DEFAULT_FS_AZURE_REDIRECT_DELETE = true;
-  public static final int DEFAULT_FS_AZURE_MAX_CONSUMER_LAG = 7000;
+  public static final int DEFAULT_FS_AZURE_PRODUCER_QUEUE_MAX_SIZE = 10000;
+  public static final boolean DEFAULT_FS_AZURE_LEASE_CREATE_NON_RECURSIVE = false;
+
+  public static final int DEFAULT_FS_AZURE_BLOB_RENAME_THREAD = 5;
 
   /**
    * Limit of queued block upload operations before writes

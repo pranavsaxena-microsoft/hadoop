@@ -18,27 +18,8 @@
 
 package org.apache.hadoop.fs.azurebfs.services;
 
-import java.util.List;
+public enum TimerFunctionality {
+    RESUME,
 
-import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemException;
-
-public class ListBlobConsumer {
-
-  private final ListBlobQueue listBlobQueue;
-
-  public ListBlobConsumer(final ListBlobQueue listBlobQueue) {
-    this.listBlobQueue = listBlobQueue;
-  }
-
-  public List<BlobProperty> consume() throws AzureBlobFileSystemException {
-    if (listBlobQueue.getException() != null) {
-      throw listBlobQueue.getException();
-    }
-    return listBlobQueue.dequeue();
-  }
-
-  public Boolean isCompleted() {
-    return listBlobQueue.getIsCompleted()
-        && listBlobQueue.size() == 0;
-  }
+    SUSPEND
 }

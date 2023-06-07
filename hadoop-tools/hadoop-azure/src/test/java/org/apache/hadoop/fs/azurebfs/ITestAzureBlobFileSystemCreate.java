@@ -61,7 +61,7 @@ import org.apache.hadoop.fs.azurebfs.contracts.exceptions.ConcurrentWriteOperati
 import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
 import org.apache.hadoop.fs.azurebfs.services.AbfsRestOperation;
 import org.apache.hadoop.fs.azurebfs.services.AbfsHttpOperation;
-import org.apache.hadoop.fs.azurebfs.services.TestAbfsClient;
+import org.apache.hadoop.fs.azurebfs.services.ITestAbfsClient;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 import org.apache.hadoop.fs.azurebfs.utils.TracingHeaderValidator;
 import org.mockito.Mockito;
@@ -75,6 +75,7 @@ import static java.net.HttpURLConnection.HTTP_PRECON_FAILED;
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_CLIENT_PROVIDED_ENCRYPTION_KEY;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.TRUE;
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_ENABLE_BLOB_MKDIR_OVERWRITE;
+import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_LEASE_CREATE_NON_RECURSIVE;
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_MKDIRS_FALLBACK_TO_DFS;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemUriSchemes.ABFS_DNS_PREFIX;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemUriSchemes.WASB_DNS_PREFIX;
@@ -954,7 +955,9 @@ public class ITestAzureBlobFileSystemCreate extends
     Assume.assumeTrue(
         getFileSystem().getAbfsStore().getAbfsConfiguration().getPrefixMode()
             == PrefixMode.BLOB);
-    AzureBlobFileSystem fileSystem = (AzureBlobFileSystem) FileSystem.newInstance(getRawConfiguration());
+    Configuration configuration = Mockito.spy(getRawConfiguration());
+    configuration.set(FS_AZURE_LEASE_CREATE_NON_RECURSIVE, "true");
+    AzureBlobFileSystem fileSystem = (AzureBlobFileSystem) FileSystem.newInstance(configuration);
     AbfsClient client = Mockito.spy(fileSystem.getAbfsClient());
     fileSystem.getAbfsStore().setClient(client);
     fileSystem.setWorkingDirectory(new Path("/"));
@@ -992,6 +995,53 @@ public class ITestAzureBlobFileSystemCreate extends
 
     Assert.assertTrue(exceptionCaught.get());
     Assert.assertTrue(fileSystem.exists(new Path("/hbase/dir/file")));
+  }
+
+  @Test
+  public void testActiveCreateNonRecursiveNotDenyParallelReadOnAtomicDirIfLeaseConfigDisabled() throws Exception {
+    Assume.assumeTrue(
+        getFileSystem().getAbfsStore().getAbfsConfiguration().getPrefixMode()
+            == PrefixMode.BLOB);
+    Configuration configuration = Mockito.spy(getRawConfiguration());
+    AzureBlobFileSystem fileSystem = (AzureBlobFileSystem) FileSystem.newInstance(configuration);
+    AbfsClient client = Mockito.spy(fileSystem.getAbfsClient());
+    fileSystem.getAbfsStore().setClient(client);
+    fileSystem.setWorkingDirectory(new Path("/"));
+    fileSystem.mkdirs(new Path("/hbase/dir"));
+    fileSystem.create(new Path("/hbase/dir/file"));
+    AtomicBoolean createCalled = new AtomicBoolean(false);
+    AtomicBoolean parallelRenameDone = new AtomicBoolean(false);
+    AtomicBoolean exceptionCaught = new AtomicBoolean(false);
+
+    Mockito.doAnswer(answer -> {
+      AbfsRestOperation op = (AbfsRestOperation) answer.callRealMethod();
+      createCalled.set(true);
+      while(!parallelRenameDone.get());
+      return op;
+    }).when(client).createPathBlob(Mockito.anyString(), Mockito.anyBoolean(),
+        Mockito.anyBoolean(), Mockito.nullable(HashMap.class), Mockito.nullable(String.class), Mockito.nullable(TracingContext.class));
+
+    new Thread(() -> {
+      try {
+        while(!createCalled.get());
+        getFileSystem().rename(new Path("/hbase/dir/"), new Path("/hbase/dir2"));
+      } catch (Exception e) {
+        exceptionCaught.set(true);
+      } finally {
+        parallelRenameDone.set(true);
+      }
+    }).start();
+
+    fileSystem.createFile(new Path("/hbase/dir/file1"))
+        .overwrite(false)
+        .replication((short) 1)
+        .bufferSize(1024)
+        .blockSize(1024)
+        .build();
+
+    Assert.assertFalse(exceptionCaught.get());
+    Assert.assertFalse(fileSystem.exists(new Path("/hbase/dir/file")));
+    Assert.assertTrue(fileSystem.exists(new Path("/hbase/dir2/file")));
   }
 
   /**
@@ -1123,9 +1173,15 @@ public class ITestAzureBlobFileSystemCreate extends
 
     // One request to server to create path should be issued
     // two calls added for -
-    // 1. getFileStatus
-    // 2. actual create call
+    // 1. getFileStatus : 1
+    // 2. actual create call: 1
     createRequestCount+=2;
+
+    // In case of blob endpoint getFileStatus makes additional call to check if path is implicit
+    if (fs.getAbfsStore().getPrefixMode() == PrefixMode.BLOB) {
+      createRequestCount++;
+    }
+
     createRequestCount+=ifBlobCheckIfPathDir;
 
     assertAbfsStatistics(
@@ -1226,7 +1282,7 @@ public class ITestAzureBlobFileSystemCreate extends
     // Get mock AbfsClient with current config
     AbfsClient
         mockClient
-        = TestAbfsClient.getMockAbfsClient(
+        = ITestAbfsClient.getMockAbfsClient(
         fs.getAbfsStore().getClient(),
         fs.getAbfsStore().getAbfsConfiguration());
 
@@ -1285,6 +1341,13 @@ public class ITestAzureBlobFileSystemCreate extends
         .doReturn(successOp) // Scn4: create overwrite=true fails with Http500
         .when(mockClient)
         .getPathStatus(any(String.class), eq(false), any(TracingContext.class));
+
+    doThrow(fileNotFoundResponseEx) // Scn1: GFS fails with Http404
+            .doThrow(serverErrorResponseEx) // Scn2: GFS fails with Http500
+            .doReturn(successOp) // Scn3: create overwrite=true fails with Http412
+            .doReturn(successOp) // Scn4: create overwrite=true fails with Http500
+            .when(mockClient)
+            .getBlobProperty(any(Path.class), any(TracingContext.class));
 
     // mock for overwrite=true
     doThrow(
@@ -1432,7 +1495,12 @@ public class ITestAzureBlobFileSystemCreate extends
     final AzureBlobFileSystem fs = getFileSystem();
     final AbfsClient client = fs.getAbfsClient();
     final TracingContext testTracingContext = getTestTracingContext(fs, false);
-    AbfsRestOperation op = client.getPathStatus(fileName, true, testTracingContext);
+    AbfsRestOperation op;
+    if (fs.getAbfsStore().getPrefixMode() == PrefixMode.BLOB) {
+      op = client.getBlobProperty(new Path(fileName), testTracingContext);
+    } else {
+      op = client.getPathStatus(fileName, true, testTracingContext);
+    }
     return AzureBlobFileSystemStore.extractEtagHeader(op.getResult());
   }
 }
