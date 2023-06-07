@@ -370,6 +370,11 @@ public class ITestAzureBlobFileSystemLease extends AbstractAbfsIntegrationTest {
         .doCallRealMethod().when(mockClient)
         .acquireLease(anyString(), anyInt(), any(TracingContext.class));
 
+    doThrow(new AbfsLease.LeaseException("failed to acquire 1"))
+        .doThrow(new AbfsLease.LeaseException("failed to acquire 2"))
+        .doCallRealMethod().when(mockClient)
+        .acquireBlobLease(anyString(), anyInt(), any(TracingContext.class));
+
     if(getPrefixMode(fs) == PrefixMode.BLOB) {
       lease = new AbfsBlobLease(mockClient, testFilePath.toUri().getPath(), 5, 1, null,
           tracingContext);
@@ -383,6 +388,9 @@ public class ITestAzureBlobFileSystemLease extends AbstractAbfsIntegrationTest {
 
     doThrow(new AbfsLease.LeaseException("failed to acquire")).when(mockClient)
         .acquireLease(anyString(), anyInt(), any(TracingContext.class));
+
+    doThrow(new AbfsLease.LeaseException("failed to acquire")).when(mockClient)
+        .acquireBlobLease(anyString(), anyInt(), any(TracingContext.class));
 
     LambdaTestUtils.intercept(AzureBlobFileSystemException.class, () -> {
       if(getPrefixMode(fs) == PrefixMode.BLOB) {
