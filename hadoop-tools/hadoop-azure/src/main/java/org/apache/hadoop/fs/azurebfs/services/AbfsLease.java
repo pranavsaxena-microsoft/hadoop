@@ -87,6 +87,14 @@ public abstract class AbfsLease {
     }
   }
 
+  /**
+   * @param client client object for making server calls
+   * @param path path on which lease has to be acquired, renewed and freed in future
+   * @param leaseDuration duration for which lease to be taken in seconds
+   * @param tracingContext for tracing server calls
+   *
+   * @throws AzureBlobFileSystemException exception while calling acquireLease API
+   */
   public AbfsLease(AbfsClient client, String path,
       final Integer leaseDuration,
       TracingContext tracingContext) throws AzureBlobFileSystemException {
@@ -142,7 +150,7 @@ public abstract class AbfsLease {
     }
     if(leaseDuration != null) {
       leaseID.set(callAcquireLeaseAPI(path, leaseDuration, tracingContext).getResult().getResponseHeader(HttpHeaderConfigurations.X_MS_LEASE_ID));
-      spawnLeaseRenewTimer(path, leaseDuration);
+      spawnLeaseRenewTimer(path, leaseDuration * 1000);
       return;
     }
     future = client.schedule(() -> callAcquireLeaseAPI(path,
@@ -185,7 +193,7 @@ public abstract class AbfsLease {
           throw new RuntimeException(e);
         }
       }
-    }, leaseDuration / 2);
+    }, leaseDuration / 2, leaseDuration / 2);
   }
 
   abstract String callRenewLeaseAPI(final String path,
