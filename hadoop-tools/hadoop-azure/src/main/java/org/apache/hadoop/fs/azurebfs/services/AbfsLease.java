@@ -103,7 +103,11 @@ public abstract class AbfsLease {
     this.tracingContext = tracingContext;
     this.leaseDuration = leaseDuration;
 
-    if (client.getNumLeaseThreads() < 1) {
+    /*
+     * If the number of threads to use for lease operations for infinite lease directories
+     * and the object is created for infinite-lease (leaseDuration == null).
+     */
+    if (client.getNumLeaseThreads() < 1 && leaseDuration == null) {
       throw new LeaseException(ERR_NO_LEASE_THREADS);
     }
 
@@ -131,22 +135,23 @@ public abstract class AbfsLease {
 
   private void acquireLease(RetryPolicy retryPolicy, int numRetries,
       int retryInterval, long delay, TracingContext tracingContext)
-      throws LeaseException {
+      throws AzureBlobFileSystemException {
     LOG.debug("Attempting to acquire lease on {}, retry {}", path, numRetries);
     if (future != null && !future.isDone()) {
       throw new LeaseException(ERR_LEASE_FUTURE_EXISTS);
     }
+    if(leaseDuration != null) {
+      leaseID.set(callAcquireLeaseAPI(path, leaseDuration, tracingContext).getResult().getResponseHeader(HttpHeaderConfigurations.X_MS_LEASE_ID));
+      spawnLeaseRenewTimer(path, leaseDuration);
+      return;
+    }
     future = client.schedule(() -> callAcquireLeaseAPI(path,
-            (leaseDuration != null) ? leaseDuration : INFINITE_LEASE_DURATION,
-            tracingContext),
+            INFINITE_LEASE_DURATION, tracingContext),
         delay, TimeUnit.SECONDS);
     client.addCallback(future, new FutureCallback<AbfsRestOperation>() {
       @Override
       public void onSuccess(@Nullable AbfsRestOperation op) {
         leaseID.set(op.getResult().getResponseHeader(HttpHeaderConfigurations.X_MS_LEASE_ID));
-        if(leaseDuration != null) {
-          spawnLeaseRenewTimer(path, leaseDuration);
-        }
         LOG.debug("Acquired lease {} on {}", leaseID, path);
       }
 
