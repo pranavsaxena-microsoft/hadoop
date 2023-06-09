@@ -635,7 +635,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         throw new AbfsRestOperationException(
             COPY_BLOB_FAILED.getStatusCode(), COPY_BLOB_FAILED.getErrorCode(),
             String.format("copy to path %s failed due to: %s",
-                dstPath.toUri().getPath(), blobProperty.getStatusDescription()),
+                dstPath.toUri().getPath(), blobProperty.getCopyStatusDescription()),
             new Exception(COPY_BLOB_FAILED.getErrorCode()));
       }
       if (COPY_STATUS_ABORTED.equalsIgnoreCase(blobProperty.getCopyStatus())) {
@@ -668,7 +668,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     blobProperty.setCopyId(opResult.getResponseHeader(X_MS_COPY_ID));
     blobProperty.setPath(blobPath);
     blobProperty.setCopySourceUrl(opResult.getResponseHeader(X_MS_COPY_SOURCE));
-    blobProperty.setStatusDescription(
+    blobProperty.setCopyStatusDescription(
         opResult.getResponseHeader(X_MS_COPY_STATUS_DESCRIPTION));
     blobProperty.setCopyStatus(opResult.getResponseHeader(X_MS_COPY_STATUS));
     blobProperty.setContentLength(
@@ -839,7 +839,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     }
     do {
       AbfsRestOperation op = client.getListBlobs(
-          nextMarker, prefix, maxResult, tracingContext
+          nextMarker, prefix, "", maxResult, tracingContext
       );
       BlobList blobList = op.getResult().getBlobList();
       nextMarker = blobList.getNextMarker();
@@ -1899,6 +1899,51 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       }
     }
 
+    if (getPrefixMode() == PrefixMode.BLOB) {
+      FileStatus status = getFileStatusOverBlob(path, tracingContext);
+      if (status.isFile()) {
+        fileStatuses.add(status);
+        return continuation;
+      }
+      // For blob endpoint continuation will be used as nextMarker.
+      String prefix = relativePath + ROOT_PATH;
+      String delimiter = ROOT_PATH;
+      if (path.isRoot()) {
+        prefix = null;
+      }
+      do {
+        try (AbfsPerfInfo perfInfo = startTracking("listStatus", "getListBlobs")) {
+          AbfsRestOperation op = client.getListBlobs(
+              continuation, prefix, delimiter, abfsConfiguration.getListMaxResults(),
+              tracingContext
+          );
+          perfInfo.registerResult(op.getResult());
+          BlobList blobList = op.getResult().getBlobList();
+          continuation = blobList.getNextMarker();
+          if (blobList.getBlobPropertyList().isEmpty()) {
+            throw new AbfsRestOperationException(
+                AzureServiceErrorCode.PATH_NOT_FOUND.getStatusCode(),
+                AzureServiceErrorCode.PATH_NOT_FOUND.getErrorCode(),
+                "ListBlobs path not found",
+                null, op.getResult());
+          }
+
+          addBlobListAsFileStatus(blobList, fileStatuses);
+
+          perfInfo.registerSuccess(true);
+          countAggregate++;
+          shouldContinue =
+              fetchAll && continuation != null && !continuation.isEmpty();
+
+          if (!shouldContinue) {
+            perfInfo.registerAggregates(startAggregate, countAggregate);
+          }
+        }
+      } while (shouldContinue);
+
+      return continuation;
+    }
+
     do {
       try (AbfsPerfInfo perfInfo = startTracking("listStatus", "listPath")) {
         AbfsRestOperation op = client.listPath(relativePath, false,
@@ -1963,6 +2008,40 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     } while (shouldContinue);
 
     return continuation;
+  }
+
+  private void addBlobListAsFileStatus(final BlobList blobList,
+      List<FileStatus> fileStatuses) throws IOException {
+
+    List<BlobProperty> blobProperties = blobList.getBlobPropertyList();
+    for (BlobProperty entry: blobProperties) {
+      final String owner = identityTransformer.transformIdentityForGetRequest(
+          entry.getOwner(), true, userName);
+      final String group = identityTransformer.transformIdentityForGetRequest(
+          entry.getGroup(), false, primaryUserGroup);
+      final FsPermission fsPermission = entry.getPermission() == null
+          ? new AbfsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL)
+          : AbfsPermission.valueOf(entry.getPermission());
+      final boolean hasAcl = entry.getAcl() == null ? false : true;
+      long blockSize = abfsConfiguration.getAzureBlockSize();
+
+      Path entryPath = entry.getPath();
+      entryPath = entryPath.makeQualified(this.uri, entryPath);
+
+      fileStatuses.add(
+          new VersionedFileStatus(
+              owner,
+              group,
+              fsPermission,
+              hasAcl,
+              entry.getContentLength(),
+              entry.getIsDirectory(),
+              1,
+              blockSize,
+              entry.getLastModifiedTime(),
+              entryPath,
+              entry.getETag()));
+    }
   }
 
   // generate continuation token for xns account

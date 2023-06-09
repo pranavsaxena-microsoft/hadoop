@@ -119,9 +119,9 @@ public class ITestListBlob extends
       String prefix = answer.getArgument(1);
       TracingContext tracingContext = answer.getArgument(3);
       count[0]++;
-      return client.getListBlobs(marker, prefix, 1, tracingContext);
+      return client.getListBlobs(marker, prefix, "", 1, tracingContext);
     }).when(spiedClient).getListBlobs(Mockito.nullable(String.class),
-        Mockito.anyString(), Mockito.nullable(Integer.class),
+        Mockito.anyString(), Mockito.anyString(), Mockito.nullable(Integer.class),
         Mockito.any(TracingContext.class));
 
     List<BlobProperty> blobProperties = fs.getAbfsStore()

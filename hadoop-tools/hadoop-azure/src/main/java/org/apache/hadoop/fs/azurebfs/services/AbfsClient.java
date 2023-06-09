@@ -1477,12 +1477,14 @@ public class AbfsClient implements Closeable {
    */
   public AbfsRestOperation getListBlobs(String marker,
       String prefix,
+      String delimiter,
       Integer maxResult,
       TracingContext tracingContext)
       throws AzureBlobFileSystemException {
     AbfsUriQueryBuilder abfsUriQueryBuilder = createDefaultUriQueryBuilder();
     abfsUriQueryBuilder.addQuery(QUERY_PARAM_RESTYPE, CONTAINER);
     abfsUriQueryBuilder.addQuery(QUERY_PARAM_COMP, QUERY_PARAM_COMP_VALUE_LIST);
+    abfsUriQueryBuilder.addQuery(QUERY_PARAM_DELIMITER, delimiter);
     abfsUriQueryBuilder.addQuery(QUERY_PARAM_INCLUDE,
         QUERY_PARAM_INCLUDE_VALUE_METADATA);
     prefix = getDirectoryQueryParameter(prefix);
