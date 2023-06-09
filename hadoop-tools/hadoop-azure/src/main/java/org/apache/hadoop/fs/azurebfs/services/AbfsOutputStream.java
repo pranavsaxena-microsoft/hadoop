@@ -980,6 +980,15 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
     return lease != null;
   }
 
+  @VisibleForTesting
+  List<Future> getWriteOperationsTasks() {
+    List<Future> futures = new ArrayList<>();
+    for(WriteOperation writeOperation : writeOperations) {
+      futures.add(writeOperation.task);
+    }
+    return futures;
+  }
+
   /**
    * Appending AbfsOutputStream statistics to base toString().
    *

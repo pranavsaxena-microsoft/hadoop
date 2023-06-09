@@ -39,6 +39,7 @@ import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemExc
 import org.apache.hadoop.fs.azurebfs.contracts.services.AppendRequestParameters;
 import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
 import org.apache.hadoop.fs.azurebfs.services.AbfsOutputStream;
+import org.apache.hadoop.fs.azurebfs.services.AbfsOutputStreamUtils;
 import org.apache.hadoop.fs.azurebfs.services.OperativeEndpoint;
 import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
 import org.apache.hadoop.fs.azurebfs.services.ITestAbfsClient;
@@ -607,22 +608,50 @@ public class ITestAzureBlobFileSystemAppend extends
     assertNotNull(outputStream.getLeaseId());
   }
 
+
+  /**
+   * If a write operation fails asynchronously, when the next write comes once failure is
+   * registered, that operation would fail with the exception caught on previous
+   * write operation.
+   * The next close would also fail for the last caught exception.
+   */
   @Test
   public void testIntermittentAppendFailureToBeReported() throws Exception {
     AzureBlobFileSystem fs = Mockito.spy(getFileSystem());
     AzureBlobFileSystemStore store = Mockito.spy(fs.getAbfsStore());
-    AbfsClient client = Mockito.spy(store.getClient());
-    store.setClient(client);
+    AbfsClient client = store.getClient();
+    AbfsClient spiedClient = Mockito.spy(store.getClient());
+    store.setClient(spiedClient);
     Mockito.doReturn(store).when(fs).getAbfsStore();
     Mockito.doThrow(new AbfsRestOperationException(503, "", "", new Exception()))
-        .when(client).append(Mockito.anyString(), Mockito.anyString(), Mockito.any(byte[].class), Mockito.any(
+        .when(spiedClient).append(Mockito.anyString(), Mockito.anyString(), Mockito.any(byte[].class), Mockito.any(
         AppendRequestParameters.class), Mockito.nullable(String.class), Mockito.any(TracingContext.class), Mockito.nullable(String.class));
 
-    FSDataOutputStream os = fs.create(new Path("/test/file"));
     byte[] bytes = new byte[1024 * 1024 * 8];
     new Random().nextBytes(bytes);
-    LambdaTestUtils.intercept(Exception.class, () -> {
+    LambdaTestUtils.intercept(IOException.class, () -> {
+      try (FSDataOutputStream os = fs.create(new Path("/test/file"))) {
+        os.write(bytes);
+        os.write(bytes);
+      }
+    });
+
+    LambdaTestUtils.intercept(IOException.class, () -> {
+      FSDataOutputStream os = fs.create(new Path("/test/file"));
       os.write(bytes);
+      os.close();
+    });
+
+    LambdaTestUtils.intercept(IOException.class, () -> {
+      FSDataOutputStream os = fs.create(new Path("/test/file"));
+      os.write(bytes);
+      while(true) {
+        List<Future> futureList = AbfsOutputStreamUtils.getWriteOperationsTasks((AbfsOutputStream) os.getWrappedStream());
+        Future future = futureList.get(0);
+        if(future.isDone()) {
+          break;
+        }
+      }
       os.write(bytes);
     });
   }
