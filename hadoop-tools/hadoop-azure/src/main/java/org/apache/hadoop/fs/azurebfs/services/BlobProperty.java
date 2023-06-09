@@ -21,13 +21,6 @@ package org.apache.hadoop.fs.azurebfs.services;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.microsoft.azure.storage.blob.BlobType;
-import com.microsoft.azure.storage.blob.CopyState;
-import com.microsoft.azure.storage.blob.CopyStatus;
-import com.microsoft.azure.storage.blob.LeaseDuration;
-import com.microsoft.azure.storage.blob.LeaseState;
-import com.microsoft.azure.storage.blob.LeaseStatus;
-
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemException;
 

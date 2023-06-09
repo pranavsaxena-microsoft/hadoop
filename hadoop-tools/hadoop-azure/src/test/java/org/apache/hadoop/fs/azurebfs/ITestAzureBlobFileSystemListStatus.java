@@ -27,7 +27,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
-import org.junit.Assume;
 import org.junit.Test;
 
 import org.apache.hadoop.conf.Configuration;
@@ -61,7 +60,6 @@ public class ITestAzureBlobFileSystemListStatus extends
 
   @Test
   public void testListPath() throws Exception {
-    Assume.assumeTrue(false);
     Configuration config = new Configuration(this.getRawConfiguration());
     config.set(AZURE_LIST_MAX_RESULTS, "5000");
     final AzureBlobFileSystem fs = (AzureBlobFileSystem) FileSystem
