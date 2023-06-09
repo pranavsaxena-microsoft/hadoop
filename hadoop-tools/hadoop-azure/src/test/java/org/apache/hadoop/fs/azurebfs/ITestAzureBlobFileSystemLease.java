@@ -350,7 +350,7 @@ public class ITestAzureBlobFileSystemLease extends AbstractAbfsIntegrationTest {
     tracingContext.setListener(listener);
 
     AbfsLease lease;
-    if(getPrefixMode(fs) == PrefixMode.BLOB) {
+    if (getPrefixMode(fs) == PrefixMode.BLOB) {
       lease = new AbfsBlobLease(fs.getAbfsClient(),
           testFilePath.toUri().getPath(), null, tracingContext);
     } else {
@@ -375,11 +375,13 @@ public class ITestAzureBlobFileSystemLease extends AbstractAbfsIntegrationTest {
         .doCallRealMethod().when(mockClient)
         .acquireBlobLease(anyString(), anyInt(), any(TracingContext.class));
 
-    if(getPrefixMode(fs) == PrefixMode.BLOB) {
-      lease = new AbfsBlobLease(mockClient, testFilePath.toUri().getPath(), 5, 1, null,
+    if (getPrefixMode(fs) == PrefixMode.BLOB) {
+      lease = new AbfsBlobLease(mockClient, testFilePath.toUri().getPath(), 5,
+          1, null,
           tracingContext);
     } else {
-      lease = new AbfsDfsLease(mockClient, testFilePath.toUri().getPath(), 5, 1, null,
+      lease = new AbfsDfsLease(mockClient, testFilePath.toUri().getPath(), 5, 1,
+          null,
           tracingContext);
     }
     Assert.assertNotNull("Acquire lease should have retried", lease.getLeaseID());
@@ -393,8 +395,9 @@ public class ITestAzureBlobFileSystemLease extends AbstractAbfsIntegrationTest {
         .acquireBlobLease(anyString(), anyInt(), any(TracingContext.class));
 
     LambdaTestUtils.intercept(AzureBlobFileSystemException.class, () -> {
-      if(getPrefixMode(fs) == PrefixMode.BLOB) {
-        new AbfsBlobLease(mockClient, testFilePath.toUri().getPath(), 5, 1, null,
+      if (getPrefixMode(fs) == PrefixMode.BLOB) {
+        new AbfsBlobLease(mockClient, testFilePath.toUri().getPath(), 5, 1,
+            null,
             tracingContext);
       } else {
         new AbfsDfsLease(mockClient, testFilePath.toUri().getPath(), 5, 1, null,

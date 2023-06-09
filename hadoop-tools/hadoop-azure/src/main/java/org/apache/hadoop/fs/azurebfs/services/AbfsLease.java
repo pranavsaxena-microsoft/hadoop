@@ -90,7 +90,8 @@ public abstract class AbfsLease {
   /**
    * @param client client object for making server calls
    * @param path path on which lease has to be acquired, renewed and freed in future
-   * @param leaseDuration duration for which lease to be taken in seconds
+   * @param leaseDuration duration for which lease to be taken in seconds. If given
+   * <code>null</code>, it will be taken as infinte-lease.
    * @param tracingContext for tracing server calls
    *
    * @throws AzureBlobFileSystemException exception while calling acquireLease API
@@ -148,8 +149,10 @@ public abstract class AbfsLease {
     if (future != null && !future.isDone()) {
       throw new LeaseException(ERR_LEASE_FUTURE_EXISTS);
     }
-    if(leaseDuration != null) {
-      leaseID.set(callAcquireLeaseAPI(path, leaseDuration, tracingContext).getResult().getResponseHeader(HttpHeaderConfigurations.X_MS_LEASE_ID));
+    if (leaseDuration != null) {
+      leaseID.set(
+          callAcquireLeaseAPI(path, leaseDuration, tracingContext).getResult()
+              .getResponseHeader(HttpHeaderConfigurations.X_MS_LEASE_ID));
       spawnLeaseRenewTimer(path, leaseDuration * 1000);
       return;
     }

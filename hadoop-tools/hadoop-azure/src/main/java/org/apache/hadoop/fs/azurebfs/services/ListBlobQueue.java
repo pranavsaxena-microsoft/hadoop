@@ -47,12 +47,22 @@ public class ListBlobQueue {
   private final int maxSize;
   private final int maxConsumedBlobCount;
 
+  /**
+   * @param maxSize maxSize of the queue.
+   * @param maxConsumedBlobCount maximum number of blobs that would be returned
+   * by {@link #dequeue()} method.
+   */
   public ListBlobQueue(int maxSize, int maxConsumedBlobCount) {
     blobLists = new ArrayDeque<>(maxSize);
     this.maxSize = maxSize;
     this.maxConsumedBlobCount = maxConsumedBlobCount;
   }
 
+  /**
+   * @param maxSize maxSize of the queue.
+   * @param maxConsumedBlobCount maximum number of blobs that would be returned
+   * by {@link #dequeue()} method.
+   */
   public ListBlobQueue(List<BlobProperty> initBlobList, int maxSize, int maxConsumedBlobCount) {
     this(maxSize, maxConsumedBlobCount);
     if (initBlobList != null) {
@@ -89,7 +99,7 @@ public class ListBlobQueue {
   public List<BlobProperty> dequeue() {
     List<BlobProperty> blobProperties = new ArrayList<>();
     int counter = 0;
-    while(counter < maxConsumedBlobCount && blobLists.size() > 0) {
+    while (counter < maxConsumedBlobCount && blobLists.size() > 0) {
       blobProperties.add(blobLists.poll());
       counter++;
     }
