@@ -1913,6 +1913,9 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         prefix = null;
       }
       do {
+        // List Blob calls will be made with delimiter "/". This will ensure
+        // that all the children of a folder not listed out separately. Instead,
+        // a single entry corresponding to the directory name will be returned as BlobPrefix.
         try (AbfsPerfInfo perfInfo = startTracking("listStatus", "getListBlobs")) {
           AbfsRestOperation op = client.getListBlobs(
               continuation, prefix, delimiter, abfsConfiguration.getListMaxResults(),
@@ -1921,13 +1924,6 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
           perfInfo.registerResult(op.getResult());
           BlobList blobList = op.getResult().getBlobList();
           continuation = blobList.getNextMarker();
-          if (blobList.getBlobPropertyList() == null) {
-            throw new AbfsRestOperationException(
-                AzureServiceErrorCode.PATH_NOT_FOUND.getStatusCode(),
-                AzureServiceErrorCode.PATH_NOT_FOUND.getErrorCode(),
-                "ListBlobs path not found",
-                null, op.getResult());
-          }
 
           addBlobListAsFileStatus(blobList, fileStatuses);
 
@@ -2038,7 +2034,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       final FsPermission fsPermission = entry.getPermission() == null
           ? new AbfsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL)
           : AbfsPermission.valueOf(entry.getPermission());
-      final boolean hasAcl = entry.getAcl() == null ? false : true;
+      final boolean hasAcl = entry.getAcl() != null;
       long blockSize = abfsConfiguration.getAzureBlockSize();
 
       Path entryPath = entry.getPath();

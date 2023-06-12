@@ -28,29 +28,29 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants;
 import org.apache.hadoop.fs.azurebfs.utils.DateTimeUtils;
 
-import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.DIRECTORY;
-import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.FORWARD_SLASH;
-import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.HDI_ISFOLDER;
-import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.INVALID_XML;
-import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.ROOT_PATH;
-
 /**
  * Parses the response inputSteam and populates an object of {@link BlobList}. Parsing
  * creates a list of {@link BlobProperty}.<br>
  * <a href="https://learn.microsoft.com/en-us/rest/api/storageservices/list-blobs?tabs=azure-ad#response-body">
  * BlobList API XML response example</a>
- * <EnumerationResults ServiceEndpoint="http://myaccount.blob.core.windows.net/"  ContainerName="mycontainer">
- *   <Prefix>string-value</Prefix>
- *   <Marker>string-value</Marker>
- *   <MaxResults>int-value</MaxResults>
- *   <Delimiter>string-value</Delimiter>
- *   <Blobs>
- *     <Blob> </Blob>
- *     <BlobPrefix> </BlobPrefix>
- *   </Blobs>
- *   <NextMarker />
- * </EnumerationResults>
+ * <pre>
+ *   {@code
+ *   <EnumerationResults ServiceEndpoint="http://myaccount.blob.core.windows.net/" ContainerName="mycontainer">
+ *    <Prefix>string-value</Prefix>
+ *    <Marker>string-value</Marker>
+ *    <MaxResults>int-value</MaxResults>
+ *    <Delimiter>string-value</Delimiter>
+ *    <Blobs>
+ *      <Blob> </Blob>
+ *      <BlobPrefix> </BlobPrefix>
+ *    </Blobs>
+ *    <NextMarker />
+ *   </EnumerationResults>
+ *   }
+ * </pre>
  */
+
+
 public class BlobListXmlParser extends DefaultHandler {
   /**
    * Object that contains the parsed response.
@@ -127,7 +127,7 @@ public class BlobListXmlParser extends DefaultHandler {
 
     // Check if the ending tag is correct to the starting tag in the stack.
     if (!currentNode.equals(localName)) {
-      throw new SAXException(INVALID_XML);
+      throw new SAXException(AbfsHttpConstants.INVALID_XML);
     }
 
     String parentNode = "";
@@ -174,16 +174,18 @@ public class BlobListXmlParser extends DefaultHandler {
      * or for a blob prefix denoting a directory. We will save this
      * in current BlobProperty for both
      */
-    if (currentNode.equals(AbfsHttpConstants.NAME)) {
+    if (currentNode.equals(AbfsHttpConstants.NAME)
+        && (parentNode.equals(AbfsHttpConstants.BLOB)
+        || parentNode.equals(AbfsHttpConstants.BLOB_PREFIX))) {
       // In case of BlobPrefix Name will have a slash at the end
       // Remove the "/" at the end of name
-      if (value.endsWith(FORWARD_SLASH)) {
+      if (value.endsWith(AbfsHttpConstants.FORWARD_SLASH)) {
         value = value.substring(0, value.length() - 1);
       }
 
       currentBlobProperty.setName(value);
-      currentBlobProperty.setPath(new Path(ROOT_PATH + value));
-      currentBlobProperty.setUrl(url + ROOT_PATH + value);
+      currentBlobProperty.setPath(new Path(AbfsHttpConstants.ROOT_PATH + value));
+      currentBlobProperty.setUrl(url + AbfsHttpConstants.ROOT_PATH + value);
     }
 
     /*
@@ -201,7 +203,7 @@ public class BlobListXmlParser extends DefaultHandler {
     if (parentNode.equals(AbfsHttpConstants.METADATA)) {
       currentBlobProperty.addMetadata(currentNode, value);
       // For Marker blobs hdi_isFolder will be present as metadata
-      if (HDI_ISFOLDER.equals(currentNode)) {
+      if (AbfsHttpConstants.HDI_ISFOLDER.equals(currentNode)) {
         currentBlobProperty.setIsDirectory(Boolean.valueOf(value));
       }
     }
@@ -213,7 +215,7 @@ public class BlobListXmlParser extends DefaultHandler {
      *   <Properties>
      *     <Creation-Time>date-time-value</Creation-Time>
      *     <Last-Modified>date-time-value</Last-Modified>
-     *     <Etag>etag</Etag>
+     *     <Etag>Etag</Etag>
      *     <Owner>owner user id</Owner>
      *     <Group>owning group id</Group>
      *     <Permissions>permission string</Permissions>
@@ -254,7 +256,7 @@ public class BlobListXmlParser extends DefaultHandler {
         currentBlobProperty.setAcl(value);
       }
       if (currentNode.equals(AbfsHttpConstants.RESOURCE_TYPE)) {
-        if (DIRECTORY.equals(value)) {
+        if (AbfsHttpConstants.DIRECTORY.equals(value)) {
           currentBlobProperty.setIsDirectory(true);
         }
       }
