@@ -618,7 +618,7 @@ public class ITestAzureBlobFileSystemAppend extends
    */
   @Test
   public void testIntermittentAppendFailureToBeReported() throws Exception {
-    AzureBlobFileSystem fs = Mockito.spy(getFileSystem());
+    AzureBlobFileSystem fs = Mockito.spy((AzureBlobFileSystem) FileSystem.newInstance(getRawConfiguration()));
     AzureBlobFileSystemStore store = Mockito.spy(fs.getAbfsStore());
     AbfsClient spiedClient = Mockito.spy(store.getClient());
     store.setClient(spiedClient);
@@ -667,6 +667,8 @@ public class ITestAzureBlobFileSystemAppend extends
       os.write(bytes);
     });
 
+    spiedClient = Mockito.spy(spiedClient);
+    store.setClient(spiedClient);
     AtomicInteger count = new AtomicInteger(0);
     Mockito.doAnswer(answer -> {
           count.incrementAndGet();
