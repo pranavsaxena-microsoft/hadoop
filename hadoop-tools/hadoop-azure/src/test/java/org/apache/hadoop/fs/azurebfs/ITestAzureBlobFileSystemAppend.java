@@ -30,6 +30,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -664,6 +665,36 @@ public class ITestAzureBlobFileSystemAppend extends
         }
       }
       os.write(bytes);
+    });
+
+    AtomicInteger count = new AtomicInteger(0);
+    Mockito.doAnswer(answer -> {
+          count.incrementAndGet();
+          while (count.get() < 2) ;
+          Thread.sleep(1000);
+          throw new AbfsRestOperationException(503, "", "", new Exception());
+        })
+        .when(spiedClient)
+        .append(Mockito.anyString(), Mockito.anyString(),
+            Mockito.any(byte[].class), Mockito.any(
+                AppendRequestParameters.class), Mockito.nullable(String.class),
+            Mockito.any(TracingContext.class), Mockito.nullable(String.class));
+
+    Mockito.doAnswer(answer -> {
+          count.incrementAndGet();
+          while (count.get() < 2) ;
+          Thread.sleep(1000);
+          throw new AbfsRestOperationException(503, "", "", new Exception());
+        })
+        .when(spiedClient)
+        .append(Mockito.anyString(), Mockito.any(byte[].class), Mockito.any(
+                AppendRequestParameters.class), Mockito.nullable(String.class),
+            Mockito.any(TracingContext.class));
+    FSDataOutputStream os = fs.create(new Path("/test/file"));
+    os.write(bytes);
+    os.write(bytes);
+    LambdaTestUtils.intercept(IOException.class, () -> {
+      os.close();
     });
   }
 }
