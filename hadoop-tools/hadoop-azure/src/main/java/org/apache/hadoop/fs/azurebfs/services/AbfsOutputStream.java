@@ -983,7 +983,7 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
   @VisibleForTesting
   List<Future> getWriteOperationsTasks() {
     List<Future> futures = new ArrayList<>();
-    for(WriteOperation writeOperation : writeOperations) {
+    for (WriteOperation writeOperation : writeOperations) {
       futures.add(writeOperation.task);
     }
     return futures;

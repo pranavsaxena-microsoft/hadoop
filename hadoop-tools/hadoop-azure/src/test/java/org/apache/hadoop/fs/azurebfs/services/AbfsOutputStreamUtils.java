@@ -23,6 +23,7 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.Future;
 
 public class AbfsOutputStreamUtils {
+
   private AbfsOutputStreamUtils() {
 
   }
