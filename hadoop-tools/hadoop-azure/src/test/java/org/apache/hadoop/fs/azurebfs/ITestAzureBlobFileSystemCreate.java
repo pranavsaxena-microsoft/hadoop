@@ -42,6 +42,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.InvalidConfigurationValueException;
+import org.apache.hadoop.fs.azurebfs.services.OperativeEndpoint;
 import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
 import org.apache.hadoop.test.LambdaTestUtils;
 
@@ -98,9 +99,16 @@ public class ITestAzureBlobFileSystemCreate extends
   private static final Path TEST_FILE_PATH = new Path("testfile");
   private static final Path TEST_FOLDER_PATH = new Path("testFolder");
   private static final String TEST_CHILD_FILE = "childFile";
+  private boolean useBlobEndpoint;
 
   public ITestAzureBlobFileSystemCreate() throws Exception {
-    super();
+    super.setup();
+    AzureBlobFileSystemStore abfsStore = getAbfsStore(getFileSystem());
+    PrefixMode prefixMode = abfsStore.getPrefixMode();
+    AbfsConfiguration abfsConfiguration = abfsStore.getAbfsConfiguration();
+    useBlobEndpoint = !(OperativeEndpoint.isIngressEnabledOnDFS(prefixMode, abfsConfiguration) ||
+            OperativeEndpoint.isMkdirEnabledOnDFS(prefixMode, abfsConfiguration) ||
+            OperativeEndpoint.isReadEnabledOnDFS(prefixMode, abfsConfiguration));
   }
 
   @Test
@@ -1067,7 +1075,7 @@ public class ITestAzureBlobFileSystemCreate extends
     createRequestCount+=2;
 
     // In case of blob endpoint getFileStatus makes additional call to check if path is implicit
-    if (fs.getAbfsStore().getPrefixMode() == PrefixMode.BLOB) {
+    if (useBlobEndpoint) {
       createRequestCount++;
     }
 
