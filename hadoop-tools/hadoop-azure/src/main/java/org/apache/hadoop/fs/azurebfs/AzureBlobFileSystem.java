@@ -46,6 +46,7 @@ import java.util.concurrent.Future;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.InvalidConfigurationValueException;
 import org.apache.hadoop.fs.azurebfs.services.BlobProperty;
 import org.apache.hadoop.classification.VisibleForTesting;
+import org.apache.hadoop.fs.azurebfs.services.OperativeEndpoint;
 import org.apache.hadoop.fs.azurebfs.services.PathInformation;
 import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
 import org.apache.hadoop.fs.azurebfs.services.RenameAtomicityUtils;
@@ -1002,33 +1003,33 @@ public class AzureBlobFileSystem extends FileSystem
     statIncrement(CALL_GET_FILE_STATUS);
     Path qualifiedPath = makeQualified(path);
     FileStatus fileStatus;
+    PrefixMode prefixMode = getAbfsStore().getPrefixMode();
+    AbfsConfiguration abfsConfiguration = getAbfsStore().getAbfsConfiguration();
 
+    boolean useBlobEndpoint = !(OperativeEndpoint.isIngressEnabledOnDFS(prefixMode, abfsConfiguration) ||
+            OperativeEndpoint.isMkdirEnabledOnDFS(prefixMode, abfsConfiguration) ||
+            OperativeEndpoint.isReadEnabledOnDFS(prefixMode, abfsConfiguration));
     try {
-      if (abfsStore.getPrefixMode() == PrefixMode.BLOB) {
-        /**
-         * Get File Status over Blob Endpoint will Have an additional call
-         * to check if directory is implicit.
-         */
-        fileStatus = abfsStore.getFileStatus(qualifiedPath, tracingContext, true);
-      }
-      else {
-        fileStatus = abfsStore.getFileStatus(qualifiedPath, tracingContext, false);
-      }
+      /**
+       * Get File Status over Blob Endpoint will Have an additional call
+       * to check if directory is implicit.
+       */
+      fileStatus = abfsStore.getFileStatus(qualifiedPath, tracingContext, useBlobEndpoint);
       if (abfsStore.getPrefixMode() == PrefixMode.BLOB && fileStatus != null && fileStatus.isDirectory()
-          &&
-          abfsStore.isAtomicRenameKey(fileStatus.getPath().toUri().getPath()) &&
-          abfsStore.getRenamePendingFileStatusInDirectory(fileStatus,
-              tracingContext)) {
+              &&
+              abfsStore.isAtomicRenameKey(fileStatus.getPath().toUri().getPath()) &&
+              abfsStore.getRenamePendingFileStatusInDirectory(fileStatus,
+                      tracingContext)) {
         RenameAtomicityUtils renameAtomicityUtils = new RenameAtomicityUtils(
-            this,
-            new Path(fileStatus.getPath().toUri().getPath() + SUFFIX),
-            abfsStore.getRedoRenameInvocation(tracingContext));
+                this,
+                new Path(fileStatus.getPath().toUri().getPath() + SUFFIX),
+                abfsStore.getRedoRenameInvocation(tracingContext));
         renameAtomicityUtils.cleanup(
-            new Path(fileStatus.getPath().toUri().getPath() + SUFFIX));
+                new Path(fileStatus.getPath().toUri().getPath() + SUFFIX));
         throw new AbfsRestOperationException(HttpURLConnection.HTTP_NOT_FOUND,
-            AzureServiceErrorCode.PATH_NOT_FOUND.getErrorCode(), null,
-            new FileNotFoundException(
-                qualifiedPath + ": No such file or directory."));
+                AzureServiceErrorCode.PATH_NOT_FOUND.getErrorCode(), null,
+                new FileNotFoundException(
+                        qualifiedPath + ": No such file or directory."));
       }
       return fileStatus;
     } catch (AzureBlobFileSystemException ex) {

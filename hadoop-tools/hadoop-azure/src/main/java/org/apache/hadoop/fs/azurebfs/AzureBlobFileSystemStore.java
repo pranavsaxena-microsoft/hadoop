@@ -1024,7 +1024,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       HashMap<String, String> metadata,
       TracingContext tracingContext) throws AzureBlobFileSystemException {
     AbfsRestOperation op;
-
+    VersionedFileStatus fileStatus;
     try {
       // Trigger a create with overwrite=false first so that eTag fetch can be
       // avoided for cases when no pre-existing file is present (major portion
@@ -1036,25 +1036,26 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       if (e.getStatusCode() == HTTP_CONFLICT) {
         // File pre-exists, fetch eTag
         try {
-          if (getPrefixMode() == PrefixMode.BLOB) {
-            op = client.getBlobProperty(new Path(relativePath), tracingContext);
-          } else {
-            op = client.getPathStatus(relativePath, false, tracingContext);
+          boolean useBlobEndpoint = getPrefixMode() == PrefixMode.BLOB;
+          if (OperativeEndpoint.isIngressEnabledOnDFS(
+                  getAbfsConfiguration().getPrefixMode(), getAbfsConfiguration())) {
+            useBlobEndpoint = false;
           }
-        } catch (AbfsRestOperationException ex) {
-          if (ex.getStatusCode() == HttpURLConnection.HTTP_NOT_FOUND) {
+          fileStatus = (VersionedFileStatus) getFileStatus(new Path(relativePath), tracingContext, useBlobEndpoint);
+        } catch (IOException ex) {
+          AbfsRestOperationException ex1 = (AbfsRestOperationException) ex;
+          if (ex1.getStatusCode() == HttpURLConnection.HTTP_NOT_FOUND) {
             // Is a parallel access case, as file which was found to be
             // present went missing by this request.
             throw new ConcurrentWriteOperationDetectedException(
-                "Parallel access to the create path detected. Failing request "
-                    + "to honor single writer semantics");
+                    "Parallel access to the create path detected. Failing request "
+                            + "to honor single writer semantics");
           } else {
-            throw ex;
+            throw ex1;
           }
         }
 
-        String eTag = op.getResult()
-            .getResponseHeader(HttpHeaderConfigurations.ETAG);
+        String eTag = fileStatus.getEtag();
 
         try {
           // overwrite only if eTag matches with the file properties fetched before.
@@ -1239,9 +1240,12 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
               path);
 
       String relativePath = getRelativePath(path);
-
-      VersionedFileStatus fileStatus;
       boolean useBlobEndpoint = getPrefixMode() == PrefixMode.BLOB;
+      if (OperativeEndpoint.isReadEnabledOnDFS(
+              getAbfsConfiguration().getPrefixMode(), getAbfsConfiguration())) {
+        useBlobEndpoint = false;
+      }
+      VersionedFileStatus fileStatus;
       fileStatus = (VersionedFileStatus) getFileStatus(path, tracingContext, useBlobEndpoint);
 
       //perfInfo.registerResult(fileStatus);
@@ -1301,6 +1305,10 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
 
       String relativePath = getRelativePath(path);
       boolean useBlobEndpoint = getPrefixMode() == PrefixMode.BLOB;
+      if (OperativeEndpoint.isIngressEnabledOnDFS(
+              getAbfsConfiguration().getPrefixMode(), getAbfsConfiguration())) {
+        useBlobEndpoint = false;
+      }
       VersionedFileStatus fileStatus;
       fileStatus = (VersionedFileStatus) getFileStatus(path, tracingContext, useBlobEndpoint);
       //perfInfo.registerResult(op.getResult());
@@ -2534,7 +2542,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
    * in a LIST or HEAD request.
    * The etag is included in the java serialization.
    */
-  private static final class VersionedFileStatus extends FileStatus
+  static final class VersionedFileStatus extends FileStatus
       implements EtagSource {
 
     /**
