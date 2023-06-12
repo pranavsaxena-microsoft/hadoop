@@ -29,6 +29,7 @@ import java.util.UUID;
 
 import org.apache.hadoop.fs.CreateFlag;
 import org.apache.hadoop.fs.FileAlreadyExistsException;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.Path;
@@ -44,6 +45,7 @@ import org.apache.hadoop.fs.azurebfs.contracts.exceptions.InvalidConfigurationVa
 import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
 import org.apache.hadoop.test.LambdaTestUtils;
 
+import org.checkerframework.common.value.qual.StaticallyExecutable;
 import org.junit.Assume;
 
 import org.junit.Test;

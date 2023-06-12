@@ -38,6 +38,8 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.azurebfs.constants.FSOperationType;
 import org.apache.hadoop.fs.azurebfs.utils.TracingHeaderValidator;
 import org.apache.hadoop.fs.contract.ContractTestUtils;
+import org.mockito.Mock;
+import org.mockito.Mockito;
 
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.AZURE_LIST_MAX_RESULTS;
 import static org.apache.hadoop.fs.contract.ContractTestUtils.assertMkdirs;
@@ -60,7 +62,7 @@ public class ITestAzureBlobFileSystemListStatus extends
 
   @Test
   public void testListPath() throws Exception {
-    Configuration config = new Configuration(this.getRawConfiguration());
+    Configuration config = Mockito.spy(this.getRawConfiguration());
     config.set(AZURE_LIST_MAX_RESULTS, "5000");
     final AzureBlobFileSystem fs = (AzureBlobFileSystem) FileSystem
         .newInstance(getFileSystem().getUri(), config);
