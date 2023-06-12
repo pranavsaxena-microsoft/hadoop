@@ -21,6 +21,7 @@ package org.apache.hadoop.fs.azurebfs;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 
+import org.apache.hadoop.fs.azurebfs.services.OperativeEndpoint;
 import org.assertj.core.api.Assertions;
 import org.junit.Assert;
 import org.junit.Test;
@@ -49,8 +50,15 @@ import static org.apache.hadoop.test.LambdaTestUtils.intercept;
 public class ITestAbfsRestOperationException extends AbstractAbfsIntegrationTest{
   private static final String RETRY_TEST_TOKEN_PROVIDER = "org.apache.hadoop.fs.azurebfs.oauth2.RetryTestTokenProvider";
 
+  boolean useBlobEndpoint;
   public ITestAbfsRestOperationException() throws Exception {
-    super();
+    super.setup();
+    AzureBlobFileSystemStore abfsStore = getAbfsStore(getFileSystem());
+    PrefixMode prefixMode = abfsStore.getPrefixMode();
+    AbfsConfiguration abfsConfiguration = abfsStore.getAbfsConfiguration();
+    useBlobEndpoint = !(OperativeEndpoint.isIngressEnabledOnDFS(prefixMode, abfsConfiguration) ||
+            OperativeEndpoint.isMkdirEnabledOnDFS(prefixMode, abfsConfiguration) ||
+            OperativeEndpoint.isReadEnabledOnDFS(prefixMode, abfsConfiguration));
   }
 
   @Test
@@ -66,7 +74,7 @@ public class ITestAbfsRestOperationException extends AbstractAbfsIntegrationTest
 
       Assert.assertEquals(4, errorFields.length);
       // Check status message, status code, HTTP Request Type and URL.
-      if (fs.getAbfsStore().getPrefixMode() == PrefixMode.BLOB) {
+      if (useBlobEndpoint) {
         Assert.assertEquals("Operation failed: \"The specified blob does not exist.\"", errorFields[0].trim());
       }
       else {
@@ -87,7 +95,7 @@ public class ITestAbfsRestOperationException extends AbstractAbfsIntegrationTest
       if (!getAbfsStore(fs).getAbfsConfiguration().enableAbfsListIterator()) {
         Assert.assertEquals(6, errorFields.length);
         // Check status message, status code, HTTP Request Type and URL.
-        if (fs.getAbfsStore().getPrefixMode() == PrefixMode.BLOB) {
+        if (useBlobEndpoint) {
           Assert.assertEquals("Operation failed: \"The specified blob does not exist.\"", errorFields[0].trim());
         }
         else {
@@ -103,7 +111,7 @@ public class ITestAbfsRestOperationException extends AbstractAbfsIntegrationTest
       } else {
         Assert.assertEquals(4, errorFields.length);
         // Check status message, status code, HTTP Request Type and URL.
-        if (fs.getAbfsStore().getPrefixMode() == PrefixMode.BLOB) {
+        if (useBlobEndpoint) {
           Assert.assertEquals("Operation failed: \"The specified blob does not exist.\"", errorFields[0].trim());
         }
         else {
