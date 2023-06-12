@@ -623,9 +623,20 @@ public class ITestAzureBlobFileSystemAppend extends
     AbfsClient spiedClient = Mockito.spy(store.getClient());
     store.setClient(spiedClient);
     Mockito.doReturn(store).when(fs).getAbfsStore();
-    Mockito.doThrow(new AbfsRestOperationException(503, "", "", new Exception()))
-        .when(spiedClient).append(Mockito.anyString(), Mockito.anyString(), Mockito.any(byte[].class), Mockito.any(
-        AppendRequestParameters.class), Mockito.nullable(String.class), Mockito.any(TracingContext.class), Mockito.nullable(String.class));
+    Mockito.doThrow(
+            new AbfsRestOperationException(503, "", "", new Exception()))
+        .when(spiedClient)
+        .append(Mockito.anyString(), Mockito.anyString(),
+            Mockito.any(byte[].class), Mockito.any(
+                AppendRequestParameters.class), Mockito.nullable(String.class),
+            Mockito.any(TracingContext.class), Mockito.nullable(String.class));
+
+    Mockito.doThrow(
+            new AbfsRestOperationException(503, "", "", new Exception()))
+        .when(spiedClient)
+        .append(Mockito.anyString(), Mockito.any(byte[].class), Mockito.any(
+                AppendRequestParameters.class), Mockito.nullable(String.class),
+            Mockito.any(TracingContext.class));
 
     byte[] bytes = new byte[1024 * 1024 * 8];
     new Random().nextBytes(bytes);
@@ -645,10 +656,11 @@ public class ITestAzureBlobFileSystemAppend extends
     LambdaTestUtils.intercept(IOException.class, () -> {
       FSDataOutputStream os = fs.create(new Path("/test/file"));
       os.write(bytes);
-      while(true) {
-        List<Future> futureList = AbfsOutputStreamUtils.getWriteOperationsTasks((AbfsOutputStream) os.getWrappedStream());
+      while (true) {
+        List<Future> futureList = AbfsOutputStreamUtils.getWriteOperationsTasks(
+            (AbfsOutputStream) os.getWrappedStream());
         Future future = futureList.get(0);
-        if(future.isDone()) {
+        if (future.isDone()) {
           break;
         }
       }
