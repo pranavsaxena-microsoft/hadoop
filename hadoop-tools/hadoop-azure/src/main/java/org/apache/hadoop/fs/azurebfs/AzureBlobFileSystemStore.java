@@ -1796,7 +1796,9 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
             ex.getErrorMessage(), ex);
       }
       String nextMarker = blobList.getNextMarker();
-      listBlobQueue = new ListBlobQueue(blobList);
+      listBlobQueue = new ListBlobQueue(blobList.getBlobPropertyList(),
+          getAbfsConfiguration().getProducerQueueMaxSize(),
+          getAbfsConfiguration().getBlobDirDeleteMaxThread());
       if (nextMarker != null && recursive) {
         new ListBlobProducer(listSrc,
             client, listBlobQueue, nextMarker, tracingContext);
@@ -1842,7 +1844,8 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     }
 
     if (listBlobQueue == null) {
-      listBlobQueue = new ListBlobQueue(null);
+      listBlobQueue = new ListBlobQueue(getAbfsConfiguration().getProducerQueueMaxSize(),
+          getAbfsConfiguration().getBlobDirDeleteMaxThread());
       new ListBlobProducer(listSrc, client,
           listBlobQueue, null, tracingContext);
     }
@@ -1857,17 +1860,19 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       final ListBlobConsumer consumer, final Boolean recursive)
       throws IOException {
     while (!consumer.isCompleted()) {
-      final BlobList blobList = consumer.consume();
+      final List<BlobProperty> blobList = consumer.consume();
       if (blobList == null) {
         continue;
       }
-      if (!recursive && blobList.getBlobPropertyList().size() > 0) {
+      if (!recursive && blobList.size() > 0) {
         throw new IOException(
             "Non-recursive delete of non-empty directory " + (
                 pathProperty != null ? pathProperty.getIsDirectory() : ""));
       }
+      ExecutorService deleteBlobExecutorService = Executors.newFixedThreadPool(
+          getAbfsConfiguration().getBlobDirDeleteMaxThread());
       List<Future> futureList = new ArrayList<>();
-      for (BlobProperty blobProperty : blobList.getBlobPropertyList()) {
+      for (BlobProperty blobProperty : blobList) {
         futureList.add(deleteBlobExecutorService.submit(() -> {
           try {
             client.deleteBlobPath(blobProperty.getPath(), null, tracingContext);

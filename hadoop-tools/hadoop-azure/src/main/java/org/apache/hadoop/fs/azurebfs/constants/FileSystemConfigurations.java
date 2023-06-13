@@ -136,6 +136,7 @@ public final class FileSystemConfigurations {
   public static final boolean DEFAULT_FS_AZURE_LEASE_CREATE_NON_RECURSIVE = false;
 
   public static final int DEFAULT_FS_AZURE_BLOB_RENAME_THREAD = 5;
+  public static final int DEFAULT_FS_AZURE_BLOB_DELETE_THREAD = 5;
 
   /**
    * Limit of queued block upload operations before writes
