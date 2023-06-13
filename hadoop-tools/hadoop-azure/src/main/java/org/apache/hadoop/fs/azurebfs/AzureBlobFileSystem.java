@@ -1010,26 +1010,28 @@ public class AzureBlobFileSystem extends FileSystem
             OperativeEndpoint.isMkdirEnabledOnDFS(prefixMode, abfsConfiguration) ||
             OperativeEndpoint.isReadEnabledOnDFS(prefixMode, abfsConfiguration));
     try {
-      /**
-       * Get File Status over Blob Endpoint will Have an additional call
-       * to check if directory is implicit.
-       */
-      fileStatus = abfsStore.getFileStatus(qualifiedPath, tracingContext, useBlobEndpoint);
-      if (abfsStore.getPrefixMode() == PrefixMode.BLOB && fileStatus != null && fileStatus.isDirectory()
-              &&
-              abfsStore.isAtomicRenameKey(fileStatus.getPath().toUri().getPath()) &&
-              abfsStore.getRenamePendingFileStatusInDirectory(fileStatus,
-                      tracingContext)) {
+        /**
+         * Get File Status over Blob Endpoint will Have an additional call
+         * to check if directory is implicit.
+         */
+        fileStatus = abfsStore.getFileStatus(qualifiedPath,
+            tracingContext, useBlobEndpoint);
+        if (getAbfsStore().getAbfsConfiguration().getPrefixMode()
+          == PrefixMode.BLOB && fileStatus != null && fileStatus.isDirectory()
+          &&
+          abfsStore.isAtomicRenameKey(fileStatus.getPath().toUri().getPath()) &&
+          abfsStore.getRenamePendingFileStatusInDirectory(fileStatus,
+              tracingContext)) {
         RenameAtomicityUtils renameAtomicityUtils = new RenameAtomicityUtils(
-                this,
-                new Path(fileStatus.getPath().toUri().getPath() + SUFFIX),
-                abfsStore.getRedoRenameInvocation(tracingContext));
+            this,
+            new Path(fileStatus.getPath().toUri().getPath() + SUFFIX),
+            abfsStore.getRedoRenameInvocation(tracingContext));
         renameAtomicityUtils.cleanup(
-                new Path(fileStatus.getPath().toUri().getPath() + SUFFIX));
+            new Path(fileStatus.getPath().toUri().getPath() + SUFFIX));
         throw new AbfsRestOperationException(HttpURLConnection.HTTP_NOT_FOUND,
-                AzureServiceErrorCode.PATH_NOT_FOUND.getErrorCode(), null,
-                new FileNotFoundException(
-                        qualifiedPath + ": No such file or directory."));
+            AzureServiceErrorCode.PATH_NOT_FOUND.getErrorCode(), null,
+            new FileNotFoundException(
+                qualifiedPath + ": No such file or directory."));
       }
       return fileStatus;
     } catch (AzureBlobFileSystemException ex) {

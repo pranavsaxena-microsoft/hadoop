@@ -1048,8 +1048,8 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
             // Is a parallel access case, as file which was found to be
             // present went missing by this request.
             throw new ConcurrentWriteOperationDetectedException(
-                    "Parallel access to the create path detected. Failing request "
-                            + "to honor single writer semantics");
+                "Parallel access to the create path detected. Failing request "
+                    + "to honor single writer semantics");
           } else {
             throw ex1;
           }
@@ -1721,19 +1721,21 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         List<BlobProperty> blobProperties = getListBlobs(path, null, tracingContext, 2, true);
         if (blobProperties.size() == 0) {
           throw ex;
-        } else {
+        }
+        else {
+          // TODO: return properties of first child blob here like in wasb after listFileStatus is implemented over blob
           return new VersionedFileStatus(
-                  userName,
-                  primaryUserGroup,
-                  new AbfsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL),
-                  false,
-                  0L,
-                  true,
-                  1,
-                  abfsConfiguration.getAzureBlockSize(),
-                  DateTimeUtils.parseLastModifiedTime(null),
-                  path,
-                  null);
+              userName,
+              primaryUserGroup,
+              new AbfsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL),
+              false,
+              0L,
+              true,
+              1,
+              abfsConfiguration.getAzureBlockSize(),
+              DateTimeUtils.parseLastModifiedTime(null),
+              path,
+              null);
         }
       } else {
         throw ex;
