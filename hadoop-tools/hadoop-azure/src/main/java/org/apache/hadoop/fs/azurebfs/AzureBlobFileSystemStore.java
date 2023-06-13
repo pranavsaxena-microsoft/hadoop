@@ -1248,8 +1248,6 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       VersionedFileStatus fileStatus;
       fileStatus = (VersionedFileStatus) getFileStatus(path, tracingContext, useBlobEndpoint);
 
-      //perfInfo.registerResult(fileStatus);
-
       boolean isDirectory = fileStatus.isDirectory();
 
       final long contentLength = fileStatus.getLen();
@@ -1311,7 +1309,6 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       }
       VersionedFileStatus fileStatus;
       fileStatus = (VersionedFileStatus) getFileStatus(path, tracingContext, useBlobEndpoint);
-      //perfInfo.registerResult(op.getResult());
 
       final Long contentLength = fileStatus.getLen();
 
