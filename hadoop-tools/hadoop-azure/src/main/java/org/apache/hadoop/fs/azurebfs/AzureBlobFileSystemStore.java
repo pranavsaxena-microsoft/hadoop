@@ -726,7 +726,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       // The path does not exist explicitly.
       // Check here if the path is an implicit dir
       if (ex.getStatusCode() == HttpURLConnection.HTTP_NOT_FOUND && !path.isRoot()) {
-        List<BlobProperty> blobProperties = getListBlobs(path, null,
+        List<BlobProperty> blobProperties = getListBlobs(path, null, null,
             tracingContext, 2, true);
         if (blobProperties.size() == 0) {
           throw ex;
@@ -826,7 +826,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
    * @throws AbfsRestOperationException exception from server-calls / xml-parsing
    */
   public List<BlobProperty> getListBlobs(Path sourceDirBlobPath,
-      String prefix, TracingContext tracingContext,
+      String prefix, String delimiter, TracingContext tracingContext,
       final Integer maxResult, final Boolean isDefinitiveDirSearch)
       throws AzureBlobFileSystemException {
     List<BlobProperty> blobProperties = new ArrayList<>();
@@ -838,9 +838,12 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
           ? ROOT_PATH
           : EMPTY_STRING);
     }
+    if (delimiter == null) {
+      delimiter = "";
+    }
     do {
       AbfsRestOperation op = client.getListBlobs(
-          nextMarker, prefix, "", maxResult, tracingContext
+          nextMarker, prefix, delimiter, maxResult, tracingContext
       );
       BlobList blobList = op.getResult().getBlobList();
       nextMarker = blobList.getNextMarker();
@@ -1249,7 +1252,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
           if (e.getStatusCode() != HTTP_NOT_FOUND) {
             throw e;
           }
-          List<BlobProperty> blobsList = getListBlobs(new Path(relativePath), null,
+          List<BlobProperty> blobsList = getListBlobs(new Path(relativePath), null, null,
                   tracingContext, 2, true);
           if (blobsList.size() > 0) {
             throw new AbfsRestOperationException(
@@ -1340,7 +1343,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         // The path does not exist explicitly.
         // Check here if the path is an implicit dir
         if (getPrefixMode() == PrefixMode.BLOB && ex.getStatusCode() == HttpURLConnection.HTTP_NOT_FOUND) {
-          List<BlobProperty> blobProperties = getListBlobs(path, null,
+          List<BlobProperty> blobProperties = getListBlobs(path, null, null,
                   tracingContext, 2, true);
           if (blobProperties.size() != 0) {
             throw new AbfsRestOperationException(
@@ -1439,7 +1442,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       /*
        * Fetch the list of blobs in the given sourcePath.
        */
-      List<BlobProperty> srcBlobProperties = getListBlobs(source, null,
+      List<BlobProperty> srcBlobProperties = getListBlobs(source, null, null,
           tracingContext, null, true);
       BlobProperty blobPropOnSrc;
       if (srcBlobProperties.size() > 0) {
@@ -1821,7 +1824,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       // The path does not exist explicitly.
       // Check here if the path is an implicit dir
       if (ex.getStatusCode() == HttpURLConnection.HTTP_NOT_FOUND && !path.isRoot()) {
-        List<BlobProperty> blobProperties = getListBlobs(path,null, tracingContext, 2, true);
+        List<BlobProperty> blobProperties = getListBlobs(path,null, null, tracingContext, 2, true);
         if (blobProperties.size() == 0) {
           throw ex;
         }
