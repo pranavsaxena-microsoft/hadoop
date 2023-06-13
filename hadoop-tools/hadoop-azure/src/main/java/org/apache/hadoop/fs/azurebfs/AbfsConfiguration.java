@@ -21,6 +21,7 @@ package org.apache.hadoop.fs.azurebfs;
 import java.io.IOException;
 import java.lang.reflect.Field;
 
+import org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys;
 import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
 import org.apache.hadoop.thirdparty.com.google.common.annotations.VisibleForTesting;
 import org.apache.hadoop.thirdparty.com.google.common.base.Preconditions;
@@ -118,6 +119,15 @@ public class AbfsConfiguration{
       ConfigurationKey = AZURE_READ_OPTIMIZE_FOOTER_READ,
       DefaultValue = DEFAULT_OPTIMIZE_FOOTER_READ)
   private boolean optimizeFooterRead;
+
+  @BooleanConfigurationValidatorAnnotation(
+      ConfigurationKey = FS_AZURE_ACCOUNT_IS_EXPECT_HEADER_ENABLED,
+      DefaultValue = DEFAULT_FS_AZURE_ACCOUNT_IS_EXPECT_HEADER_ENABLED)
+  private boolean isExpectHeaderEnabled;
+
+  @BooleanConfigurationValidatorAnnotation(ConfigurationKey = FS_AZURE_ACCOUNT_LEVEL_THROTTLING_ENABLED,
+      DefaultValue = DEFAULT_FS_AZURE_ACCOUNT_LEVEL_THROTTLING_ENABLED)
+  private boolean accountThrottlingEnabled;
 
   @IntegerConfigurationValidatorAnnotation(ConfigurationKey = AZURE_READ_BUFFER_SIZE,
       MinValue = MIN_BUFFER_SIZE,
@@ -246,7 +256,7 @@ public class AbfsConfiguration{
   private int readAheadQueueDepth;
 
   @IntegerConfigurationValidatorAnnotation(ConfigurationKey = FS_AZURE_BLOB_DIR_RENAME_MAX_THREAD,
-      DefaultValue = 0)
+      DefaultValue = DEFAULT_FS_AZURE_BLOB_RENAME_THREAD)
   private int blobDirRenameMaxThread;
 
   @IntegerConfigurationValidatorAnnotation(ConfigurationKey = FS_AZURE_BLOB_DIR_DELETE_MAX_THREAD,
@@ -278,6 +288,14 @@ public class AbfsConfiguration{
   @BooleanConfigurationValidatorAnnotation(ConfigurationKey = FS_AZURE_ENABLE_AUTOTHROTTLING,
       DefaultValue = DEFAULT_ENABLE_AUTOTHROTTLING)
   private boolean enableAutoThrottling;
+
+  @IntegerConfigurationValidatorAnnotation(ConfigurationKey = FS_AZURE_ACCOUNT_OPERATION_IDLE_TIMEOUT,
+          DefaultValue = DEFAULT_ACCOUNT_OPERATION_IDLE_TIMEOUT_MS)
+  private int accountOperationIdleTimeout;
+
+  @IntegerConfigurationValidatorAnnotation(ConfigurationKey = FS_AZURE_ANALYSIS_PERIOD,
+          DefaultValue = DEFAULT_ANALYSIS_PERIOD_MS)
+  private int analysisPeriod;
 
   @StringConfigurationValidatorAnnotation(ConfigurationKey = FS_AZURE_USER_AGENT_PREFIX_KEY,
       DefaultValue = DEFAULT_FS_AZURE_USER_AGENT_PREFIX)
@@ -330,8 +348,12 @@ public class AbfsConfiguration{
       FS_AZURE_ENABLE_ABFS_LIST_ITERATOR, DefaultValue = DEFAULT_ENABLE_ABFS_LIST_ITERATOR)
   private boolean enableAbfsListIterator;
 
-  @IntegerConfigurationValidatorAnnotation(ConfigurationKey = FS_AZURE_MAX_CONSUMER_LAG, DefaultValue = DEFAULT_FS_AZURE_MAX_CONSUMER_LAG)
-  private int maximumConsumerLag;
+  @IntegerConfigurationValidatorAnnotation(ConfigurationKey =
+      FS_AZURE_PRODUCER_QUEUE_MAX_SIZE, DefaultValue = DEFAULT_FS_AZURE_PRODUCER_QUEUE_MAX_SIZE)
+  private int producerQueueMaxSize;
+
+  @BooleanConfigurationValidatorAnnotation(ConfigurationKey=FS_AZURE_LEASE_CREATE_NON_RECURSIVE, DefaultValue = DEFAULT_FS_AZURE_LEASE_CREATE_NON_RECURSIVE)
+  private boolean leaseOnCreateNonRecursive;
 
   public AbfsConfiguration(final Configuration rawConfig, String accountName)
       throws IllegalAccessException, InvalidConfigurationValueException, IOException {
@@ -412,12 +434,21 @@ public class AbfsConfiguration{
           DefaultValue = DEFAULT_FS_AZURE_INGRESS_FALLBACK_TO_DFS)
   private boolean ingressFallbackToDfs;
 
+  @BooleanConfigurationValidatorAnnotation(
+          ConfigurationKey = FS_AZURE_READ_FALLBACK_TO_DFS,
+          DefaultValue = DEFAULT_AZURE_READ_FALLBACK_TO_DFS)
+  private boolean readFallbackToDfs;
+
   public boolean shouldMkdirFallbackToDfs() {
     return mkdirFallbackToDfs;
   }
 
   public boolean shouldIngressFallbackToDfs() {
     return ingressFallbackToDfs;
+  }
+
+  public boolean shouldReadFallbackToDfs() {
+    return readFallbackToDfs;
   }
 
   /**
@@ -772,6 +803,14 @@ public class AbfsConfiguration{
     return this.azureAppendBlobDirs;
   }
 
+  public boolean isExpectHeaderEnabled() {
+    return this.isExpectHeaderEnabled;
+  }
+
+  public boolean accountThrottlingEnabled() {
+    return accountThrottlingEnabled;
+  }
+
   public String getAzureInfiniteLeaseDirs() {
     return this.azureInfiniteLeaseDirs;
   }
@@ -814,8 +853,16 @@ public class AbfsConfiguration{
     return this.enableAutoThrottling;
   }
 
+  public int getAccountOperationIdleTimeout() {
+    return accountOperationIdleTimeout;
+  }
+
+  public int getAnalysisPeriod() {
+    return analysisPeriod;
+  }
+
   public String getCustomUserAgentPrefix() {
-    return "abfsdriverV2.1";
+    return "abfsdriverV2.2";
   }
 
   public String getClusterName() {
@@ -1192,8 +1239,11 @@ public class AbfsConfiguration{
     this.enableAbfsListIterator = enableAbfsListIterator;
   }
 
-  public int getMaximumConsumerLag() {
-    return maximumConsumerLag;
+  public int getProducerQueueMaxSize() {
+    return producerQueueMaxSize;
   }
 
+  public boolean isLeaseOnCreateNonRecursive() {
+    return leaseOnCreateNonRecursive;
+  }
 }

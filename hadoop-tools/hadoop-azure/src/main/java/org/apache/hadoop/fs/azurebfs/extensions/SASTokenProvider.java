@@ -44,6 +44,7 @@ public interface SASTokenProvider {
   String GET_PROPERTIES_OPERATION = "get-properties";
   String GET_BLOB_PROPERTIES_OPERATION = "get-blob-properties";
   String GET_CONTAINER_PROPERTIES_OPERATION = "get-container-properties";
+  String GET_BLOB_METADATA_OPERATION = "get-blob-metadata";
   String LIST_OPERATION = "list";
   String LIST_BLOB_OPERATION = "list-blob";
   String COPY_BLOB_DESTINATION = "copy-blob-dst";
@@ -55,6 +56,7 @@ public interface SASTokenProvider {
   String SET_OWNER_OPERATION = "set-owner";
   String SET_PERMISSION_OPERATION = "set-permission";
   String SET_PROPERTIES_OPERATION = "set-properties";
+  String SET_BLOB_METADATA_OPERATION = "set-blob-metadata";
   String WRITE_OPERATION = "write";
 
   String LEASE_OPERATION = "lease";

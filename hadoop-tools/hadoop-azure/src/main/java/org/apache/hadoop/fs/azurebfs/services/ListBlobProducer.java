@@ -80,20 +80,20 @@ public class ListBlobProducer {
     this.nextMarker = initNextMarker;
     new Thread(() -> {
       do {
-        if (listBlobQueue.getConsumerLag() >= client.getAbfsConfiguration()
-            .getMaximumConsumerLag()) {
+        int maxResult = listBlobQueue.availableSize();
+        if (maxResult == 0) {
           continue;
         }
         AbfsRestOperation op = null;
         try {
-          op = client.getListBlobs(nextMarker, src, null, tracingContext);
+          op = client.getListBlobs(nextMarker, src, maxResult, tracingContext);
         } catch (AzureBlobFileSystemException ex) {
           listBlobQueue.setFailed(ex);
           return;
         }
         BlobList blobList = op.getResult().getBlobList();
         nextMarker = blobList.getNextMarker();
-        listBlobQueue.enqueue(blobList);
+        listBlobQueue.enqueue(blobList.getBlobPropertyList());
         if (nextMarker == null) {
           listBlobQueue.complete();
         }

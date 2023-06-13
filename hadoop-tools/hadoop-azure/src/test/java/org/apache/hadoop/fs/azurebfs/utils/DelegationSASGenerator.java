@@ -61,6 +61,7 @@ public class DelegationSASGenerator extends SASGenerator {
       case SASTokenProvider.WRITE_OPERATION:
       case SASTokenProvider.SET_PROPERTIES_OPERATION:
       case SASTokenProvider.LEASE_OPERATION:
+      case SASTokenProvider.SET_BLOB_METADATA_OPERATION:
         sp = "w";
         break;
       case SASTokenProvider.DELETE_OPERATION:
@@ -96,6 +97,7 @@ public class DelegationSASGenerator extends SASGenerator {
       case SASTokenProvider.GET_BLOCK_LIST:
       case SASTokenProvider.GET_BLOB_PROPERTIES_OPERATION:
       case SASTokenProvider.GET_CONTAINER_PROPERTIES_OPERATION:
+      case SASTokenProvider.GET_BLOB_METADATA_OPERATION:
       case SASTokenProvider.READ_OPERATION:
         sp = "r";
         break;

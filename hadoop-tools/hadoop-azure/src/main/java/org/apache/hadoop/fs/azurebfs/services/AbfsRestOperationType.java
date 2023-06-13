@@ -36,6 +36,7 @@ public enum AbfsRestOperationType {
     SetOwner,
     SetPathProperties,
     SetPermissions,
+    SetBlobMetadata,
     Append,
     Flush,
     ReadFile,
@@ -46,10 +47,12 @@ public enum AbfsRestOperationType {
     PutBlob,
     GetBlobProperties,
     GetContainerProperties,
+    GetBlobMetadata,
     PutBlock,
     PutBlockList,
     GetBlockList,
     DeleteBlob,
     GetListBlobProperties,
-    CopyBlob
+    CopyBlob,
+    GetBlob
 }

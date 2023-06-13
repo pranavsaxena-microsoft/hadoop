@@ -20,7 +20,12 @@ package org.apache.hadoop.fs.azurebfs;
 
 import java.util.UUID;
 
+import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AbfsRestOperationException;
+import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
+import org.apache.hadoop.fs.azurebfs.services.OperativeEndpoint;
 import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
+import org.apache.hadoop.fs.azurebfs.services.ITestAbfsClient;
+import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 import org.junit.Assume;
 import org.junit.Test;
 
@@ -28,6 +33,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileAlreadyExistsException;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.mockito.Mockito;
 
 import static org.apache.hadoop.fs.azurebfs.AbfsStatistic.CONNECTIONS_MADE;
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_ENABLE_MKDIR_OVERWRITE;
@@ -124,7 +130,7 @@ public class ITestAzureBlobFileSystemMkDir extends AbstractAbfsIntegrationTest {
     fs.mkdirs(dirPath);
 
     // One request to server for dfs and 2 for blob because child calls mkdir for parent.
-    if (getPrefixMode(fs) == PrefixMode.BLOB) {
+    if (!OperativeEndpoint.isMkdirEnabledOnDFS(getPrefixMode(fs), getAbfsStore(fs).getAbfsConfiguration())) {
       mkdirRequestCount += 2;
     } else {
       mkdirRequestCount++;
@@ -140,7 +146,7 @@ public class ITestAzureBlobFileSystemMkDir extends AbstractAbfsIntegrationTest {
     fs.mkdirs(dirPath);
 
     // One request to server for dfs and 3 for blob because child calls mkdir for parent.
-    if (getPrefixMode(fs) == PrefixMode.BLOB) {
+    if (!OperativeEndpoint.isMkdirEnabledOnDFS(getPrefixMode(fs), getAbfsStore(fs).getAbfsConfiguration())) {
       mkdirRequestCount += 3;
     } else {
       mkdirRequestCount++;
@@ -150,5 +156,30 @@ public class ITestAzureBlobFileSystemMkDir extends AbstractAbfsIntegrationTest {
         CONNECTIONS_MADE,
         totalConnectionMadeBeforeTest + mkdirRequestCount,
         fs.getInstrumentationMap());
+  }
+
+  @Test
+  public void testVerifyGetBlobProperty() throws Exception {
+    Assume.assumeTrue(getFileSystem().getAbfsStore().getPrefixMode() == PrefixMode.BLOB);
+    AzureBlobFileSystem fs = Mockito.spy(getFileSystem());
+    AzureBlobFileSystemStore store = Mockito.spy(fs.getAbfsStore());
+    Mockito.doReturn(store).when(fs).getAbfsStore();
+    AbfsClient client = store.getClient();
+    AbfsClient testClient = Mockito.spy(ITestAbfsClient.createTestClientFromCurrentContext(
+            client,
+            fs.getAbfsStore().getAbfsConfiguration()));
+    store.setClient(testClient);
+
+    createAzCopyDirectory(new Path("/src"));
+    intercept(AbfsRestOperationException.class, () -> {
+      store.getBlobProperty(new Path("/src"), Mockito.mock(
+              TracingContext.class));
+    });
+    fs.mkdirs(new Path("/src/dir"));
+    Mockito.verify(testClient, Mockito.times(0)).getPathStatus(Mockito.any(String.class),
+            Mockito.anyBoolean(), Mockito.any(TracingContext.class));
+    Mockito.verify(testClient, Mockito.times(1)).getBlobProperty(Mockito.any(Path.class),
+            Mockito.any(TracingContext.class));
+
   }
 }

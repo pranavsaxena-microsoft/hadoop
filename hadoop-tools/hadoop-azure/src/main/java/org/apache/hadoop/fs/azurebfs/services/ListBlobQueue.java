@@ -19,13 +19,15 @@
 package org.apache.hadoop.fs.azurebfs.services;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Queue;
 
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemException;
 
 public class ListBlobQueue {
 
-  private final Queue<BlobList> blobLists = new ArrayDeque<>();
+  private final Queue<BlobProperty> blobLists;
 
   private int totalProduced = 0;
 
@@ -42,11 +44,27 @@ public class ListBlobQueue {
    */
   private ListBlobProducer producer;
 
-  public ListBlobQueue() {
+  private final int maxSize;
+  private final int maxConsumedBlobCount;
 
+  /**
+   * @param maxSize maxSize of the queue.
+   * @param maxConsumedBlobCount maximum number of blobs that would be returned
+   * by {@link #dequeue()} method.
+   */
+  public ListBlobQueue(int maxSize, int maxConsumedBlobCount) {
+    blobLists = new ArrayDeque<>(maxSize);
+    this.maxSize = maxSize;
+    this.maxConsumedBlobCount = maxConsumedBlobCount;
   }
 
-  public ListBlobQueue(BlobList initBlobList) {
+  /**
+   * @param maxSize maxSize of the queue.
+   * @param maxConsumedBlobCount maximum number of blobs that would be returned
+   * by {@link #dequeue()} method.
+   */
+  public ListBlobQueue(List<BlobProperty> initBlobList, int maxSize, int maxConsumedBlobCount) {
+    this(maxSize, maxConsumedBlobCount);
     if (initBlobList != null) {
       enqueue(initBlobList);
     }
@@ -74,20 +92,25 @@ public class ListBlobQueue {
     return failureFromProducer;
   }
 
-  public synchronized void enqueue(BlobList blobList) {
-    blobLists.add(blobList);
-    totalProduced += blobList.getBlobPropertyList().size();
+  public void enqueue(List<BlobProperty> blobProperties) {
+    blobLists.addAll(blobProperties);
   }
 
-  public synchronized BlobList dequeue() {
-    BlobList blobList = blobLists.poll();
-    if (blobList != null) {
-      totalConsumed += blobList.getBlobPropertyList().size();
+  public List<BlobProperty> dequeue() {
+    List<BlobProperty> blobProperties = new ArrayList<>();
+    int counter = 0;
+    while (counter < maxConsumedBlobCount && blobLists.size() > 0) {
+      blobProperties.add(blobLists.poll());
+      counter++;
     }
-    return blobList;
+    return blobProperties;
   }
 
-  public synchronized int getConsumerLag() {
-    return totalProduced - totalConsumed;
+  public int size() {
+    return blobLists.size();
+  }
+
+  public int availableSize() {
+    return maxSize - blobLists.size();
   }
 }
