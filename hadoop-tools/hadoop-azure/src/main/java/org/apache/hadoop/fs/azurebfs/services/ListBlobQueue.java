@@ -59,6 +59,7 @@ public class ListBlobQueue {
   }
 
   /**
+   * @param initBlobList list of blobProperties to be enqueued in th queue
    * @param maxSize maxSize of the queue.
    * @param maxConsumedBlobCount maximum number of blobs that would be returned
    * by {@link #dequeue()} method.
