@@ -1893,17 +1893,21 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
             startFrom);
 
     final String relativePath = getRelativePath(path);
+    boolean useBlobEndpointListing = getPrefixMode() == PrefixMode.BLOB;
 
     if (continuation == null || continuation.isEmpty()) {
       // generate continuation token if a valid startFrom is provided.
       if (startFrom != null && !startFrom.isEmpty()) {
+        // In case startFrom is passed, fallback to DFS for now
+        // TODO: Support startFrom for List Blobs on Blob Endpoint
+        useBlobEndpointListing = false;
         continuation = getIsNamespaceEnabled(tracingContext)
             ? generateContinuationTokenForXns(startFrom)
             : generateContinuationTokenForNonXns(relativePath, startFrom);
       }
     }
 
-    if (getPrefixMode() == PrefixMode.BLOB) {
+    if (useBlobEndpointListing) {
       FileStatus status = getFileStatusOverBlob(path, tracingContext);
       if (status.isFile()) {
         fileStatuses.add(status);
