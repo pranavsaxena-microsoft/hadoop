@@ -1226,14 +1226,14 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
 
   public AbfsInputStream openFileForRead(final Path path,
       final FileSystem.Statistics statistics, TracingContext tracingContext)
-          throws IOException {
+      throws IOException {
     return openFileForRead(path, Optional.empty(), statistics, tracingContext);
   }
 
   public AbfsInputStream openFileForRead(final Path path,
       final Optional<Configuration> options,
       final FileSystem.Statistics statistics, TracingContext tracingContext)
-      throws AzureBlobFileSystemException, IOException {
+      throws IOException {
     try (AbfsPerfInfo perfInfo = startTracking("openFileForRead", "getPathStatus")) {
       LOG.debug("openFileForRead filesystem: {} path: {}",
               client.getFileSystem(),
