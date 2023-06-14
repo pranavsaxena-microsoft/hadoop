@@ -281,6 +281,12 @@ public class AbfsClient implements Closeable {
     return op;
   }
 
+  /**
+   * Caller of <a href = https://learn.microsoft.com/en-us/rest/api/storageservices/create-container?tabs=azure-ad></a>
+   * @param tracingContext
+   * @return Creates the Container acting as current filesystem
+   * @throws AzureBlobFileSystemException
+   */
   public AbfsRestOperation createContainer(TracingContext tracingContext)
       throws AzureBlobFileSystemException {
     final List<AbfsHttpHeader> requestHeaders = createDefaultHeaders();
@@ -397,6 +403,12 @@ public class AbfsClient implements Closeable {
     return op;
   }
 
+  /**
+   * Caller of <a href = https://learn.microsoft.com/en-us/rest/api/storageservices/delete-container?tabs=azure-ad></a>
+   * @param tracingContext
+   * @return Deletes the Container acting as current filesystem
+   * @throws AzureBlobFileSystemException
+   */
   public AbfsRestOperation deleteContainer(TracingContext tracingContext)
       throws AzureBlobFileSystemException {
     final List<AbfsHttpHeader> requestHeaders = createDefaultHeaders();
@@ -1482,6 +1494,7 @@ public class AbfsClient implements Closeable {
   }
 
   /**
+   * Caller of <a href = https://learn.microsoft.com/en-us/rest/api/storageservices/get-container-properties?tabs=azure-ad></a>
    * @return the container properties returned from server.
    * @throws AzureBlobFileSystemException in case it is not a 404 error or some other exception
    * which was not able to be retried.
@@ -1573,6 +1586,7 @@ public class AbfsClient implements Closeable {
   }
 
   /**
+   * Caller of <a href = https://learn.microsoft.com/en-us/rest/api/storageservices/get-container-metadata?tabs=azure-ad></a>
    * Gets user-defined properties(metadata) of the container(filesystem) over blob endpoint.
    * @param tracingContext
    * @return the user-defined properties on container path
@@ -1602,6 +1616,7 @@ public class AbfsClient implements Closeable {
   }
 
   /**
+   * Caller of <a href = https://learn.microsoft.com/en-us/rest/api/storageservices/set-container-metadata?tabs=azure-ad></a>
    * Sets user-defined properties(metadata) of the container(filesystem) over blob endpoint.
    * @param metadataRequestHeaders
    * @param tracingContext
