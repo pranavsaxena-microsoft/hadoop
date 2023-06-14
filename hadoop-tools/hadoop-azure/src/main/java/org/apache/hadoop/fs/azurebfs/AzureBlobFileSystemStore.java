@@ -783,6 +783,45 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
   }
 
   /**
+   * Gets user-defined properties(metadata) of the container over blob endpoint.
+   * @param tracingContext
+   * @return hashmap containing key value pairs for container metadata
+   * @throws AzureBlobFileSystemException
+   */
+  public Hashtable<String, String> getContainerMetadata(TracingContext tracingContext)
+      throws AzureBlobFileSystemException {
+    try (AbfsPerfInfo perfInfo = startTracking("getContainerMetadata", "getContainerMetadata")) {
+      LOG.debug("getContainerMetadata for filesystem: {}", client.getFileSystem());
+
+      final AbfsRestOperation op = client.getContainerMetadata(tracingContext);
+      perfInfo.registerResult(op.getResult()).registerSuccess(true);
+
+      final Hashtable<String, String> metadata = parseResponseHeadersToHashTable(op.getResult());
+      return metadata;
+    }
+  }
+
+  /**
+   * Sets user-defined properties(metadata) of the container over blob endpoint.
+   * @param metadata set of user-defined properties to be set
+   * @param tracingContext
+   * @throws AzureBlobFileSystemException
+   */
+  public void setContainerMetadata(final Hashtable<String, String> metadata,
+      TracingContext tracingContext) throws AzureBlobFileSystemException {
+    try (AbfsPerfInfo perfInfo = startTracking("setContainerMetadata", "setContainerMetadata")) {
+      LOG.debug("setContainerMetadata for filesystem: {} with properties: {}",
+          client.getFileSystem(),
+          metadata);
+
+      final List<AbfsHttpHeader> metadataRequestHeaders = getRequestHeadersForMetadata(metadata);
+      final AbfsRestOperation op = client.setContainerMetadata(metadataRequestHeaders, tracingContext);
+
+      perfInfo.registerResult(op.getResult()).registerSuccess(true);
+    }
+  }
+
+  /**
    * User-Defined Properties over blob endpoint are actually response headers
    * with prefix "x-ms-meta-". Each property is a different response header.
    * This parses all the headers, removes the prefix and create a hashmap.

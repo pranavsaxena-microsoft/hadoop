@@ -52,8 +52,22 @@ public class ITestAzureBlobFileSystemAttributes extends AbstractAbfsIntegrationT
   @Test
   public void testGetSetXAttr() throws Exception {
     AzureBlobFileSystem fs = getFileSystem();
-    final Path path = new Path("a/b");
-    fs.create(path);
+    final Path filePath = new Path("a/b");
+    final Path testPath = new Path("a/b");
+    testGetSetXAttrHelper(fs, filePath, testPath);
+  }
+
+  @Test
+  public void testGetSetXAttrOnRoot() throws Exception {
+    AzureBlobFileSystem fs = getFileSystem();
+    final Path filePath = new Path("a/b");
+    final Path testPath = new Path("/");
+    testGetSetXAttrHelper(fs, filePath, testPath);
+  }
+
+  private void testGetSetXAttrHelper(final AzureBlobFileSystem fs,
+      final Path filePath, final Path testPath) throws Exception {
+    fs.create(filePath);
 
     String attributeName1 = "user.attribute1";
     String attributeName2 = "user.attribute2";
@@ -78,25 +92,25 @@ public class ITestAzureBlobFileSystemAttributes extends AbstractAbfsIntegrationT
     }
 
     // Attribute not present initially
-    assertNull(fs.getXAttr(path, attributeName1));
-    assertNull(fs.getXAttr(path, attributeName2));
+    assertNull(fs.getXAttr(testPath, attributeName1));
+    assertNull(fs.getXAttr(testPath, attributeName2));
 
     // Set the Attributes
-    fs.setXAttr(path, attributeName1, attributeValue1);
+    fs.setXAttr(testPath, attributeName1, attributeValue1);
 
     // Check if the attribute is retrievable
-    byte[] rv = fs.getXAttr(path, attributeName1);
+    byte[] rv = fs.getXAttr(testPath, attributeName1);
     assertTrue(Arrays.equals(rv, attributeValue1));
     assertEquals(new String(rv, StandardCharsets.UTF_8), decodedAttributeValue1);
 
     // Set the second Attribute
-    fs.setXAttr(path, attributeName2, attributeValue2);
+    fs.setXAttr(testPath, attributeName2, attributeValue2);
 
     // Check all the attributes present and previous Attribute not overridden
-    rv = fs.getXAttr(path, attributeName1);
+    rv = fs.getXAttr(testPath, attributeName1);
     assertTrue(Arrays.equals(rv, attributeValue1));
     assertEquals(new String(rv, StandardCharsets.UTF_8), decodedAttributeValue1);
-    rv = fs.getXAttr(path, attributeName2);
+    rv = fs.getXAttr(testPath, attributeName2);
     assertTrue(Arrays.equals(rv, attributeValue2));
     assertEquals(new String(rv, StandardCharsets.UTF_8), decodedAttributeValue2);
   }
