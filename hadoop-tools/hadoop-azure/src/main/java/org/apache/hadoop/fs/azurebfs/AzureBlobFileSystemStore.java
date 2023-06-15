@@ -1906,6 +1906,8 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       }
 
       TreeMap<String, FileStatus> fileMetadata = new TreeMap<>();
+      long objectCountReturnedByServer = 0;
+
       do {
         /*
          * List Blob calls will be made with delimiter "/". This will ensure
@@ -1919,7 +1921,12 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
           );
           perfInfo.registerResult(op.getResult());
           BlobList blobList = op.getResult().getBlobList();
+          LOG.debug("List Blob Call on filesystem: {} path: {} marker: {} delimiter: {} returned {} objects",
+              client.getFileSystem(), prefix, continuation,
+              delimiter, blobList.getBlobPropertyList().size());
+
           continuation = blobList.getNextMarker();
+          objectCountReturnedByServer += blobList.getBlobPropertyList().size();
 
           addBlobListAsFileStatus(blobList, fileMetadata);
 
@@ -1935,6 +1942,13 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       } while (shouldContinue);
 
       fileStatuses.addAll(fileMetadata.values());
+
+      LOG.debug("List Status on Blob Endpoint on filesystem: {} path: {} received {} objects from server",
+          client.getFileSystem(), path, objectCountReturnedByServer);
+
+      LOG.debug("List Status on Blob Endpoint on filesystem: {} path: {} returned {} objects to user",
+          client.getFileSystem(), path, fileStatuses.size());
+
       return continuation;
     }
 
