@@ -21,6 +21,7 @@ package org.apache.hadoop.fs.azurebfs;
 import java.net.HttpURLConnection;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -93,6 +94,7 @@ public class ITestListBlobProducer extends AbstractAbfsIntegrationTest {
     final ListBlobQueue queue = new ListBlobQueue(
         fs.getAbfsStore().getAbfsConfiguration().getProducerQueueMaxSize(),
         1);
+    final CountDownLatch latch = new CountDownLatch(10);
 
     Mockito.doAnswer(answer -> {
       synchronized (testObj) {
@@ -100,6 +102,7 @@ public class ITestListBlobProducer extends AbstractAbfsIntegrationTest {
         AbfsRestOperation op = client.getListBlobs(answer.getArgument(0),
             answer.getArgument(1), 1, answer.getArgument(3));
         producedBlobs.incrementAndGet();
+        latch.countDown();
         if(producedBlobs.get() > 10) {
           Assert.assertTrue(queue.availableSize() > 0);
         }
@@ -116,7 +119,7 @@ public class ITestListBlobProducer extends AbstractAbfsIntegrationTest {
         null, Mockito.mock(
         TracingContext.class));
     ListBlobConsumer consumer = new ListBlobConsumer(queue);
-    while (producedBlobs.get() < 10) ;
+    latch.await();
 
     int oldInvocation = listBlobInvoked.get();
     Assert.assertTrue(listBlobInvoked.get() == oldInvocation);
