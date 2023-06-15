@@ -952,9 +952,7 @@ public class ITestAzureBlobFileSystemCreate extends
 
   @Test
   public void testActiveCreateNonRecursiveDenyParallelReadOnAtomicDir() throws Exception {
-    Assume.assumeTrue(
-        getFileSystem().getAbfsStore().getAbfsConfiguration().getPrefixMode()
-            == PrefixMode.BLOB);
+    Assume.assumeTrue(getPrefixMode(getFileSystem()) == PrefixMode.BLOB);
     Configuration configuration = Mockito.spy(getRawConfiguration());
     configuration.set(FS_AZURE_LEASE_CREATE_NON_RECURSIVE, "true");
     AzureBlobFileSystem fileSystem = (AzureBlobFileSystem) FileSystem.newInstance(configuration);
@@ -999,9 +997,7 @@ public class ITestAzureBlobFileSystemCreate extends
 
   @Test
   public void testActiveCreateNonRecursiveNotDenyParallelReadOnAtomicDirIfLeaseConfigDisabled() throws Exception {
-    Assume.assumeTrue(
-        getFileSystem().getAbfsStore().getAbfsConfiguration().getPrefixMode()
-            == PrefixMode.BLOB);
+    Assume.assumeTrue(getPrefixMode(getFileSystem()) == PrefixMode.BLOB);
     Configuration configuration = Mockito.spy(getRawConfiguration());
     AzureBlobFileSystem fileSystem = (AzureBlobFileSystem) FileSystem.newInstance(configuration);
     AbfsClient client = Mockito.spy(fileSystem.getAbfsClient());

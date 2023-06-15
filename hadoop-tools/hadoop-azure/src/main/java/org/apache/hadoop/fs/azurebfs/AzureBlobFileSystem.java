@@ -510,9 +510,9 @@ public class AzureBlobFileSystem extends FileSystem
      */
     AbfsBlobLease abfsBlobLease = null;
     String parentPath = parent.toUri().getPath();
-    if (getAbfsStore().getAbfsConfiguration().getPrefixMode() == PrefixMode.BLOB
+    if (getAbfsStore().getPrefixMode() == PrefixMode.BLOB
         && getAbfsStore().isAtomicRenameKey(parentPath)) {
-      if(getAbfsStore().getAbfsConfiguration().isLeaseOnCreateNonRecursive()) {
+      if (getAbfsStore().getAbfsConfiguration().isLeaseOnCreateNonRecursive()) {
         abfsBlobLease = new AbfsBlobLease(getAbfsClient(),
             parentPath, BLOB_LEASE_ONE_MINUTE_DURATION, tracingContext);
       }
