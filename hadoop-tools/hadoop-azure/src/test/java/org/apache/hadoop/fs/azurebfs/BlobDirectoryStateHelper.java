@@ -48,7 +48,7 @@ public class BlobDirectoryStateHelper {
     path = new Path(fs.makeQualified(path).toUri().getPath());
     if (fs.getAbfsStore().getPrefixMode() == PrefixMode.BLOB) {
       List<BlobProperty> blobProperties = fs.getAbfsStore()
-        .getListBlobs(path,null, Mockito.mock(TracingContext.class), 2, true);
+        .getListBlobs(path,null, null, Mockito.mock(TracingContext.class), 2, true);
       if (blobProperties.size() == 0) {
         return false;
       }

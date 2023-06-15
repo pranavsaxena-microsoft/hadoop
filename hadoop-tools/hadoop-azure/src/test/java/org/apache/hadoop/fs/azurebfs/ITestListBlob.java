@@ -27,6 +27,7 @@ import org.junit.Assume;
 import org.junit.Test;
 import org.mockito.Mockito;
 
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
 import org.apache.hadoop.fs.azurebfs.services.BlobProperty;
@@ -51,7 +52,7 @@ public class ITestListBlob extends
      * results including the directory blob(hdi_isfolder=true).
      */
     blobProperties = fs.getAbfsStore()
-        .getListBlobs(new Path("dir"), null,
+        .getListBlobs(new Path("dir"), null, null,
             Mockito.mock(TracingContext.class), null, false);
     Assertions.assertThat(blobProperties)
         .describedAs(
@@ -63,7 +64,7 @@ public class ITestListBlob extends
      * results excluding the directory blob(hdi_isfolder=true).
      */
     blobProperties = fs.getAbfsStore()
-        .getListBlobs(new Path("dir"), null,
+        .getListBlobs(new Path("dir"), null, null,
             Mockito.mock(TracingContext.class), null, true);
     Assertions.assertThat(blobProperties)
         .describedAs(
@@ -76,7 +77,7 @@ public class ITestListBlob extends
      * the directory blob(hdi_isfolder=true).
      */
     blobProperties = fs.getAbfsStore()
-        .getListBlobs(new Path("dir"), null,
+        .getListBlobs(new Path("dir"), null, null,
             Mockito.mock(TracingContext.class), 13, false);
     Assertions.assertThat(blobProperties)
         .describedAs(
@@ -89,7 +90,7 @@ public class ITestListBlob extends
      * same as the maxResult
      */
     blobProperties = fs.getAbfsStore()
-        .getListBlobs(new Path("dir"), null,
+        .getListBlobs(new Path("dir"), null, null,
             Mockito.mock(TracingContext.class), 5, false);
     Assertions.assertThat(blobProperties)
         .describedAs(
@@ -117,15 +118,16 @@ public class ITestListBlob extends
     Mockito.doAnswer(answer -> {
       String marker = answer.getArgument(0);
       String prefix = answer.getArgument(1);
-      TracingContext tracingContext = answer.getArgument(3);
+      String delimiter = answer.getArgument(2);
+      TracingContext tracingContext = answer.getArgument(4);
       count[0]++;
-      return client.getListBlobs(marker, prefix, 1, tracingContext);
+      return client.getListBlobs(marker, prefix, delimiter, 1, tracingContext);
     }).when(spiedClient).getListBlobs(Mockito.nullable(String.class),
-        Mockito.anyString(), Mockito.nullable(Integer.class),
+        Mockito.anyString(), Mockito.anyString(), Mockito.nullable(Integer.class),
         Mockito.any(TracingContext.class));
 
     List<BlobProperty> blobProperties = fs.getAbfsStore()
-        .getListBlobs(new Path("dir"), null,
+        .getListBlobs(new Path("dir"), null, null,
             Mockito.mock(TracingContext.class), 5, false);
     Assertions.assertThat(blobProperties)
         .describedAs(
@@ -135,6 +137,50 @@ public class ITestListBlob extends
         .describedAs(
             "Number of calls to backend should be equal to maxResult given")
         .isEqualTo(5);
+  }
+
+  @Test
+  public void testListBlobWithDelimiter() throws Exception {
+    AzureBlobFileSystem fs = getFileSystem();
+    fs.setWorkingDirectory(new Path("/"));
+    assumeNonHnsAccountBlobEndpoint(fs);
+    List<BlobProperty> blobProperties;
+
+    // Create three levels of hierarchy.
+    Path level0 = new Path("a");
+    Path level1 = new Path("a/b");
+    Path level2 = new Path("a/b/c");
+    fs.mkdirs(level0);
+    fs.mkdirs(level1);
+    fs.mkdirs(level2);
+
+    // Without delimiter, recursive listing will return all the children and sub children
+    // There will be no BlobPrefix element and only explicit blobs will be returned
+    blobProperties = fs.getAbfsStore()
+        .getListBlobs(level0.getParent(), null, null,
+            Mockito.mock(TracingContext.class), null, true);
+    Assertions.assertThat(blobProperties)
+        .describedAs(
+            "BlobList should return all blobs in hierarchy")
+        .hasSize(3);
+
+    // With delimiter, non-recursive listing will return only the immediate children
+    // There will be repetition of marker blobs.
+    blobProperties = fs.getAbfsStore()
+        .getListBlobs(level0.getParent(), null, "/",
+            Mockito.mock(TracingContext.class), null, true);
+    Assertions.assertThat(blobProperties)
+        .describedAs(
+            "BlobList should return only immediate Children")
+        .hasSize(2);
+
+    // ABFS Listing With delimiter, non-recursive listing will return only the immediate children
+    // There will be no repetition of marker blobs.
+    FileStatus[] fileStatuses = fs.listStatus(level0.getParent());
+    Assertions.assertThat(fileStatuses)
+        .describedAs(
+            "BlobList should return only immediate Children")
+        .hasSize(1);
   }
 
   private void assumeNonHnsAccountBlobEndpoint(final AzureBlobFileSystem fs) {
