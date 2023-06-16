@@ -1577,8 +1577,8 @@ public class ITestAzureBlobFileSystemRename extends
                   Mockito.any(TracingContext.class));
 
           Mockito.doAnswer(copyAnswer -> {
-                TracingContext listContext = copyAnswer.getArgument(2);
-                Assert.assertEquals(listContext.getPrimaryRequestId(),
+                TracingContext copyContext = copyAnswer.getArgument(2);
+                Assert.assertEquals(copyContext.getPrimaryRequestId(),
                     context.getPrimaryRequestId());
                 return copyAnswer.callRealMethod();
               })
@@ -1587,8 +1587,8 @@ public class ITestAzureBlobFileSystemRename extends
                   Mockito.any(TracingContext.class));
 
           Mockito.doAnswer(deleteAnswer -> {
-                TracingContext listContext = deleteAnswer.getArgument(1);
-                Assert.assertEquals(listContext.getPrimaryRequestId(),
+                TracingContext deleteContext = deleteAnswer.getArgument(1);
+                Assert.assertEquals(deleteContext.getPrimaryRequestId(),
                     context.getPrimaryRequestId());
                 return deleteAnswer.callRealMethod();
               })
