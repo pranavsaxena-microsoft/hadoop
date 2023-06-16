@@ -767,7 +767,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
    */
   public void setBlobMetadata(final Path path,
       final Hashtable<String, String> metadata, TracingContext tracingContext)
-      throws AzureBlobFileSystemException {
+      throws IOException {
     try (AbfsPerfInfo perfInfo = startTracking("setBlobMetadata", "setBlobMetadata")) {
       LOG.debug("setBlobMetadata for filesystem: {} path: {} with properties: {}",
           client.getFileSystem(),
@@ -775,10 +775,35 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
           metadata);
 
       final List<AbfsHttpHeader> metadataRequestHeaders = getRequestHeadersForMetadata(metadata);
-      final AbfsRestOperation op = client.setBlobMetadata(
-          path, metadataRequestHeaders, tracingContext);
 
-      perfInfo.registerResult(op.getResult()).registerSuccess(true);
+      try {
+        final AbfsRestOperation op = client.setBlobMetadata(path, metadataRequestHeaders, tracingContext);
+        perfInfo.registerResult(op.getResult()).registerSuccess(true);
+      } catch (AbfsRestOperationException ex) {
+        // The path does not exist explicitly.
+        // Check here if the path is an implicit dir
+        if (ex.getStatusCode() == HttpURLConnection.HTTP_NOT_FOUND) {
+          List<BlobProperty> blobProperties = getListBlobs(
+              path,null, null, tracingContext, 2, true);
+          if (blobProperties.size() == 0) {
+            throw ex;
+          }
+          else {
+            // The path was an implicit blob. Create Marker and set metadata on it
+            createDirectory(path, null, FsPermission.getDirDefault(),
+                FsPermission.getUMask(
+                    getAbfsConfiguration().getRawConfiguration()),
+                tracingContext);
+            metadataRequestHeaders.add(new AbfsHttpHeader(X_MS_META_HDI_ISFOLDER, TRUE));
+
+            final AbfsRestOperation op = client.setBlobMetadata(path, metadataRequestHeaders, tracingContext);
+            perfInfo.registerResult(op.getResult()).registerSuccess(true);
+          }
+        }
+        else {
+          throw ex;
+        }
+      }
     }
   }
 

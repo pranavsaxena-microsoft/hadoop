@@ -52,9 +52,9 @@ public class ITestAzureBlobFileSystemAttributes extends AbstractAbfsIntegrationT
   @Test
   public void testGetSetXAttr() throws Exception {
     AzureBlobFileSystem fs = getFileSystem();
-    final Path filePath = new Path("a/b");
     final Path testPath = new Path("a/b");
-    testGetSetXAttrHelper(fs, filePath, testPath);
+    fs.create(testPath);
+    testGetSetXAttrHelper(fs, testPath, testPath);
   }
 
   @Test
@@ -62,12 +62,41 @@ public class ITestAzureBlobFileSystemAttributes extends AbstractAbfsIntegrationT
     AzureBlobFileSystem fs = getFileSystem();
     final Path filePath = new Path("a/b");
     final Path testPath = new Path("/");
+    fs.create(filePath);
     testGetSetXAttrHelper(fs, filePath, testPath);
+  }
+
+  @Test
+  public void testGetSetXAttrOnImplicitDir() throws Exception {
+    AzureBlobFileSystem fs = getFileSystem();
+    final Path testPath = new Path("a/b");
+    AzcopyHelper azcopyHelper = new AzcopyHelper(
+        getAccountName(),
+        getFileSystemName(),
+        getRawConfiguration(),
+        fs.getAbfsStore().getPrefixMode()
+    );
+
+    azcopyHelper.createFolderUsingAzcopy(fs.makeQualified(testPath).toUri().getPath().substring(1));
+    testGetSetXAttrHelper(fs, testPath, testPath);
+  }
+
+  /**
+   * Test that setting metadata over marker blob do not override
+   * x-ms-meta-hdi_IsFolder
+   * TODO: Confirm Expected Behavior
+   * @throws Exception
+   */
+  @Test
+  public void testSetXAttrOverMarkerBlob() throws Exception {
+    AzureBlobFileSystem fs = getFileSystem();
+    final Path testPath = new Path("ab");
+    fs.mkdirs(testPath);
+    testGetSetXAttrHelper(fs, testPath, testPath);
   }
 
   private void testGetSetXAttrHelper(final AzureBlobFileSystem fs,
       final Path filePath, final Path testPath) throws Exception {
-    fs.create(filePath);
 
     String attributeName1 = "user.attribute1";
     String attributeName2 = "user.attribute2";
@@ -115,26 +144,6 @@ public class ITestAzureBlobFileSystemAttributes extends AbstractAbfsIntegrationT
     assertEquals(new String(rv, StandardCharsets.UTF_8), decodedAttributeValue2);
   }
 
-  @Test
-  public void testGetXAttrOnImplicitPath() throws Exception {
-    final AzureBlobFileSystem fs = getFileSystem();
-    AzcopyHelper azcopyHelper = new AzcopyHelper(
-        getAccountName(),
-        getFileSystemName(),
-        getRawConfiguration(),
-        fs.getAbfsStore().getPrefixMode()
-    );
-
-    Path testPath = new Path("a/b");
-    azcopyHelper.createFolderUsingAzcopy(fs.makeQualified(testPath).toUri().getPath().substring(1));
-
-    assertTrue("Path is implicit.",
-        BlobDirectoryStateHelper.isImplicitDirectory(testPath, fs));
-
-    String attributeName1 = "user.attribute1";
-    assertNull(fs.getXAttr(testPath, attributeName1));
-  }
-
   /**
    * Trying to set same attribute multiple times should result in no failure
    * @throws Exception
@@ -170,46 +179,6 @@ public class ITestAzureBlobFileSystemAttributes extends AbstractAbfsIntegrationT
     byte[] rv = fs.getXAttr(path, attributeName1);
     assertTrue(Arrays.equals(rv, attributeValue1));
     assertEquals(new String(rv, StandardCharsets.UTF_8), decodedAttributeValue1);
-  }
-
-  /**
-   * Test that setting metadata over marker blob do not override
-   * x-ms-meta-hdi_IsFolder
-   * TODO: Confirm Expected Behavior
-   * @throws Exception
-   */
-  @Test
-  public void testSetXAttrOverMarkerBlob() throws Exception {
-    AzureBlobFileSystem fs = getFileSystem();
-    final Path path = new Path("a/b");
-    fs.mkdirs(path);
-
-    assertTrue(BlobDirectoryStateHelper.isExplicitDirectory(path, fs));
-
-    String attributeName1 = "user.attribute1";
-    byte[] attributeValue1;
-
-    if(fs.getAbfsStore().getPrefixMode() == PrefixMode.BLOB) {
-      Assume.assumeTrue(!getIsNamespaceEnabled(fs));
-      // TODO: Modify them to unicode characters when support is added
-      attributeValue1 = fs.getAbfsStore().encodeAttribute("hi");
-    }
-    else {
-      attributeValue1 = fs.getAbfsStore().encodeAttribute("hi");
-    }
-
-    // Attribute not present initially
-    assertNull(fs.getXAttr(path, attributeName1));
-
-    // Set the Attribute on marker blob
-    fs.setXAttr(path, attributeName1, attributeValue1);
-
-    // Check if the attribute is retrievable
-    byte[] rv = fs.getXAttr(path, attributeName1);
-    assertTrue(Arrays.equals(rv, attributeValue1));
-
-    // Check if Marker blob still exists as marker.
-    assertTrue(BlobDirectoryStateHelper.isExplicitDirectory(path, fs));
   }
 
   @Test
