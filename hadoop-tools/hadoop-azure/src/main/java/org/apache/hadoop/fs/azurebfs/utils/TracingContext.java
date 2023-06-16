@@ -195,4 +195,7 @@ public class TracingContext {
     return header;
   }
 
+  public String getPrimaryRequestId() {
+    return primaryRequestId;
+  }
 }

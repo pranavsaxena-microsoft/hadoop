@@ -53,6 +53,7 @@ import org.apache.hadoop.fs.azurebfs.services.AbfsHttpOpTestUtil;
 import org.apache.hadoop.fs.azurebfs.services.AbfsHttpOperation;
 import org.apache.hadoop.fs.azurebfs.services.AbfsRestOperation;
 import org.apache.hadoop.fs.azurebfs.services.AbfsRestOperationTestUtil;
+import org.apache.hadoop.fs.azurebfs.services.RenameAtomicityUtils;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
 
@@ -1547,5 +1548,62 @@ public class ITestAzureBlobFileSystemRename extends
       }
     }
     Assert.assertTrue(srcBlobNotFoundExReceived);
+  }
+
+  @Test
+  public void testIfTracingContextPrimaryIdIsSameInAllTheStepsOfBlobRename() throws Exception {
+    assumeNonHnsAccountBlobEndpoint(getFileSystem());
+    AzureBlobFileSystem fs = Mockito.spy(getFileSystem());
+    fs.mkdirs(new Path("/dir"));
+    fs.create(new Path("/dir/file1"));
+    fs.create(new Path("/dir/file2"));
+
+    AzureBlobFileSystemStore store = fs.getAbfsStore();
+    AzureBlobFileSystemStore spiedStore = Mockito.spy(store);
+    AbfsClient client = Mockito.spy(store.getClient());
+    spiedStore.setClient(client);
+
+    Mockito.doAnswer(answer -> {
+          final TracingContext context = answer.getArgument(3);
+          Mockito.doAnswer(listAnswer -> {
+                TracingContext listContext = listAnswer.getArgument(3);
+                Assert.assertEquals(listContext.getPrimaryRequestId(),
+                    context.getPrimaryRequestId());
+                return listAnswer.callRealMethod();
+              })
+              .when(client)
+              .getListBlobs(Mockito.nullable(String.class),
+                  Mockito.nullable(String.class), Mockito.nullable(Integer.class),
+                  Mockito.any(TracingContext.class));
+
+          Mockito.doAnswer(copyAnswer -> {
+                TracingContext listContext = copyAnswer.getArgument(2);
+                Assert.assertEquals(listContext.getPrimaryRequestId(),
+                    context.getPrimaryRequestId());
+                return copyAnswer.callRealMethod();
+              })
+              .when(client)
+              .copyBlob(Mockito.any(Path.class), Mockito.any(Path.class),
+                  Mockito.any(TracingContext.class));
+
+          Mockito.doAnswer(deleteAnswer -> {
+                TracingContext listContext = deleteAnswer.getArgument(1);
+                Assert.assertEquals(listContext.getPrimaryRequestId(),
+                    context.getPrimaryRequestId());
+                return deleteAnswer.callRealMethod();
+              })
+              .when(client)
+              .deleteBlobPath(Mockito.any(Path.class),
+                  Mockito.any(TracingContext.class));
+
+          return answer.callRealMethod();
+        })
+        .when(spiedStore)
+        .rename(Mockito.any(Path.class), Mockito.any(Path.class),
+            Mockito.any(
+                RenameAtomicityUtils.class), Mockito.any(TracingContext.class));
+
+    Mockito.doReturn(spiedStore).when(fs).getAbfsStore();
+    fs.rename(new Path("/dir"), new Path("/dir1"));
   }
 }
