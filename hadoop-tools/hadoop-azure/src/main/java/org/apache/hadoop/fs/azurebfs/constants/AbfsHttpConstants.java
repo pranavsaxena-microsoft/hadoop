@@ -151,6 +151,7 @@ public final class AbfsHttpConstants {
   public static final String COPY_STATUS_ABORTED = "aborted";
   public static final String COPY_STATUS_FAILED = "failed";
   public static final String HDI_ISFOLDER = "hdi_isfolder";
+  public static final Integer BLOB_LEASE_ONE_MINUTE_DURATION = 60;
 
   private AbfsHttpConstants() {}
 }

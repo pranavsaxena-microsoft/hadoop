@@ -274,6 +274,8 @@ public final class ConfigurationKeys {
 
   public static final String FS_AZURE_REDIRECT_DELETE = "fs.azure.redirect.delete";
   public static final String FS_AZURE_REDIRECT_RENAME = "fs.azure.redirect.rename";
+  public static final String FS_AZURE_PRODUCER_QUEUE_MAX_SIZE = "fs.azure.producer.queue.max.size";
+  public static final String FS_AZURE_LEASE_CREATE_NON_RECURSIVE = "fs.azure.lease.create.non.recursive";
 
   private ConfigurationKeys() {}
 }
