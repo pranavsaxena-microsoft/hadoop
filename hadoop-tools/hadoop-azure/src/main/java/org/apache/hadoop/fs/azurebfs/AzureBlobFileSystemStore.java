@@ -1558,7 +1558,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         }
 
         renameBlobDir(source, destination, tracingContext, listBlobQueue,
-            blobPropOnSrc, srcDirLease, isAtomicRename);
+            srcDirLease, isAtomicRename);
 
         if (renameAtomicityUtils != null) {
           renameAtomicityUtils.cleanup();
@@ -1615,7 +1615,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       final Path destination,
       final TracingContext tracingContext,
       final ListBlobQueue listBlobQueue,
-      final BlobProperty blobPropOnSrc, final AbfsBlobLease srcDirBlobLease,
+      final AbfsBlobLease srcDirBlobLease,
       final Boolean isAtomicRename) throws AzureBlobFileSystemException {
     List<BlobProperty> blobList;
     ListBlobConsumer listBlobConsumer = new ListBlobConsumer(listBlobQueue);
@@ -1650,7 +1650,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
             renameBlob(
                 blobProperty.getPath(),
                 createDestinationPathForBlobPartOfRenameSrcDir(destination,
-                    blobProperty, source),
+                    source),
                 blobLease != null ? blobLease.getLeaseID() : null,
                 tracingContext);
           } catch (AzureBlobFileSystemException e) {
@@ -1673,8 +1673,8 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     renameBlobExecutorService.shutdown();
 
     renameBlob(
-        blobPropOnSrc.getPath(), createDestinationPathForBlobPartOfRenameSrcDir(destination,
-            blobPropOnSrc, source),
+        source, createDestinationPathForBlobPartOfRenameSrcDir(destination,
+            source),
         srcDirBlobLease != null ? srcDirBlobLease.getLeaseID() : null,
         tracingContext);
   }
@@ -1686,17 +1686,17 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
   /**
    * Translates the destination path for a blob part of a source directory getting
    * renamed.
+   *
    * @param destinationDir destination directory for the rename operation
-   * @param srcBlobProperty blob part of the source directory getting renamed
    * @param sourceDir source directory for the rename operation
+   *
    * @return translated path for the blob
    */
   private Path createDestinationPathForBlobPartOfRenameSrcDir(final Path destinationDir,
-      final BlobProperty srcBlobProperty,
       final Path sourceDir) {
     String destinationPathStr = destinationDir.toUri().getPath();
     String sourcePathStr = sourceDir.toUri().getPath();
-    String srcBlobPropertyPathStr = srcBlobProperty.getPath().toUri().getPath();
+    String srcBlobPropertyPathStr = sourceDir.toUri().getPath();
     if (sourcePathStr.equals(srcBlobPropertyPathStr)) {
       return destinationDir;
     }
@@ -2567,11 +2567,10 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         String listSrc = listSrcBuilder.toString();
         new ListBlobProducer(listSrc, client, listBlobQueue, null,
             tracingContext);
-        BlobProperty srcBlobProperty = getBlobProperty(src, tracingContext);
         AbfsBlobLease abfsBlobLease = new AbfsBlobLease(client,
             src.toUri().getPath(), BLOB_LEASE_ONE_MINUTE_DURATION, tracingContext);
         renameBlobDir(src, destination, tracingContext, listBlobQueue,
-            srcBlobProperty, abfsBlobLease, true);
+            abfsBlobLease, true);
       }
     };
   }
