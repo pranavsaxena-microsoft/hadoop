@@ -1537,6 +1537,12 @@ public class AbfsClient implements Closeable {
    * @param marker optional value. To be sent in case this method call in a non-first
    * iteration to the blobList API. Value has to be equal to the field NextMarker in the response
    * of previous iteration for the same operation.
+   * @param prefix optional value. Filters the results to return only blobs
+   * with names that begin with the specified prefix
+   * @param delimiter Optional. When the request includes this parameter,
+   * the operation returns a BlobPrefix element in the response body.
+   * This element acts as a placeholder for all blobs with names that begin
+   * with the same substring, up to the appearance of the delimiter character.
    * @param maxResult define how many blobs can client handle in server response.
    * In case maxResult <= 5000, server sends number of blobs equal to the value. In
    * case maxResult > 5000, server sends maximum 5000 blobs.
@@ -1549,12 +1555,14 @@ public class AbfsClient implements Closeable {
    */
   public AbfsRestOperation getListBlobs(String marker,
       String prefix,
+      String delimiter,
       Integer maxResult,
       TracingContext tracingContext)
       throws AzureBlobFileSystemException {
     AbfsUriQueryBuilder abfsUriQueryBuilder = createDefaultUriQueryBuilder();
     abfsUriQueryBuilder.addQuery(QUERY_PARAM_RESTYPE, CONTAINER);
     abfsUriQueryBuilder.addQuery(QUERY_PARAM_COMP, QUERY_PARAM_COMP_VALUE_LIST);
+    abfsUriQueryBuilder.addQuery(QUERY_PARAM_DELIMITER, delimiter);
     abfsUriQueryBuilder.addQuery(QUERY_PARAM_INCLUDE,
         QUERY_PARAM_INCLUDE_VALUE_METADATA);
     prefix = getDirectoryQueryParameter(prefix);
