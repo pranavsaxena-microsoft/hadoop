@@ -100,7 +100,7 @@ public class ITestListBlobProducer extends AbstractAbfsIntegrationTest {
       synchronized (testObj) {
         listBlobInvoked.incrementAndGet();
         AbfsRestOperation op = client.getListBlobs(answer.getArgument(0),
-            answer.getArgument(1), 1, answer.getArgument(3));
+            answer.getArgument(1), answer.getArgument(2), 1, answer.getArgument(4));
         producedBlobs.incrementAndGet();
         latch.countDown();
         if(producedBlobs.get() > 10) {
@@ -111,7 +111,8 @@ public class ITestListBlobProducer extends AbstractAbfsIntegrationTest {
         })
         .when(spiedClient)
         .getListBlobs(Mockito.nullable(String.class),
-            Mockito.nullable(String.class), Mockito.nullable(Integer.class),
+            Mockito.nullable(String.class), Mockito.nullable(String.class),
+            Mockito.nullable(Integer.class),
             Mockito.nullable(TracingContext.class));
 
 
@@ -156,7 +157,8 @@ public class ITestListBlobProducer extends AbstractAbfsIntegrationTest {
         })
         .when(spiedClient)
         .getListBlobs(Mockito.nullable(String.class),
-            Mockito.nullable(String.class), Mockito.nullable(Integer.class),
+            Mockito.nullable(String.class), Mockito.nullable(String.class),
+            Mockito.nullable(Integer.class),
             Mockito.nullable(TracingContext.class));
 
     ListBlobQueue queue = new ListBlobQueue(getConfiguration().getProducerQueueMaxSize(),
