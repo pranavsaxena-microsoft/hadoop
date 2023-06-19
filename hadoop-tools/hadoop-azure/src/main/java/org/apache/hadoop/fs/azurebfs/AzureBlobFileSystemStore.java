@@ -1650,7 +1650,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
             renameBlob(
                 blobProperty.getPath(),
                 createDestinationPathForBlobPartOfRenameSrcDir(destination,
-                    source),
+                    blobProperty.getPath(), source),
                 blobLease != null ? blobLease.getLeaseID() : null,
                 tracingContext);
           } catch (AzureBlobFileSystemException e) {
@@ -1674,7 +1674,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
 
     renameBlob(
         source, createDestinationPathForBlobPartOfRenameSrcDir(destination,
-            source),
+            source, source),
         srcDirBlobLease != null ? srcDirBlobLease.getLeaseID() : null,
         tracingContext);
   }
@@ -1688,15 +1688,16 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
    * renamed.
    *
    * @param destinationDir destination directory for the rename operation
+   * @param blobPath path of blob inside sourceDir being renamed.
    * @param sourceDir source directory for the rename operation
    *
    * @return translated path for the blob
    */
   private Path createDestinationPathForBlobPartOfRenameSrcDir(final Path destinationDir,
-      final Path sourceDir) {
+      final Path blobPath, final Path sourceDir) {
     String destinationPathStr = destinationDir.toUri().getPath();
     String sourcePathStr = sourceDir.toUri().getPath();
-    String srcBlobPropertyPathStr = sourceDir.toUri().getPath();
+    String srcBlobPropertyPathStr = blobPath.toUri().getPath();
     if (sourcePathStr.equals(srcBlobPropertyPathStr)) {
       return destinationDir;
     }
