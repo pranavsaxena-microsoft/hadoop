@@ -60,6 +60,8 @@ public class ITestAzureBlobFileSystemAttributes extends AbstractAbfsIntegrationT
   @Test
   public void testGetSetXAttrOnRoot() throws Exception {
     AzureBlobFileSystem fs = getFileSystem();
+    // TODO: Support SetXAttr() on root on DFS endpoint
+    Assume.assumeTrue(fs.getAbfsStore().getPrefixMode() == PrefixMode.BLOB);
     final Path filePath = new Path("a/b");
     final Path testPath = new Path("/");
     fs.create(filePath);
@@ -78,7 +80,12 @@ public class ITestAzureBlobFileSystemAttributes extends AbstractAbfsIntegrationT
     );
 
     azcopyHelper.createFolderUsingAzcopy(fs.makeQualified(testPath).toUri().getPath().substring(1));
+    // Assert that the folder is implicit
+    BlobDirectoryStateHelper.isExplicitDirectory(testPath, fs);
     testGetSetXAttrHelper(fs, testPath, testPath);
+
+    // Assert that the folder is now explicit
+    BlobDirectoryStateHelper.isExplicitDirectory(testPath, fs);
   }
 
   /**
@@ -93,6 +100,9 @@ public class ITestAzureBlobFileSystemAttributes extends AbstractAbfsIntegrationT
     final Path testPath = new Path("ab");
     fs.mkdirs(testPath);
     testGetSetXAttrHelper(fs, testPath, testPath);
+
+    // Assert that the folder is now explicit
+    BlobDirectoryStateHelper.isExplicitDirectory(testPath, fs);
   }
 
   private void testGetSetXAttrHelper(final AzureBlobFileSystem fs,

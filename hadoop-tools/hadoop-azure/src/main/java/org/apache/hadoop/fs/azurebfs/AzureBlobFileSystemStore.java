@@ -154,6 +154,7 @@ import static java.net.HttpURLConnection.HTTP_NOT_FOUND;
 
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.BLOB_LEASE_ONE_MINUTE_DURATION;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.FORWARD_SLASH;
+import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.HDI_ISFOLDER;
 import static org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations.X_MS_METADATA_PREFIX;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.CHAR_EQUALS;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.CHAR_FORWARD_SLASH;
@@ -774,7 +775,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
           path,
           metadata);
 
-      final List<AbfsHttpHeader> metadataRequestHeaders = getRequestHeadersForMetadata(metadata);
+      List<AbfsHttpHeader> metadataRequestHeaders = getRequestHeadersForMetadata(metadata);
 
       try {
         final AbfsRestOperation op = client.setBlobMetadata(path, metadataRequestHeaders, tracingContext);
@@ -794,7 +795,12 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
                 FsPermission.getUMask(
                     getAbfsConfiguration().getRawConfiguration()),
                 tracingContext);
-            metadataRequestHeaders.add(new AbfsHttpHeader(X_MS_META_HDI_ISFOLDER, TRUE));
+
+            boolean xAttrExists = metadata.containsKey(HDI_ISFOLDER);
+            if (!xAttrExists) {
+              metadata.put(HDI_ISFOLDER, TRUE);
+              metadataRequestHeaders = getRequestHeadersForMetadata(metadata);
+            }
 
             final AbfsRestOperation op = client.setBlobMetadata(path, metadataRequestHeaders, tracingContext);
             perfInfo.registerResult(op.getResult()).registerSuccess(true);
