@@ -55,6 +55,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.hadoop.classification.VisibleForTesting;
 
@@ -1618,6 +1619,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     final ExecutorService renameBlobExecutorService
         = Executors.newFixedThreadPool(
         getAbfsConfiguration().getBlobDirRenameMaxThread());
+    AtomicInteger renamedBlob = new AtomicInteger(0);
     while(!listBlobConsumer.isCompleted()) {
       blobList = listBlobConsumer.consume();
       if(blobList == null) {
@@ -1649,6 +1651,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
                     blobProperty, source),
                 blobLease != null ? blobLease.getLeaseID() : null,
                 tracingContext);
+            renamedBlob.incrementAndGet();
           } catch (AzureBlobFileSystemException e) {
             LOG.error(String.format("rename from %s to %s for blob %s failed",
                 source, destination, blobProperty.getPath()), e);
@@ -1668,11 +1671,13 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     }
     renameBlobExecutorService.shutdown();
 
+    tracingContext.setRenameBlobCount(renamedBlob.get() + 1);
     renameBlob(
         blobPropOnSrc.getPath(), createDestinationPathForBlobPartOfRenameSrcDir(destination,
             blobPropOnSrc, source),
         srcDirBlobLease != null ? srcDirBlobLease.getLeaseID() : null,
         tracingContext);
+    tracingContext.setRenameBlobCount(null);
   }
 
   private Boolean isCreateOperationOnBlobEndpoint() {
