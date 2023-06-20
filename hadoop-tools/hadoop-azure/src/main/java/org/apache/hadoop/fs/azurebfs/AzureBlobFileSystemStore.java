@@ -1307,39 +1307,10 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
               overwrite);
 
       String relativePath = getRelativePath(path);
-<<<<<<< HEAD
       boolean useBlobEndpoint = getPrefixMode() == PrefixMode.BLOB;
       if (OperativeEndpoint.isIngressEnabledOnDFS(
               getAbfsConfiguration().getPrefixMode(), getAbfsConfiguration())) {
         useBlobEndpoint = false;
-=======
-
-      final AbfsRestOperation op;
-      try {
-        if (getPrefixMode() == PrefixMode.BLOB) {
-          op = client.getBlobProperty(path, tracingContext);
-        } else {
-          op = client.getPathStatus(relativePath, false, tracingContext);
-        }
-      } catch (AbfsRestOperationException ex) {
-        // The path does not exist explicitly.
-        // Check here if the path is an implicit dir
-        if (getPrefixMode() == PrefixMode.BLOB && ex.getStatusCode() == HttpURLConnection.HTTP_NOT_FOUND) {
-          List<BlobProperty> blobProperties = getListBlobs(path, null, null,
-                  tracingContext, 2, true);
-          if (blobProperties.size() != 0) {
-            throw new AbfsRestOperationException(
-                    AzureServiceErrorCode.PATH_NOT_FOUND.getStatusCode(),
-                    AzureServiceErrorCode.PATH_NOT_FOUND.getErrorCode(),
-                    "openFileForWrite must be used with files and not directories",
-                    null);
-          } else {
-            throw ex;
-          }
-        } else {
-          throw ex;
-        }
->>>>>>> 4a47e8ba8e066973f99e530071ad9f4c8769c530
       }
       VersionedFileStatus fileStatus;
       fileStatus = (VersionedFileStatus) getFileStatus(path, tracingContext, useBlobEndpoint);
@@ -1750,99 +1721,26 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
               DateTimeUtils.parseLastModifiedTime(lastModified),
               path,
               eTag);
-<<<<<<< HEAD
     } catch (AbfsRestOperationException ex) {
       if (useBlobEndpoint && ex.getStatusCode() == HttpURLConnection.HTTP_NOT_FOUND && !path.isRoot()) {
-        List<BlobProperty> blobProperties = getListBlobs(path, null, tracingContext, 2, true);
-=======
-    }
-  }
-
-  public FileStatus getFileStatusOverBlob(final Path path,
-      TracingContext tracingContext) throws IOException {
-    try (AbfsPerfInfo perfInfo = startTracking("getFileStatus", "undetermined")) {
-      LOG.debug("getFileStatus filesystem call over blob endpoint: {} path: {}",
-          client.getFileSystem(),
-          path);
-
-      final AbfsRestOperation op;
-
-      // Try to getBlobProperty for explicit blobs
-      if (path.isRoot()) {
-        perfInfo.registerCallee("getContainerProperties");
-        op = client.getContainerProperty(tracingContext);
-      } else {
-        perfInfo.registerCallee("getBlobProperty");
-        op = client.getBlobProperty(path, tracingContext);
-      }
-
-      perfInfo.registerResult(op.getResult());
-      final long blockSize = abfsConfiguration.getAzureBlockSize();
-      final AbfsHttpOperation result = op.getResult();
-
-      String eTag = extractEtagHeader(result);
-      final String lastModified = result.getResponseHeader(HttpHeaderConfigurations.LAST_MODIFIED);
-      final long contentLength;
-      final boolean resourceIsDir;
-
-      if (path.isRoot()) {
-        contentLength = 0;
-        resourceIsDir = true;
-      } else {
-        contentLength = parseContentLength(result.getResponseHeader(
-            HttpHeaderConfigurations.CONTENT_LENGTH));
-        resourceIsDir = result.getResponseHeader(
-            X_MS_META_HDI_ISFOLDER) != null;
-      }
-
-      final String transformedOwner = identityTransformer.transformIdentityForGetRequest(
-          result.getResponseHeader(HttpHeaderConfigurations.X_MS_OWNER),
-          true,
-          userName);
-
-      final String transformedGroup = identityTransformer.transformIdentityForGetRequest(
-          result.getResponseHeader(HttpHeaderConfigurations.X_MS_GROUP),
-          false,
-          primaryUserGroup);
-
-      perfInfo.registerSuccess(true);
-
-      return new VersionedFileStatus(
-          transformedOwner,
-          transformedGroup,
-          new AbfsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL),
-          false,
-          contentLength,
-          resourceIsDir,
-          1,
-          blockSize,
-          DateTimeUtils.parseLastModifiedTime(lastModified),
-          path,
-          eTag);
-    }
-    catch (AbfsRestOperationException ex) {
-      // The path does not exist explicitly.
-      // Check here if the path is an implicit dir
-      if (ex.getStatusCode() == HttpURLConnection.HTTP_NOT_FOUND && !path.isRoot()) {
-        List<BlobProperty> blobProperties = getListBlobs(path,null, null, tracingContext, 2, true);
->>>>>>> 4a47e8ba8e066973f99e530071ad9f4c8769c530
+        List<BlobProperty> blobProperties = getListBlobs(path, null, null, tracingContext, 2, true);
         if (blobProperties.size() == 0) {
           throw ex;
         }
         else {
           // TODO: return properties of first child blob here like in wasb after listFileStatus is implemented over blob
           return new VersionedFileStatus(
-              userName,
-              primaryUserGroup,
-              new AbfsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL),
-              false,
-              0L,
-              true,
-              1,
-              abfsConfiguration.getAzureBlockSize(),
-              DateTimeUtils.parseLastModifiedTime(null),
-              path,
-              null);
+                  userName,
+                  primaryUserGroup,
+                  new AbfsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL),
+                  false,
+                  0L,
+                  true,
+                  1,
+                  abfsConfiguration.getAzureBlockSize(),
+                  DateTimeUtils.parseLastModifiedTime(null),
+                  path,
+                  null);
         }
       } else {
         throw ex;
@@ -1908,7 +1806,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     }
 
     if (useBlobEndpointListing) {
-      FileStatus status = getFileStatusOverBlob(path, tracingContext);
+      FileStatus status = getFileStatus(path, tracingContext, true);
       if (status.isFile()) {
         fileStatuses.add(status);
         return continuation;
