@@ -159,7 +159,7 @@ public class ITestAzureBlobFileSystemDelegationSASForBlobEndpoint
       i++;
     }
     List<BlobProperty> blobProperties = fs.getAbfsStore()
-        .getListBlobs(new Path("dir"), null,
+        .getListBlobs(new Path("dir"), null, null,
             Mockito.mock(TracingContext.class), null, false);
     Assertions.assertThat(blobProperties)
         .describedAs(
@@ -167,7 +167,7 @@ public class ITestAzureBlobFileSystemDelegationSASForBlobEndpoint
         .hasSize(11);
 
     blobProperties = fs.getAbfsStore()
-        .getListBlobs(new Path("dir"), null,
+        .getListBlobs(new Path("dir"), null, null,
             Mockito.mock(TracingContext.class), null, true);
     Assertions.assertThat(blobProperties)
         .describedAs(

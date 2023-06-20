@@ -134,7 +134,6 @@ public final class FileSystemConfigurations {
   public static final int DEFAULT_FS_AZURE_MAX_CONSUMER_LAG = 7000;
   public static final int DEFAULT_FS_AZURE_PRODUCER_QUEUE_MAX_SIZE = 10000;
   public static final boolean DEFAULT_FS_AZURE_LEASE_CREATE_NON_RECURSIVE = false;
-
   public static final int DEFAULT_FS_AZURE_BLOB_RENAME_THREAD = 5;
   public static final int DEFAULT_FS_AZURE_BLOB_DELETE_THREAD = 5;
 

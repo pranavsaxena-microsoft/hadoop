@@ -36,6 +36,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
+
+import org.assertj.core.api.Assertions;
 import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Ignore;
@@ -1825,4 +1827,27 @@ public class ITestAzureBlobFileSystemRename extends
     Assert.assertTrue(exceptionCaught.get());
   }
 
+  @Test
+  public void testBlobRenameOfDirectoryHavingNeighborWithSamePrefix() throws Exception {
+    AzureBlobFileSystem fs = getFileSystem();
+    assumeNonHnsAccountBlobEndpoint(fs);
+    fs.mkdirs(new Path("/testDir/dir"));
+    fs.mkdirs(new Path("/testDir/dirSamePrefix"));
+    fs.create(new Path("/testDir/dir/file1"));
+    fs.create(new Path("/testDir/dir/file2"));
+
+    fs.create(new Path("/testDir/dirSamePrefix/file1"));
+    fs.create(new Path("/testDir/dirSamePrefix/file2"));
+
+    fs.rename(new Path("/testDir/dir"), new Path("/testDir/dir2"));
+
+    Assertions.assertThat(fs.exists(new Path("/testDir/dirSamePrefix/file1")))
+        .isTrue();
+    Assertions.assertThat(fs.exists(new Path("/testDir/dir/file1")))
+        .isFalse();
+    Assertions.assertThat(fs.exists(new Path("/testDir/dir/file2")))
+        .isFalse();
+    Assertions.assertThat(fs.exists(new Path("/testDir/dir/")))
+        .isFalse();
+  }
 }

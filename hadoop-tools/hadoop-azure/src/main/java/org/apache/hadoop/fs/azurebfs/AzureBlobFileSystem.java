@@ -396,7 +396,7 @@ public class AzureBlobFileSystem extends FileSystem
    * @param tracingContext The tracingContext.
    */
   private void validatePathOrSubPathDoesNotExist(final Path path, TracingContext tracingContext) throws IOException {
-    List<BlobProperty> blobList = abfsStore.getListBlobs(path, null,
+    List<BlobProperty> blobList = abfsStore.getListBlobs(path, null, null,
             tracingContext, 2, true);
     if (blobList.size() > 0 || abfsStore.checkIsDirectory(path, tracingContext)) {
       throw new AbfsRestOperationException(HTTP_CONFLICT,
@@ -510,9 +510,9 @@ public class AzureBlobFileSystem extends FileSystem
      */
     AbfsBlobLease abfsBlobLease = null;
     String parentPath = parent.toUri().getPath();
-    if (getAbfsStore().getAbfsConfiguration().getPrefixMode() == PrefixMode.BLOB
+    if (getAbfsStore().getPrefixMode() == PrefixMode.BLOB
         && getAbfsStore().isAtomicRenameKey(parentPath)) {
-      if(getAbfsStore().getAbfsConfiguration().isLeaseOnCreateNonRecursive()) {
+      if (getAbfsStore().getAbfsConfiguration().isLeaseOnCreateNonRecursive()) {
         abfsBlobLease = new AbfsBlobLease(getAbfsClient(),
             parentPath, BLOB_LEASE_ONE_MINUTE_DURATION, tracingContext);
       }
@@ -837,7 +837,7 @@ public class AzureBlobFileSystem extends FileSystem
     if (getAbfsStore().getAbfsConfiguration().getPrefixMode()
         == PrefixMode.BLOB) {
       List<BlobProperty> blobProperties = getAbfsStore()
-          .getListBlobs(path, null, tracingContext, 2, true);
+          .getListBlobs(path, null, null, tracingContext, 2, true);
       if (blobProperties.size() > 0) {
         return new PathInformation(true, true);
       }
