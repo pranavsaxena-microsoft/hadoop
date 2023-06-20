@@ -1046,18 +1046,13 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
             useBlobEndpoint = false;
           }
           fileStatus = (VersionedFileStatus) getFileStatus(new Path(relativePath), tracingContext, useBlobEndpoint);
-        } catch (IOException ex) {
-          if (ex instanceof AbfsRestOperationException) {
-            AbfsRestOperationException ex1 = (AbfsRestOperationException) ex;
-            if (ex1.getStatusCode() == HttpURLConnection.HTTP_NOT_FOUND) {
-              // Is a parallel access case, as file which was found to be
-              // present went missing by this request.
-              throw new ConcurrentWriteOperationDetectedException(
-                      "Parallel access to the create path detected. Failing request "
-                              + "to honor single writer semantics");
-            } else {
-              throw ex1;
-            }
+        } catch (AbfsRestOperationException ex) {
+          if (ex.getStatusCode() == HttpURLConnection.HTTP_NOT_FOUND) {
+            // Is a parallel access case, as file which was found to be
+            // present went missing by this request.
+            throw new ConcurrentWriteOperationDetectedException(
+                    "Parallel access to the create path detected. Failing request "
+                            + "to honor single writer semantics");
           } else {
             throw ex;
           }
@@ -1076,8 +1071,8 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
             // and precondition failure can happen only when another file with
             // different etag got created.
             throw new ConcurrentWriteOperationDetectedException(
-                "Parallel access to the create path detected. Failing request "
-                    + "to honor single writer semantics");
+                    "Parallel access to the create path detected. Failing request "
+                            + "to honor single writer semantics");
           } else {
             throw ex;
           }
