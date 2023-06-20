@@ -1026,7 +1026,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       final FsPermission umask,
       final boolean isAppendBlob,
       HashMap<String, String> metadata,
-      TracingContext tracingContext) throws AzureBlobFileSystemException {
+      TracingContext tracingContext) throws IOException {
     AbfsRestOperation op;
     VersionedFileStatus fileStatus;
     try {
@@ -1047,15 +1047,19 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
           }
           fileStatus = (VersionedFileStatus) getFileStatus(new Path(relativePath), tracingContext, useBlobEndpoint);
         } catch (IOException ex) {
-          AbfsRestOperationException ex1 = (AbfsRestOperationException) ex;
-          if (ex1.getStatusCode() == HttpURLConnection.HTTP_NOT_FOUND) {
-            // Is a parallel access case, as file which was found to be
-            // present went missing by this request.
-            throw new ConcurrentWriteOperationDetectedException(
-                "Parallel access to the create path detected. Failing request "
-                    + "to honor single writer semantics");
+          if (ex instanceof AbfsRestOperationException) {
+            AbfsRestOperationException ex1 = (AbfsRestOperationException) ex;
+            if (ex1.getStatusCode() == HttpURLConnection.HTTP_NOT_FOUND) {
+              // Is a parallel access case, as file which was found to be
+              // present went missing by this request.
+              throw new ConcurrentWriteOperationDetectedException(
+                      "Parallel access to the create path detected. Failing request "
+                              + "to honor single writer semantics");
+            } else {
+              throw ex1;
+            }
           } else {
-            throw ex1;
+            throw ex;
           }
         }
 
