@@ -213,7 +213,6 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
   private final AbfsPerfTracker abfsPerfTracker;
   private final AbfsCounters abfsCounters;
   private PrefixMode prefixMode;
-
   /**
    * The set of directories where we should store files as append blobs.
    */
@@ -1740,7 +1739,11 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
   }
 
   public void delete(final Path path, final boolean recursive,
-      TracingContext tracingContext) throws AzureBlobFileSystemException {
+      TracingContext tracingContext) throws IOException {
+    if(getPrefixMode() == PrefixMode.BLOB) {
+      deleteBlobPath(path, recursive, tracingContext);
+      return;
+    }
     final Instant startAggregate = abfsPerfTracker.getLatencyInstant();
     long countAggregate = 0;
     boolean shouldContinue = true;
@@ -1769,6 +1772,144 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         }
       }
     } while (shouldContinue);
+  }
+
+  private void deleteBlobPath(final Path path,
+      final boolean recursive,
+      final TracingContext tracingContext) throws IOException {
+    BlobProperty pathProperty = null;
+    ListBlobQueue listBlobQueue = null;
+    /*
+     * Fetch the list of blobs in the given sourcePath.
+     */
+    StringBuilder listSrcBuilder = new StringBuilder();
+    listSrcBuilder.append(path.toUri().getPath());
+    if (!path.isRoot()) {
+      listSrcBuilder.append(FORWARD_SLASH);
+    }
+    String listSrc = listSrcBuilder.toString();
+
+    try {
+      if (!path.isRoot()) {
+        pathProperty = getBlobProperty(path, tracingContext);
+      }
+    } catch (AbfsRestOperationException ex) {
+      if (ex.getStatusCode() != HttpURLConnection.HTTP_NOT_FOUND) {
+        throw ex;
+      }
+
+      BlobList blobList = client.getListBlobs(null, listSrc, null,
+              tracingContext).getResult()
+          .getBlobList();
+      if (blobList.getBlobPropertyList().size() == 0) {
+        throw new AbfsRestOperationException(
+            ex.getStatusCode(),
+            AzureServiceErrorCode.PATH_NOT_FOUND.getErrorCode(),
+            ex.getErrorMessage(), ex);
+      }
+      String nextMarker = blobList.getNextMarker();
+      listBlobQueue = new ListBlobQueue(blobList.getBlobPropertyList(),
+          getAbfsConfiguration().getProducerQueueMaxSize(),
+          getAbfsConfiguration().getBlobDirDeleteMaxThread());
+      if (nextMarker != null && recursive) {
+        new ListBlobProducer(listSrc,
+            client, listBlobQueue, nextMarker, tracingContext);
+      } else {
+        listBlobQueue.complete();
+      }
+      createDirectory(path, null, FsPermission.getDirDefault(),
+          FsPermission.getUMask(
+              getAbfsConfiguration().getRawConfiguration()),
+          tracingContext);
+
+      pathProperty = new BlobProperty();
+      pathProperty.setIsDirectory(true);
+      pathProperty.setPath(path);
+    }
+
+    /*
+     * ParentPath can be implicit. So, before deleting a path, check if the parentPath
+     * is implicit. If yes, there can be a chance where in path being deleted is the
+     * only child path of the parentPath. So, for implicit parentPath, createDirectory
+     * to be called for the parentPath before deleting.
+     */
+    if (!path.isRoot()) {
+      Path parentPath = path.getParent();
+      if (!parentPath.isRoot()) {
+        try {
+          getBlobProperty(parentPath, tracingContext);
+        } catch (AbfsRestOperationException ex) {
+          if (ex.getStatusCode() != HttpURLConnection.HTTP_NOT_FOUND) {
+            throw ex;
+          }
+          createDirectory(parentPath, null, FsPermission.getDirDefault(),
+              FsPermission.getUMask(
+                  getAbfsConfiguration().getRawConfiguration()),
+              tracingContext);
+        }
+      }
+    }
+
+    if (pathProperty != null && !pathProperty.getIsDirectory()) {
+      client.deleteBlobPath(path, null, tracingContext);
+      return;
+    }
+
+    if (listBlobQueue == null) {
+      listBlobQueue = new ListBlobQueue(getAbfsConfiguration().getProducerQueueMaxSize(),
+          getAbfsConfiguration().getBlobDirDeleteMaxThread());
+      new ListBlobProducer(listSrc, client,
+          listBlobQueue, null, tracingContext);
+    }
+    ListBlobConsumer consumer = new ListBlobConsumer(listBlobQueue);
+
+
+    deleteOnConsumedBlobs(tracingContext, pathProperty, consumer, recursive);
+  }
+
+  private void deleteOnConsumedBlobs(final TracingContext tracingContext,
+      final BlobProperty pathProperty,
+      final ListBlobConsumer consumer, final Boolean recursive)
+      throws IOException {
+    while (!consumer.isCompleted()) {
+      final List<BlobProperty> blobList = consumer.consume();
+      if (blobList == null) {
+        continue;
+      }
+      if (!recursive && blobList.size() > 0) {
+        throw new IOException(
+            "Non-recursive delete of non-empty directory " + (
+                pathProperty != null ? pathProperty.getIsDirectory() : ""));
+      }
+      ExecutorService deleteBlobExecutorService = Executors.newFixedThreadPool(
+          getAbfsConfiguration().getBlobDirDeleteMaxThread());
+      List<Future> futureList = new ArrayList<>();
+      for (BlobProperty blobProperty : blobList) {
+        futureList.add(deleteBlobExecutorService.submit(() -> {
+          try {
+            client.deleteBlobPath(blobProperty.getPath(), null, tracingContext);
+          } catch (AzureBlobFileSystemException ex) {
+            if (ex instanceof AbfsRestOperationException
+                && ((AbfsRestOperationException) ex).getStatusCode()
+                == HttpURLConnection.HTTP_NOT_FOUND) {
+              return;
+            }
+            throw new RuntimeException(ex);
+          }
+        }));
+      }
+
+      for (Future future : futureList) {
+        try {
+          future.get();
+        } catch (InterruptedException | ExecutionException e) {
+          throw new RuntimeException(e);
+        }
+      }
+    }
+    if (pathProperty != null) {
+      client.deleteBlobPath(pathProperty.getPath(), null, tracingContext);
+    }
   }
 
   public FileStatus getFileStatus(final Path path,
