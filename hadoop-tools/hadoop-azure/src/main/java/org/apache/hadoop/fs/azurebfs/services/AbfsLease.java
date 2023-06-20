@@ -192,8 +192,7 @@ public abstract class AbfsLease {
       public void run() {
         try {
           leaseID.set(callRenewLeaseAPI(path, leaseID.get(), tracingContext));
-        } catch (AzureBlobFileSystemException e) {
-          throw new RuntimeException(e);
+        } catch (AzureBlobFileSystemException ignored) {
         }
       }
     }, leaseDuration / 2, leaseDuration / 2);
