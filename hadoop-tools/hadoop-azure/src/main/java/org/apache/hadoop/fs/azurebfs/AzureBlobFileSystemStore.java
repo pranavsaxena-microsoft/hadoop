@@ -1565,12 +1565,12 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         }
       } else {
         LOG.debug("source {} is not directory", source);
-        String leaseId = null;
+        AbfsLease lease = null;
         if (isAtomicRenameKey(source.toUri().getPath())) {
-          leaseId = new AbfsBlobLease(client, source.toUri().getPath(),
-              BLOB_LEASE_ONE_MINUTE_DURATION, tracingContext).getLeaseID();
+          lease = new AbfsBlobLease(client, source.toUri().getPath(),
+              BLOB_LEASE_ONE_MINUTE_DURATION, tracingContext);
         }
-        renameBlob(blobPropOnSrc.getPath(), destination, leaseId, tracingContext
+        renameBlob(blobPropOnSrc.getPath(), destination, lease, tracingContext
         );
       }
       LOG.info("Rename from source {} to destination {} done", source,
@@ -1651,7 +1651,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
                 blobProperty.getPath(),
                 createDestinationPathForBlobPartOfRenameSrcDir(destination,
                     blobProperty.getPath(), source),
-                blobLease != null ? blobLease.getLeaseID() : null,
+                blobLease,
                 tracingContext);
           } catch (AzureBlobFileSystemException e) {
             LOG.error(String.format("rename from %s to %s for blob %s failed",
@@ -1675,7 +1675,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     renameBlob(
         source, createDestinationPathForBlobPartOfRenameSrcDir(destination,
             source, source),
-        srcDirBlobLease != null ? srcDirBlobLease.getLeaseID() : null,
+        srcDirBlobLease,
         tracingContext);
   }
 
@@ -1712,21 +1712,28 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
    *
    * @param sourcePath source path which gets copied to the destination
    * @param destination destination path to which the source has to be moved
-   * @param srcBlobLeaseId leaseId of the srcBlob
+   * @param lease lease of the srcBlob
    * @param tracingContext tracingContext for tracing the API calls
    *
    * @throws AzureBlobFileSystemException exception in making server calls
    */
   private void renameBlob(final Path sourcePath, final Path destination,
-      final String srcBlobLeaseId, final TracingContext tracingContext) throws AzureBlobFileSystemException {
-    copyBlob(sourcePath, destination, srcBlobLeaseId, tracingContext);
-    deleteBlob(sourcePath, srcBlobLeaseId, tracingContext);
+      final AbfsLease lease, final TracingContext tracingContext)
+      throws AzureBlobFileSystemException {
+    copyBlob(sourcePath, destination, lease != null ? lease.getLeaseID() : null,
+        tracingContext);
+    deleteBlob(sourcePath, lease, tracingContext);
   }
 
   private void deleteBlob(final Path sourcePath,
-      final String blobLeaseId, final TracingContext tracingContext) throws AzureBlobFileSystemException {
+      final AbfsLease lease, final TracingContext tracingContext)
+      throws AzureBlobFileSystemException {
     try {
-      client.deleteBlobPath(sourcePath, blobLeaseId, tracingContext);
+      client.deleteBlobPath(sourcePath,
+          lease != null ? lease.getLeaseID() : null, tracingContext);
+      if (lease != null) {
+        lease.cancelTimer();
+      }
     } catch (AbfsRestOperationException ex) {
       if (ex.getStatusCode() != HttpURLConnection.HTTP_NOT_FOUND) {
         throw ex;
