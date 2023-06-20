@@ -49,6 +49,7 @@ public final class HttpQueryParams {
   public static final String QUERY_PARAM_UPN = "upn";
   public static final String QUERY_PARAM_BLOBTYPE = "blobtype";
   public static final String QUERY_PARAM_BLOCKID = "blockid";
+  public static final String QUERY_PARAM_DELIMITER = "delimiter";
 
   //query params for SAS
   public static final String QUERY_PARAM_SAOID = "saoid";
