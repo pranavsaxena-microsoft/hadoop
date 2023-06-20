@@ -1454,15 +1454,25 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       String nextMarker = blobList.getNextMarker();
       List<BlobProperty> srcBlobProperties = blobList.getBlobPropertyList();
 
-      ListBlobQueue listBlobQueue = new ListBlobQueue(
-          blobList.getBlobPropertyList(),
-          getAbfsConfiguration().getProducerQueueMaxSize(),
-          getAbfsConfiguration().getBlobDirRenameMaxThread());
-      if (nextMarker != null) {
+      ListBlobQueue listBlobQueue = null;
+      if (srcBlobProperties.size() > 0) {
+        listBlobQueue = new ListBlobQueue(
+            blobList.getBlobPropertyList(),
+            getAbfsConfiguration().getProducerQueueMaxSize(),
+            getAbfsConfiguration().getBlobDirRenameMaxThread());
+      }
+      /*
+       * If nextMarker is non-null, there would be a list of blobs that would
+       * got returned, and listBlobQueue should be non-null. Adding null check
+       *  on listBlobQueue for sanity.
+       */
+      if (listBlobQueue != null && nextMarker != null) {
         new ListBlobProducer(listSrc,
             client, listBlobQueue, nextMarker, tracingContext);
       } else {
-        listBlobQueue.complete();
+        if (listBlobQueue != null) {
+          listBlobQueue.complete();
+        }
       }
 
       BlobProperty blobPropOnSrc;
@@ -1519,6 +1529,8 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
           if (blobPropOnSrc.getIsDirectory()) {
             LOG.debug("source {} is a marker blob", source);
             isSrcDir = true;
+            listBlobQueue = new ListBlobQueue(0,0);
+            listBlobQueue.complete();
           } else {
             LOG.debug("source {} exists but is not a marker blob", source);
             isSrcDir = false;
