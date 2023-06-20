@@ -53,6 +53,7 @@ import org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AbfsRestOperationException;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemException;
 import org.apache.hadoop.fs.azurebfs.contracts.services.AzureServiceErrorCode;
+import org.apache.hadoop.fs.azurebfs.services.AbfsBlobLease;
 import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
 import org.apache.hadoop.fs.azurebfs.services.AbfsClientTestUtil;
 import org.apache.hadoop.fs.azurebfs.services.AbfsHttpOpTestUtil;
@@ -1816,5 +1817,30 @@ public class ITestAzureBlobFileSystemRename extends
         .isFalse();
     Assertions.assertThat(fs.exists(new Path("/testDir/dir/")))
         .isFalse();
+  }
+
+  @Test
+  public void testBlobRenameCancelRenewTimerForLeaseTakenInAtomicRename() throws Exception {
+    AzureBlobFileSystem fs = Mockito.spy((AzureBlobFileSystem) FileSystem.newInstance(getRawConfiguration()));
+    AzureBlobFileSystemStore store = Mockito.spy(fs.getAbfsStore());
+    Mockito.doReturn(store).when(fs).getAbfsStore();
+
+    fs.mkdirs(new Path("/hbase/dir"));
+    fs.create(new Path("/hbase/dir/file1"));
+    fs.create(new Path("/hbase/dir/file2"));
+
+    final List<AbfsBlobLease> leases = new ArrayList<>();
+    Mockito.doAnswer(answer -> {
+      AbfsBlobLease lease = Mockito.spy((AbfsBlobLease) answer.callRealMethod());
+      leases.add(lease);
+      return lease;
+    }).when(store).getBlobLease(Mockito.anyString(), Mockito.nullable(Integer.class), Mockito.any(TracingContext.class));
+
+    fs.rename(new Path("/hbase/dir"), new Path("/hbase/dir2"));
+
+    Assertions.assertThat(leases).hasSize(3);
+    for(AbfsBlobLease lease : leases) {
+      Mockito.verify(lease, Mockito.times(1)).cancelTimer();
+    }
   }
 }

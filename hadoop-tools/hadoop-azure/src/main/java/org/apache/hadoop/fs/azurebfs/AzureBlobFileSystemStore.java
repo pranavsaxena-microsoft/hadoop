@@ -1559,7 +1559,9 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         if (isAtomicRenameKey(source.toUri().getPath())) {
           LOG.debug("source dir {} is an atomicRenameKey",
               source.toUri().getPath());
-          srcDirLease = new AbfsBlobLease(client, source.toUri().getPath(), BLOB_LEASE_ONE_MINUTE_DURATION, tracingContext);
+          srcDirLease = getBlobLease(source.toUri().getPath(),
+              BLOB_LEASE_ONE_MINUTE_DURATION,
+              tracingContext);
           renameAtomicityUtils.preRename(srcBlobProperties, isCreateOperationOnBlobEndpoint());
           isAtomicRename = true;
         } else {
@@ -1579,7 +1581,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         LOG.debug("source {} is not directory", source);
         AbfsLease lease = null;
         if (isAtomicRenameKey(source.toUri().getPath())) {
-          lease = new AbfsBlobLease(client, source.toUri().getPath(),
+          lease = getBlobLease(source.toUri().getPath(),
               BLOB_LEASE_ONE_MINUTE_DURATION, tracingContext);
         }
         renameBlob(blobPropOnSrc.getPath(), destination, lease, tracingContext
@@ -1623,6 +1625,13 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     } while (shouldContinue);
   }
 
+  AbfsBlobLease getBlobLease(final String source,
+      final Integer blobLeaseOneMinuteDuration,
+      final TracingContext tracingContext) throws AzureBlobFileSystemException {
+    return new AbfsBlobLease(client, source, blobLeaseOneMinuteDuration,
+        tracingContext);
+  }
+
   private void renameBlobDir(final Path source,
       final Path destination,
       final TracingContext tracingContext,
@@ -1656,8 +1665,8 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
                * when HBase runs on HDFS, where the region server recovers the lease
                * on a log file, to gain exclusive access to it, before it splits it.
                */
-              blobLease = new AbfsBlobLease(client,
-                  blobProperty.getPath().toUri().getPath(), BLOB_LEASE_ONE_MINUTE_DURATION, tracingContext);
+              blobLease = getBlobLease(blobProperty.getPath().toUri().getPath(),
+                  BLOB_LEASE_ONE_MINUTE_DURATION, tracingContext);
             }
             renameBlob(
                 blobProperty.getPath(),
@@ -2587,8 +2596,8 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         String listSrc = listSrcBuilder.toString();
         new ListBlobProducer(listSrc, client, listBlobQueue, null,
             tracingContext);
-        AbfsBlobLease abfsBlobLease = new AbfsBlobLease(client,
-            src.toUri().getPath(), BLOB_LEASE_ONE_MINUTE_DURATION, tracingContext);
+        AbfsBlobLease abfsBlobLease = getBlobLease(src.toUri().getPath(),
+            BLOB_LEASE_ONE_MINUTE_DURATION, tracingContext);
         renameBlobDir(src, destination, tracingContext, listBlobQueue,
             abfsBlobLease, true);
       }
@@ -3030,7 +3039,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     if (getPrefixMode() == PrefixMode.DFS) {
       lease = new AbfsDfsLease(client, relativePath, null, tracingContext);
     } else {
-      lease = new AbfsBlobLease(client, relativePath, null, tracingContext);
+      lease = getBlobLease(relativePath, null, tracingContext);
     }
     leaseRefs.put(lease, null);
     return lease;
