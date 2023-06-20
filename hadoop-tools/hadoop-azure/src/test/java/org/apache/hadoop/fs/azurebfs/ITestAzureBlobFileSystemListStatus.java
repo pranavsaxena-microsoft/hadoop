@@ -27,6 +27,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import org.assertj.core.api.Assertions;
 import org.junit.Test;
 
 import org.apache.hadoop.conf.Configuration;
@@ -248,5 +249,165 @@ public class ITestAzureBlobFileSystemListStatus extends
     }
     assertTrue("Attempt to create file that ended with a dot should"
         + " throw IllegalArgumentException", exceptionThrown);
+  }
+
+  @Test
+  public void testListStatusImplicitExplicitChildren() throws Exception {
+    final AzureBlobFileSystem fs = getFileSystem();
+    fs.setWorkingDirectory(new Path("/"));
+    Path root = new Path("/");
+    AzcopyHelper azcopyHelper = new AzcopyHelper(
+        getAccountName(),
+        getFileSystemName(),
+        getRawConfiguration(),
+        fs.getAbfsStore().getPrefixMode()
+    );
+
+    // Create an implicit directory under root
+    Path dir1 = new Path("a");
+    azcopyHelper.createFolderUsingAzcopy(fs.makeQualified(dir1).toUri().getPath().substring(1));
+    assertTrue("Path is implicit.",
+        BlobDirectoryStateHelper.isImplicitDirectory(dir1, fs));
+
+    // Assert that implicit directory is returned
+    FileStatus[] fileStatuses = fs.listStatus(root);
+    Assertions.assertThat(fileStatuses.length).isEqualTo(1);
+    assertImplicitDirectoryFileStatus(fileStatuses[0], fs.makeQualified(dir1));
+
+    // Create a marker blob for the directory.
+    fs.mkdirs(dir1);
+
+    // Assert that only one entry of explicit directory is returned
+    fileStatuses = fs.listStatus(root);
+    Assertions.assertThat(fileStatuses.length).isEqualTo(1);
+    assertExplicitDirectoryFileStatus(fileStatuses[0], fs.makeQualified(dir1));
+
+    // Create a file under root
+    Path file1 = new Path("b");
+    fs.create(file1);
+
+    // Assert that two entries are returned in alphabetic order.
+    fileStatuses = fs.listStatus(root);
+    Assertions.assertThat(fileStatuses.length).isEqualTo(2);
+    assertExplicitDirectoryFileStatus(fileStatuses[0], fs.makeQualified(dir1));
+    assertFileFileStatus(fileStatuses[1], fs.makeQualified(file1));
+
+    // Create another implicit directory under root.
+    Path dir2 = new Path("c");
+    azcopyHelper.createFolderUsingAzcopy(fs.makeQualified(dir2).toUri().getPath().substring(1));
+    assertTrue("Path is implicit.",
+        BlobDirectoryStateHelper.isImplicitDirectory(dir2, fs));
+
+    // Assert that three entries are returned in alphabetic order.
+    fileStatuses = fs.listStatus(root);
+    Assertions.assertThat(fileStatuses.length).isEqualTo(3);
+    assertExplicitDirectoryFileStatus(fileStatuses[0], fs.makeQualified(dir1));
+    assertFileFileStatus(fileStatuses[1], fs.makeQualified(file1));
+    assertImplicitDirectoryFileStatus(fileStatuses[2], fs.makeQualified(dir2));
+  }
+
+  @Test
+  public void testListStatusOnNonExistingPath() throws Exception {
+    final AzureBlobFileSystem fs = getFileSystem();
+    Path testPath = new Path("a/b");
+
+    intercept(FileNotFoundException.class,
+        () -> fs.listFiles(testPath, false).next());
+  }
+
+  @Test
+  public void testListStatusOnImplicitDirectory() throws Exception {
+    final AzureBlobFileSystem fs = getFileSystem();
+    AzcopyHelper azcopyHelper = new AzcopyHelper(
+        getAccountName(),
+        getFileSystemName(),
+        getRawConfiguration(),
+        fs.getAbfsStore().getPrefixMode()
+    );
+
+    // Create an implicit directory with another implicit directory inside
+    Path testPath = new Path("testDir");
+    Path childPath = new Path("testDir/azcopy");
+    azcopyHelper.createFolderUsingAzcopy(
+        fs.makeQualified(testPath).toUri().getPath().substring(1));
+    assertTrue("Path is implicit.",
+        BlobDirectoryStateHelper.isImplicitDirectory(testPath, fs));
+
+    // Assert that one entry is returned as implicit child.
+    FileStatus[] fileStatuses = fs.listStatus(testPath);
+    Assertions.assertThat(fileStatuses.length).isEqualTo(1);
+    assertImplicitDirectoryFileStatus(fileStatuses[0], fs.makeQualified(childPath));
+  }
+
+  @Test
+  public void testListStatusOnExplicitDirectory() throws Exception {
+    final AzureBlobFileSystem fs = getFileSystem();
+    AzcopyHelper azcopyHelper = new AzcopyHelper(
+        getAccountName(),
+        getFileSystemName(),
+        getRawConfiguration(),
+        fs.getAbfsStore().getPrefixMode()
+    );
+
+    // Create an explicit directory with all kind of children.
+    Path testPath = new Path("testDir");
+    Path explicitChild = new Path ("testDir/a");
+    Path fileChild = new Path ("testDir/b");
+    Path implicitChild = new Path ("testDir/c");
+    fs.mkdirs(explicitChild);
+    fs.create(fileChild);
+    azcopyHelper.createFolderUsingAzcopy(
+        fs.makeQualified(implicitChild).toUri().getPath().substring(1));
+
+    assertTrue("Test path is explicit",
+        BlobDirectoryStateHelper.isExplicitDirectory(testPath, fs));
+    assertTrue("explicitChild Path is explicit",
+        BlobDirectoryStateHelper.isExplicitDirectory(explicitChild, fs));
+    assertTrue("implicitChild Path is implicit.",
+        BlobDirectoryStateHelper.isImplicitDirectory(implicitChild, fs));
+
+    // Assert that three entry is returned.
+    FileStatus[] fileStatuses = fs.listStatus(testPath);
+    Assertions.assertThat(fileStatuses.length).isEqualTo(3);
+    assertExplicitDirectoryFileStatus(fileStatuses[0], fs.makeQualified(explicitChild));
+    assertFileFileStatus(fileStatuses[1], fs.makeQualified(fileChild));
+    assertImplicitDirectoryFileStatus(fileStatuses[2], fs.makeQualified(implicitChild));
+  }
+
+  @Test
+  public void testListStatusOnEmptyDirectory() throws Exception {
+    final AzureBlobFileSystem fs = getFileSystem();
+    Path testPath = new Path("testPath");
+    fs.mkdirs(testPath);
+    FileStatus[] fileStatuses = fs.listStatus(testPath);
+    Assertions.assertThat(fileStatuses.length).isEqualTo(0);
+  }
+
+  private void assertFileFileStatus(final FileStatus fileStatus,
+      final Path qualifiedPath) {
+    Assertions.assertThat(fileStatus.getPath()).isEqualTo(qualifiedPath);
+    Assertions.assertThat(fileStatus.isDirectory()).isEqualTo(false);
+    Assertions.assertThat(fileStatus.isFile()).isEqualTo(true);
+    Assertions.assertThat(fileStatus.getModificationTime()).isNotEqualTo(0);
+  }
+
+  private void assertImplicitDirectoryFileStatus(final FileStatus fileStatus,
+      final Path qualifiedPath) {
+    assertDirectoryFileStatus(fileStatus, qualifiedPath);
+    Assertions.assertThat(fileStatus.getModificationTime()).isEqualTo(0);
+  }
+
+  private void assertExplicitDirectoryFileStatus(final FileStatus fileStatus,
+      final Path qualifiedPath) {
+    assertDirectoryFileStatus(fileStatus, qualifiedPath);
+    Assertions.assertThat(fileStatus.getModificationTime()).isNotEqualTo(0);
+  }
+
+  private void assertDirectoryFileStatus(final FileStatus fileStatus,
+      final Path qualifiedPath) {
+    Assertions.assertThat(fileStatus.getPath()).isEqualTo(qualifiedPath);
+    Assertions.assertThat(fileStatus.isDirectory()).isEqualTo(true);
+    Assertions.assertThat(fileStatus.isFile()).isEqualTo(false);
+    Assertions.assertThat(fileStatus.getLen()).isEqualTo(0);
   }
 }
