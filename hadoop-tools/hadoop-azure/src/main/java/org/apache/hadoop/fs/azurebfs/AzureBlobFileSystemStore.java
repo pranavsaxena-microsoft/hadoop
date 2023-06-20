@@ -1051,8 +1051,8 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
             // Is a parallel access case, as file which was found to be
             // present went missing by this request.
             throw new ConcurrentWriteOperationDetectedException(
-                    "Parallel access to the create path detected. Failing request "
-                            + "to honor single writer semantics");
+                "Parallel access to the create path detected. Failing request "
+                    + "to honor single writer semantics");
           } else {
             throw ex;
           }
@@ -1071,8 +1071,8 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
             // and precondition failure can happen only when another file with
             // different etag got created.
             throw new ConcurrentWriteOperationDetectedException(
-                    "Parallel access to the create path detected. Failing request "
-                            + "to honor single writer semantics");
+                "Parallel access to the create path detected. Failing request "
+                    + "to honor single writer semantics");
           } else {
             throw ex;
           }
