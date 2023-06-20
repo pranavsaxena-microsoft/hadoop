@@ -1793,7 +1793,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         throw ex;
       }
 
-      BlobList blobList = client.getListBlobs(null, listSrc, null,
+      BlobList blobList = client.getListBlobs(null, listSrc, null,null,
               tracingContext).getResult()
           .getBlobList();
       if (blobList.getBlobPropertyList().size() == 0) {
@@ -1901,6 +1901,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
           throw new RuntimeException(e);
         }
       }
+      deleteBlobExecutorService.shutdown();
     }
     if (pathProperty != null) {
       client.deleteBlobPath(pathProperty.getPath(), null, tracingContext);
