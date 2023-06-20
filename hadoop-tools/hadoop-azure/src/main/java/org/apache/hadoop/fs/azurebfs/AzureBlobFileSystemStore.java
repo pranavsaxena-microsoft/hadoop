@@ -1625,6 +1625,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     } while (shouldContinue);
   }
 
+  @VisibleForTesting
   AbfsBlobLease getBlobLease(final String source,
       final Integer blobLeaseOneMinuteDuration,
       final TracingContext tracingContext) throws AzureBlobFileSystemException {
