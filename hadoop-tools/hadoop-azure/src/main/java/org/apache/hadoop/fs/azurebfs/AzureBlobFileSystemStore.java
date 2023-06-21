@@ -1697,13 +1697,13 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     }
     renameBlobExecutorService.shutdown();
 
-    tracingContext.setRenameBlobCount(renamedBlob.get() + 1);
+    tracingContext.setOperatedBlobCount(renamedBlob.get() + 1);
     renameBlob(
         source, createDestinationPathForBlobPartOfRenameSrcDir(destination,
             source, source),
         srcDirBlobLease,
         tracingContext);
-    tracingContext.setRenameBlobCount(null);
+    tracingContext.setOperatedBlobCount(null);
   }
 
   private Boolean isCreateOperationOnBlobEndpoint() {
@@ -1828,7 +1828,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         throw ex;
       }
 
-      BlobList blobList = client.getListBlobs(null, listSrc, null,
+      BlobList blobList = client.getListBlobs(null, listSrc, null, null,
               tracingContext).getResult()
           .getBlobList();
       if (blobList.getBlobPropertyList().size() == 0) {
@@ -1881,7 +1881,9 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     }
 
     if (pathProperty != null && !pathProperty.getIsDirectory()) {
+      tracingContext.setOperatedBlobCount(1);
       client.deleteBlobPath(path, null, tracingContext);
+      tracingContext.setOperatedBlobCount(null);
       return;
     }
 
@@ -1901,6 +1903,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       final BlobProperty pathProperty,
       final ListBlobConsumer consumer, final Boolean recursive)
       throws IOException {
+    AtomicInteger deletedBlobCount = new AtomicInteger(0);
     while (!consumer.isCompleted()) {
       final List<BlobProperty> blobList = consumer.consume();
       if (blobList == null) {
@@ -1918,6 +1921,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         futureList.add(deleteBlobExecutorService.submit(() -> {
           try {
             client.deleteBlobPath(blobProperty.getPath(), null, tracingContext);
+            deletedBlobCount.incrementAndGet();
           } catch (AzureBlobFileSystemException ex) {
             if (ex instanceof AbfsRestOperationException
                 && ((AbfsRestOperationException) ex).getStatusCode()
@@ -1937,9 +1941,11 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         }
       }
     }
+    tracingContext.setOperatedBlobCount(deletedBlobCount.get() + 1);
     if (pathProperty != null) {
       client.deleteBlobPath(pathProperty.getPath(), null, tracingContext);
     }
+    tracingContext.setOperatedBlobCount(null);
   }
 
   public FileStatus getFileStatus(final Path path,

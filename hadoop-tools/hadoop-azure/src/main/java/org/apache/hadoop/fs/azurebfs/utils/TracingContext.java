@@ -78,7 +78,7 @@ public class TracingContext {
   public static final int MAX_CLIENT_CORRELATION_ID_LENGTH = 72;
   public static final String CLIENT_CORRELATION_ID_PATTERN = "[a-zA-Z0-9-]*";
 
-  private Integer renameBlobCount = null;
+  private Integer operatedBlobCount = null;
 
   /**
    * Initialize TracingContext
@@ -189,8 +189,8 @@ public class TracingContext {
               + getPrimaryRequestIdForHeader(retryCount > 0) + ":" + streamID
               + ":" + opType + ":" + retryCount;
       header = addFailureReasons(header, previousFailure) + ":" + fallbackDFSAppend;
-      if (renameBlobCount != null) {
-        header += (":" + renameBlobCount);
+      if (operatedBlobCount != null) {
+        header += (":" + operatedBlobCount);
       }
       break;
     case TWO_ID_FORMAT:
@@ -250,7 +250,7 @@ public class TracingContext {
     return primaryRequestId;
   }
 
-  public void setRenameBlobCount(Integer count) {
-    renameBlobCount = count;
+  public void setOperatedBlobCount(Integer count) {
+    operatedBlobCount = count;
   }
 }
