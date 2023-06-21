@@ -1796,7 +1796,8 @@ public class ITestAzureBlobFileSystemRename extends
   }
 
   @Test
-  public void testBlobRenameOfDirectoryHavingNeighborWithSamePrefix() throws Exception {
+  public void testBlobRenameOfDirectoryHavingNeighborWithSamePrefix()
+      throws Exception {
     AzureBlobFileSystem fs = getFileSystem();
     assumeNonHnsAccountBlobEndpoint(fs);
     fs.mkdirs(new Path("/testDir/dir"));
@@ -1820,8 +1821,11 @@ public class ITestAzureBlobFileSystemRename extends
   }
 
   @Test
-  public void testBlobRenameCancelRenewTimerForLeaseTakenInAtomicRename() throws Exception {
-    AzureBlobFileSystem fs = Mockito.spy((AzureBlobFileSystem) FileSystem.newInstance(getRawConfiguration()));
+  public void testBlobRenameCancelRenewTimerForLeaseTakenInAtomicRename()
+      throws Exception {
+    AzureBlobFileSystem fs = Mockito.spy(
+        (AzureBlobFileSystem) FileSystem.newInstance(getRawConfiguration()));
+    assumeNonHnsAccountBlobEndpoint(fs);
     AzureBlobFileSystemStore store = Mockito.spy(fs.getAbfsStore());
     Mockito.doReturn(store).when(fs).getAbfsStore();
 
@@ -1831,15 +1835,19 @@ public class ITestAzureBlobFileSystemRename extends
 
     final List<AbfsBlobLease> leases = new ArrayList<>();
     Mockito.doAnswer(answer -> {
-      AbfsBlobLease lease = Mockito.spy((AbfsBlobLease) answer.callRealMethod());
-      leases.add(lease);
-      return lease;
-    }).when(store).getBlobLease(Mockito.anyString(), Mockito.nullable(Integer.class), Mockito.any(TracingContext.class));
+          AbfsBlobLease lease = Mockito.spy(
+              (AbfsBlobLease) answer.callRealMethod());
+          leases.add(lease);
+          return lease;
+        })
+        .when(store)
+        .getBlobLease(Mockito.anyString(), Mockito.nullable(Integer.class),
+            Mockito.any(TracingContext.class));
 
     fs.rename(new Path("/hbase/dir"), new Path("/hbase/dir2"));
 
     Assertions.assertThat(leases).hasSize(3);
-    for(AbfsBlobLease lease : leases) {
+    for (AbfsBlobLease lease : leases) {
       Mockito.verify(lease, Mockito.times(1)).cancelTimer();
     }
   }
