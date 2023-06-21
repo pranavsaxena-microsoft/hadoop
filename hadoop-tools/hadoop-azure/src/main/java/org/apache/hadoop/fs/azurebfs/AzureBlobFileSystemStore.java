@@ -1688,6 +1688,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         } catch (InterruptedException | ExecutionException e) {
           LOG.error(String.format("rename from %s to %s failed", source,
               destination), e);
+          renameBlobExecutorService.shutdown();
           throw new RuntimeException(e);
         }
       }
