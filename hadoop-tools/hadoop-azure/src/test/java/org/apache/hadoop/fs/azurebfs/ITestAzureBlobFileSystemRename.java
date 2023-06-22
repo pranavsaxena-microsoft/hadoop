@@ -1733,6 +1733,7 @@ public class ITestAzureBlobFileSystemRename extends
   @Test
   public void testParallelBlobLeaseOnChildBlobInRenameSrcDir()
       throws Exception {
+    assumeNonHnsAccountBlobEndpoint(getFileSystem());
     AzureBlobFileSystem fs = Mockito.spy(
         (AzureBlobFileSystem) FileSystem.newInstance(getRawConfiguration()));
     AzureBlobFileSystemStore store = Mockito.spy(fs.getAbfsStore());
