@@ -1474,6 +1474,13 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
           LOG.error(
               String.format("Rename of non-directory path from %s to %s failed",
                   source, destination), ex);
+          if(ex instanceof  AbfsRestOperationException && ((AbfsRestOperationException) ex).getStatusCode() == HTTP_NOT_FOUND) {
+            AbfsRestOperationException ex1 = (AbfsRestOperationException) ex;
+            throw new AbfsRestOperationException(
+                ex1.getStatusCode(),
+                AzureServiceErrorCode.SOURCE_PATH_NOT_FOUND.getErrorCode(),
+                ex1.getErrorMessage(), ex1);
+          }
           throw ex;
         }
       }
