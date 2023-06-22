@@ -1476,7 +1476,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
             lease.free();
           }
           LOG.error(
-              String.format("Rename of non-directory path from %s to %s failed",
+              String.format("Rename of path from %s to %s failed",
                   source, destination), ex);
           if (ex instanceof AbfsRestOperationException
               && ((AbfsRestOperationException) ex).getStatusCode()
@@ -1564,7 +1564,6 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
        * There is no marker-blob, the client has to create marker blob before
        * starting the rename.
        */
-      //create marker file; add in srcBlobProperties;
       LOG.debug("Source {} is a directory but there is no marker-blob",
           source);
       createDirectory(source, null, FsPermission.getDirDefault(),
@@ -1601,7 +1600,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     renameBlobDir(source, destination, tracingContext, listBlobQueue,
         srcDirLease, isAtomicRename);
 
-    if (renameAtomicityUtils != null) {
+    if (isAtomicRename) {
       renameAtomicityUtils.cleanup();
     }
   }
