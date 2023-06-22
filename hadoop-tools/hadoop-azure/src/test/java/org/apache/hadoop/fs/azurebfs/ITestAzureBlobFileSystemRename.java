@@ -58,6 +58,7 @@ import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
 import org.apache.hadoop.fs.azurebfs.services.AbfsClientTestUtil;
 import org.apache.hadoop.fs.azurebfs.services.AbfsHttpOpTestUtil;
 import org.apache.hadoop.fs.azurebfs.services.AbfsHttpOperation;
+import org.apache.hadoop.fs.azurebfs.services.AbfsLease;
 import org.apache.hadoop.fs.azurebfs.services.AbfsOutputStream;
 import org.apache.hadoop.fs.azurebfs.services.AbfsRestOperation;
 import org.apache.hadoop.fs.azurebfs.services.AbfsRestOperationTestUtil;
@@ -1734,6 +1735,50 @@ public class ITestAzureBlobFileSystemRename extends
 
     while (!parallelAppendDone.get()) ;
     Assert.assertTrue(exceptionCaught.get());
+  }
+
+  @Test
+  public void testParallelBlobLeaseOnChildBlobInRenameSrcDir()
+      throws Exception {
+    AzureBlobFileSystem fs = Mockito.spy(
+        (AzureBlobFileSystem) FileSystem.newInstance(getRawConfiguration()));
+    AzureBlobFileSystemStore store = Mockito.spy(fs.getAbfsStore());
+    Path srcDirPath = new Path("/hbase/testDir");
+    fs.mkdirs(srcDirPath);
+    fs.create(new Path(srcDirPath, "file1"));
+    fs.create(new Path(srcDirPath, "file2"));
+    Mockito.doReturn(store).when(fs).getAbfsStore();
+    AbfsClient client = store.getClient();
+    AbfsClient spiedClient = Mockito.spy(client);
+    store.setClient(spiedClient);
+
+    fs.getAbfsClient()
+        .acquireBlobLease("/hbase/testDir/file2", -1,
+            Mockito.mock(TracingContext.class));
+
+    AbfsLease[] leases = new AbfsLease[1];
+    Mockito.doAnswer(answer -> {
+          String path = answer.getArgument(0);
+          AbfsLease lease = (AbfsLease) answer.callRealMethod();
+          if (srcDirPath.toUri().getPath().equalsIgnoreCase(path)) {
+            lease = Mockito.spy(lease);
+            leases[0] = lease;
+          }
+          return lease;
+        })
+        .when(store)
+        .getBlobLease(Mockito.anyString(), Mockito.nullable(Integer.class),
+            Mockito.any(TracingContext.class));
+
+    Boolean renameFailed = false;
+    try {
+      fs.rename(srcDirPath, new Path("/hbase/newDir"));
+    } catch (Exception e) {
+      renameFailed = true;
+    }
+
+    Assertions.assertThat(renameFailed).isTrue();
+    Mockito.verify(leases[0], Mockito.times(1)).free();
   }
 
   @Test

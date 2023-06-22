@@ -1689,6 +1689,9 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
           LOG.error(String.format("rename from %s to %s failed", source,
               destination), e);
           renameBlobExecutorService.shutdown();
+          if (srcDirBlobLease != null) {
+            srcDirBlobLease.free();
+          }
           throw new RuntimeException(e);
         }
       }
