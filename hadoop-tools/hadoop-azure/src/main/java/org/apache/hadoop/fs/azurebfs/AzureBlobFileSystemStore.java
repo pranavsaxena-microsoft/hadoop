@@ -1461,11 +1461,11 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
             + "if there is marker blob for it.", source);
 
         AbfsLease lease = null;
-        if (isAtomicRenameKey(source.toUri().getPath())) {
-          lease = getBlobLease(source.toUri().getPath(),
-              BLOB_LEASE_ONE_MINUTE_DURATION, tracingContext);
-        }
         try {
+          if (isAtomicRenameKey(source.toUri().getPath())) {
+            lease = getBlobLease(source.toUri().getPath(),
+                BLOB_LEASE_ONE_MINUTE_DURATION, tracingContext);
+          }
           renameBlob(source, destination, lease, tracingContext);
         } catch (AzureBlobFileSystemException ex) {
           if (lease != null) {

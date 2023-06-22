@@ -1008,18 +1008,9 @@ public class ITestAzureBlobFileSystemRename extends
       return op;
     }).when(spiedClient).acquireBlobLease(Mockito.anyString(), Mockito.anyInt(), Mockito.any(TracingContext.class));
     Mockito.doAnswer(answer -> {
-          final Path srcPath = answer.getArgument(0);
-          final Path dstPath = answer.getArgument(1);
-          final String leaseId = answer.getArgument(2);
-          final TracingContext tracingContext = answer.getArgument(3);
-
-
-            throw new AbfsRestOperationException(HttpURLConnection.HTTP_UNAVAILABLE,
-                AzureServiceErrorCode.INGRESS_OVER_ACCOUNT_LIMIT.getErrorCode(),
-                "Ingress is over the account limit.", new Exception());
-
-//          fs.getAbfsStore().copyBlob(srcPath, dstPath, leaseId, tracingContext);
-//          return null;
+          throw new AbfsRestOperationException(HttpURLConnection.HTTP_UNAVAILABLE,
+              AzureServiceErrorCode.INGRESS_OVER_ACCOUNT_LIMIT.getErrorCode(),
+              "Ingress is over the account limit.", new Exception());
         })
         .when(spiedAbfsStore)
         .copyBlob(Mockito.any(Path.class), Mockito.any(Path.class),
@@ -1028,8 +1019,6 @@ public class ITestAzureBlobFileSystemRename extends
       spiedFs.rename(new Path(srcDir),
           new Path("hbase/test4"));
     } catch (Exception ex) {
-      int a = 1;
-      a++;
     }
 
     Assert.assertFalse(spiedFs.exists(
@@ -1582,9 +1571,7 @@ public class ITestAzureBlobFileSystemRename extends
     fileSystem.create(new Path(srcFile));
 
 
-    intercept(FileNotFoundException.class, () -> {
-      fileSystem.rename(new Path(srcFile), new Path(dstFile));
-    });
+    Assert.assertFalse(fileSystem.rename(new Path(srcFile), new Path(dstFile)));
     Assert.assertFalse(fileSystem.exists(new Path(dstFile)));
   }
 
