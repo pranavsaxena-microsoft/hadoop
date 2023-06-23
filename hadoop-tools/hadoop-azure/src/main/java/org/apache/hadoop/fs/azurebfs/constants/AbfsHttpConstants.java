@@ -162,6 +162,7 @@ public final class AbfsHttpConstants {
   public static final String COPY_STATUS_ABORTED = "aborted";
   public static final String COPY_STATUS_FAILED = "failed";
   public static final String HDI_ISFOLDER = "hdi_isfolder";
+  public static final Integer BLOB_LEASE_ONE_MINUTE_DURATION = 60;
   public static final String ETAG = "Etag";
   public static final String LAST_MODIFIED_TIME = "Last-Modified";
   public static final String CREATION_TIME   = "Creation-Time";

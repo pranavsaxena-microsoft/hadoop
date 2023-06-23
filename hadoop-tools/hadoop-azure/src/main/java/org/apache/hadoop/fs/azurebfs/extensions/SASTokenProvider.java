@@ -59,6 +59,8 @@ public interface SASTokenProvider {
   String SET_BLOB_METADATA_OPERATION = "set-blob-metadata";
   String WRITE_OPERATION = "write";
 
+  String LEASE_OPERATION = "lease";
+
   /**
    * Initialize authorizer for Azure Blob File System.
    * @param configuration Configuration object

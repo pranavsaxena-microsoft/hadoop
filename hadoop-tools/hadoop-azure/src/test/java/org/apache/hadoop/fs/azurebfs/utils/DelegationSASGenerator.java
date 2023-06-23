@@ -60,6 +60,7 @@ public class DelegationSASGenerator extends SASGenerator {
       case SASTokenProvider.CREATE_DIRECTORY_OPERATION:
       case SASTokenProvider.WRITE_OPERATION:
       case SASTokenProvider.SET_PROPERTIES_OPERATION:
+      case SASTokenProvider.LEASE_OPERATION:
       case SASTokenProvider.SET_BLOB_METADATA_OPERATION:
         sp = "w";
         break;

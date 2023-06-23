@@ -25,9 +25,7 @@ import java.net.HttpURLConnection;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Date;
-import java.util.List;
 import java.util.TimeZone;
 
 import com.fasterxml.jackson.core.JsonParseException;
@@ -49,12 +47,10 @@ import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AbfsRestOperationExcep
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemException;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 
-import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.FORWARD_SLASH;
-
 /**
  * For a directory enabled for atomic-rename, before rename starts, a
  * file with -RenamePending.json suffix is created. In this file, the states required
- * for the rename are given. This file is created by {@link #writeFile()} method.
+ * for the rename are given. This file is created by {@link #preRename(Boolean)} ()} method.
  * This is important in case the JVM process crashes during rename, the atomicity
  * will be maintained, when the job calls {@link AzureBlobFileSystem#listStatus(Path)}
  * or {@link AzureBlobFileSystem#getFileStatus(Path)}. On these API calls to filesystem,
@@ -97,8 +93,7 @@ public class RenameAtomicityUtils {
     final RenamePendingFileInfo renamePendingFileInfo = readFile(path);
     if (renamePendingFileInfo != null) {
       redoRenameInvocation.redo(renamePendingFileInfo.destination,
-          renamePendingFileInfo.srcList,
-          renamePendingFileInfo.destinationSuffix);
+          renamePendingFileInfo.src);
     }
   }
 
@@ -159,16 +154,7 @@ public class RenameAtomicityUtils {
         newFolderName.textValue())) {
       RenamePendingFileInfo renamePendingFileInfo = new RenamePendingFileInfo();
       renamePendingFileInfo.destination = new Path(newFolderName.textValue());
-      String srcDir = oldFolderName.textValue() + FORWARD_SLASH;
-      List<Path> srcPaths = new ArrayList<>();
-      List<String> destinationSuffix = new ArrayList<>();
-      JsonNode fileList = json.get("FileList");
-      for (int i = 0; i < fileList.size(); i++) {
-        destinationSuffix.add(fileList.get(i).textValue());
-        srcPaths.add(new Path(srcDir + fileList.get(i).textValue()));
-      }
-      renamePendingFileInfo.srcList = srcPaths;
-      renamePendingFileInfo.destinationSuffix = destinationSuffix;
+      renamePendingFileInfo.src = new Path(oldFolderName.textValue());
       return renamePendingFileInfo;
     }
     return null;
@@ -192,15 +178,14 @@ public class RenameAtomicityUtils {
   /**
    * Write to disk the information needed to redo folder rename,
    * in JSON format. The file name will be
-   * {@code wasb://<sourceFolderPrefix>/folderName-RenamePending.json}
+   * {@code abfs://<sourceFolderPrefix>/folderName-RenamePending.json}
    * The file format will be:
    * <pre>{@code
    * {
    *   FormatVersion: "1.0",
    *   OperationTime: "<YYYY-MM-DD HH:MM:SS.MMM>",
    *   OldFolderName: "<key>",
-   *   NewFolderName: "<key>",
-   *   FileList: [ <string> , <string> , ... ]
+   *   NewFolderName: "<key>"
    * }
    *
    * Here's a sample:
@@ -208,21 +193,16 @@ public class RenameAtomicityUtils {
    *  FormatVersion: "1.0",
    *  OperationUTCTime: "2014-07-01 23:50:35.572",
    *  OldFolderName: "user/ehans/folderToRename",
-   *  NewFolderName: "user/ehans/renamedFolder",
-   *  FileList: [
-   *    "innerFile",
-   *    "innerFile2"
-   *  ]
+   *  NewFolderName: "user/ehans/renamedFolder"
    * } }</pre>
    * @throws IOException Thrown when fail to write file.
    */
-  public void preRename(List<BlobProperty> blobPropertyList,
-      final Boolean isCreateOperationOnBlobEndpoint) throws IOException {
+  public void preRename(final Boolean isCreateOperationOnBlobEndpoint) throws IOException {
     Path path = getRenamePendingFilePath();
     LOG.debug("Preparing to write atomic rename state to {}", path.toString());
     OutputStream output = null;
 
-    String contents = makeRenamePendingFileContents(blobPropertyList);
+    String contents = makeRenamePendingFileContents();
 
     // Write file.
     try {
@@ -281,54 +261,10 @@ public class RenameAtomicityUtils {
    *
    * @return JSON string which represents the operation.
    */
-  private String makeRenamePendingFileContents(List<BlobProperty> blobPropertyList) {
+  private String makeRenamePendingFileContents() {
     SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
     sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
     String time = sdf.format(new Date());
-
-    // Make file list string
-    StringBuilder builder = new StringBuilder();
-    builder.append("[\n");
-    for (int i = 0; i != blobPropertyList.size(); i++) {
-      if (i > 0) {
-        builder.append(",\n");
-      }
-      builder.append("    ");
-      final String noPrefix;
-      /*
-       * The marker file for the source directory has the same path on non-HNS.
-       * For the other files, the fileList has to save the filePath relative to the
-       * source directory.
-       */
-      if (!blobPropertyList.get(i)
-          .getPath()
-          .toUri()
-          .getPath()
-          .equals(srcPath.toUri().getPath())) {
-        noPrefix = StringUtils.removeStart(
-            blobPropertyList.get(i).getPath().toUri().getPath(),
-            srcPath.toUri().getPath() + FORWARD_SLASH);
-      } else {
-        noPrefix = "";
-      }
-
-      // Quote string file names, escaping any possible " characters or other
-      // necessary characters in the name.
-      builder.append(quote(noPrefix));
-      if (builder.length() >=
-          MAX_RENAME_PENDING_FILE_SIZE - FORMATTING_BUFFER) {
-
-        // Give up now to avoid using too much memory.
-        LOG.error(
-            "Internal error: Exceeded maximum rename pending file size of {} bytes.",
-            MAX_RENAME_PENDING_FILE_SIZE);
-
-        // return some bad JSON with an error message to make it human readable
-        return "exceeded maximum rename pending file size";
-      }
-    }
-    builder.append("\n  ]");
-    String fileList = builder.toString();
 
     // Make file contents as a string. Again, quote file names, escaping
     // characters as appropriate.
@@ -336,8 +272,7 @@ public class RenameAtomicityUtils {
         + "  FormatVersion: \"1.0\",\n"
         + "  OperationUTCTime: \"" + time + "\",\n"
         + "  OldFolderName: " + quote(srcPath.toUri().getPath()) + ",\n"
-        + "  NewFolderName: " + quote(dstPath.toUri().getPath()) + ",\n"
-        + "  FileList: " + fileList + "\n"
+        + "  NewFolderName: " + quote(dstPath.toUri().getPath()) + "\n"
         + "}\n";
 
     return contents;
@@ -430,16 +365,11 @@ public class RenameAtomicityUtils {
 
   private static class RenamePendingFileInfo {
     public Path destination;
-    public List<Path> srcList;
-    /**
-     * Relative paths from the destination path.
-     */
-    public List<String> destinationSuffix;
+    public Path src;
   }
 
   public static interface RedoRenameInvocation {
-    void redo(Path destination, List<Path> sourcePaths,
-        final List<String> destinationSuffix) throws
+    void redo(Path destination, Path src) throws
         AzureBlobFileSystemException;
   }
 }
