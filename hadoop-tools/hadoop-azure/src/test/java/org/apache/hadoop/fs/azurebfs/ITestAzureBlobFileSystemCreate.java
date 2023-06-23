@@ -996,7 +996,7 @@ public class ITestAzureBlobFileSystemCreate extends
   }
 
   @Test
-  public void testActiveCreateNonRecursiveNotDenyParallelReadOnAtomicDirIfLeaseConfigDisabled() throws Exception {
+  public void testActiveCreateNonRecursiveNotDenyParallelRenameOnAtomicDirIfLeaseConfigDisabled() throws Exception {
     Assume.assumeTrue(getPrefixMode(getFileSystem()) == PrefixMode.BLOB);
     Configuration configuration = Mockito.spy(getRawConfiguration());
     AzureBlobFileSystem fileSystem = (AzureBlobFileSystem) FileSystem.newInstance(configuration);

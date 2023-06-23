@@ -1922,4 +1922,20 @@ public class ITestAzureBlobFileSystemRename extends
     Assertions.assertThat(fs.exists(new Path("/testDir1/file1"))).isTrue();
     Assertions.assertThat(fs.exists(new Path("/testDir1/file2"))).isTrue();
   }
+
+  @Test
+  public void testBlobAtomicRenameSrcAndDstAreNotLeftLeased() throws Exception {
+    AzureBlobFileSystem fs = Mockito.spy(getFileSystem());
+    assumeNonHnsAccountBlobEndpoint(fs);
+    fs.setWorkingDirectory(new Path("/"));
+    fs.create(new Path("/hbase/dir1/blob1"));
+    fs.create(new Path("/hbase/dir1/blob2"));
+    fs.rename(new Path("/hbase/dir1/"), new Path("/hbase/dir2"));
+    fs.create(new Path("/hbase/dir1/blob1"));
+    byte[] bytes = new byte[4 * ONE_MB];
+    new Random().nextBytes(bytes);
+    try (FSDataOutputStream os = fs.append(new Path("hbase/dir2/blob1"))) {
+      os.write(bytes);
+    }
+  }
 }
