@@ -339,8 +339,7 @@ public class ITestAzureBlobFileSystemDelete extends
     Mockito.doAnswer(answer -> {
           String marker = answer.getArgument(0);
           String prefix = answer.getArgument(1);
-          Integer maxResult = answer.getArgument(2);
-          TracingContext context = answer.getArgument(3);
+          TracingContext context = answer.getArgument(4);
           return client.getListBlobs(marker, prefix, null, 1, context);
         })
         .when(spiedClient)
