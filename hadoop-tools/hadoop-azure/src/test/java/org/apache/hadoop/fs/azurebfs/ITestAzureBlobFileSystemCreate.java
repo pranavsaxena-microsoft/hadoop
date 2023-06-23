@@ -47,7 +47,6 @@ import org.apache.hadoop.fs.azurebfs.services.OperativeEndpoint;
 import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
 import org.apache.hadoop.test.LambdaTestUtils;
 
-
 import org.junit.Assert;
 import org.junit.Assume;
 
