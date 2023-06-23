@@ -1830,6 +1830,9 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       return;
     }
     Path parentPath = path.getParent();
+    if (parentPath.isRoot()) {
+      return;
+    }
     try {
       getBlobProperty(parentPath, tracingContext);
     } catch (AbfsRestOperationException ex) {
