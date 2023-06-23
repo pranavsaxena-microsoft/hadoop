@@ -1833,13 +1833,13 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       final ListBlobConsumer consumer,
       final TracingContext tracingContext)
       throws IOException {
+    ExecutorService deleteBlobExecutorService = Executors.newFixedThreadPool(
+        getAbfsConfiguration().getBlobDirDeleteMaxThread());
     while (!consumer.isCompleted()) {
       final List<BlobProperty> blobList = consumer.consume();
       if (blobList == null) {
         continue;
       }
-      ExecutorService deleteBlobExecutorService = Executors.newFixedThreadPool(
-          getAbfsConfiguration().getBlobDirDeleteMaxThread());
       List<Future> futureList = new ArrayList<>();
       for (BlobProperty blobProperty : blobList) {
         futureList.add(deleteBlobExecutorService.submit(() -> {
@@ -1872,8 +1872,8 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
           throw new RuntimeException(e);
         }
       }
-      deleteBlobExecutorService.shutdown();
     }
+    deleteBlobExecutorService.shutdown();
     if (srcPath != null && !srcPath.isRoot()) {
       try {
         LOG.debug(String.format("Deleting Path %s", srcPath.toUri().getPath()));
