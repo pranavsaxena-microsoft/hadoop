@@ -25,6 +25,7 @@ import java.util.concurrent.Callable;
 import java.util.UUID;
 
 import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
+import org.apache.hadoop.fs.azurebfs.services.OperativeEndpoint;
 import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
 import org.apache.hadoop.fs.azurebfs.services.ITestAbfsClient;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
@@ -597,10 +598,13 @@ public class ITestAzureBlobFileSystemRandomRead extends
     Path testPath = new Path("/testReadFile");
     fs.create(testPath);
     FSDataInputStream in = fs.open(testPath);
-    Mockito.verify(mockClient, Mockito.atLeast(1)).getBlobProperty(
-            Mockito.any(Path.class), Mockito.any(TracingContext.class));
-    Mockito.verify(mockClient, Mockito.times(0)).getPathStatus(
-            Mockito.any(String.class), Mockito.anyBoolean(), Mockito.any(TracingContext.class));
+    if (!OperativeEndpoint.isReadEnabledOnDFS(getPrefixMode(fs), store.getAbfsConfiguration())) {
+      Mockito.verify(mockClient, Mockito.atLeast(1)).getBlobProperty(
+              Mockito.any(Path.class), Mockito.any(TracingContext.class));
+    } else {
+      Mockito.verify(mockClient, Mockito.times(1)).getPathStatus(
+              Mockito.any(String.class), Mockito.anyBoolean(), Mockito.any(TracingContext.class));
+    }
   }
 
   @Test
