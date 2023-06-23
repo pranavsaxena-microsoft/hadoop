@@ -1694,18 +1694,18 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
 
   public void delete(final Path path, final boolean recursive,
       TracingContext tracingContext) throws IOException {
-    if(getPrefixMode() == PrefixMode.BLOB) {
+    LOG.debug("delete filesystem: {} path: {} recursive: {}",
+        client.getFileSystem(),
+        path,
+        String.valueOf(recursive));
+    if (getPrefixMode() == PrefixMode.BLOB) {
       deleteBlobPath(path, recursive, tracingContext);
       return;
     }
+
     final Instant startAggregate = abfsPerfTracker.getLatencyInstant();
     long countAggregate = 0;
     boolean shouldContinue = true;
-
-    LOG.debug("delete filesystem: {} path: {} recursive: {}",
-            client.getFileSystem(),
-            path,
-            String.valueOf(recursive));
 
     String continuation = null;
 
@@ -1731,9 +1731,6 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
   private void deleteBlobPath(final Path path,
       final boolean recursive,
       final TracingContext tracingContext) throws IOException {
-    /*
-     * Fetch the list of blobs in the given sourcePath.
-     */
     StringBuilder listSrcBuilder = new StringBuilder();
     listSrcBuilder.append(path.toUri().getPath());
     if (!path.isRoot()) {
@@ -1744,6 +1741,15 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     BlobList blobList = client.getListBlobs(null, listSrc, null, null,
         tracingContext).getResult().getBlobList();
     if (blobList.getBlobPropertyList().size() > 0) {
+      LOG.debug(
+          String.format("Path %s is child-blobs", path.toUri().getPath()));
+      if (!recursive) {
+        LOG.error(
+            String.format("Non-recursive delete of non-empty directory %s",
+                path.toUri().getPath()));
+        throw new IOException(
+            "Non-recursive delete of non-empty directory");
+      }
       ListBlobQueue queue = new ListBlobQueue(blobList.getBlobPropertyList(),
           getAbfsConfiguration().getProducerQueueMaxSize(),
           getAbfsConfiguration().getBlobDirDeleteMaxThread());
@@ -1751,22 +1757,30 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
           blobList.getNextMarker(), tracingContext);
       ListBlobConsumer consumer = new ListBlobConsumer(queue);
       deleteCheckOnParentBlob(path, tracingContext);
-      deleteOnConsumedBlobs(path, consumer, recursive, tracingContext);
+      deleteOnConsumedBlobs(path, consumer, tracingContext);
       return;
     }
+    LOG.debug(String.format("Path %s doesn't have child-blobs",
+        path.toUri().getPath()));
     if (!path.isRoot()) {
       try {
         getBlobProperty(path, tracingContext);
       } catch (AbfsRestOperationException ex) {
         if (ex.getStatusCode() == HTTP_NOT_FOUND) {
+          LOG.error(
+              String.format("Path %s doesn't exist", path.toUri().getPath()));
           throw new AbfsRestOperationException(
               ex.getStatusCode(),
               AzureServiceErrorCode.PATH_NOT_FOUND.getErrorCode(),
               ex.getErrorMessage(), ex);
         }
       }
+      LOG.debug(
+          String.format("Path %s is not a directory", path.toUri().getPath()));
       deleteCheckOnParentBlob(path, tracingContext);
+      LOG.debug(String.format("Deleting path %s", path.toUri().getPath()));
       client.deleteBlobPath(path, null, tracingContext);
+      LOG.debug(String.format("Path deleted %s", path.toUri().getPath()));
     }
   }
 
@@ -1779,22 +1793,34 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     if (parentPath.isRoot()) {
       return;
     }
+    LOG.debug(String.format("Checking parent of Path %s : %s exists",
+        path.toUri().getPath(), parentPath.toUri().getPath()));
     try {
       getBlobProperty(parentPath, tracingContext);
+      LOG.debug(
+          String.format("Parent of Path %s : %s exists", path.toUri().getPath(),
+              parentPath.toUri().getPath()));
     } catch (AbfsRestOperationException ex) {
       if (ex.getStatusCode() != HttpURLConnection.HTTP_NOT_FOUND) {
+        LOG.error(String.format("Checking parent of Path %s : %s failed",
+            path.toUri().getPath(), parentPath.toUri().getPath()), ex);
         throw ex;
       }
-      createDirectory(path, null, FsPermission.getDirDefault(),
+      LOG.debug(String.format(
+          "Parent of Path %s : %s doesn't exist. Creating directory for the parentPath",
+          path.toUri().getPath(), parentPath.toUri().getPath()));
+      createDirectory(parentPath, null, FsPermission.getDirDefault(),
           FsPermission.getUMask(
               getAbfsConfiguration().getRawConfiguration()),
           tracingContext);
+
+      LOG.debug(String.format("Directory for parent of Path %s : %s created",
+          path.toUri().getPath(), parentPath.toUri().getPath()));
     }
   }
 
   private void deleteOnConsumedBlobs(final Path srcPath,
       final ListBlobConsumer consumer,
-      final Boolean recursive,
       final TracingContext tracingContext)
       throws IOException {
     while (!consumer.isCompleted()) {
@@ -1802,23 +1828,27 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       if (blobList == null) {
         continue;
       }
-      if (!recursive) {
-        throw new IOException(
-            "Non-recursive delete of non-empty directory ");
-      }
       ExecutorService deleteBlobExecutorService = Executors.newFixedThreadPool(
           getAbfsConfiguration().getBlobDirDeleteMaxThread());
       List<Future> futureList = new ArrayList<>();
       for (BlobProperty blobProperty : blobList) {
         futureList.add(deleteBlobExecutorService.submit(() -> {
           try {
+            LOG.debug(String.format("Deleting Path %s",
+                blobProperty.getPath().toUri().getPath()));
             client.deleteBlobPath(blobProperty.getPath(), null, tracingContext);
+            LOG.debug(String.format("Deleted Path %s",
+                blobProperty.getPath().toUri().getPath()));
           } catch (AzureBlobFileSystemException ex) {
             if (ex instanceof AbfsRestOperationException
                 && ((AbfsRestOperationException) ex).getStatusCode()
                 == HttpURLConnection.HTTP_NOT_FOUND) {
+              LOG.debug(String.format("Path %s already deleted",
+                  blobProperty.getPath().toUri().getPath()));
               return;
             }
+            LOG.error(String.format("Deleting Path %s failed",
+                blobProperty.getPath().toUri().getPath()));
             throw new RuntimeException(ex);
           }
         }));
@@ -1836,11 +1866,17 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     }
     if (srcPath != null && !srcPath.isRoot()) {
       try {
+        LOG.debug(String.format("Deleting Path %s", srcPath.toUri().getPath()));
         client.deleteBlobPath(srcPath, null, tracingContext);
+        LOG.debug(String.format("Deleted Path %s", srcPath.toUri().getPath()));
       } catch (AbfsRestOperationException ex) {
         if (ex.getStatusCode() != HttpURLConnection.HTTP_NOT_FOUND) {
+          LOG.debug(String.format("Deleting Path %s failed",
+              srcPath.toUri().getPath()), ex);
           throw ex;
         }
+        LOG.debug(String.format("Path %s is an implicit directory",
+            srcPath.toUri().getPath()));
       }
     }
   }
