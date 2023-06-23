@@ -212,6 +212,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
   private final AbfsPerfTracker abfsPerfTracker;
   private final AbfsCounters abfsCounters;
   private PrefixMode prefixMode;
+
   /**
    * The set of directories where we should store files as append blobs.
    */
