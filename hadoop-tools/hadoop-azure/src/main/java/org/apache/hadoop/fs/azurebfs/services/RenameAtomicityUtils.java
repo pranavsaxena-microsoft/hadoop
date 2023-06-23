@@ -26,7 +26,6 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.List;
 import java.util.TimeZone;
 
 import com.fasterxml.jackson.core.JsonParseException;
@@ -51,7 +50,7 @@ import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 /**
  * For a directory enabled for atomic-rename, before rename starts, a
  * file with -RenamePending.json suffix is created. In this file, the states required
- * for the rename are given. This file is created by {@link #preRename(List, Boolean)} ()} method.
+ * for the rename are given. This file is created by {@link #preRename(Boolean)} ()} method.
  * This is important in case the JVM process crashes during rename, the atomicity
  * will be maintained, when the job calls {@link AzureBlobFileSystem#listStatus(Path)}
  * or {@link AzureBlobFileSystem#getFileStatus(Path)}. On these API calls to filesystem,
@@ -198,13 +197,12 @@ public class RenameAtomicityUtils {
    * } }</pre>
    * @throws IOException Thrown when fail to write file.
    */
-  public void preRename(List<BlobProperty> blobPropertyList,
-      final Boolean isCreateOperationOnBlobEndpoint) throws IOException {
+  public void preRename(final Boolean isCreateOperationOnBlobEndpoint) throws IOException {
     Path path = getRenamePendingFilePath();
     LOG.debug("Preparing to write atomic rename state to {}", path.toString());
     OutputStream output = null;
 
-    String contents = makeRenamePendingFileContents(blobPropertyList);
+    String contents = makeRenamePendingFileContents();
 
     // Write file.
     try {
@@ -263,7 +261,7 @@ public class RenameAtomicityUtils {
    *
    * @return JSON string which represents the operation.
    */
-  private String makeRenamePendingFileContents(List<BlobProperty> blobPropertyList) {
+  private String makeRenamePendingFileContents() {
     SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
     sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
     String time = sdf.format(new Date());

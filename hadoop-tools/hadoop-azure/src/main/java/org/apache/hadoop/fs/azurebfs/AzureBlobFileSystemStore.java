@@ -1436,8 +1436,6 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     if (getAbfsConfiguration().getPrefixMode() == PrefixMode.BLOB) {
       LOG.debug("Rename for src: {} dst: {} for non-HNS blob-endpoint",
           source, destination);
-      final Boolean isSrcExist;
-      final Boolean isSrcDir;
       /*
        * Fetch the list of blobs in the given sourcePath.
        */
@@ -1450,127 +1448,46 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       BlobList blobList = client.getListBlobs(null, listSrc, null, null,
               tracingContext).getResult()
           .getBlobList();
-      String nextMarker = blobList.getNextMarker();
       List<BlobProperty> srcBlobProperties = blobList.getBlobPropertyList();
 
-      ListBlobQueue listBlobQueue = new ListBlobQueue(
-          blobList.getBlobPropertyList(),
-          getAbfsConfiguration().getProducerQueueMaxSize(),
-          getAbfsConfiguration().getBlobDirRenameMaxThread());
-      if (nextMarker != null) {
-        new ListBlobProducer(listSrc,
-            client, listBlobQueue, nextMarker, tracingContext);
-      } else {
-        listBlobQueue.complete();
-      }
-
-      BlobProperty blobPropOnSrc;
       if (srcBlobProperties.size() > 0) {
-        LOG.debug("src {} exists and is a directory", source);
-        isSrcExist = true;
-        isSrcDir = true;
-        /*
-         * Fetch if there is a marker-blob for the source blob.
-         */
-        BlobProperty blobPropOnSrcNullable;
-        try {
-          blobPropOnSrcNullable = getBlobProperty(source, tracingContext);
-        } catch (AbfsRestOperationException ex) {
-          if (ex.getStatusCode() != HttpURLConnection.HTTP_NOT_FOUND) {
-            throw ex;
-          }
-          blobPropOnSrcNullable = null;
-        }
-        if (blobPropOnSrcNullable == null) {
-          /*
-           * There is no marker-blob, the client has to create marker blob before
-           * starting the rename.
-           */
-          //create marker file; add in srcBlobProperties;
-          LOG.debug("Source {} is a directory but there is no marker-blob",
-              source);
-          createDirectory(source, null, FsPermission.getDirDefault(),
-              FsPermission.getUMask(
-                  getAbfsConfiguration().getRawConfiguration()),
-              tracingContext);
-          blobPropOnSrc = new BlobProperty();
-          blobPropOnSrc.setIsDirectory(true);
-          blobPropOnSrc.setPath(source);
-        } else {
-          LOG.debug("Source {} is a directory but there is a marker-blob",
-              source);
-          blobPropOnSrc = blobPropOnSrcNullable;
-        }
+        orchestrateBlobRenameDir(source, destination, renameAtomicityUtils,
+            tracingContext, listSrc, blobList);
       } else {
-        LOG.debug("source {} doesn't have any blob in its hierarchy. Checking"
-            + "if there is marker blob for it.", source);
-        try {
-          blobPropOnSrc = getBlobProperty(source, tracingContext);
-        } catch (AbfsRestOperationException ex) {
-          if (ex.getStatusCode() != HttpURLConnection.HTTP_NOT_FOUND) {
-            throw ex;
-          }
-          blobPropOnSrc = null;
-        }
-
-        if (blobPropOnSrc != null) {
-          isSrcExist = true;
-          if (blobPropOnSrc.getIsDirectory()) {
-            LOG.debug("source {} is a marker blob", source);
-            isSrcDir = true;
-          } else {
-            LOG.debug("source {} exists but is not a marker blob", source);
-            isSrcDir = false;
-          }
-        } else {
-          LOG.debug("source {} doesn't exist", source);
-          isSrcExist = false;
-          isSrcDir = false;
-        }
-      }
-
-      if (!isSrcExist) {
-        LOG.info("source {} doesn't exists", source);
-        throw new AbfsRestOperationException(HttpURLConnection.HTTP_NOT_FOUND,
-            AzureServiceErrorCode.SOURCE_PATH_NOT_FOUND.getErrorCode(), null,
-            null);
-      }
-      if (isSrcDir) {
         /*
-         * If source is a directory, all the blobs in the directory have to be
-         * individually copied and then deleted at the source.
-         */
-        LOG.debug("source {} is a directory", source);
-        final AbfsBlobLease srcDirLease;
-        final Boolean isAtomicRename;
-        if (isAtomicRenameKey(source.toUri().getPath())) {
-          LOG.debug("source dir {} is an atomicRenameKey",
-              source.toUri().getPath());
-          srcDirLease = new AbfsBlobLease(client, source.toUri().getPath(), BLOB_LEASE_ONE_MINUTE_DURATION, tracingContext);
-          renameAtomicityUtils.preRename(srcBlobProperties, isCreateOperationOnBlobEndpoint());
-          isAtomicRename = true;
-        } else {
-          srcDirLease = null;
-          isAtomicRename = false;
-          LOG.debug("source dir {} is not an atomicRenameKey",
-              source.toUri().getPath());
-        }
+        * Source doesn't have any hierarchy. It can either be marker or non-marker blob.
+        * Or there can be no blob on the path.
+        * Rename procedure will start. If its a file or a marker file, it will be renamed.
+        * In case there is no blob on the path, server will return exception.
+        */
+        LOG.debug("source {} doesn't have any blob in its hierarchy. "
+            + "Starting rename process on the source.", source);
 
-        renameBlobDir(source, destination, tracingContext, listBlobQueue,
-            srcDirLease, isAtomicRename);
-
-        if (renameAtomicityUtils != null) {
-          renameAtomicityUtils.cleanup();
+        AbfsLease lease = null;
+        try {
+          if (isAtomicRenameKey(source.toUri().getPath())) {
+            lease = getBlobLease(source.toUri().getPath(),
+                BLOB_LEASE_ONE_MINUTE_DURATION, tracingContext);
+          }
+          renameBlob(source, destination, lease, tracingContext);
+        } catch (AzureBlobFileSystemException ex) {
+          if (lease != null) {
+            lease.free();
+          }
+          LOG.error(
+              String.format("Rename of path from %s to %s failed",
+                  source, destination), ex);
+          if (ex instanceof AbfsRestOperationException
+              && ((AbfsRestOperationException) ex).getStatusCode()
+              == HTTP_NOT_FOUND) {
+            AbfsRestOperationException ex1 = (AbfsRestOperationException) ex;
+            throw new AbfsRestOperationException(
+                ex1.getStatusCode(),
+                AzureServiceErrorCode.SOURCE_PATH_NOT_FOUND.getErrorCode(),
+                ex1.getErrorMessage(), ex1);
+          }
+          throw ex;
         }
-      } else {
-        LOG.debug("source {} is not directory", source);
-        String leaseId = null;
-        if (isAtomicRenameKey(source.toUri().getPath())) {
-          leaseId = new AbfsBlobLease(client, source.toUri().getPath(),
-              BLOB_LEASE_ONE_MINUTE_DURATION, tracingContext).getLeaseID();
-        }
-        renameBlob(blobPropOnSrc.getPath(), destination, leaseId, tracingContext
-        );
       }
       LOG.info("Rename from source {} to destination {} done", source,
           destination);
@@ -1610,6 +1527,91 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     } while (shouldContinue);
   }
 
+  private void orchestrateBlobRenameDir(final Path source,
+      final Path destination,
+      final RenameAtomicityUtils renameAtomicityUtils,
+      final TracingContext tracingContext,
+      final String listSrc,
+      final BlobList blobList) throws IOException {
+    ListBlobQueue listBlobQueue = new ListBlobQueue(
+        blobList.getBlobPropertyList(),
+        getAbfsConfiguration().getProducerQueueMaxSize(),
+        getAbfsConfiguration().getBlobDirRenameMaxThread());
+
+    if (blobList.getNextMarker() != null) {
+      new ListBlobProducer(listSrc,
+          client, listBlobQueue, blobList.getNextMarker(), tracingContext);
+    } else {
+      listBlobQueue.complete();
+    }
+    LOG.debug("src {} exists and is a directory", source);
+    /*
+     * Fetch if there is a marker-blob for the source blob.
+     */
+    BlobProperty blobPropOnSrcNullable;
+    try {
+      blobPropOnSrcNullable = getBlobProperty(source, tracingContext);
+    } catch (AbfsRestOperationException ex) {
+      if (ex.getStatusCode() != HttpURLConnection.HTTP_NOT_FOUND) {
+        throw ex;
+      }
+      blobPropOnSrcNullable = null;
+    }
+
+    if (blobPropOnSrcNullable == null) {
+      /*
+       * There is no marker-blob, the client has to create marker blob before
+       * starting the rename.
+       */
+      LOG.debug("Source {} is a directory but there is no marker-blob",
+          source);
+      createDirectory(source, null, FsPermission.getDirDefault(),
+          FsPermission.getUMask(
+              getAbfsConfiguration().getRawConfiguration()),
+          tracingContext);
+    } else {
+      LOG.debug("Source {} is a directory but there is a marker-blob",
+          source);
+    }
+    /*
+     * If source is a directory, all the blobs in the directory have to be
+     * individually copied and then deleted at the source.
+     */
+    LOG.debug("source {} is a directory", source);
+    final AbfsBlobLease srcDirLease;
+    final Boolean isAtomicRename;
+    if (isAtomicRenameKey(source.toUri().getPath())) {
+      LOG.debug("source dir {} is an atomicRenameKey",
+          source.toUri().getPath());
+      srcDirLease = getBlobLease(source.toUri().getPath(),
+          BLOB_LEASE_ONE_MINUTE_DURATION,
+          tracingContext);
+      renameAtomicityUtils.preRename(
+          isCreateOperationOnBlobEndpoint());
+      isAtomicRename = true;
+    } else {
+      srcDirLease = null;
+      isAtomicRename = false;
+      LOG.debug("source dir {} is not an atomicRenameKey",
+          source.toUri().getPath());
+    }
+
+    renameBlobDir(source, destination, tracingContext, listBlobQueue,
+        srcDirLease, isAtomicRename);
+
+    if (isAtomicRename) {
+      renameAtomicityUtils.cleanup();
+    }
+  }
+
+  @VisibleForTesting
+  AbfsBlobLease getBlobLease(final String source,
+      final Integer blobLeaseOneMinuteDuration,
+      final TracingContext tracingContext) throws AzureBlobFileSystemException {
+    return new AbfsBlobLease(client, source, blobLeaseOneMinuteDuration,
+        tracingContext);
+  }
+
   private void renameBlobDir(final Path source,
       final Path destination,
       final TracingContext tracingContext,
@@ -1643,14 +1645,14 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
                * when HBase runs on HDFS, where the region server recovers the lease
                * on a log file, to gain exclusive access to it, before it splits it.
                */
-              blobLease = new AbfsBlobLease(client,
-                  blobProperty.getPath().toUri().getPath(), BLOB_LEASE_ONE_MINUTE_DURATION, tracingContext);
+              blobLease = getBlobLease(blobProperty.getPath().toUri().getPath(),
+                  BLOB_LEASE_ONE_MINUTE_DURATION, tracingContext);
             }
             renameBlob(
                 blobProperty.getPath(),
                 createDestinationPathForBlobPartOfRenameSrcDir(destination,
                     blobProperty.getPath(), source),
-                blobLease != null ? blobLease.getLeaseID() : null,
+                blobLease,
                 tracingContext);
           } catch (AzureBlobFileSystemException e) {
             LOG.error(String.format("rename from %s to %s for blob %s failed",
@@ -1665,6 +1667,10 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         } catch (InterruptedException | ExecutionException e) {
           LOG.error(String.format("rename from %s to %s failed", source,
               destination), e);
+          renameBlobExecutorService.shutdown();
+          if (srcDirBlobLease != null) {
+            srcDirBlobLease.free();
+          }
           throw new RuntimeException(e);
         }
       }
@@ -1674,7 +1680,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     renameBlob(
         source, createDestinationPathForBlobPartOfRenameSrcDir(destination,
             source, source),
-        srcDirBlobLease != null ? srcDirBlobLease.getLeaseID() : null,
+        srcDirBlobLease,
         tracingContext);
   }
 
@@ -1711,21 +1717,28 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
    *
    * @param sourcePath source path which gets copied to the destination
    * @param destination destination path to which the source has to be moved
-   * @param srcBlobLeaseId leaseId of the srcBlob
+   * @param lease lease of the srcBlob
    * @param tracingContext tracingContext for tracing the API calls
    *
    * @throws AzureBlobFileSystemException exception in making server calls
    */
   private void renameBlob(final Path sourcePath, final Path destination,
-      final String srcBlobLeaseId, final TracingContext tracingContext) throws AzureBlobFileSystemException {
-    copyBlob(sourcePath, destination, srcBlobLeaseId, tracingContext);
-    deleteBlob(sourcePath, srcBlobLeaseId, tracingContext);
+      final AbfsLease lease, final TracingContext tracingContext)
+      throws AzureBlobFileSystemException {
+    copyBlob(sourcePath, destination, lease != null ? lease.getLeaseID() : null,
+        tracingContext);
+    deleteBlob(sourcePath, lease, tracingContext);
   }
 
   private void deleteBlob(final Path sourcePath,
-      final String blobLeaseId, final TracingContext tracingContext) throws AzureBlobFileSystemException {
+      final AbfsLease lease, final TracingContext tracingContext)
+      throws AzureBlobFileSystemException {
     try {
-      client.deleteBlobPath(sourcePath, blobLeaseId, tracingContext);
+      client.deleteBlobPath(sourcePath,
+          lease != null ? lease.getLeaseID() : null, tracingContext);
+      if (lease != null) {
+        lease.cancelTimer();
+      }
     } catch (AbfsRestOperationException ex) {
       if (ex.getStatusCode() != HttpURLConnection.HTTP_NOT_FOUND) {
         throw ex;
@@ -2710,8 +2723,8 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         String listSrc = listSrcBuilder.toString();
         new ListBlobProducer(listSrc, client, listBlobQueue, null,
             tracingContext);
-        AbfsBlobLease abfsBlobLease = new AbfsBlobLease(client,
-            src.toUri().getPath(), BLOB_LEASE_ONE_MINUTE_DURATION, tracingContext);
+        AbfsBlobLease abfsBlobLease = getBlobLease(src.toUri().getPath(),
+            BLOB_LEASE_ONE_MINUTE_DURATION, tracingContext);
         renameBlobDir(src, destination, tracingContext, listBlobQueue,
             abfsBlobLease, true);
       }
@@ -3153,7 +3166,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     if (getPrefixMode() == PrefixMode.DFS) {
       lease = new AbfsDfsLease(client, relativePath, null, tracingContext);
     } else {
-      lease = new AbfsBlobLease(client, relativePath, null, tracingContext);
+      lease = getBlobLease(relativePath, null, tracingContext);
     }
     leaseRefs.put(lease, null);
     return lease;

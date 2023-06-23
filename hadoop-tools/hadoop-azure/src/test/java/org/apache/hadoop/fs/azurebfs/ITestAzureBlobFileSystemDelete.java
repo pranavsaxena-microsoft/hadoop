@@ -341,11 +341,12 @@ public class ITestAzureBlobFileSystemDelete extends
           String prefix = answer.getArgument(1);
           Integer maxResult = answer.getArgument(2);
           TracingContext context = answer.getArgument(3);
-          return client.getListBlobs(marker, prefix, 1, context);
+          return client.getListBlobs(marker, prefix, null, 1, context);
         })
         .when(spiedClient)
         .getListBlobs(Mockito.nullable(String.class), Mockito.anyString(),
-            Mockito.nullable(Integer.class), Mockito.any(TracingContext.class));
+            Mockito.nullable(String.class), Mockito.nullable(Integer.class),
+            Mockito.any(TracingContext.class));
     fs.getAbfsClient().deleteBlobPath(new Path("/testDir/dir1"),
         null, Mockito.mock(TracingContext.class));
 

@@ -192,8 +192,7 @@ public abstract class AbfsLease {
       public void run() {
         try {
           leaseID.set(callRenewLeaseAPI(path, leaseID.get(), tracingContext));
-        } catch (AzureBlobFileSystemException e) {
-          throw new RuntimeException(e);
+        } catch (AzureBlobFileSystemException ignored) {
         }
       }
     }, leaseDuration / 2, leaseDuration / 2);
@@ -222,9 +221,7 @@ public abstract class AbfsLease {
       if (future != null && !future.isDone()) {
         future.cancel(true);
       }
-      if (timer != null) {
-        timer.cancel();
-      }
+      cancelTimer();
       TracingContext tracingContext = new TracingContext(this.tracingContext);
       tracingContext.setOperation(FSOperationType.RELEASE_LEASE);
       callReleaseLeaseAPI(path, leaseID.get(), tracingContext);
@@ -236,6 +233,12 @@ public abstract class AbfsLease {
       // make sure to record that we freed the lease
       leaseFreed = true;
       LOG.debug("Freed lease {} on {}", leaseID, path);
+    }
+  }
+
+  public void cancelTimer() {
+    if (timer != null) {
+      timer.cancel();
     }
   }
 
