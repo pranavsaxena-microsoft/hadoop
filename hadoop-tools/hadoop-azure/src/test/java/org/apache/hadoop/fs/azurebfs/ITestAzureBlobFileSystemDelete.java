@@ -394,4 +394,11 @@ public class ITestAzureBlobFileSystemDelete extends
       fs.delete(new Path("/testDir"), true);
     });
   }
+
+  @Test
+  public void testDeleteRootWithNonRecursion() throws Exception {
+    AzureBlobFileSystem fs = getFileSystem();
+    fs.mkdirs(new Path("/testDir"));
+    Assertions.assertThat(fs.delete(new Path("/"), false)).isFalse();
+  }
 }

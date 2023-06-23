@@ -1784,6 +1784,16 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     }
   }
 
+  /**
+   * If parent blob is implicit directory and in case the blob deleted was the
+   * only blob in the directory, it will render path as non-existing. To prevent
+   * that happening, we check if the parent directory is implicit and if yes, we
+   * create marker-based directory.
+   *
+   * @param path path getting deleted
+   * @param tracingContext tracingContext to trace the API flow
+   * @throws IOException
+   */
   private void deleteCheckOnParentBlob(final Path path,
       final TracingContext tracingContext) throws IOException {
     if (path.isRoot()) {

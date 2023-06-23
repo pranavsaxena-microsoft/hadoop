@@ -890,12 +890,14 @@ public class AzureBlobFileSystem extends FileSystem
       }
     }
 
-    if (f.isRoot() && getAbfsStore().getAbfsConfiguration().getPrefixMode() == PrefixMode.DFS) {
+    if (f.isRoot()) {
       if (!recursive) {
         return false;
       }
 
-      return deleteRoot();
+      if (getAbfsStore().getPrefixMode() == PrefixMode.DFS) {
+        return deleteRoot();
+      }
     }
 
     try {
