@@ -1754,8 +1754,12 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       ListBlobQueue queue = new ListBlobQueue(blobList.getBlobPropertyList(),
           getAbfsConfiguration().getProducerQueueMaxSize(),
           getAbfsConfiguration().getBlobDirDeleteMaxThread());
-      ListBlobProducer producer = new ListBlobProducer(listSrc, client, queue,
-          blobList.getNextMarker(), tracingContext);
+      if (blobList.getNextMarker() != null) {
+        new ListBlobProducer(listSrc, client, queue,
+            blobList.getNextMarker(), tracingContext);
+      } else {
+        queue.complete();
+      }
       ListBlobConsumer consumer = new ListBlobConsumer(queue);
       deleteCheckOnParentBlob(path, tracingContext);
       deleteOnConsumedBlobs(path, consumer, tracingContext);

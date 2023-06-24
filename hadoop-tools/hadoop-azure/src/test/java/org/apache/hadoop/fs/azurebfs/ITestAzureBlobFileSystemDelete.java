@@ -401,4 +401,17 @@ public class ITestAzureBlobFileSystemDelete extends
     fs.mkdirs(new Path("/testDir"));
     Assertions.assertThat(fs.delete(new Path("/"), false)).isFalse();
   }
+
+  @Test
+  public void testDeleteCheckIfParentLMTChange() throws Exception {
+    AzureBlobFileSystem fs = getFileSystem();
+    fs.mkdirs(new Path("/dir1/dir2"));
+    fs.create(new Path("/dir1/dir2/file"));
+    FileStatus status = fs.getFileStatus(new Path("/dir1"));
+    Long lmt = status.getModificationTime();
+
+    fs.delete(new Path("/dir1/dir2"), true);
+    Long newLmt = fs.getFileStatus(new Path("/dir1")).getModificationTime();
+    Assertions.assertThat(lmt).isEqualTo(newLmt);
+  }
 }
