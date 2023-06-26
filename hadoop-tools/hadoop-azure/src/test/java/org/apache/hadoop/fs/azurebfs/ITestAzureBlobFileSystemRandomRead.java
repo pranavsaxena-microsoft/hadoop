@@ -598,7 +598,7 @@ public class ITestAzureBlobFileSystemRandomRead extends
     Path testPath = new Path("/testReadFile");
     fs.create(testPath);
     FSDataInputStream in = fs.open(testPath);
-    if (!OperativeEndpoint.isReadEnabledOnDFS(getPrefixMode(fs), store.getAbfsConfiguration())) {
+    if (!OperativeEndpoint.isReadEnabledOnDFS(store.getAbfsConfiguration())) {
       Mockito.verify(mockClient, Mockito.atLeast(1)).getBlobProperty(
               Mockito.any(Path.class), Mockito.any(TracingContext.class));
     } else {

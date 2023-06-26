@@ -109,8 +109,8 @@ public class ITestAzureBlobFileSystemCreate extends
     PrefixMode prefixMode = abfsStore.getPrefixMode();
     AbfsConfiguration abfsConfiguration = abfsStore.getAbfsConfiguration();
     useBlobEndpoint = !(OperativeEndpoint.isIngressEnabledOnDFS(prefixMode, abfsConfiguration) ||
-            OperativeEndpoint.isMkdirEnabledOnDFS(prefixMode, abfsConfiguration) ||
-            OperativeEndpoint.isReadEnabledOnDFS(prefixMode, abfsConfiguration));
+            OperativeEndpoint.isMkdirEnabledOnDFS(abfsConfiguration) ||
+            OperativeEndpoint.isReadEnabledOnDFS(abfsConfiguration));
   }
 
   @Test

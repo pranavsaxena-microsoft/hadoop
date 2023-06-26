@@ -1056,8 +1056,8 @@ public class AzureBlobFileSystem extends FileSystem
     AbfsConfiguration abfsConfiguration = getAbfsStore().getAbfsConfiguration();
 
     boolean useBlobEndpoint = !(OperativeEndpoint.isIngressEnabledOnDFS(prefixMode, abfsConfiguration) ||
-            OperativeEndpoint.isMkdirEnabledOnDFS(prefixMode, abfsConfiguration) ||
-            OperativeEndpoint.isReadEnabledOnDFS(prefixMode, abfsConfiguration));
+            OperativeEndpoint.isMkdirEnabledOnDFS(abfsConfiguration) ||
+            OperativeEndpoint.isReadEnabledOnDFS(abfsConfiguration));
     try {
         /**
          * Get File Status over Blob Endpoint will Have an additional call
