@@ -339,13 +339,13 @@ public class ITestAzureBlobFileSystemDelete extends
     Mockito.doAnswer(answer -> {
           String marker = answer.getArgument(0);
           String prefix = answer.getArgument(1);
-          Integer maxResult = answer.getArgument(2);
-          TracingContext context = answer.getArgument(3);
-          return client.getListBlobs(marker, prefix, 1, context);
+          TracingContext context = answer.getArgument(4);
+          return client.getListBlobs(marker, prefix, null, 1, context);
         })
         .when(spiedClient)
         .getListBlobs(Mockito.nullable(String.class), Mockito.anyString(),
-            Mockito.nullable(Integer.class), Mockito.any(TracingContext.class));
+            Mockito.nullable(String.class), Mockito.nullable(Integer.class),
+            Mockito.any(TracingContext.class));
     fs.getAbfsClient().deleteBlobPath(new Path("/testDir/dir1"),
         null, Mockito.mock(TracingContext.class));
 
@@ -393,5 +393,25 @@ public class ITestAzureBlobFileSystemDelete extends
     LambdaTestUtils.intercept(RuntimeException.class, () -> {
       fs.delete(new Path("/testDir"), true);
     });
+  }
+
+  @Test
+  public void testDeleteRootWithNonRecursion() throws Exception {
+    AzureBlobFileSystem fs = getFileSystem();
+    fs.mkdirs(new Path("/testDir"));
+    Assertions.assertThat(fs.delete(new Path("/"), false)).isFalse();
+  }
+
+  @Test
+  public void testDeleteCheckIfParentLMTChange() throws Exception {
+    AzureBlobFileSystem fs = getFileSystem();
+    fs.mkdirs(new Path("/dir1/dir2"));
+    fs.create(new Path("/dir1/dir2/file"));
+    FileStatus status = fs.getFileStatus(new Path("/dir1"));
+    Long lmt = status.getModificationTime();
+
+    fs.delete(new Path("/dir1/dir2"), true);
+    Long newLmt = fs.getFileStatus(new Path("/dir1")).getModificationTime();
+    Assertions.assertThat(lmt).isEqualTo(newLmt);
   }
 }

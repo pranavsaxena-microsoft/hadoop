@@ -21,6 +21,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.UUID;
 
+import org.apache.hadoop.fs.azurebfs.services.OperativeEndpoint;
 import org.junit.Assume;
 import org.junit.Test;
 import org.assertj.core.api.Assertions;
@@ -61,8 +62,16 @@ public class ITestGetNameSpaceEnabled extends AbstractAbfsIntegrationTest {
   private static final String FALSE_STR = "false";
 
   private boolean isUsingXNSAccount;
+  private boolean useBlobEndpoint;
   public ITestGetNameSpaceEnabled() throws Exception {
     isUsingXNSAccount = getConfiguration().getBoolean(FS_AZURE_TEST_NAMESPACE_ENABLED_ACCOUNT, false);
+    super.setup();
+    AzureBlobFileSystemStore abfsStore = getAbfsStore(getFileSystem());
+    PrefixMode prefixMode = abfsStore.getPrefixMode();
+    AbfsConfiguration abfsConfiguration = abfsStore.getAbfsConfiguration();
+    useBlobEndpoint = !(OperativeEndpoint.isIngressEnabledOnDFS(prefixMode, abfsConfiguration) ||
+            OperativeEndpoint.isMkdirEnabledOnDFS(prefixMode, abfsConfiguration) ||
+            OperativeEndpoint.isReadEnabledOnDFS(prefixMode, abfsConfiguration));
   }
 
   @Test
@@ -143,7 +152,7 @@ public class ITestGetNameSpaceEnabled extends AbstractAbfsIntegrationTest {
             + testUri.substring(testUri.indexOf("@"));
     AzureBlobFileSystem fs = this.getFileSystem(nonExistingFsUrl);
 
-    if (fs.getAbfsStore().getPrefixMode() == PrefixMode.BLOB) {
+    if (useBlobEndpoint) {
       intercept(FileNotFoundException.class,
           "\"The specified container does not exist.\", 404",
           ()-> {

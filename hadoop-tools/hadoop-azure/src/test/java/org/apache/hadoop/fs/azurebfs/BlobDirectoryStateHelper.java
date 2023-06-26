@@ -74,8 +74,7 @@ public class BlobDirectoryStateHelper {
       try {
         FileStatus status = fs.getAbfsStore().getFileStatus(
             path,
-            Mockito.mock(TracingContext.class)
-        );
+            Mockito.mock(TracingContext.class), true);
         return !status.isDirectory();
       }
       catch (AbfsRestOperationException ex) {
@@ -103,7 +102,7 @@ public class BlobDirectoryStateHelper {
       FileStatus status;
       try {
         status = fs.getAbfsStore()
-            .getFileStatus(path, Mockito.mock(TracingContext.class));
+            .getFileStatus(path, Mockito.mock(TracingContext.class), false);
       }
       catch (IOException ex) {
         return false;
