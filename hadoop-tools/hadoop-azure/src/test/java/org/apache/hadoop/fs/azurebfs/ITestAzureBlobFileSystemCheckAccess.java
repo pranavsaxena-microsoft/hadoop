@@ -42,6 +42,7 @@ import org.apache.hadoop.security.AccessControlException;
 
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.AZURE_CREATE_REMOTE_FILESYSTEM_DURING_INITIALIZATION;
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_ACCOUNT_AUTH_TYPE_PROPERTY_NAME;
+import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_ACCOUNT_IS_HNS_ENABLED;
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_ACCOUNT_OAUTH_CLIENT_ENDPOINT;
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_ACCOUNT_TOKEN_PROVIDER_TYPE_PROPERTY_NAME;
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_ENABLE_CHECK_ACCESS;
@@ -184,14 +185,17 @@ public class ITestAzureBlobFileSystemCheckAccess
     checkIfConfigIsSet(FS_AZURE_BLOB_FS_CHECKACCESS_TEST_CLIENT_SECRET);
     checkIfConfigIsSet(FS_AZURE_BLOB_FS_CHECKACCESS_TEST_USER_GUID);
 
-    setTestUserFs();
-
     //  When the driver does not know if the account is HNS enabled or not it
     //  makes a server call and fails
-    intercept(AccessControlException.class,
-        "\"This request is not authorized to perform this operation using "
-            + "this permission.\", 403",
-        () -> testUserFs.access(new Path("/"), FsAction.READ));
+    intercept(Exception.class,
+            "\"This request is not authorized to perform this operation using "
+                    + "this permission.\", 403", () ->
+    setTestUserFs());
+
+    Configuration configuration = getFileSystem().getConf();
+    configuration.setBoolean(FS_AZURE_ACCOUNT_IS_HNS_ENABLED, false);
+    FileSystem testUserFSWithoutNS;
+    testUserFSWithoutNS = FileSystem.newInstance(configuration);
 
     //  When the driver has already determined if the account is HNS enabled
     //  or not, and as the account is non HNS the AzureBlobFileSystem#access
@@ -204,8 +208,8 @@ public class ITestAzureBlobFileSystemCheckAccess
     Field abfsStoreField = AzureBlobFileSystem.class.getDeclaredField(
         "abfsStore");
     abfsStoreField.setAccessible(true);
-    abfsStoreField.set(testUserFs, mockAbfsStore);
-    testUserFs.access(new Path("/"), FsAction.READ);
+    abfsStoreField.set(testUserFSWithoutNS, mockAbfsStore);
+    testUserFSWithoutNS.access(new Path("/"), FsAction.READ);
 
     superUserFs.access(new Path("/"), FsAction.READ);
   }
