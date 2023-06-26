@@ -1779,6 +1779,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
               AzureServiceErrorCode.PATH_NOT_FOUND.getErrorCode(),
               ex.getErrorMessage(), ex);
         }
+        throw ex;
       }
       LOG.debug(
           String.format("Path %s is not a directory", path.toUri().getPath()));
