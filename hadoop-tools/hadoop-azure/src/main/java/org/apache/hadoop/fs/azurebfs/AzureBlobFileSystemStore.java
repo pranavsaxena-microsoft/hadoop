@@ -940,13 +940,13 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     return blobProperties;
   }
 
-  public void createFilesystem(TracingContext tracingContext)
+  public void createFilesystem(TracingContext tracingContext, final boolean useBlobEndpoint)
       throws AzureBlobFileSystemException {
     try (AbfsPerfInfo perfInfo = startTracking("createFilesystem", "createFilesystem")){
       LOG.debug("createFilesystem for filesystem: {}",
               client.getFileSystem());
       final AbfsRestOperation op;
-      if (getPrefixMode() == PrefixMode.BLOB) {
+      if (useBlobEndpoint) {
         op = client.createContainer(tracingContext);
       } else {
         op = client.createFilesystem(tracingContext);

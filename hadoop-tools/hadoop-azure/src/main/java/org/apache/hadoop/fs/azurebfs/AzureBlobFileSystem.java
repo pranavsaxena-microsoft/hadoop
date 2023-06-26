@@ -1775,7 +1775,12 @@ public class AzureBlobFileSystem extends FileSystem
     LOG.debug(
         "AzureBlobFileSystem.createFileSystem uri: {}", uri);
     try {
-      abfsStore.createFilesystem(tracingContext);
+      PrefixMode prefixMode = getAbfsStore().getPrefixMode();
+      AbfsConfiguration abfsConfiguration = getAbfsStore().getAbfsConfiguration();
+      boolean useBlobEndpoint = !(OperativeEndpoint.isIngressEnabledOnDFS(prefixMode, abfsConfiguration) ||
+          OperativeEndpoint.isMkdirEnabledOnDFS(abfsConfiguration) ||
+          OperativeEndpoint.isReadEnabledOnDFS(abfsConfiguration));
+      abfsStore.createFilesystem(tracingContext, useBlobEndpoint);
     } catch (AzureBlobFileSystemException ex) {
       checkException(null, ex);
     }

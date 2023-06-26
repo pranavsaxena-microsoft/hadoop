@@ -31,6 +31,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.azurebfs.constants.FileSystemUriSchemes;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AbfsRestOperationException;
 import org.apache.hadoop.fs.azurebfs.services.AuthType;
+import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 
 import static org.apache.hadoop.fs.CommonPathCapabilities.ETAGS_AVAILABLE;
@@ -128,7 +129,8 @@ public class ITestFileSystemInitialization extends AbstractAbfsIntegrationTest {
     final AzureBlobFileSystem fs = getFileSystem();
     // assert that createContainer fails for already existing fileSystem.
     intercept(AbfsRestOperationException.class,
-        () -> fs.getAbfsStore().createFilesystem(Mockito.mock(TracingContext.class)));
+        () -> fs.getAbfsStore().createFilesystem(Mockito.mock(TracingContext.class),
+        fs.getAbfsStore().getPrefixMode() == PrefixMode.BLOB));
 
     fs.getAbfsStore().deleteFilesystem(Mockito.mock(TracingContext.class));
     intercept(AbfsRestOperationException.class,
