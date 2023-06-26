@@ -462,6 +462,8 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
             AbfsRestOperation op;
             if (!OperativeEndpoint.isIngressEnabledOnDFS(prefixMode, client.getAbfsConfiguration())) {
               try {
+                LOG.debug("Append over Blob for ingress config value {} for path {} ",
+                        client.getAbfsConfiguration().shouldIngressFallbackToDfs(), path);
                 op = client.append(blockToUpload.getBlockId(), path, blockUploadData.toByteArray(), reqParams,
                         cachedSasToken.get(), new TracingContext(tracingContext), getETag());
                 String key = blockToUpload.getBlockId();
@@ -490,6 +492,8 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
                 }
               }
             } else {
+              LOG.debug("Append over DFS for ingress config value {} for path {} ",
+                      client.getAbfsConfiguration().shouldIngressFallbackToDfs(), path);
               TracingContext tracingContextAppend = new TracingContext(tracingContext);
               if (fallbackDFSAppend) {
                 tracingContextAppend.setFallbackDFSAppend("D");
@@ -803,6 +807,8 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
             "flushWrittenBytesToServiceInternal", "flush")) {
       AbfsRestOperation op;
       if (!OperativeEndpoint.isIngressEnabledOnDFS(prefixMode, client.getAbfsConfiguration())) {
+        LOG.debug("Flush over Blob for ingress config value {} for path {} ",
+                client.getAbfsConfiguration().shouldIngressFallbackToDfs(), path);
         // Adds all the committed blocks if available to the list of blocks to be added in putBlockList.
         blockIdList.addAll(committedBlockEntries);
         boolean successValue = true;
@@ -844,6 +850,8 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
         getMap().clear();
         orderedBlockList.clear();
       } else {
+        LOG.debug("Flush over DFS for ingress config value {} for path {} ",
+                client.getAbfsConfiguration().shouldIngressFallbackToDfs(), path);
         TracingContext tracingContextFlush = new TracingContext(tracingContext);
         if (fallbackDFSAppend) {
           tracingContextFlush.setFallbackDFSAppend("D");
