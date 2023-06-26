@@ -1783,7 +1783,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       }
     }
     createParentDirectory(path, tracingContext);
-    LOG.debug(String.format("Deletion of Path %s completed"), srcPathStr);
+    LOG.debug(String.format("Deletion of Path %s completed", srcPathStr));
   }
 
   private void orchestrateBlobDirDeletion(final Path path,
