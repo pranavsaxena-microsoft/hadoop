@@ -253,4 +253,8 @@ public class TracingContext {
   public void setOperatedBlobCount(Integer count) {
     operatedBlobCount = count;
   }
+
+  public Integer getOperatedBlobCount() {
+    return operatedBlobCount;
+  }
 }

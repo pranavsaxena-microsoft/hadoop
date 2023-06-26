@@ -414,4 +414,11 @@ public class ITestAzureBlobFileSystemDelete extends
     Long newLmt = fs.getFileStatus(new Path("/dir1")).getModificationTime();
     Assertions.assertThat(lmt).isEqualTo(newLmt);
   }
+
+  @Test
+  public void testDeleteEmitDeletionCountInClientRequestId() throws Exception {
+    AzureBlobFileSystem fs = getFileSystem();
+    Assume.assumeTrue(getPrefixMode(fs) == PrefixMode.BLOB);
+
+  }
 }
