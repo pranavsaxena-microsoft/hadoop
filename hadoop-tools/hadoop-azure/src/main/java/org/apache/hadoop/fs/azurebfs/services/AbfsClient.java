@@ -1231,7 +1231,10 @@ public class AbfsClient implements Closeable {
     abfsUriQueryBuilder.addQuery(HttpQueryParams.QUERY_PARAM_ACTION, AbfsHttpConstants.SET_ACCESS_CONTROL);
     appendSASTokenToQuery(path, SASTokenProvider.SET_ACL_OPERATION, abfsUriQueryBuilder);
 
-    final URL url = createRequestUrl(path, abfsUriQueryBuilder.toString());
+    URL url = createRequestUrl(path, abfsUriQueryBuilder.toString());
+    if (url.toString().contains(WASB_DNS_PREFIX)) {
+      url = changePrefixFromBlobtoDfs(url);
+    }
     final AbfsRestOperation op = new AbfsRestOperation(
         AbfsRestOperationType.SetAcl,
         this,
@@ -1256,7 +1259,10 @@ public class AbfsClient implements Closeable {
     abfsUriQueryBuilder.addQuery(HttpQueryParams.QUERY_PARAM_UPN, String.valueOf(useUPN));
     appendSASTokenToQuery(path, SASTokenProvider.GET_ACL_OPERATION, abfsUriQueryBuilder);
 
-    final URL url = createRequestUrl(path, abfsUriQueryBuilder.toString());
+    URL url = createRequestUrl(path, abfsUriQueryBuilder.toString());
+    if (url.toString().contains(WASB_DNS_PREFIX)) {
+      url = changePrefixFromBlobtoDfs(url);
+    }
     final AbfsRestOperation op = new AbfsRestOperation(
         AbfsRestOperationType.GetAcl,
         this,
@@ -1283,7 +1289,12 @@ public class AbfsClient implements Closeable {
     abfsUriQueryBuilder.addQuery(QUERY_PARAM_ACTION, CHECK_ACCESS);
     abfsUriQueryBuilder.addQuery(QUERY_FS_ACTION, rwx);
     appendSASTokenToQuery(path, SASTokenProvider.CHECK_ACCESS_OPERATION, abfsUriQueryBuilder);
-    final URL url = createRequestUrl(path, abfsUriQueryBuilder.toString());
+
+    URL url = createRequestUrl(path, abfsUriQueryBuilder.toString());
+    if (url.toString().contains(WASB_DNS_PREFIX)) {
+      url = changePrefixFromBlobtoDfs(url);
+    }
+
     AbfsRestOperation op = new AbfsRestOperation(
         AbfsRestOperationType.CheckAccess, this,
         AbfsHttpConstants.HTTP_METHOD_HEAD, url, createDefaultHeaders());
