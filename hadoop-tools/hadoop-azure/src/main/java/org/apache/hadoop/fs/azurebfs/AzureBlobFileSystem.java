@@ -895,6 +895,9 @@ public class AzureBlobFileSystem extends FileSystem
         return false;
       }
 
+      /*
+      * For DFS root directory deletion,
+      */
       if (getAbfsStore().getPrefixMode() == PrefixMode.DFS) {
         return deleteRoot();
       }
