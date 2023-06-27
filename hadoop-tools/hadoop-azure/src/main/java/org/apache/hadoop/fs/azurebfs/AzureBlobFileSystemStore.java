@@ -1768,9 +1768,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       LOG.debug(String.format("Path %s doesn't have child-blobs", srcPathStr));
       if (!path.isRoot()) {
         try {
-          LOG.debug(String.format("Deleting path %s", srcPathStr));
           client.deleteBlobPath(path, null, tracingContext);
-          LOG.debug(String.format("Path deleted %s", srcPathStr));
         } catch (AbfsRestOperationException ex) {
           if (ex.getStatusCode() == HTTP_NOT_FOUND) {
             LOG.error(String.format("Path %s doesn't exist", srcPathStr), ex);
