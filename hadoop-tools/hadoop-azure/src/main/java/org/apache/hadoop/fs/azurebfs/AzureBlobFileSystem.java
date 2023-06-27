@@ -926,18 +926,18 @@ public class AzureBlobFileSystem extends FileSystem
       TracingContext tracingContext = new TracingContext(clientCorrelationId,
           fileSystemId, FSOperationType.LISTSTATUS, true, tracingHeaderFormat,
           listener);
-      FileStatus[] result = abfsStore.listStatus(qualifiedPath, tracingContext);
+      FileStatus[] result = getAbfsStore().listStatus(qualifiedPath, tracingContext);
       if (getAbfsStore().getAbfsConfiguration().getPrefixMode()
           == PrefixMode.BLOB) {
         FileStatus renamePendingFileStatus
-            = abfsStore.getRenamePendingFileStatus(result);
+            = getAbfsStore().getRenamePendingFileStatus(result);
         if (renamePendingFileStatus != null) {
           RenameAtomicityUtils renameAtomicityUtils =
               new RenameAtomicityUtils(this,
                   renamePendingFileStatus.getPath(),
-                  abfsStore.getRedoRenameInvocation(tracingContext));
+                  getAbfsStore().getRedoRenameInvocation(tracingContext));
           renameAtomicityUtils.cleanup(renamePendingFileStatus.getPath());
-          result = abfsStore.listStatus(qualifiedPath, tracingContext);
+          result = getAbfsStore().listStatus(qualifiedPath, tracingContext);
         }
       }
       return result;
