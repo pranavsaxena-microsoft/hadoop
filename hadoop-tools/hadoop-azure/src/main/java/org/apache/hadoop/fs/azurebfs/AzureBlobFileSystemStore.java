@@ -905,20 +905,25 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     if (!isNormalBlob) {
       // Marker blob creation flow.
       if (OperativeEndpoint.isMkdirEnabledOnDFS(abfsConfiguration)) {
-        LOG.debug("DFS fallback enabled and incorrect mkdir flow is hit for path {} and config {} ", relativePath, abfsConfiguration.shouldMkdirFallbackToDfs());
+        LOG.debug("DFS fallback enabled and incorrect mkdir flow is hit for path {} and config value {} ",
+                relativePath, abfsConfiguration.shouldMkdirFallbackToDfs());
         // Marker blob creation is not possible with dfs endpoint.
-        throw new InvalidConfigurationValueException("Incorrect flow for create directory for dfs is hit " + relativePath);
+        throw new InvalidConfigurationValueException("Incorrect flow for create directory for dfs is hit " +
+                relativePath);
       } else {
-        LOG.debug("Path created via blob for mkdir call for path {} and config {} ", relativePath, abfsConfiguration.shouldMkdirFallbackToDfs());
+        LOG.debug("Path created via blob for mkdir call for path {} and config value {} ",
+                relativePath, abfsConfiguration.shouldMkdirFallbackToDfs());
         op = createPathBlob(relativePath, false, overwrite, metadata, eTag, tracingContext);
       }
     } else {
       // Normal blob creation flow. If config for fallback is not enabled and prefix mode is blob go to blob, else go to dfs.
       if (!OperativeEndpoint.isIngressEnabledOnDFS(getPrefixMode(), abfsConfiguration)) {
-        LOG.debug("Path created via blob endpoint for path {} and config {} ", relativePath, abfsConfiguration.shouldIngressFallbackToDfs());
+        LOG.debug("Path created via blob endpoint for path {} and config value {} ",
+                relativePath, abfsConfiguration.shouldIngressFallbackToDfs());
         op = createPathBlob(relativePath, true, overwrite, metadata, eTag, tracingContext);
       } else {
-        LOG.debug("Path created via dfs endpoint for path {} and config value {} ", relativePath, abfsConfiguration.shouldIngressFallbackToDfs());
+        LOG.debug("Path created via dfs endpoint for path {} and config value {} ",
+                relativePath, abfsConfiguration.shouldIngressFallbackToDfs());
         op = createPath(relativePath, true, overwrite, isNamespaceEnabled ? getOctalNotation(permission) : null,
                 isNamespaceEnabled ? getOctalNotation(umask) : null, isAppendBlob, eTag, tracingContext);
       }
@@ -1045,7 +1050,8 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
           boolean useBlobEndpoint = getPrefixMode() == PrefixMode.BLOB;
           if (OperativeEndpoint.isIngressEnabledOnDFS(
                   getAbfsConfiguration().getPrefixMode(), getAbfsConfiguration())) {
-            LOG.debug("GFS over DFS for create for ingress config value {} for path {} ", abfsConfiguration.shouldIngressFallbackToDfs(), relativePath);
+            LOG.debug("GetFileStatus over DFS for create for ingress config value {} for path {} ",
+                    abfsConfiguration.shouldIngressFallbackToDfs(), relativePath);
             useBlobEndpoint = false;
           }
           fileStatus = (VersionedFileStatus) getFileStatus(new Path(relativePath), tracingContext, useBlobEndpoint);
@@ -1145,7 +1151,8 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
           throws IOException {
     try (AbfsPerfInfo perfInfo = startTracking("createDirectory", "createPath")) {
       if (!OperativeEndpoint.isMkdirEnabledOnDFS(abfsConfiguration)) {
-        LOG.debug("Mkdir created via blob endpoint for the given path {} and config {} ", path, abfsConfiguration.shouldMkdirFallbackToDfs());
+        LOG.debug("Mkdir created via blob endpoint for the given path {} and config value {} ",
+                path, abfsConfiguration.shouldMkdirFallbackToDfs());
         ArrayList<Path> keysToCreateAsFolder = new ArrayList<>();
         checkParentChainForFile(path, tracingContext, keysToCreateAsFolder);
         boolean blobOverwrite = abfsConfiguration.isEnabledBlobMkdirOverwrite();
@@ -1161,7 +1168,8 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         return;
       }
       boolean isNamespaceEnabled = getIsNamespaceEnabled(tracingContext);
-      LOG.debug("Mkdir created via dfs endpoint for the given path {} and config {} ", path, abfsConfiguration.shouldMkdirFallbackToDfs());
+      LOG.debug("Mkdir created via dfs endpoint for the given path {} and config value {} ",
+              path, abfsConfiguration.shouldMkdirFallbackToDfs());
       LOG.debug("createDirectory filesystem: {} path: {} permission: {} umask: {} isNamespaceEnabled: {}",
               client.getFileSystem(),
               path,
