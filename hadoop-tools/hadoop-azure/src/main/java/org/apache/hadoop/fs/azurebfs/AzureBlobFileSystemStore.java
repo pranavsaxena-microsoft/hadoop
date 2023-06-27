@@ -471,7 +471,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
 
       if (getPrefixMode() == PrefixMode.BLOB) {
         op = client.getContainerMetadata(tracingContext);
-        perfInfo.registerResult(op.getResult()).registerSuccess(true);
+        perfInfo.registerResult(op.getResult());
 
         parsedXmsProperties = parseResponseHeadersToHashTable(op.getResult());
         perfInfo.registerSuccess(true);
