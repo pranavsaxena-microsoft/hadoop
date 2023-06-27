@@ -110,6 +110,30 @@ public class ITestAzureBlobFileSystemCheckAccess
     this.testUserFs = FileSystem.newInstance(getRawConfiguration());
   }
 
+  private void setTestUserFsNonHNS() throws Exception {
+    AzureBlobFileSystemStore abfsStore = getAbfsStore(getFileSystem());
+    String accountName = this.getAccountName();
+    if (abfsStore.getPrefixMode() == PrefixMode.BLOB) {
+      if (abfsStore.getAbfsConfiguration().shouldEnableBlobEndPoint()) {
+        accountName = getAccountName().replace(ABFS_DNS_PREFIX, WASB_DNS_PREFIX);
+      }
+    }
+    checkIfConfigIsSet(FS_AZURE_ACCOUNT_OAUTH_CLIENT_ENDPOINT
+            + "." + accountName);
+    Configuration conf = getRawConfiguration();
+    setTestFsConf(FS_AZURE_BLOB_FS_CLIENT_ID,
+            FS_AZURE_BLOB_FS_CHECKACCESS_TEST_CLIENT_ID);
+    setTestFsConf(FS_AZURE_BLOB_FS_CLIENT_SECRET,
+            FS_AZURE_BLOB_FS_CHECKACCESS_TEST_CLIENT_SECRET);
+    conf.set(FS_AZURE_ACCOUNT_AUTH_TYPE_PROPERTY_NAME, AuthType.OAuth.name());
+    conf.set(FS_AZURE_ACCOUNT_TOKEN_PROVIDER_TYPE_PROPERTY_NAME + "."
+            + accountName, ClientCredsTokenProvider.class.getName());
+    conf.setBoolean(AZURE_CREATE_REMOTE_FILESYSTEM_DURING_INITIALIZATION,
+            false);
+    FileSystem testUserFsNonHns;
+    testUserFsNonHns = FileSystem.newInstance(getRawConfiguration());
+  }
+
   private void setTestFsConf(final String fsConfKey,
       final String testFsConfKey) {
     final String confKeyWithAccountName = fsConfKey + "." + getAccountName();
@@ -187,10 +211,8 @@ public class ITestAzureBlobFileSystemCheckAccess
 
     //  When the driver does not know if the account is HNS enabled or not it
     //  makes a server call and fails
-    intercept(Exception.class,
-            "\"This request is not authorized to perform this operation using "
-                    + "this permission.\", 403", () ->
-    setTestUserFs());
+    intercept(Exception.class, "\"This request is not authorized to perform this operation using "
+            + "this permission.\", 403", this::setTestUserFsNonHNS);
 
     Configuration configuration = getFileSystem().getConf();
     configuration.setBoolean(FS_AZURE_ACCOUNT_IS_HNS_ENABLED, false);
