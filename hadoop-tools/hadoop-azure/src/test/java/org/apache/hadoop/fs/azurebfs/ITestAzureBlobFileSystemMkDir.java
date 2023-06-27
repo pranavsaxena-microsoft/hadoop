@@ -130,7 +130,7 @@ public class ITestAzureBlobFileSystemMkDir extends AbstractAbfsIntegrationTest {
     fs.mkdirs(dirPath);
 
     // One request to server for dfs and 2 for blob because child calls mkdir for parent.
-    if (!OperativeEndpoint.isMkdirEnabledOnDFS(getPrefixMode(fs), getAbfsStore(fs).getAbfsConfiguration())) {
+    if (!OperativeEndpoint.isMkdirEnabledOnDFS(getAbfsStore(fs).getAbfsConfiguration())) {
       mkdirRequestCount += 2;
     } else {
       mkdirRequestCount++;
@@ -146,7 +146,7 @@ public class ITestAzureBlobFileSystemMkDir extends AbstractAbfsIntegrationTest {
     fs.mkdirs(dirPath);
 
     // One request to server for dfs and 3 for blob because child calls mkdir for parent.
-    if (!OperativeEndpoint.isMkdirEnabledOnDFS(getPrefixMode(fs), getAbfsStore(fs).getAbfsConfiguration())) {
+    if (!OperativeEndpoint.isMkdirEnabledOnDFS(getAbfsStore(fs).getAbfsConfiguration())) {
       mkdirRequestCount += 3;
     } else {
       mkdirRequestCount++;

@@ -609,7 +609,8 @@ public class ITestAzureBlobFileSystemBlobConfig
     Mockito.doAnswer(answer -> {
       isRenameOverBlobEndpoint[0] = true;
       return answer.callRealMethod();
-    }).when(client).copyBlob(Mockito.any(Path.class), Mockito.any(Path.class), Mockito.any(TracingContext.class));
+    }).when(client).copyBlob(Mockito.any(Path.class), Mockito.any(Path.class),
+        Mockito.nullable(String.class), Mockito.any(TracingContext.class));
   }
 
   private void countDeleteOverAbfsAndWasb(final NativeAzureFileSystem nativeAzureFileSystem,
