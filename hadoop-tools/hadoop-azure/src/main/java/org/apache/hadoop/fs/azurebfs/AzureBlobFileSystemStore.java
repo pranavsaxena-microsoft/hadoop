@@ -1258,7 +1258,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       String relativePath = getRelativePath(path);
       boolean useBlobEndpoint = getPrefixMode() == PrefixMode.BLOB;
       if (OperativeEndpoint.isReadEnabledOnDFS(getAbfsConfiguration())) {
-        LOG.debug("GFS over DFS for open file for read for read config value {} for path {} ",
+        LOG.debug("GetFileStatus over DFS for open file for read for read config value {} for path {} ",
                 abfsConfiguration.shouldReadFallbackToDfs(), path);
         useBlobEndpoint = false;
       }
@@ -1323,7 +1323,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       boolean useBlobEndpoint = getPrefixMode() == PrefixMode.BLOB;
       if (OperativeEndpoint.isIngressEnabledOnDFS(
               getAbfsConfiguration().getPrefixMode(), getAbfsConfiguration())) {
-        LOG.debug("GFS over DFS for open file for write for ingress config value {} for path {} ",
+        LOG.debug("GetFileStatus over DFS for open file for write for ingress config value {} for path {} ",
                 abfsConfiguration.shouldIngressFallbackToDfs(), path);
         useBlobEndpoint = false;
       }
