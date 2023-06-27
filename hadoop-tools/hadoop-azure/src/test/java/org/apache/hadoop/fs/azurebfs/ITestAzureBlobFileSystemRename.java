@@ -445,12 +445,14 @@ public class ITestAzureBlobFileSystemRename extends
      * Check if the fs.delete is on the renameJson file.
      */
     AtomicInteger deletedCount = new AtomicInteger(0);
+    AtomicBoolean srcSuffixDeletion = new AtomicBoolean(false);
     Mockito.doAnswer(answer -> {
           Path path = answer.getArgument(0);
           Boolean recursive = answer.getArgument(1);
           Assert.assertTrue(
               ("/" + "hbase/test1/test2/test3" + SUFFIX).equalsIgnoreCase(
                   path.toUri().getPath()));
+          srcSuffixDeletion.set(true);
           deletedCount.incrementAndGet();
           return fs.delete(path, recursive);
         })
@@ -468,11 +470,17 @@ public class ITestAzureBlobFileSystemRename extends
           Path path = answer.getArgument(0);
           String leaseId = answer.getArgument(1);
           TracingContext tracingContext = answer.getArgument(2);
-          Assert.assertTrue(
-              ("/" + failedCopyPath).equalsIgnoreCase(path.toUri().getPath())
-                  || "/hbase/test1/test2/test3".equalsIgnoreCase(
-                  path.toUri().getPath()));
-          deletedCount.incrementAndGet();
+          if (srcSuffixDeletion.get()) {
+            Assert.assertTrue(
+                ("/" + "hbase/test1/test2/test3" + SUFFIX).equalsIgnoreCase(
+                    path.toUri().getPath()));
+          } else {
+            Assert.assertTrue(
+                ("/" + failedCopyPath).equalsIgnoreCase(path.toUri().getPath())
+                    || "/hbase/test1/test2/test3".equalsIgnoreCase(
+                    path.toUri().getPath()));
+            deletedCount.incrementAndGet();
+          }
           client.deleteBlobPath(path, leaseId, tracingContext);
           return null;
         })
@@ -576,11 +584,13 @@ public class ITestAzureBlobFileSystemRename extends
      * Check if the fs.delete is on the renameJson file.
      */
     AtomicInteger deletedCount = new AtomicInteger(0);
+    AtomicBoolean srcDirSuffixDeletion = new AtomicBoolean(false);
     Mockito.doAnswer(answer -> {
           Path path = answer.getArgument(0);
           Boolean recursive = answer.getArgument(1);
           Assert.assertTrue(("/" + "hbase/test1/test2" + SUFFIX).equalsIgnoreCase(
               path.toUri().getPath()));
+          srcDirSuffixDeletion.set(true);
           deletedCount.incrementAndGet();
           return fs.delete(path, recursive);
         })
@@ -598,10 +608,16 @@ public class ITestAzureBlobFileSystemRename extends
           Path path = answer.getArgument(0);
           String leaseId = answer.getArgument(1);
           TracingContext tracingContext = answer.getArgument(2);
-          Assert.assertTrue(
-              ("/" + failedCopyPath).equalsIgnoreCase(path.toUri().getPath())
-                  || "/hbase/test1/test2".equalsIgnoreCase(path.toUri().getPath()));
-          deletedCount.incrementAndGet();
+          if (srcDirSuffixDeletion.get()) {
+            Assert.assertTrue(("/" + "hbase/test1/test2" + SUFFIX).equalsIgnoreCase(
+                path.toUri().getPath()));
+          } else {
+            Assert.assertTrue(
+                ("/" + failedCopyPath).equalsIgnoreCase(path.toUri().getPath())
+                    || "/hbase/test1/test2".equalsIgnoreCase(
+                    path.toUri().getPath()));
+            deletedCount.incrementAndGet();
+          }
           client.deleteBlobPath(path, leaseId, tracingContext);
           return null;
         })
@@ -713,11 +729,13 @@ public class ITestAzureBlobFileSystemRename extends
      * Check if the fs.delete is on the renameJson file.
      */
     AtomicInteger deletedCount = new AtomicInteger(0);
+    AtomicBoolean srcSuffixDeletion = new AtomicBoolean(false);
     Mockito.doAnswer(answer -> {
           Path path = answer.getArgument(0);
           Boolean recursive = answer.getArgument(1);
           Assert.assertTrue(("/" + "hbase/test1/test2" + SUFFIX).equalsIgnoreCase(
               path.toUri().getPath()));
+          srcSuffixDeletion.set(true);
           deletedCount.incrementAndGet();
           return fs.delete(path, recursive);
         })
@@ -735,9 +753,16 @@ public class ITestAzureBlobFileSystemRename extends
           Path path = answer.getArgument(0);
           String leaseId = answer.getArgument(1);
           TracingContext tracingContext = answer.getArgument(2);
-          Assert.assertTrue(
-              ("/" + failedCopyPath).equalsIgnoreCase(path.toUri().getPath()) || "/hbase/test1/test2".equalsIgnoreCase(path.toUri().getPath()));
-          deletedCount.incrementAndGet();
+          if (srcSuffixDeletion.get()) {
+            Assert.assertTrue(("/" + "hbase/test1/test2" + SUFFIX).equalsIgnoreCase(
+                path.toUri().getPath()));
+          } else {
+            Assert.assertTrue(
+                ("/" + failedCopyPath).equalsIgnoreCase(path.toUri().getPath())
+                    || "/hbase/test1/test2".equalsIgnoreCase(
+                    path.toUri().getPath()));
+            deletedCount.incrementAndGet();
+          }
           client.deleteBlobPath(path, leaseId, tracingContext);
           return null;
         })
@@ -1048,11 +1073,13 @@ public class ITestAzureBlobFileSystemRename extends
      * Check if the fs.delete is on the renameJson file.
      */
     AtomicInteger deletedCount = new AtomicInteger(0);
+    AtomicBoolean deletedSrcDirSuffix = new AtomicBoolean(false);
     Mockito.doAnswer(answer -> {
           Path path = answer.getArgument(0);
           Boolean recursive = answer.getArgument(1);
           Assert.assertTrue(
               (srcDir + SUFFIX).equalsIgnoreCase(path.toUri().getPath()));
+          deletedSrcDirSuffix.set(true);
           deletedCount.incrementAndGet();
           return fs.delete(path, recursive);
         })
@@ -1070,8 +1097,15 @@ public class ITestAzureBlobFileSystemRename extends
           Path path = answer.getArgument(0);
           String leaseId = answer.getArgument(1);
           TracingContext tracingContext = answer.getArgument(2);
-          Assert.assertTrue(((srcDir).equalsIgnoreCase(path.toUri().getPath()) || (srcDir+"/file1").equalsIgnoreCase(path.toUri().getPath())));
-          deletedCount.incrementAndGet();
+          if (deletedSrcDirSuffix.get()) {
+            Assert.assertTrue(
+                (srcDir + SUFFIX).equalsIgnoreCase(path.toUri().getPath()));
+          } else {
+            Assert.assertTrue(
+                ((srcDir).equalsIgnoreCase(path.toUri().getPath()) || (srcDir
+                    + "/file1").equalsIgnoreCase(path.toUri().getPath())));
+            deletedCount.incrementAndGet();
+          }
           client.deleteBlobPath(path, leaseId, tracingContext);
           return null;
         })

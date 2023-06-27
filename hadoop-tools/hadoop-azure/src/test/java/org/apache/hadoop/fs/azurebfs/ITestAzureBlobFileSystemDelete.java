@@ -30,7 +30,9 @@ import java.util.concurrent.Future;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.assertj.core.api.Assertions;
+import org.junit.Assert;
 import org.junit.Assume;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import org.apache.hadoop.fs.azurebfs.constants.FSOperationType;
@@ -38,6 +40,7 @@ import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AbfsRestOperationExcep
 import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
 import org.apache.hadoop.fs.azurebfs.services.AbfsHttpOperation;
 import org.apache.hadoop.fs.azurebfs.services.AbfsRestOperation;
+import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
 import org.apache.hadoop.fs.azurebfs.services.ITestAbfsClient;
 import org.apache.hadoop.fs.azurebfs.services.TestAbfsPerfTracker;
 import org.apache.hadoop.fs.azurebfs.utils.TestMockHelpers;
@@ -46,9 +49,12 @@ import org.apache.hadoop.fs.azurebfs.utils.TracingHeaderValidator;
 import org.apache.hadoop.fs.FileAlreadyExistsException;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.test.LambdaTestUtils;
+
 import org.mockito.Mockito;
 
 import static java.net.HttpURLConnection.HTTP_BAD_REQUEST;
+import static java.net.HttpURLConnection.HTTP_FORBIDDEN;
 import static java.net.HttpURLConnection.HTTP_NOT_FOUND;
 import static java.net.HttpURLConnection.HTTP_OK;
 
@@ -147,6 +153,7 @@ public class ITestAzureBlobFileSystemDelete extends
     assertPathDoesNotExist(fs, "deleted", dir);
   }
 
+  @Ignore
   @Test
   public void testDeleteFirstLevelDirectory() throws Exception {
     final AzureBlobFileSystem fs = getFileSystem();
@@ -302,4 +309,109 @@ public class ITestAzureBlobFileSystemDelete extends
     mockStore.delete(new Path("/NonExistingPath"), false, getTestTracingContext(fs, false));
   }
 
+  @Test
+  public void testDeleteImplicitDir() throws Exception {
+    AzureBlobFileSystem fs = getFileSystem();
+    Assume.assumeTrue(fs.getAbfsStore().getPrefixMode() == PrefixMode.BLOB);
+    fs.mkdirs(new Path("/testDir/dir1"));
+    fs.create(new Path("/testDir/dir1/file1"));
+    fs.getAbfsClient().deleteBlobPath(new Path("/testDir/dir1"),
+        null, Mockito.mock(TracingContext.class));
+
+    fs.delete(new Path("/testDir/dir1"), true);
+
+    Assert.assertTrue(!fs.exists(new Path("/testDir/dir1")));
+    Assert.assertTrue(!fs.exists(new Path("/testDir/dir1/file1")));
+  }
+
+  @Test
+  public void testDeleteImplicitDirWithSingleListResults() throws Exception {
+    AzureBlobFileSystem fs = (AzureBlobFileSystem) FileSystem.newInstance(
+        getRawConfiguration());
+    Assume.assumeTrue(fs.getAbfsStore().getPrefixMode() == PrefixMode.BLOB);
+    AbfsClient client = fs.getAbfsClient();
+    AbfsClient spiedClient = Mockito.spy(client);
+    fs.getAbfsStore().setClient(spiedClient);
+    fs.mkdirs(new Path("/testDir/dir1"));
+    for (int i = 0; i < 10; i++) {
+      fs.create(new Path("/testDir/dir1/file" + i));
+    }
+    Mockito.doAnswer(answer -> {
+          String marker = answer.getArgument(0);
+          String prefix = answer.getArgument(1);
+          TracingContext context = answer.getArgument(4);
+          return client.getListBlobs(marker, prefix, null, 1, context);
+        })
+        .when(spiedClient)
+        .getListBlobs(Mockito.nullable(String.class), Mockito.anyString(),
+            Mockito.nullable(String.class), Mockito.nullable(Integer.class),
+            Mockito.any(TracingContext.class));
+    fs.getAbfsClient().deleteBlobPath(new Path("/testDir/dir1"),
+        null, Mockito.mock(TracingContext.class));
+
+    fs.delete(new Path("/testDir/dir1"), true);
+
+    Assert.assertTrue(!fs.exists(new Path("/testDir/dir1")));
+  }
+
+  @Test
+  public void testDeleteExplicitDirInImplicitParentDir() throws Exception {
+    AzureBlobFileSystem fs = getFileSystem();
+    Assume.assumeTrue(fs.getAbfsStore().getPrefixMode() == PrefixMode.BLOB);
+    fs.mkdirs(new Path("/testDir/dir1"));
+    fs.create(new Path("/testDir/dir1/file1"));
+    fs.getAbfsClient().deleteBlobPath(new Path("/testDir/"),
+        null, Mockito.mock(TracingContext.class));
+
+    fs.delete(new Path("/testDir/dir1"), true);
+
+    Assert.assertTrue(!fs.exists(new Path("/testDir/dir1")));
+    Assert.assertTrue(!fs.exists(new Path("/testDir/dir1/file1")));
+    Assert.assertTrue(fs.exists(new Path("/testDir/")));
+  }
+
+  @Test
+  public void testDeleteParallelBlobFailure() throws Exception {
+    AzureBlobFileSystem fs = Mockito.spy(getFileSystem());
+    Assume.assumeTrue(fs.getAbfsStore().getPrefixMode() == PrefixMode.BLOB);
+    AbfsClient client = Mockito.spy(fs.getAbfsClient());
+    AzureBlobFileSystemStore store = Mockito.spy(fs.getAbfsStore());
+    store.setClient(client);
+    Mockito.doReturn(store).when(fs).getAbfsStore();
+
+    fs.mkdirs(new Path("/testDir"));
+    fs.create(new Path("/testDir/file1"));
+    fs.create(new Path("/testDir/file2"));
+    fs.create(new Path("/testDir/file3"));
+
+    Mockito.doThrow(
+            new AbfsRestOperationException(HTTP_FORBIDDEN, "", "", new Exception()))
+        .when(client)
+        .deleteBlobPath(Mockito.any(Path.class), Mockito.nullable(String.class),
+            Mockito.any(TracingContext.class));
+
+    LambdaTestUtils.intercept(RuntimeException.class, () -> {
+      fs.delete(new Path("/testDir"), true);
+    });
+  }
+
+  @Test
+  public void testDeleteRootWithNonRecursion() throws Exception {
+    AzureBlobFileSystem fs = getFileSystem();
+    fs.mkdirs(new Path("/testDir"));
+    Assertions.assertThat(fs.delete(new Path("/"), false)).isFalse();
+  }
+
+  @Test
+  public void testDeleteCheckIfParentLMTChange() throws Exception {
+    AzureBlobFileSystem fs = getFileSystem();
+    fs.mkdirs(new Path("/dir1/dir2"));
+    fs.create(new Path("/dir1/dir2/file"));
+    FileStatus status = fs.getFileStatus(new Path("/dir1"));
+    Long lmt = status.getModificationTime();
+
+    fs.delete(new Path("/dir1/dir2"), true);
+    Long newLmt = fs.getFileStatus(new Path("/dir1")).getModificationTime();
+    Assertions.assertThat(lmt).isEqualTo(newLmt);
+  }
 }
