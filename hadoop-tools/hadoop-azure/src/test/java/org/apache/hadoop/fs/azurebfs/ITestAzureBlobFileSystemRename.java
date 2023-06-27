@@ -2142,4 +2142,75 @@ public class ITestAzureBlobFileSystemRename extends
     Assertions.assertThat(fs.exists(new Path("/hbase/testDir2"))).isTrue();
     Assertions.assertThat(copied.get()).isGreaterThan(0);
   }
+
+  @Test
+  public void testBlobRenameResumeWithGetFileStatus() throws Exception {
+    assumeNonHnsAccountBlobEndpoint(getFileSystem());
+    AzureBlobFileSystem fs = Mockito.spy(getFileSystem());
+    AzureBlobFileSystemStore store = Mockito.spy(fs.getAbfsStore());
+
+    fs.mkdirs(new Path("/hbase/testDir"));
+    ExecutorService executorService = Executors.newFixedThreadPool(5);
+    List<Future> futures = new ArrayList<>();
+    for (int i = 0; i < 10; i++) {
+      final int iter = i;
+      futures.add(executorService.submit(
+          () -> fs.create(new Path("/hbase/testDir/file" + iter))));
+    }
+
+    for (Future future : futures) {
+      future.get();
+    }
+
+    AbfsClient client = Mockito.spy(fs.getAbfsClient());
+    Mockito.doReturn(store).when(fs).getAbfsStore();
+    store.setClient(client);
+
+    AbfsRestOperation op = client.acquireBlobLease("/hbase/testDir/file5", -1,
+        Mockito.mock(TracingContext.class));
+    String leaseId = op.getResult()
+        .getResponseHeader(HttpHeaderConfigurations.X_MS_LEASE_ID);
+    intercept(Exception.class, () -> {
+      fs.rename(new Path("/hbase/testDir"), new Path("/hbase/testDir2"));
+    });
+    client.releaseBlobLease("/hbase/testDir/file5", leaseId,
+        Mockito.mock(TracingContext.class));
+
+    TracingContext[] tracingContextCreatedInFsListStatus
+        = new TracingContext[1];
+    Mockito.doAnswer(answer -> {
+          synchronized (this) {
+            if (tracingContextCreatedInFsListStatus[0] == null) {
+              tracingContextCreatedInFsListStatus[0] = answer.getArgument(1);
+            }
+          }
+          return answer.callRealMethod();
+        })
+        .when(store)
+        .getFileStatus(Mockito.any(Path.class),
+            Mockito.any(TracingContext.class), Mockito.anyBoolean());
+
+    AtomicInteger copied = new AtomicInteger(0);
+    Mockito.doAnswer(answer -> {
+          copied.incrementAndGet();
+          TracingContext tracingContext = answer.getArgument(3);
+          Assertions.assertThat(tracingContext)
+              .isEqualTo(tracingContextCreatedInFsListStatus[0]);
+          Path path = answer.getArgument(0);
+          if ("/hbase/testDir".equalsIgnoreCase(path.toUri().getPath())) {
+            Assertions.assertThat(tracingContext.getOperatedBlobCount())
+                .isEqualTo(copied.get());
+          }
+          return answer.callRealMethod();
+        })
+        .when(store)
+        .copyBlob(Mockito.any(Path.class), Mockito.any(Path.class),
+            Mockito.nullable(String.class), Mockito.any(TracingContext.class));
+
+    intercept(FileNotFoundException.class, () -> {
+      fs.getFileStatus(new Path("/hbase/testDir"));
+    });
+    Assertions.assertThat(fs.exists(new Path("/hbase/testDir2"))).isTrue();
+    Assertions.assertThat(copied.get()).isGreaterThan(0);
+  }
 }

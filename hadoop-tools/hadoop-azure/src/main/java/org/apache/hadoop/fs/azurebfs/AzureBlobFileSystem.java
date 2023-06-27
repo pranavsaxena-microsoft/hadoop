@@ -1070,17 +1070,17 @@ public class AzureBlobFileSystem extends FileSystem
          * Get File Status over Blob Endpoint will Have an additional call
          * to check if directory is implicit.
          */
-        fileStatus = abfsStore.getFileStatus(qualifiedPath,
+        fileStatus = getAbfsStore().getFileStatus(qualifiedPath,
             tracingContext, useBlobEndpoint);
         if (getAbfsStore().getPrefixMode() == PrefixMode.BLOB
                 && fileStatus != null && fileStatus.isDirectory()
-          && abfsStore.isAtomicRenameKey(fileStatus.getPath().toUri().getPath())
-          && abfsStore.getRenamePendingFileStatusInDirectory(fileStatus,
+          && getAbfsStore().isAtomicRenameKey(fileStatus.getPath().toUri().getPath())
+          && getAbfsStore().getRenamePendingFileStatusInDirectory(fileStatus,
               tracingContext)) {
         RenameAtomicityUtils renameAtomicityUtils = new RenameAtomicityUtils(
             this,
             new Path(fileStatus.getPath().toUri().getPath() + SUFFIX),
-            abfsStore.getRedoRenameInvocation(tracingContext));
+            getAbfsStore().getRedoRenameInvocation(tracingContext));
         renameAtomicityUtils.cleanup(
             new Path(fileStatus.getPath().toUri().getPath() + SUFFIX));
         throw new AbfsRestOperationException(HttpURLConnection.HTTP_NOT_FOUND,
