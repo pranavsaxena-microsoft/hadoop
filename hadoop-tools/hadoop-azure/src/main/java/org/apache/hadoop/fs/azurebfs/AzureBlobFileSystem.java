@@ -1048,7 +1048,7 @@ public class AzureBlobFileSystem extends FileSystem
   @Override
   public FileStatus getFileStatus(final Path f) throws IOException {
       TracingContext tracingContext = new TracingContext(clientCorrelationId,
-          fileSystemId, FSOperationType.GET_FILESTATUS, tracingHeaderFormat,
+          fileSystemId, FSOperationType.GET_FILESTATUS, true, tracingHeaderFormat,
           listener);
       return getFileStatus(f, tracingContext);
   }
