@@ -1112,6 +1112,8 @@ public class AbfsClient implements Closeable {
     URL url = createRequestUrl(path, abfsUriQueryBuilder.toString());
     final AbfsRestOperationType opType;
     if (!OperativeEndpoint.isReadEnabledOnDFS(getAbfsConfiguration())) {
+      LOG.debug("Read over Blob for read config value {} for path {} ",
+              abfsConfiguration.shouldReadFallbackToDfs(), path);
       opType = AbfsRestOperationType.GetBlob;
     } else {
       if (url.toString().contains(WASB_DNS_PREFIX)) {
