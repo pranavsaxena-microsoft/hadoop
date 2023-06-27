@@ -1943,15 +1943,11 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         FileStatus status = getFileStatus(path, tracingContext, true);
         if (status.isFile()) {
           fileStatuses.add(status);
-          return continuation;
         }
       }
 
-      LOG.debug("List Status on Blob Endpoint on filesystem: {} path: {} received {} objects from server",
-          client.getFileSystem(), path, objectCountReturnedByServer);
-
-      LOG.debug("List Status on Blob Endpoint on filesystem: {} path: {} returned {} objects to user",
-          client.getFileSystem(), path, fileStatuses.size());
+      LOG.debug("List Status on Blob Endpoint on filesystem: {} path: {} received {} objects from server and returned {} objects to user",
+          client.getFileSystem(), path, objectCountReturnedByServer, fileStatuses.size());
 
       return continuation;
     }
