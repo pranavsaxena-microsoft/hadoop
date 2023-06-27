@@ -21,6 +21,7 @@ package org.apache.hadoop.fs.azurebfs;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
@@ -42,6 +43,7 @@ import org.apache.hadoop.fs.azurebfs.services.AbfsHttpOperation;
 import org.apache.hadoop.fs.azurebfs.services.AbfsRestOperation;
 import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
 import org.apache.hadoop.fs.azurebfs.services.ITestAbfsClient;
+import org.apache.hadoop.fs.azurebfs.services.RenameAtomicityUtils;
 import org.apache.hadoop.fs.azurebfs.services.TestAbfsPerfTracker;
 import org.apache.hadoop.fs.azurebfs.utils.TestMockHelpers;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
@@ -456,5 +458,73 @@ public class ITestAzureBlobFileSystemDelete extends
             Mockito.any(TracingContext.class));
 
     fs.delete(new Path(dirPathStr), true);
+  }
+
+  @Test
+  public void testIfTracingContextPrimaryIdIsSameInAllTheStepsOfBlobDelete()
+      throws Exception {
+    AzureBlobFileSystem fs = Mockito.spy(getFileSystem());
+    Assume.assumeTrue(fs.getAbfsStore().getPrefixMode() == PrefixMode.BLOB);
+    fs.mkdirs(new Path("/testDir/dir"));
+    fs.create(new Path("/testDir/dir/file1"));
+    fs.create(new Path("/testDir/dir/file2"));
+
+    AzureBlobFileSystemStore store = fs.getAbfsStore();
+    AzureBlobFileSystemStore spiedStore = Mockito.spy(store);
+    AbfsClient client = Mockito.spy(store.getClient());
+    spiedStore.setClient(client);
+
+    Mockito.doAnswer(answer -> {
+          final TracingContext context = answer.getArgument(2);
+          Mockito.doAnswer(listAnswer -> {
+                TracingContext listContext = listAnswer.getArgument(4);
+                Assert.assertEquals(listContext.getPrimaryRequestId(),
+                    context.getPrimaryRequestId());
+                Assert.assertTrue(context.getOpType().equals(listContext.getOpType()));
+                return listAnswer.callRealMethod();
+              })
+              .when(client)
+              .getListBlobs(Mockito.nullable(String.class),
+                  Mockito.nullable(String.class), Mockito.nullable(String.class),
+                  Mockito.nullable(Integer.class),
+                  Mockito.any(TracingContext.class));
+
+          Mockito.doAnswer(createBlobPathAnswer -> {
+                TracingContext createBlobPathContext = createBlobPathAnswer.getArgument(
+                    5);
+                Assert.assertEquals(createBlobPathContext.getPrimaryRequestId(),
+                    context.getPrimaryRequestId());
+                Assert.assertTrue(
+                    context.getOpType().equals(createBlobPathContext.getOpType()));
+                return createBlobPathAnswer.callRealMethod();
+              })
+              .when(client)
+              .createPathBlob(Mockito.anyString(), Mockito.anyBoolean(),
+                  Mockito.anyBoolean(), Mockito.nullable(
+                      HashMap.class), Mockito.nullable(String.class),
+                  Mockito.any(TracingContext.class));
+
+
+          Mockito.doAnswer(deleteAnswer -> {
+                TracingContext deleteContext = deleteAnswer.getArgument(2);
+                Assert.assertEquals(deleteContext.getPrimaryRequestId(),
+                    context.getPrimaryRequestId());
+                Assert.assertTrue(
+                    context.getOpType().equals(deleteContext.getOpType()));
+                return deleteAnswer.callRealMethod();
+              })
+              .when(client)
+              .deleteBlobPath(Mockito.any(Path.class),
+                  Mockito.nullable(String.class),
+                  Mockito.any(TracingContext.class));
+
+          return answer.callRealMethod();
+        })
+        .when(spiedStore)
+        .delete(Mockito.any(Path.class), Mockito.anyBoolean(),
+            Mockito.any(TracingContext.class));
+
+    Mockito.doReturn(spiedStore).when(fs).getAbfsStore();
+    fs.delete(new Path("/testDir/dir"), true);
   }
 }
