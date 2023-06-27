@@ -895,6 +895,11 @@ public class AzureBlobFileSystem extends FileSystem
         return false;
       }
 
+      /*
+       * For DFS root directory deletion, direct DELETE Path API on root doesn't
+       * work, the server returns: "The request URI is invalid.", 400, DELETE.
+       * Hence, there is a special handling for root deletion on DFS endpoint
+       */
       if (getAbfsStore().getPrefixMode() == PrefixMode.DFS) {
         return deleteRoot();
       }
