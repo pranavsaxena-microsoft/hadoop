@@ -257,4 +257,8 @@ public class TracingContext {
   public Integer getOperatedBlobCount() {
     return operatedBlobCount;
   }
+
+  public FSOperationType getOpType() {
+    return opType;
+  }
 }

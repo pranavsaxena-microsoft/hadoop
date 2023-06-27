@@ -1683,9 +1683,10 @@ public class ITestAzureBlobFileSystemRename extends
     Mockito.doAnswer(answer -> {
           final TracingContext context = answer.getArgument(3);
           Mockito.doAnswer(listAnswer -> {
-                TracingContext listContext = listAnswer.getArgument(3);
+                TracingContext listContext = listAnswer.getArgument(4);
                 Assert.assertEquals(listContext.getPrimaryRequestId(),
                     context.getPrimaryRequestId());
+                Assert.assertTrue(context.getOpType().equals(listContext.getOpType()));
                 return listAnswer.callRealMethod();
               })
               .when(client)
@@ -1694,9 +1695,10 @@ public class ITestAzureBlobFileSystemRename extends
                   Mockito.nullable(Integer.class), Mockito.any(TracingContext.class));
 
           Mockito.doAnswer(copyAnswer -> {
-                TracingContext copyContext = copyAnswer.getArgument(2);
+                TracingContext copyContext = copyAnswer.getArgument(3);
                 Assert.assertEquals(copyContext.getPrimaryRequestId(),
                     context.getPrimaryRequestId());
+                Assert.assertTrue(context.getOpType().equals(copyContext.getOpType()));
                 return copyAnswer.callRealMethod();
               })
               .when(client)
@@ -1704,9 +1706,10 @@ public class ITestAzureBlobFileSystemRename extends
                   Mockito.any(TracingContext.class));
 
           Mockito.doAnswer(deleteAnswer -> {
-                TracingContext deleteContext = deleteAnswer.getArgument(1);
+                TracingContext deleteContext = deleteAnswer.getArgument(2);
                 Assert.assertEquals(deleteContext.getPrimaryRequestId(),
                     context.getPrimaryRequestId());
+                Assert.assertTrue(context.getOpType().equals(deleteContext.getOpType()));
                 return deleteAnswer.callRealMethod();
               })
               .when(client)
