@@ -417,8 +417,44 @@ public class ITestAzureBlobFileSystemDelete extends
 
   @Test
   public void testDeleteEmitDeletionCountInClientRequestId() throws Exception {
-    AzureBlobFileSystem fs = getFileSystem();
+    AzureBlobFileSystem fs = Mockito.spy(getFileSystem());
     Assume.assumeTrue(getPrefixMode(fs) == PrefixMode.BLOB);
+    String dirPathStr = "/testDir/dir1";
+    fs.mkdirs(new Path(dirPathStr));
+    ExecutorService executorService = Executors.newFixedThreadPool(5);
+    List<Future> futures = new ArrayList<>();
+    for (int i = 0; i < 10; i++) {
+      final int iter = i;
+      Future future = executorService.submit(() -> {
+        return fs.create(new Path("/testDir/dir1/file" + iter));
+      });
+      futures.add(future);
+    }
 
+    for (Future future : futures) {
+      future.get();
+    }
+    executorService.shutdown();
+
+
+    AzureBlobFileSystemStore store = Mockito.spy(fs.getAbfsStore());
+    Mockito.doReturn(store).when(fs).getAbfsStore();
+    AbfsClient client = Mockito.spy(store.getClient());
+    store.setClient(client);
+
+    Mockito.doAnswer(answer -> {
+          if (dirPathStr.equalsIgnoreCase(
+              ((Path) answer.getArgument(0)).toUri().getPath())) {
+            TracingContext tracingContext = answer.getArgument(2);
+            Assertions.assertThat(tracingContext.getOperatedBlobCount())
+                .isEqualTo(11);
+          }
+          return answer.callRealMethod();
+        })
+        .when(client)
+        .deleteBlobPath(Mockito.any(Path.class), Mockito.nullable(String.class),
+            Mockito.any(TracingContext.class));
+
+    fs.delete(new Path(dirPathStr), true);
   }
 }
