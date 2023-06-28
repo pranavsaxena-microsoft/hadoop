@@ -2035,6 +2035,12 @@ public class ITestAzureBlobFileSystemRename extends
     }
   }
 
+  /**
+   * Test to assert that the CID in src marker blob copy and delete contains the
+   * total number of blobs operated in the rename directory.
+   * Also, to assert that all operations in the rename-directory flow have same
+   * primaryId and opType.
+   */
   @Test
   public void testRenameSrcDirDeleteEmitDeletionCountInClientRequestId() throws Exception {
     AzureBlobFileSystem fs = Mockito.spy(getFileSystem());
@@ -2078,6 +2084,12 @@ public class ITestAzureBlobFileSystemRename extends
     fs.rename(new Path(dirPathStr), new Path("/dst/"));
   }
 
+  /**
+   * Test to assert that the rename resume from FileStatus uses the same
+   * {@link TracingContext} object used by the initial ListStatus call.
+   * Also assert that last rename's copy and delete API call would push count
+   * of blobs operated in resume flow in clientRequestId.
+   */
   @Test
   public void testBlobRenameResumeWithListStatus() throws Exception {
     assumeNonHnsAccountBlobEndpoint(getFileSystem());
@@ -2169,6 +2181,12 @@ public class ITestAzureBlobFileSystemRename extends
     Assertions.assertThat(copied.get()).isGreaterThan(0);
   }
 
+  /**
+   * Test to assert that the rename resume from FileStatus uses the same
+   * {@link TracingContext} object used by the initial GetFileStatus call.
+   * Also assert that last rename's copy and delete API call would push count
+   * of blobs operated in resume flow in clientRequestId.
+   */
   @Test
   public void testBlobRenameResumeWithGetFileStatus() throws Exception {
     assumeNonHnsAccountBlobEndpoint(getFileSystem());

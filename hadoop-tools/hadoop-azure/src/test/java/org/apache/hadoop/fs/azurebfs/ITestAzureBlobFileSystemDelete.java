@@ -459,6 +459,12 @@ public class ITestAzureBlobFileSystemDelete extends
     fs.delete(new Path(dirPathStr), true);
   }
 
+  /**
+   * Test to assert that the CID in src marker delete contains the
+   * total number of blobs operated in the delete directory.
+   * Also, to assert that all operations in the delete-directory flow have same
+   * primaryId and opType.
+   */
   @Test
   public void testIfTracingContextPrimaryIdIsSameInAllTheStepsOfBlobDelete()
       throws Exception {
