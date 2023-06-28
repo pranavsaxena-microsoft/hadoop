@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -2106,8 +2107,12 @@ public class ITestAzureBlobFileSystemRename extends
         Mockito.mock(TracingContext.class));
     String leaseId = op.getResult()
         .getResponseHeader(HttpHeaderConfigurations.X_MS_LEASE_ID);
-    Map<String, String> pathLeaseIdMap = new HashMap<>();
+    Map<String, String> pathLeaseIdMap = new ConcurrentHashMap<>();
+    final AtomicBoolean leaseCanBeTaken = new AtomicBoolean(true);
     Mockito.doAnswer(answer -> {
+          if (!leaseCanBeTaken.get()) {
+            throw new RuntimeException();
+          }
           AbfsRestOperation abfsRestOperation
               = (AbfsRestOperation) answer.callRealMethod();
           pathLeaseIdMap.put(answer.getArgument(0),
@@ -2122,6 +2127,7 @@ public class ITestAzureBlobFileSystemRename extends
       fs.rename(new Path("/hbase/testDir"), new Path("/hbase/testDir2"));
     });
 
+    leaseCanBeTaken.set(false);
     for (Map.Entry<String, String> entry : pathLeaseIdMap.entrySet()) {
       try {
         client.releaseBlobLease(entry.getKey(), entry.getValue(),
@@ -2132,6 +2138,7 @@ public class ITestAzureBlobFileSystemRename extends
     }
     client.releaseBlobLease("/hbase/testDir/file5", leaseId,
         Mockito.mock(TracingContext.class));
+    leaseCanBeTaken.set(true);
 
     TracingContext[] tracingContextCreatedInFsListStatus
         = new TracingContext[1];
@@ -2192,8 +2199,12 @@ public class ITestAzureBlobFileSystemRename extends
     String leaseId = op.getResult()
         .getResponseHeader(HttpHeaderConfigurations.X_MS_LEASE_ID);
 
-    Map<String, String> pathLeaseIdMap = new HashMap<>();
+    Map<String, String> pathLeaseIdMap = new ConcurrentHashMap<>();
+    AtomicBoolean leaseCanBeTaken = new AtomicBoolean(true);
     Mockito.doAnswer(answer -> {
+          if (!leaseCanBeTaken.get()) {
+            throw new RuntimeException();
+          }
           AbfsRestOperation abfsRestOperation
               = (AbfsRestOperation) answer.callRealMethod();
           pathLeaseIdMap.put(answer.getArgument(0),
@@ -2208,6 +2219,7 @@ public class ITestAzureBlobFileSystemRename extends
       fs.rename(new Path("/hbase/testDir"), new Path("/hbase/testDir2"));
     });
 
+    leaseCanBeTaken.set(false);
     for (Map.Entry<String, String> entry : pathLeaseIdMap.entrySet()) {
       try {
         client.releaseBlobLease(entry.getKey(), entry.getValue(),
@@ -2218,6 +2230,7 @@ public class ITestAzureBlobFileSystemRename extends
     }
     client.releaseBlobLease("/hbase/testDir/file5", leaseId,
         Mockito.mock(TracingContext.class));
+    leaseCanBeTaken.set(true);
 
 
     TracingContext[] tracingContextCreatedInFsListStatus
