@@ -467,13 +467,11 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
               client.getFileSystem());
 
       final Hashtable<String, String> parsedXmsProperties;
-      final AbfsRestOperation op;
+        final AbfsRestOperation op;
 
       if (getPrefixMode() == PrefixMode.BLOB) {
-        op = client.getContainerMetadata(tracingContext);
+        parsedXmsProperties = getAndParseContainerMetadata(tracingContext, perfInfo);
 
-        parsedXmsProperties = parseResponseHeadersToHashTable(op.getResult());
-        perfInfo.registerResult(op.getResult()).registerSuccess(true);
         return parsedXmsProperties;
       }
 
@@ -501,11 +499,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     try (AbfsPerfInfo perfInfo = startTracking("setFilesystemProperties",
             "setFilesystemProperties")) {
       if (getPrefixMode() == PrefixMode.BLOB) {
-        final List<AbfsHttpHeader> metadataRequestHeaders = getRequestHeadersForMetadata(properties);
-        final AbfsRestOperation op = client.setContainerMetadata(
-            metadataRequestHeaders, tracingContext);
-        perfInfo.registerResult(op.getResult()).registerSuccess(true);
-        return;
+        parseAndSetContainerMetadata(properties, tracingContext, perfInfo);
       }
 
       final String commaSeparatedProperties;
@@ -820,11 +814,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     try (AbfsPerfInfo perfInfo = startTracking("getContainerMetadata", "getContainerMetadata")) {
       LOG.debug("getContainerMetadata for filesystem: {}", client.getFileSystem());
 
-      final AbfsRestOperation op = client.getContainerMetadata(tracingContext);
-      perfInfo.registerResult(op.getResult()).registerSuccess(true);
-
-      final Hashtable<String, String> metadata = parseResponseHeadersToHashTable(op.getResult());
-      return metadata;
+      return getAndParseContainerMetadata(tracingContext, perfInfo);
     }
   }
 
@@ -841,10 +831,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
           client.getFileSystem(),
           metadata);
 
-      final List<AbfsHttpHeader> metadataRequestHeaders = getRequestHeadersForMetadata(metadata);
-      final AbfsRestOperation op = client.setContainerMetadata(metadataRequestHeaders, tracingContext);
-
-      perfInfo.registerResult(op.getResult()).registerSuccess(true);
+      parseAndSetContainerMetadata(metadata, tracingContext, perfInfo);
     }
   }
 
@@ -889,6 +876,21 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     return headers;
   }
 
+  private Hashtable<String, String> getAndParseContainerMetadata(TracingContext tracingContext,
+      AbfsPerfInfo perfInfo) throws AzureBlobFileSystemException{
+    final AbfsRestOperation op = client.getContainerMetadata(tracingContext);
+    perfInfo.registerResult(op.getResult()).registerSuccess(true);
+
+    return parseResponseHeadersToHashTable(op.getResult());
+  }
+
+  private void parseAndSetContainerMetadata(final Hashtable<String, String> metadata, TracingContext tracingContext,
+      AbfsPerfInfo perfInfo) throws AzureBlobFileSystemException{
+    final List<AbfsHttpHeader> metadataRequestHeaders = getRequestHeadersForMetadata(metadata);
+    final AbfsRestOperation op = client.setContainerMetadata(metadataRequestHeaders, tracingContext);
+
+    perfInfo.registerResult(op.getResult()).registerSuccess(true);
+  }
 
   /**
    * Get the list of a blob on a give path, or blob starting with the given prefix.
