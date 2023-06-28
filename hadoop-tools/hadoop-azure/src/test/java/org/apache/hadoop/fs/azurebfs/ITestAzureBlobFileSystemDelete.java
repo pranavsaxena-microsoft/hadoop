@@ -43,7 +43,6 @@ import org.apache.hadoop.fs.azurebfs.services.AbfsHttpOperation;
 import org.apache.hadoop.fs.azurebfs.services.AbfsRestOperation;
 import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
 import org.apache.hadoop.fs.azurebfs.services.ITestAbfsClient;
-import org.apache.hadoop.fs.azurebfs.services.RenameAtomicityUtils;
 import org.apache.hadoop.fs.azurebfs.services.TestAbfsPerfTracker;
 import org.apache.hadoop.fs.azurebfs.utils.TestMockHelpers;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
