@@ -104,13 +104,8 @@ public class ITestAbfsStatistics extends AbstractAbfsIntegrationTest {
     assertAbfsStatistics(AbfsStatistic.CALL_CREATE_NON_RECURSIVE, 1, metricMap);
     assertAbfsStatistics(AbfsStatistic.FILES_CREATED, 1, metricMap);
     // Child calls mkdirs for parent in case of blob.
-    if (getPrefixMode(fs) == PrefixMode.BLOB) {
-      assertAbfsStatistics(AbfsStatistic.DIRECTORIES_CREATED, 2, metricMap);
-      assertAbfsStatistics(AbfsStatistic.CALL_MKDIRS, 2, metricMap);
-    } else {
-      assertAbfsStatistics(AbfsStatistic.DIRECTORIES_CREATED, 1, metricMap);
-      assertAbfsStatistics(AbfsStatistic.CALL_MKDIRS, 1, metricMap);
-    }
+    assertAbfsStatistics(AbfsStatistic.DIRECTORIES_CREATED, 1, metricMap);
+    assertAbfsStatistics(AbfsStatistic.CALL_MKDIRS, 1, metricMap);
     assertAbfsStatistics(AbfsStatistic.CALL_GET_FILE_STATUS, 3, metricMap);
 
     //re-initialising Abfs to reset statistic values.
@@ -138,15 +133,9 @@ public class ITestAbfsStatistics extends AbstractAbfsIntegrationTest {
         metricMap);
     assertAbfsStatistics(AbfsStatistic.FILES_CREATED, NUMBER_OF_OPS, metricMap);
     // Child calls mkdirs for parent in case of blob.
-    if (getPrefixMode(fs) == PrefixMode.BLOB) {
-      assertAbfsStatistics(AbfsStatistic.DIRECTORIES_CREATED, 2 * NUMBER_OF_OPS,
+    assertAbfsStatistics(AbfsStatistic.DIRECTORIES_CREATED, NUMBER_OF_OPS,
               metricMap);
-      assertAbfsStatistics(AbfsStatistic.CALL_MKDIRS, 2 * NUMBER_OF_OPS, metricMap);
-    } else {
-      assertAbfsStatistics(AbfsStatistic.DIRECTORIES_CREATED, NUMBER_OF_OPS,
-              metricMap);
-      assertAbfsStatistics(AbfsStatistic.CALL_MKDIRS, NUMBER_OF_OPS, metricMap);
-    }
+    assertAbfsStatistics(AbfsStatistic.CALL_MKDIRS, NUMBER_OF_OPS, metricMap);
     assertAbfsStatistics(AbfsStatistic.CALL_GET_FILE_STATUS,
         1 + 2 * NUMBER_OF_OPS, metricMap);
   }
