@@ -20,6 +20,7 @@ package org.apache.hadoop.fs.azurebfs;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.nio.file.AccessDeniedException;
 import java.util.List;
 
 import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
@@ -217,15 +218,14 @@ public class ITestAzureBlobFileSystemCheckAccess
     checkIfConfigIsSet(FS_AZURE_BLOB_FS_CHECKACCESS_TEST_CLIENT_SECRET);
     checkIfConfigIsSet(FS_AZURE_BLOB_FS_CHECKACCESS_TEST_USER_GUID);
 
+    Configuration configuration = Mockito.spy(getFileSystem().getConf());
+    FileSystem testUserFSWithoutNS;
+    testUserFSWithoutNS = FileSystem.newInstance(configuration);
+
     //  When the driver does not know if the account is HNS enabled or not it
     //  makes a server call and fails
     intercept(Exception.class, "\"This request is not authorized to perform this operation using "
             + "this permission.\", 403", this::setTestUserFsNonHNS);
-
-    Configuration configuration = getFileSystem().getConf();
-    configuration.setBoolean(FS_AZURE_ACCOUNT_IS_HNS_ENABLED, false);
-    FileSystem testUserFSWithoutNS;
-    testUserFSWithoutNS = FileSystem.newInstance(configuration);
 
     //  When the driver has already determined if the account is HNS enabled
     //  or not, and as the account is non HNS the AzureBlobFileSystem#access
