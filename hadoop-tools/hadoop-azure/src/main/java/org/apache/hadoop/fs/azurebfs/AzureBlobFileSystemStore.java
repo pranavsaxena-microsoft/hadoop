@@ -2115,11 +2115,6 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     }
 
     if (useBlobEndpointListing) {
-      FileStatus status = getFileStatus(path, tracingContext, true);
-      if (status.isFile()) {
-        fileStatuses.add(status);
-        return continuation;
-      }
       // For blob endpoint continuation will be used as nextMarker.
       String prefix = relativePath + ROOT_PATH;
       String delimiter = ROOT_PATH;
@@ -2128,6 +2123,8 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       }
 
       TreeMap<String, FileStatus> fileMetadata = new TreeMap<>();
+      long objectCountReturnedByServer = 0;
+
       do {
         /*
          * List Blob calls will be made with delimiter "/". This will ensure
@@ -2141,7 +2138,13 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
           );
           perfInfo.registerResult(op.getResult());
           BlobList blobList = op.getResult().getBlobList();
+          int blobListSize = blobList.getBlobPropertyList().size();
+          LOG.debug("List Blob Call on filesystem: {} path: {} marker: {} delimiter: {} returned {} objects",
+              client.getFileSystem(), prefix, continuation,
+              delimiter, blobListSize);
+
           continuation = blobList.getNextMarker();
+          objectCountReturnedByServer += blobListSize;
 
           addBlobListAsFileStatus(blobList, fileMetadata);
 
@@ -2157,6 +2160,17 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       } while (shouldContinue);
 
       fileStatuses.addAll(fileMetadata.values());
+
+      if (fileStatuses.size() == 0) {
+        FileStatus status = getFileStatus(path, tracingContext, true);
+        if (status.isFile()) {
+          fileStatuses.add(status);
+        }
+      }
+
+      LOG.debug("List Status on Blob Endpoint on filesystem: {} path: {} received {} objects from server and returned {} objects to user",
+          client.getFileSystem(), path, objectCountReturnedByServer, fileStatuses.size());
+
       return continuation;
     }
 

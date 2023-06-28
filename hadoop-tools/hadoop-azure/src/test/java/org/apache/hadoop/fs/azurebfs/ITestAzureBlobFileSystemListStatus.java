@@ -351,7 +351,7 @@ public class ITestAzureBlobFileSystemListStatus extends
 
     // Create an explicit directory with all kind of children.
     Path testPath = new Path("testDir");
-    Path explicitChild = new Path ("testDir/a");
+    Path explicitChild = new Path ("testDir/a/subdir");
     Path fileChild = new Path ("testDir/b");
     Path implicitChild = new Path ("testDir/c");
     fs.mkdirs(explicitChild);
@@ -369,9 +369,45 @@ public class ITestAzureBlobFileSystemListStatus extends
     // Assert that three entry is returned.
     FileStatus[] fileStatuses = fs.listStatus(testPath);
     Assertions.assertThat(fileStatuses.length).isEqualTo(3);
-    assertExplicitDirectoryFileStatus(fileStatuses[0], fs.makeQualified(explicitChild));
+    assertExplicitDirectoryFileStatus(fileStatuses[0], fs.makeQualified(explicitChild.getParent()));
     assertFileFileStatus(fileStatuses[1], fs.makeQualified(fileChild));
     assertImplicitDirectoryFileStatus(fileStatuses[2], fs.makeQualified(implicitChild));
+  }
+
+  @Test
+  public void testListStatusImplicitExplicitWithDotInFolderName() throws Exception {
+    final AzureBlobFileSystem fs = getFileSystem();
+    AzcopyHelper azcopyHelper = new AzcopyHelper(
+        getAccountName(),
+        getFileSystemName(),
+        getRawConfiguration(),
+        fs.getAbfsStore().getPrefixMode()
+    );
+
+    // Create two implicit folder with same prefix one having dot.
+    Path testPath = new Path("Try1/DirA");
+    Path implicitChild1 = new Path ("Try1/DirA/DirB/file.txt");
+    Path implicitChild2 = new Path ("Try1/DirA/DirB.bak/file.txt");
+    Path explicitChild = new Path ("Try1/DirA/DirB");
+
+    azcopyHelper.createFolderUsingAzcopy(
+        fs.makeQualified(implicitChild1).toUri().getPath().substring(1));
+    azcopyHelper.createFolderUsingAzcopy(
+        fs.makeQualified(implicitChild2).toUri().getPath().substring(1));
+    fs.mkdirs(explicitChild);
+
+    assertTrue("Test path is explicit",
+        BlobDirectoryStateHelper.isExplicitDirectory(testPath, fs));
+    assertTrue("explicitChild Path is explicit",
+        BlobDirectoryStateHelper.isExplicitDirectory(explicitChild, fs));
+    assertTrue("implicitChild2 Path is implicit.",
+        BlobDirectoryStateHelper.isImplicitDirectory(implicitChild2, fs));
+
+    // Assert that only 2 entry is returned.
+    FileStatus[] fileStatuses = fs.listStatus(testPath);
+    Assertions.assertThat(fileStatuses.length).isEqualTo(2);
+    assertExplicitDirectoryFileStatus(fileStatuses[0], fs.makeQualified(explicitChild));
+    assertImplicitDirectoryFileStatus(fileStatuses[1], fs.makeQualified(implicitChild2.getParent()));
   }
 
   @Test
