@@ -1340,7 +1340,11 @@ public class AzureBlobFileSystem extends FileSystem
       String xAttrValue;
 
       if (abfsStore.getPrefixMode() == PrefixMode.BLOB) {
-        properties = abfsStore.getBlobMetadata(qualifiedPath, tracingContext);
+        if (qualifiedPath.isRoot()) {
+          properties = abfsStore.getContainerMetadata(tracingContext);
+        } else {
+          properties = abfsStore.getBlobMetadata(qualifiedPath, tracingContext);
+        }
 
         boolean xAttrExists = properties.containsKey(xAttrName);
         XAttrSetFlag.validate(name, xAttrExists, flag);
@@ -1349,7 +1353,11 @@ public class AzureBlobFileSystem extends FileSystem
         // Values in UTF_8 needed to be URL encoded after decoding into String
         xAttrValue = encodeMetadataAttribute(new String(value, StandardCharsets.UTF_8));
         properties.put(xAttrName, xAttrValue);
-        abfsStore.setBlobMetadata(qualifiedPath, properties, tracingContext);
+        if (qualifiedPath.isRoot()) {
+          abfsStore.setContainerMetadata(properties, tracingContext);
+        } else {
+          abfsStore.setBlobMetadata(qualifiedPath, properties, tracingContext);
+        }
 
         return;
       }
@@ -1396,7 +1404,12 @@ public class AzureBlobFileSystem extends FileSystem
       String xAttrName = ensureValidAttributeName(name);
 
       if (abfsStore.getPrefixMode() == PrefixMode.BLOB) {
-        properties = abfsStore.getBlobMetadata(qualifiedPath, tracingContext);
+        if (qualifiedPath.isRoot()) {
+          properties = abfsStore.getContainerMetadata(tracingContext);
+        } else {
+          properties = abfsStore.getBlobMetadata(qualifiedPath, tracingContext);
+        }
+
         if (properties.containsKey(xAttrName)) {
           String xAttrValue = properties.get(xAttrName);
           value = decodeMetadataAttribute(xAttrValue).getBytes(
@@ -1769,7 +1782,12 @@ public class AzureBlobFileSystem extends FileSystem
     LOG.debug(
         "AzureBlobFileSystem.createFileSystem uri: {}", uri);
     try {
-      abfsStore.createFilesystem(tracingContext);
+      PrefixMode prefixMode = getAbfsStore().getPrefixMode();
+      AbfsConfiguration abfsConfiguration = getAbfsStore().getAbfsConfiguration();
+      boolean useBlobEndpoint = !(OperativeEndpoint.isIngressEnabledOnDFS(prefixMode, abfsConfiguration) ||
+          OperativeEndpoint.isMkdirEnabledOnDFS(abfsConfiguration) ||
+          OperativeEndpoint.isReadEnabledOnDFS(abfsConfiguration));
+      abfsStore.createFilesystem(tracingContext, useBlobEndpoint);
     } catch (AzureBlobFileSystemException ex) {
       checkException(null, ex);
     }
