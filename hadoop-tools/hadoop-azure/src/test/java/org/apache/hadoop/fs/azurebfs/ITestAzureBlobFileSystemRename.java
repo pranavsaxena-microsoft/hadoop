@@ -2106,9 +2106,30 @@ public class ITestAzureBlobFileSystemRename extends
         Mockito.mock(TracingContext.class));
     String leaseId = op.getResult()
         .getResponseHeader(HttpHeaderConfigurations.X_MS_LEASE_ID);
+    Map<String, String> pathLeaseIdMap = new HashMap<>();
+    Mockito.doAnswer(answer -> {
+          AbfsRestOperation abfsRestOperation
+              = (AbfsRestOperation) answer.callRealMethod();
+          pathLeaseIdMap.put(answer.getArgument(0),
+              abfsRestOperation.getResult().getResponseHeader(X_MS_LEASE_ID));
+          return abfsRestOperation;
+        })
+        .when(client)
+        .acquireBlobLease(Mockito.anyString(), Mockito.anyInt(),
+            Mockito.any(TracingContext.class));
+
     intercept(Exception.class, () -> {
       fs.rename(new Path("/hbase/testDir"), new Path("/hbase/testDir2"));
     });
+
+    for (Map.Entry<String, String> entry : pathLeaseIdMap.entrySet()) {
+      try {
+        client.releaseBlobLease(entry.getKey(), entry.getValue(),
+            Mockito.mock(TracingContext.class));
+      } catch (Exception e) {
+
+      }
+    }
     client.releaseBlobLease("/hbase/testDir/file5", leaseId,
         Mockito.mock(TracingContext.class));
 
@@ -2170,11 +2191,34 @@ public class ITestAzureBlobFileSystemRename extends
         Mockito.mock(TracingContext.class));
     String leaseId = op.getResult()
         .getResponseHeader(HttpHeaderConfigurations.X_MS_LEASE_ID);
+
+    Map<String, String> pathLeaseIdMap = new HashMap<>();
+    Mockito.doAnswer(answer -> {
+          AbfsRestOperation abfsRestOperation
+              = (AbfsRestOperation) answer.callRealMethod();
+          pathLeaseIdMap.put(answer.getArgument(0),
+              abfsRestOperation.getResult().getResponseHeader(X_MS_LEASE_ID));
+          return abfsRestOperation;
+        })
+        .when(client)
+        .acquireBlobLease(Mockito.anyString(), Mockito.anyInt(),
+            Mockito.any(TracingContext.class));
+
     intercept(Exception.class, () -> {
       fs.rename(new Path("/hbase/testDir"), new Path("/hbase/testDir2"));
     });
+
+    for (Map.Entry<String, String> entry : pathLeaseIdMap.entrySet()) {
+      try {
+        client.releaseBlobLease(entry.getKey(), entry.getValue(),
+            Mockito.mock(TracingContext.class));
+      } catch (Exception e) {
+
+      }
+    }
     client.releaseBlobLease("/hbase/testDir/file5", leaseId,
         Mockito.mock(TracingContext.class));
+
 
     TracingContext[] tracingContextCreatedInFsListStatus
         = new TracingContext[1];
