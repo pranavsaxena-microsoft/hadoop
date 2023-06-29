@@ -2072,6 +2072,7 @@ public class ITestAzureBlobFileSystemRename extends
         client, FSOperationType.LISTSTATUS);
 
     fs.listStatus(new Path("/hbase"));
+    fs.registerListener(null);
     Assertions.assertThat(fs.exists(new Path("/hbase/testDir2"))).isTrue();
     Assertions.assertThat(copied.get()).isGreaterThan(0);
   }
@@ -2180,13 +2181,30 @@ public class ITestAzureBlobFileSystemRename extends
         .copyBlob(Mockito.any(Path.class), Mockito.any(Path.class),
             Mockito.nullable(String.class), Mockito.any(TracingContext.class));
 
+    /*
+     * RenameAtomicUtil internally calls Filesystem's API  of read and delete
+     * which would have different primaryIds. But once renameAtomicUtil has read
+     * the RenamePending JSON, all the operations will use the same tracingContext
+     * which was started by ListStatus or GetFileStatus operation.
+     * This is the reason why the validation is disabled until the RenameAtomicUtil
+     * object reads the JSON.
+     * The filesystem's delete API called in RenameAtomicUtils.cleanup create a
+     * new TracingContext object with a new primaryRequestId and also updates the
+     * new primaryRequestId in the listener object of FileSystem. Therefore, once,
+     * cleanup method is completed, the listener is explicitly updated with the
+     * primaryRequestId it was using before the RenameAtomicUtils object was created.
+     */
     Mockito.doAnswer(answer -> {
+          final String primaryRequestId = ((TracingContext) answer.getArgument(
+              1)).getPrimaryRequestId();
           tracingHeaderValidator.setDisableValidation(true);
           RenameAtomicityUtils renameAtomicityUtils = Mockito.spy(
               (RenameAtomicityUtils) answer.callRealMethod());
           Mockito.doAnswer(cleanupAnswer -> {
             tracingHeaderValidator.setDisableValidation(true);
             cleanupAnswer.callRealMethod();
+            tracingHeaderValidator.setDisableValidation(false);
+            tracingHeaderValidator.updatePrimaryRequestID(primaryRequestId);
             return null;
           }).when(renameAtomicityUtils).cleanup(Mockito.any(Path.class));
           tracingHeaderValidator.setDisableValidation(false);
