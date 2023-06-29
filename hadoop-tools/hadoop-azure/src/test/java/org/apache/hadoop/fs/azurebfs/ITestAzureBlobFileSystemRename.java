@@ -2159,7 +2159,8 @@ public class ITestAzureBlobFileSystemRename extends
 
   private AtomicInteger assertTracingContextOnRenameResumeProcess(final AzureBlobFileSystem fs,
       final AzureBlobFileSystemStore store,
-      final AbfsClient client, final FSOperationType fsOperationType) throws IOException {
+      final AbfsClient client, final FSOperationType fsOperationType)
+      throws IOException {
     final TracingHeaderValidator tracingHeaderValidator
         = new TracingHeaderValidator(
         fs.getAbfsStore().getAbfsConfiguration().getClientCorrelationId(),
@@ -2180,22 +2181,29 @@ public class ITestAzureBlobFileSystemRename extends
             Mockito.nullable(String.class), Mockito.any(TracingContext.class));
 
     Mockito.doAnswer(answer -> {
-      tracingHeaderValidator.setDisableValidation(true);
-      RenameAtomicityUtils renameAtomicityUtils = Mockito.spy((RenameAtomicityUtils) answer.callRealMethod());
-      Mockito.doAnswer(cleanupAnswer -> {
-        tracingHeaderValidator.setDisableValidation(true);
-        cleanupAnswer.callRealMethod();
-        return null;
-      }).when(renameAtomicityUtils).cleanup(Mockito.any(Path.class));
-      tracingHeaderValidator.setDisableValidation(false);
-      return renameAtomicityUtils;
-    }).when(fs).getRenameAtomicityUtilsForRedo(Mockito.any(Path.class), Mockito.any(TracingContext.class));
+          tracingHeaderValidator.setDisableValidation(true);
+          RenameAtomicityUtils renameAtomicityUtils = Mockito.spy(
+              (RenameAtomicityUtils) answer.callRealMethod());
+          Mockito.doAnswer(cleanupAnswer -> {
+            tracingHeaderValidator.setDisableValidation(true);
+            cleanupAnswer.callRealMethod();
+            return null;
+          }).when(renameAtomicityUtils).cleanup(Mockito.any(Path.class));
+          tracingHeaderValidator.setDisableValidation(false);
+          return renameAtomicityUtils;
+        })
+        .when(fs)
+        .getRenameAtomicityUtilsForRedo(Mockito.any(Path.class),
+            Mockito.any(TracingContext.class));
 
     Mockito.doAnswer(answer -> {
-      answer.callRealMethod();
-      tracingHeaderValidator.setOperatedBlobCount(null);
-      return null;
-    }).when(client).deleteBlobPath(Mockito.any(Path.class), Mockito.nullable(String.class), Mockito.any(TracingContext.class));
+          answer.callRealMethod();
+          tracingHeaderValidator.setOperatedBlobCount(null);
+          return null;
+        })
+        .when(client)
+        .deleteBlobPath(Mockito.any(Path.class), Mockito.nullable(String.class),
+            Mockito.any(TracingContext.class));
     return copied;
   }
 }

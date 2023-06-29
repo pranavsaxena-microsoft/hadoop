@@ -109,7 +109,8 @@ public class TracingHeaderValidator implements Listener {
   private void validateBasicFormat(String[] idList) {
     if (format == TracingHeaderFormat.ALL_ID_FORMAT) {
       Assertions.assertThat(idList)
-          .describedAs("header should have 8 elements").hasSizeBetween(8, 9);
+          .describedAs("header should have 8 or 9 elements")
+          .hasSizeBetween(8, 9);
     } else if (format == TracingHeaderFormat.TWO_ID_FORMAT) {
       Assertions.assertThat(idList)
           .describedAs("header should have 2 elements").hasSize(2);
