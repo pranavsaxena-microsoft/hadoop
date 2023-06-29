@@ -78,6 +78,8 @@ public class TracingContext {
   public static final int MAX_CLIENT_CORRELATION_ID_LENGTH = 72;
   public static final String CLIENT_CORRELATION_ID_PATTERN = "[a-zA-Z0-9-]*";
 
+  private Integer operatedBlobCount = null;
+
   /**
    * Initialize TracingContext
    * @param clientCorrelationID Provided over config by client
@@ -187,6 +189,9 @@ public class TracingContext {
               + getPrimaryRequestIdForHeader(retryCount > 0) + ":" + streamID
               + ":" + opType + ":" + retryCount;
       header = addFailureReasons(header, previousFailure) + ":" + fallbackDFSAppend;
+      if (operatedBlobCount != null) {
+        header += (":" + operatedBlobCount);
+      }
       break;
     case TWO_ID_FORMAT:
       header = clientCorrelationID + ":" + clientRequestId;
@@ -241,4 +246,19 @@ public class TracingContext {
     return header;
   }
 
+  public String getPrimaryRequestId() {
+    return primaryRequestId;
+  }
+
+  public void setOperatedBlobCount(Integer count) {
+    operatedBlobCount = count;
+  }
+
+  public Integer getOperatedBlobCount() {
+    return operatedBlobCount;
+  }
+
+  public FSOperationType getOpType() {
+    return opType;
+  }
 }
