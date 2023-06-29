@@ -72,7 +72,8 @@ public class ITestAbfsRestOperationException extends AbstractAbfsIntegrationTest
       String errorMessage = ex.getLocalizedMessage();
       String[] errorFields = errorMessage.split(",");
 
-      Assert.assertEquals(4, errorFields.length);
+      // Expected Fields are: Message, StatusCode, Method, URL, ActivityId(rId)
+      Assert.assertEquals(5, errorFields.length);
       // Check status message, status code, HTTP Request Type and URL.
       if (useBlobEndpoint) {
         Assert.assertEquals("Operation failed: \"The specified blob does not exist.\"", errorFields[0].trim());
@@ -83,6 +84,7 @@ public class ITestAbfsRestOperationException extends AbstractAbfsIntegrationTest
       Assert.assertEquals("404", errorFields[1].trim());
       Assert.assertEquals("HEAD", errorFields[2].trim());
       Assert.assertTrue(errorFields[3].trim().startsWith("http"));
+      Assert.assertTrue(errorFields[4].trim().startsWith("rid:"));
     }
 
     try {
@@ -109,7 +111,7 @@ public class ITestAbfsRestOperationException extends AbstractAbfsIntegrationTest
         Assert.assertTrue(errorFields[5].contains("RequestId")
                 && errorFields[5].contains("Time"));
       } else {
-        Assert.assertEquals(4, errorFields.length);
+        Assert.assertEquals(5, errorFields.length);
         // Check status message, status code, HTTP Request Type and URL.
         if (useBlobEndpoint) {
           Assert.assertEquals("Operation failed: \"The specified blob does not exist.\"", errorFields[0].trim());
@@ -120,6 +122,7 @@ public class ITestAbfsRestOperationException extends AbstractAbfsIntegrationTest
         Assert.assertEquals("404", errorFields[1].trim());
         Assert.assertEquals("HEAD", errorFields[2].trim());
         Assert.assertTrue(errorFields[3].trim().startsWith("http"));
+        Assert.assertTrue(errorFields[4].trim().startsWith("rid:"));
       }
     }
   }
