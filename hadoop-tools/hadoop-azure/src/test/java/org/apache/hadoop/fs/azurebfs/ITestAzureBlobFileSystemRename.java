@@ -50,6 +50,7 @@ import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.azurebfs.constants.FSOperationType;
 import org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AbfsRestOperationException;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemException;
@@ -66,6 +67,7 @@ import org.apache.hadoop.fs.azurebfs.services.AbfsRestOperationTestUtil;
 import org.apache.hadoop.fs.azurebfs.services.RenameAtomicityUtils;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
+import org.apache.hadoop.fs.azurebfs.utils.TracingHeaderValidator;
 
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_LEASE_CREATE_NON_RECURSIVE;
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_REDIRECT_RENAME;
@@ -2009,26 +2011,19 @@ public class ITestAzureBlobFileSystemRename extends
     AbfsClient client = Mockito.spy(store.getClient());
     store.setClient(client);
 
-    Mockito.doAnswer(answer -> {
-          final TracingContext context = answer.getArgument(3);
-          Mockito.doAnswer(listAnswer -> {
-                TracingContext listContext = listAnswer.getArgument(4);
-                Assert.assertEquals(listContext.getPrimaryRequestId(),
-                    context.getPrimaryRequestId());
-                Assert.assertTrue(context.getOpType().equals(listContext.getOpType()));
-                return listAnswer.callRealMethod();
-              })
-              .when(client)
-              .getListBlobs(Mockito.nullable(String.class),
-                  Mockito.nullable(String.class), Mockito.nullable(String.class),
-                  Mockito.nullable(Integer.class),
-                  Mockito.any(TracingContext.class));
+    final TracingHeaderValidator tracingHeaderValidator
+        = new TracingHeaderValidator(
+        fs.getAbfsStore().getAbfsConfiguration().getClientCorrelationId(),
+        fs.getFileSystemId(), FSOperationType.RENAME, true, 0);
+    fs.registerListener(tracingHeaderValidator);
 
+    Mockito.doAnswer(answer -> {
           Mockito.doAnswer(copyAnswer -> {
-                TracingContext copyContext = copyAnswer.getArgument(3);
-                Assert.assertEquals(copyContext.getPrimaryRequestId(),
-                    context.getPrimaryRequestId());
-                Assert.assertTrue(context.getOpType().equals(copyContext.getOpType()));
+                if (dirPathStr.equalsIgnoreCase(
+                    ((Path) copyAnswer.getArgument(0)).toUri().getPath())) {
+                  tracingHeaderValidator.setOperatedBlobCount(11);
+                  return copyAnswer.callRealMethod();
+                }
                 return copyAnswer.callRealMethod();
               })
               .when(client)
@@ -2037,16 +2032,11 @@ public class ITestAzureBlobFileSystemRename extends
                   Mockito.any(TracingContext.class));
 
           Mockito.doAnswer(deleteAnswer -> {
-                TracingContext deleteContext = deleteAnswer.getArgument(2);
-                Assert.assertEquals(deleteContext.getPrimaryRequestId(),
-                    context.getPrimaryRequestId());
-                Assert.assertTrue(
-                    context.getOpType().equals(deleteContext.getOpType()));
                 if (dirPathStr.equalsIgnoreCase(
                     ((Path) deleteAnswer.getArgument(0)).toUri().getPath())) {
-                  TracingContext tracingContext = deleteAnswer.getArgument(2);
-                  Assertions.assertThat(tracingContext.getOperatedBlobCount())
-                      .isEqualTo(11);
+                  Object result = deleteAnswer.callRealMethod();
+                  tracingHeaderValidator.setOperatedBlobCount(null);
+                  return result;
                 }
                 return deleteAnswer.callRealMethod();
               })

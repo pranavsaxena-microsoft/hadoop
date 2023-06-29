@@ -871,7 +871,7 @@ public class AzureBlobFileSystem extends FileSystem
     statIncrement(CALL_DELETE);
     Path qualifiedPath = makeQualified(f);
     TracingContext tracingContext = new TracingContext(clientCorrelationId,
-            fileSystemId, FSOperationType.DELETE, tracingHeaderFormat,
+            fileSystemId, FSOperationType.DELETE, true, tracingHeaderFormat,
             listener);
 
     if (shouldRedirect(FSOperationType.DELETE, tracingContext)) {
