@@ -99,9 +99,9 @@ public class ITestAzureBlobFileSystemCheckAccess
     checkIfConfigIsSet(FS_AZURE_ACCOUNT_OAUTH_CLIENT_ENDPOINT
         + "." + accountName);
     Configuration conf = getRawConfiguration();
-    setTestFsConf(FS_AZURE_BLOB_FS_CLIENT_ID,
+    setTestFsConf(FS_AZURE_BLOB_FS_CLIENT_ID, accountName,
         FS_AZURE_BLOB_FS_CHECKACCESS_TEST_CLIENT_ID);
-    setTestFsConf(FS_AZURE_BLOB_FS_CLIENT_SECRET,
+    setTestFsConf(FS_AZURE_BLOB_FS_CLIENT_SECRET, accountName,
         FS_AZURE_BLOB_FS_CHECKACCESS_TEST_CLIENT_SECRET);
     conf.set(FS_AZURE_ACCOUNT_AUTH_TYPE_PROPERTY_NAME, AuthType.OAuth.name());
     conf.set(FS_AZURE_ACCOUNT_TOKEN_PROVIDER_TYPE_PROPERTY_NAME + "."
@@ -122,30 +122,30 @@ public class ITestAzureBlobFileSystemCheckAccess
     checkIfConfigIsSet(FS_AZURE_ACCOUNT_OAUTH_CLIENT_ENDPOINT
             + "." + accountName);
     Configuration conf = Mockito.spy(getRawConfiguration());
-    setTestFsConf1(FS_AZURE_BLOB_FS_CLIENT_ID,
+    setTestFsConf1(FS_AZURE_BLOB_FS_CLIENT_ID, accountName,
             FS_AZURE_BLOB_FS_CHECKACCESS_TEST_CLIENT_ID, conf);
-    setTestFsConf1(FS_AZURE_BLOB_FS_CLIENT_SECRET,
+    setTestFsConf1(FS_AZURE_BLOB_FS_CLIENT_SECRET, accountName,
             FS_AZURE_BLOB_FS_CHECKACCESS_TEST_CLIENT_SECRET, conf);
     conf.set(FS_AZURE_ACCOUNT_AUTH_TYPE_PROPERTY_NAME, AuthType.OAuth.name());
     conf.set(FS_AZURE_ACCOUNT_TOKEN_PROVIDER_TYPE_PROPERTY_NAME + "."
             + accountName, ClientCredsTokenProvider.class.getName());
     conf.setBoolean(AZURE_CREATE_REMOTE_FILESYSTEM_DURING_INITIALIZATION,
-            false);
+            true);
     FileSystem testUserFsNonHns;
     testUserFsNonHns = FileSystem.newInstance(conf);
   }
 
-  private void setTestFsConf(final String fsConfKey,
+  private void setTestFsConf(final String fsConfKey, String accountName,
       final String testFsConfKey) {
-    final String confKeyWithAccountName = fsConfKey + "." + getAccountName();
+    final String confKeyWithAccountName = fsConfKey + "." + accountName;
     final String confValue = getConfiguration()
         .getString(testFsConfKey, "");
     getRawConfiguration().set(confKeyWithAccountName, confValue);
   }
 
-  private void setTestFsConf1(final String fsConfKey,
+  private void setTestFsConf1(final String fsConfKey, String accountName,
                              final String testFsConfKey, Configuration conf) {
-    final String confKeyWithAccountName = fsConfKey + "." + getAccountName();
+    final String confKeyWithAccountName = fsConfKey + "." + accountName;
     final String confValue = getConfiguration()
             .getString(testFsConfKey, "");
     conf.set(confKeyWithAccountName, confValue);
