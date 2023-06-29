@@ -84,10 +84,11 @@ public class AbfsRestOperationException extends AzureBlobFileSystemException {
     // HEAD request response doesn't have StorageErrorCode, StorageErrorMessage.
     if (abfsHttpOperation.getMethod().equals("HEAD")) {
       return String.format(
-              "Operation failed: \"%1$s\", %2$s, HEAD, %3$s",
+              "Operation failed: \"%1$s\", %2$s, HEAD, %3$s, %4$s",
               abfsHttpOperation.getStatusDescription(),
               abfsHttpOperation.getStatusCode(),
-              abfsHttpOperation.getMaskedUrl());
+              abfsHttpOperation.getMaskedUrl(),
+              abfsHttpOperation.getRequestId());
     }
 
     return String.format(
