@@ -20,6 +20,7 @@ package org.apache.hadoop.fs.azurebfs;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.Hashtable;
 
 import org.apache.hadoop.fs.azurebfs.services.OperativeEndpoint;
 import org.assertj.core.api.Assertions;
@@ -34,6 +35,7 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
+import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 
 import org.mockito.Mockito;
 
@@ -84,7 +86,7 @@ public class ITestAbfsRestOperationException extends AbstractAbfsIntegrationTest
       Assert.assertEquals("404", errorFields[1].trim());
       Assert.assertEquals("HEAD", errorFields[2].trim());
       Assert.assertTrue(errorFields[3].trim().startsWith("http"));
-      Assert.assertTrue(errorFields[4].trim().startsWith("rid:"));
+      Assert.assertTrue(errorFields[4].trim().startsWith("rId:"));
     }
 
     try {
@@ -95,7 +97,7 @@ public class ITestAbfsRestOperationException extends AbstractAbfsIntegrationTest
       String[] errorFields = errorMessage.split(",");
       // Flow is different for listStatusIterator being enabled or not.
       if (!getAbfsStore(fs).getAbfsConfiguration().enableAbfsListIterator()) {
-        Assert.assertEquals(6, errorFields.length);
+        Assert.assertEquals(7, errorFields.length);
         // Check status message, status code, HTTP Request Type and URL.
         if (useBlobEndpoint) {
           Assert.assertEquals("Operation failed: \"The specified blob does not exist.\"", errorFields[0].trim());
@@ -106,6 +108,7 @@ public class ITestAbfsRestOperationException extends AbstractAbfsIntegrationTest
         Assert.assertEquals("404", errorFields[1].trim());
         Assert.assertEquals("GET", errorFields[2].trim());
         Assert.assertTrue(errorFields[3].trim().startsWith("http"));
+        Assert.assertTrue(errorFields[4].trim().startsWith("rId:"));
         // Check storage error code and storage error message.
         Assert.assertEquals("PathNotFound", errorFields[4].trim());
         Assert.assertTrue(errorFields[5].contains("RequestId")
@@ -122,8 +125,31 @@ public class ITestAbfsRestOperationException extends AbstractAbfsIntegrationTest
         Assert.assertEquals("404", errorFields[1].trim());
         Assert.assertEquals("HEAD", errorFields[2].trim());
         Assert.assertTrue(errorFields[3].trim().startsWith("http"));
-        Assert.assertTrue(errorFields[4].trim().startsWith("rid:"));
+        Assert.assertTrue(errorFields[4].trim().startsWith("rId:"));
       }
+    }
+    // Check Exception Format For Put Method
+    try {
+      Hashtable<String, String> metadata = new Hashtable<>();
+      metadata.put("hi", "hello");
+      fs.getAbfsStore().setBlobMetadata(fs.makeQualified(nonExistedFilePath1), metadata, Mockito.mock(
+          TracingContext.class));
+    } catch (AbfsRestOperationException ex) {
+      String errorMessage = ex.getLocalizedMessage();
+      String[] errorFields = errorMessage.split(",");
+
+      Assert.assertEquals(7, errorFields.length);
+      // Check status message, status code, HTTP Request Type and URL.
+      if (useBlobEndpoint) {
+        Assert.assertEquals("Operation failed: \"The specified blob does not exist.\"", errorFields[0].trim());
+      }
+      else {
+        Assert.assertEquals("Operation failed: \"The specified path does not exist.\"", errorFields[0].trim());
+      }
+      Assert.assertEquals("404", errorFields[1].trim());
+      Assert.assertEquals("PUT", errorFields[2].trim());
+      Assert.assertTrue(errorFields[3].trim().startsWith("http"));
+      Assert.assertTrue(errorFields[4].trim().startsWith("rId:"));
     }
   }
 
