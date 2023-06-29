@@ -933,9 +933,8 @@ public class AzureBlobFileSystem extends FileSystem
             = getAbfsStore().getRenamePendingFileStatus(result);
         if (renamePendingFileStatus != null) {
           RenameAtomicityUtils renameAtomicityUtils =
-              new RenameAtomicityUtils(this,
-                  renamePendingFileStatus.getPath(),
-                  getAbfsStore().getRedoRenameInvocation(tracingContext));
+              getRenameAtomicityUtilsForRedo(renamePendingFileStatus.getPath(),
+                  tracingContext);
           renameAtomicityUtils.cleanup(renamePendingFileStatus.getPath());
           result = getAbfsStore().listStatus(qualifiedPath, tracingContext);
         }
@@ -945,6 +944,13 @@ public class AzureBlobFileSystem extends FileSystem
       checkException(f, ex);
       return null;
     }
+  }
+
+  RenameAtomicityUtils getRenameAtomicityUtilsForRedo(final Path renamePendingFileStatus,
+      final TracingContext tracingContext) throws IOException {
+    return new RenameAtomicityUtils(this,
+        renamePendingFileStatus,
+        getAbfsStore().getRedoRenameInvocation(tracingContext));
   }
 
   /**
@@ -1077,10 +1083,9 @@ public class AzureBlobFileSystem extends FileSystem
           && getAbfsStore().isAtomicRenameKey(fileStatus.getPath().toUri().getPath())
           && getAbfsStore().getRenamePendingFileStatusInDirectory(fileStatus,
               tracingContext)) {
-        RenameAtomicityUtils renameAtomicityUtils = new RenameAtomicityUtils(
-            this,
+        RenameAtomicityUtils renameAtomicityUtils = getRenameAtomicityUtilsForRedo(
             new Path(fileStatus.getPath().toUri().getPath() + SUFFIX),
-            getAbfsStore().getRedoRenameInvocation(tracingContext));
+            tracingContext);
         renameAtomicityUtils.cleanup(
             new Path(fileStatus.getPath().toUri().getPath() + SUFFIX));
         throw new AbfsRestOperationException(HttpURLConnection.HTTP_NOT_FOUND,

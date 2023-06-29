@@ -40,9 +40,14 @@ public class TracingHeaderValidator implements Listener {
   private static final String GUID_PATTERN = "^[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}$";
   private Integer operatedBlobCount = null;
 
+  private Boolean disableValidation = false;
+
   @Override
   public void callTracingHeaderValidator(String tracingContextHeader,
       TracingHeaderFormat format) {
+    if (disableValidation) {
+      return;
+    }
     this.format = format;
     validateTracingHeader(tracingContextHeader);
   }
@@ -53,6 +58,9 @@ public class TracingHeaderValidator implements Listener {
         clientCorrelationId, fileSystemId, operation, needsPrimaryRequestId,
         retryNum, streamID);
     tracingHeaderValidator.primaryRequestId = primaryRequestId;
+    if (disableValidation) {
+      tracingHeaderValidator.setDisableValidation(true);
+    }
     return tracingHeaderValidator;
   }
 
@@ -163,5 +171,9 @@ public class TracingHeaderValidator implements Listener {
 
   public void setOperatedBlobCount(Integer operatedBlobCount) {
     this.operatedBlobCount = operatedBlobCount;
+  }
+
+  public void setDisableValidation(Boolean disableValidation) {
+    this.disableValidation = disableValidation;
   }
 }

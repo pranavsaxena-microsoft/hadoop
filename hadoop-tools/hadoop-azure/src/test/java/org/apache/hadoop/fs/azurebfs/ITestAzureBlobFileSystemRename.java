@@ -2072,31 +2072,41 @@ public class ITestAzureBlobFileSystemRename extends
 
     renameFailureSetup(fs, client);
 
-    TracingContext[] tracingContextCreatedInFsListStatus
-        = new TracingContext[1];
-    Mockito.doAnswer(answer -> {
-          tracingContextCreatedInFsListStatus[0] = answer.getArgument(1);
-          return answer.callRealMethod();
-        })
-        .when(store)
-        .listStatus(Mockito.any(Path.class), Mockito.any(TracingContext.class));
+    final TracingHeaderValidator tracingHeaderValidator
+        = new TracingHeaderValidator(
+        fs.getAbfsStore().getAbfsConfiguration().getClientCorrelationId(),
+        fs.getFileSystemId(), FSOperationType.LISTSTATUS, true, 0);
+    fs.registerListener(tracingHeaderValidator);
 
     AtomicInteger copied = new AtomicInteger(0);
     Mockito.doAnswer(answer -> {
           copied.incrementAndGet();
-          TracingContext tracingContext = answer.getArgument(3);
-          Assertions.assertThat(tracingContext)
-              .isEqualTo(tracingContextCreatedInFsListStatus[0]);
           Path path = answer.getArgument(0);
           if ("/hbase/testDir".equalsIgnoreCase(path.toUri().getPath())) {
-            Assertions.assertThat(tracingContext.getOperatedBlobCount())
-                .isEqualTo(copied.get());
+            tracingHeaderValidator.setOperatedBlobCount(copied.get());
           }
           return answer.callRealMethod();
         })
         .when(store)
         .copyBlob(Mockito.any(Path.class), Mockito.any(Path.class),
             Mockito.nullable(String.class), Mockito.any(TracingContext.class));
+
+    Mockito.doAnswer(answer -> {
+      tracingHeaderValidator.setDisableValidation(true);
+      RenameAtomicityUtils renameAtomicityUtils = Mockito.spy((RenameAtomicityUtils) answer.callRealMethod());
+      Mockito.doAnswer(cleanupAnswer -> {
+        tracingHeaderValidator.setDisableValidation(true);
+        cleanupAnswer.callRealMethod();
+        return null;
+      }).when(renameAtomicityUtils).cleanup(Mockito.any(Path.class));
+      tracingHeaderValidator.setDisableValidation(false);
+      return renameAtomicityUtils;
+    }).when(fs).getRenameAtomicityUtilsForRedo(Mockito.any(Path.class), Mockito.any(TracingContext.class));
+
+    Mockito.doAnswer(answer -> {
+      tracingHeaderValidator.setOperatedBlobCount(null);
+      return answer.callRealMethod();
+    }).when(client).deleteBlobPath(Mockito.any(Path.class), Mockito.nullable(String.class), Mockito.any(TracingContext.class));
 
     fs.listStatus(new Path("/hbase"));
     Assertions.assertThat(fs.exists(new Path("/hbase/testDir2"))).isTrue();
