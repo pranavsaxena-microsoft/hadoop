@@ -416,6 +416,12 @@ public class ITestAzureBlobFileSystemDelete extends
     Assertions.assertThat(lmt).isEqualTo(newLmt);
   }
 
+  /**
+   * Test to assert that the CID in src marker delete contains the
+   * total number of blobs operated in the delete directory.
+   * Also, to assert that all operations in the delete-directory flow have same
+   * primaryId and opType.
+   */
   @Test
   public void testDeleteEmitDeletionCountInClientRequestId() throws Exception {
     AzureBlobFileSystem fs = Mockito.spy(getFileSystem());
@@ -442,42 +448,6 @@ public class ITestAzureBlobFileSystemDelete extends
     Mockito.doReturn(store).when(fs).getAbfsStore();
     AbfsClient client = Mockito.spy(store.getClient());
     store.setClient(client);
-
-    Mockito.doAnswer(answer -> {
-          if (dirPathStr.equalsIgnoreCase(
-              ((Path) answer.getArgument(0)).toUri().getPath())) {
-            TracingContext tracingContext = answer.getArgument(2);
-            Assertions.assertThat(tracingContext.getOperatedBlobCount())
-                .isEqualTo(11);
-          }
-          return answer.callRealMethod();
-        })
-        .when(client)
-        .deleteBlobPath(Mockito.any(Path.class), Mockito.nullable(String.class),
-            Mockito.any(TracingContext.class));
-
-    fs.delete(new Path(dirPathStr), true);
-  }
-
-  /**
-   * Test to assert that the CID in src marker delete contains the
-   * total number of blobs operated in the delete directory.
-   * Also, to assert that all operations in the delete-directory flow have same
-   * primaryId and opType.
-   */
-  @Test
-  public void testIfTracingContextPrimaryIdIsSameInAllTheStepsOfBlobDelete()
-      throws Exception {
-    AzureBlobFileSystem fs = Mockito.spy(getFileSystem());
-    Assume.assumeTrue(fs.getAbfsStore().getPrefixMode() == PrefixMode.BLOB);
-    fs.mkdirs(new Path("/testDir/dir"));
-    fs.create(new Path("/testDir/dir/file1"));
-    fs.create(new Path("/testDir/dir/file2"));
-
-    AzureBlobFileSystemStore store = fs.getAbfsStore();
-    AzureBlobFileSystemStore spiedStore = Mockito.spy(store);
-    AbfsClient client = Mockito.spy(store.getClient());
-    spiedStore.setClient(client);
 
     Mockito.doAnswer(answer -> {
           final TracingContext context = answer.getArgument(2);
@@ -516,6 +486,12 @@ public class ITestAzureBlobFileSystemDelete extends
                     context.getPrimaryRequestId());
                 Assert.assertTrue(
                     context.getOpType().equals(deleteContext.getOpType()));
+                if (dirPathStr.equalsIgnoreCase(
+                    ((Path) deleteAnswer.getArgument(0)).toUri().getPath())) {
+                  TracingContext tracingContext = deleteAnswer.getArgument(2);
+                  Assertions.assertThat(tracingContext.getOperatedBlobCount())
+                      .isEqualTo(11);
+                }
                 return deleteAnswer.callRealMethod();
               })
               .when(client)
@@ -525,11 +501,23 @@ public class ITestAzureBlobFileSystemDelete extends
 
           return answer.callRealMethod();
         })
-        .when(spiedStore)
+        .when(store)
         .delete(Mockito.any(Path.class), Mockito.anyBoolean(),
             Mockito.any(TracingContext.class));
 
-    Mockito.doReturn(spiedStore).when(fs).getAbfsStore();
-    fs.delete(new Path("/testDir/dir"), true);
+    Mockito.doAnswer(answer -> {
+          if (dirPathStr.equalsIgnoreCase(
+              ((Path) answer.getArgument(0)).toUri().getPath())) {
+            TracingContext tracingContext = answer.getArgument(2);
+            Assertions.assertThat(tracingContext.getOperatedBlobCount())
+                .isEqualTo(11);
+          }
+          return answer.callRealMethod();
+        })
+        .when(client)
+        .deleteBlobPath(Mockito.any(Path.class), Mockito.nullable(String.class),
+            Mockito.any(TracingContext.class));
+
+    fs.delete(new Path(dirPathStr), true);
   }
 }

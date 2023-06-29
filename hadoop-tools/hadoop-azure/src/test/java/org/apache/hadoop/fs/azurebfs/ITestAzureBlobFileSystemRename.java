@@ -1669,66 +1669,6 @@ public class ITestAzureBlobFileSystemRename extends
   }
 
   @Test
-  public void testIfTracingContextPrimaryIdIsSameInAllTheStepsOfBlobRename() throws Exception {
-    assumeNonHnsAccountBlobEndpoint(getFileSystem());
-    AzureBlobFileSystem fs = Mockito.spy(getFileSystem());
-    fs.mkdirs(new Path("/dir"));
-    fs.create(new Path("/dir/file1"));
-    fs.create(new Path("/dir/file2"));
-
-    AzureBlobFileSystemStore store = fs.getAbfsStore();
-    AzureBlobFileSystemStore spiedStore = Mockito.spy(store);
-    AbfsClient client = Mockito.spy(store.getClient());
-    spiedStore.setClient(client);
-
-    Mockito.doAnswer(answer -> {
-          final TracingContext context = answer.getArgument(3);
-          Mockito.doAnswer(listAnswer -> {
-                TracingContext listContext = listAnswer.getArgument(4);
-                Assert.assertEquals(listContext.getPrimaryRequestId(),
-                    context.getPrimaryRequestId());
-                Assert.assertTrue(context.getOpType().equals(listContext.getOpType()));
-                return listAnswer.callRealMethod();
-              })
-              .when(client)
-              .getListBlobs(Mockito.nullable(String.class),
-                  Mockito.nullable(String.class), Mockito.nullable(String.class),
-                  Mockito.nullable(Integer.class), Mockito.any(TracingContext.class));
-
-          Mockito.doAnswer(copyAnswer -> {
-                TracingContext copyContext = copyAnswer.getArgument(3);
-                Assert.assertEquals(copyContext.getPrimaryRequestId(),
-                    context.getPrimaryRequestId());
-                Assert.assertTrue(context.getOpType().equals(copyContext.getOpType()));
-                return copyAnswer.callRealMethod();
-              })
-              .when(client)
-              .copyBlob(Mockito.any(Path.class), Mockito.any(Path.class), Mockito.nullable(String.class),
-                  Mockito.any(TracingContext.class));
-
-          Mockito.doAnswer(deleteAnswer -> {
-                TracingContext deleteContext = deleteAnswer.getArgument(2);
-                Assert.assertEquals(deleteContext.getPrimaryRequestId(),
-                    context.getPrimaryRequestId());
-                Assert.assertTrue(context.getOpType().equals(deleteContext.getOpType()));
-                return deleteAnswer.callRealMethod();
-              })
-              .when(client)
-              .deleteBlobPath(Mockito.any(Path.class), Mockito.nullable(String.class),
-                  Mockito.any(TracingContext.class));
-
-          return answer.callRealMethod();
-        })
-        .when(spiedStore)
-        .rename(Mockito.any(Path.class), Mockito.any(Path.class),
-            Mockito.any(
-                RenameAtomicityUtils.class), Mockito.any(TracingContext.class));
-
-    Mockito.doReturn(spiedStore).when(fs).getAbfsStore();
-    fs.rename(new Path("/dir"), new Path("/dir1"));
-  }
-
-  @Test
   public void testParallelRenameForAtomicDirShouldFail() throws Exception {
     AzureBlobFileSystem fs = Mockito.spy(getFileSystem());
     assumeNonHnsAccountBlobEndpoint(fs);
@@ -2042,7 +1982,8 @@ public class ITestAzureBlobFileSystemRename extends
    * primaryId and opType.
    */
   @Test
-  public void testRenameSrcDirDeleteEmitDeletionCountInClientRequestId() throws Exception {
+  public void testRenameSrcDirDeleteEmitDeletionCountInClientRequestId()
+      throws Exception {
     AzureBlobFileSystem fs = Mockito.spy(getFileSystem());
     Assume.assumeTrue(getPrefixMode(fs) == PrefixMode.BLOB);
     String dirPathStr = "/testDir/dir1";
@@ -2069,17 +2010,57 @@ public class ITestAzureBlobFileSystemRename extends
     store.setClient(client);
 
     Mockito.doAnswer(answer -> {
-          if (dirPathStr.equalsIgnoreCase(
-              ((Path) answer.getArgument(0)).toUri().getPath())) {
-            TracingContext tracingContext = answer.getArgument(2);
-            Assertions.assertThat(tracingContext.getOperatedBlobCount())
-                .isEqualTo(11);
-          }
+          final TracingContext context = answer.getArgument(3);
+          Mockito.doAnswer(listAnswer -> {
+                TracingContext listContext = listAnswer.getArgument(4);
+                Assert.assertEquals(listContext.getPrimaryRequestId(),
+                    context.getPrimaryRequestId());
+                Assert.assertTrue(context.getOpType().equals(listContext.getOpType()));
+                return listAnswer.callRealMethod();
+              })
+              .when(client)
+              .getListBlobs(Mockito.nullable(String.class),
+                  Mockito.nullable(String.class), Mockito.nullable(String.class),
+                  Mockito.nullable(Integer.class),
+                  Mockito.any(TracingContext.class));
+
+          Mockito.doAnswer(copyAnswer -> {
+                TracingContext copyContext = copyAnswer.getArgument(3);
+                Assert.assertEquals(copyContext.getPrimaryRequestId(),
+                    context.getPrimaryRequestId());
+                Assert.assertTrue(context.getOpType().equals(copyContext.getOpType()));
+                return copyAnswer.callRealMethod();
+              })
+              .when(client)
+              .copyBlob(Mockito.any(Path.class), Mockito.any(Path.class),
+                  Mockito.nullable(String.class),
+                  Mockito.any(TracingContext.class));
+
+          Mockito.doAnswer(deleteAnswer -> {
+                TracingContext deleteContext = deleteAnswer.getArgument(2);
+                Assert.assertEquals(deleteContext.getPrimaryRequestId(),
+                    context.getPrimaryRequestId());
+                Assert.assertTrue(
+                    context.getOpType().equals(deleteContext.getOpType()));
+                if (dirPathStr.equalsIgnoreCase(
+                    ((Path) deleteAnswer.getArgument(0)).toUri().getPath())) {
+                  TracingContext tracingContext = deleteAnswer.getArgument(2);
+                  Assertions.assertThat(tracingContext.getOperatedBlobCount())
+                      .isEqualTo(11);
+                }
+                return deleteAnswer.callRealMethod();
+              })
+              .when(client)
+              .deleteBlobPath(Mockito.any(Path.class),
+                  Mockito.nullable(String.class),
+                  Mockito.any(TracingContext.class));
+
           return answer.callRealMethod();
         })
-        .when(client)
-        .deleteBlobPath(Mockito.any(Path.class), Mockito.nullable(String.class),
-            Mockito.any(TracingContext.class));
+        .when(store)
+        .rename(Mockito.any(Path.class), Mockito.any(Path.class),
+            Mockito.any(
+                RenameAtomicityUtils.class), Mockito.any(TracingContext.class));
 
     fs.rename(new Path(dirPathStr), new Path("/dst/"));
   }
@@ -2095,60 +2076,11 @@ public class ITestAzureBlobFileSystemRename extends
     assumeNonHnsAccountBlobEndpoint(getFileSystem());
     AzureBlobFileSystem fs = Mockito.spy(getFileSystem());
     AzureBlobFileSystemStore store = Mockito.spy(fs.getAbfsStore());
-
-    fs.mkdirs(new Path("/hbase/testDir"));
-    ExecutorService executorService = Executors.newFixedThreadPool(5);
-    List<Future> futures = new ArrayList<>();
-    for (int i = 0; i < 10; i++) {
-      final int iter = i;
-      futures.add(executorService.submit(
-          () -> fs.create(new Path("/hbase/testDir/file" + iter))));
-    }
-
-    for (Future future : futures) {
-      future.get();
-    }
-
     AbfsClient client = Mockito.spy(fs.getAbfsClient());
     Mockito.doReturn(store).when(fs).getAbfsStore();
     store.setClient(client);
 
-    AbfsRestOperation op = client.acquireBlobLease("/hbase/testDir/file5", -1,
-        Mockito.mock(TracingContext.class));
-    String leaseId = op.getResult()
-        .getResponseHeader(HttpHeaderConfigurations.X_MS_LEASE_ID);
-    Map<String, String> pathLeaseIdMap = new ConcurrentHashMap<>();
-    final AtomicBoolean leaseCanBeTaken = new AtomicBoolean(true);
-    Mockito.doAnswer(answer -> {
-          if (!leaseCanBeTaken.get()) {
-            throw new RuntimeException();
-          }
-          AbfsRestOperation abfsRestOperation
-              = (AbfsRestOperation) answer.callRealMethod();
-          pathLeaseIdMap.put(answer.getArgument(0),
-              abfsRestOperation.getResult().getResponseHeader(X_MS_LEASE_ID));
-          return abfsRestOperation;
-        })
-        .when(client)
-        .acquireBlobLease(Mockito.anyString(), Mockito.anyInt(),
-            Mockito.any(TracingContext.class));
-
-    intercept(Exception.class, () -> {
-      fs.rename(new Path("/hbase/testDir"), new Path("/hbase/testDir2"));
-    });
-
-    leaseCanBeTaken.set(false);
-    for (Map.Entry<String, String> entry : pathLeaseIdMap.entrySet()) {
-      try {
-        client.releaseBlobLease(entry.getKey(), entry.getValue(),
-            Mockito.mock(TracingContext.class));
-      } catch (Exception e) {
-
-      }
-    }
-    client.releaseBlobLease("/hbase/testDir/file5", leaseId,
-        Mockito.mock(TracingContext.class));
-    leaseCanBeTaken.set(true);
+    renameFailureSetup(fs, client);
 
     TracingContext[] tracingContextCreatedInFsListStatus
         = new TracingContext[1];
@@ -2192,61 +2124,11 @@ public class ITestAzureBlobFileSystemRename extends
     assumeNonHnsAccountBlobEndpoint(getFileSystem());
     AzureBlobFileSystem fs = Mockito.spy(getFileSystem());
     AzureBlobFileSystemStore store = Mockito.spy(fs.getAbfsStore());
-
-    fs.mkdirs(new Path("/hbase/testDir"));
-    ExecutorService executorService = Executors.newFixedThreadPool(5);
-    List<Future> futures = new ArrayList<>();
-    for (int i = 0; i < 10; i++) {
-      final int iter = i;
-      futures.add(executorService.submit(
-          () -> fs.create(new Path("/hbase/testDir/file" + iter))));
-    }
-
-    for (Future future : futures) {
-      future.get();
-    }
-
     AbfsClient client = Mockito.spy(fs.getAbfsClient());
     Mockito.doReturn(store).when(fs).getAbfsStore();
     store.setClient(client);
 
-    AbfsRestOperation op = client.acquireBlobLease("/hbase/testDir/file5", -1,
-        Mockito.mock(TracingContext.class));
-    String leaseId = op.getResult()
-        .getResponseHeader(HttpHeaderConfigurations.X_MS_LEASE_ID);
-
-    Map<String, String> pathLeaseIdMap = new ConcurrentHashMap<>();
-    AtomicBoolean leaseCanBeTaken = new AtomicBoolean(true);
-    Mockito.doAnswer(answer -> {
-          if (!leaseCanBeTaken.get()) {
-            throw new RuntimeException();
-          }
-          AbfsRestOperation abfsRestOperation
-              = (AbfsRestOperation) answer.callRealMethod();
-          pathLeaseIdMap.put(answer.getArgument(0),
-              abfsRestOperation.getResult().getResponseHeader(X_MS_LEASE_ID));
-          return abfsRestOperation;
-        })
-        .when(client)
-        .acquireBlobLease(Mockito.anyString(), Mockito.anyInt(),
-            Mockito.any(TracingContext.class));
-
-    intercept(Exception.class, () -> {
-      fs.rename(new Path("/hbase/testDir"), new Path("/hbase/testDir2"));
-    });
-
-    leaseCanBeTaken.set(false);
-    for (Map.Entry<String, String> entry : pathLeaseIdMap.entrySet()) {
-      try {
-        client.releaseBlobLease(entry.getKey(), entry.getValue(),
-            Mockito.mock(TracingContext.class));
-      } catch (Exception e) {
-
-      }
-    }
-    client.releaseBlobLease("/hbase/testDir/file5", leaseId,
-        Mockito.mock(TracingContext.class));
-    leaseCanBeTaken.set(true);
+    renameFailureSetup(fs, client);
 
 
     TracingContext[] tracingContextCreatedInFsListStatus
@@ -2285,5 +2167,60 @@ public class ITestAzureBlobFileSystemRename extends
     });
     Assertions.assertThat(fs.exists(new Path("/hbase/testDir2"))).isTrue();
     Assertions.assertThat(copied.get()).isGreaterThan(0);
+  }
+
+  private void renameFailureSetup(final AzureBlobFileSystem fs,
+      final AbfsClient client)
+      throws Exception {
+    fs.mkdirs(new Path("/hbase/testDir"));
+    ExecutorService executorService = Executors.newFixedThreadPool(5);
+    List<Future> futures = new ArrayList<>();
+    for (int i = 0; i < 10; i++) {
+      final int iter = i;
+      futures.add(executorService.submit(
+          () -> fs.create(new Path("/hbase/testDir/file" + iter))));
+    }
+
+    for (Future future : futures) {
+      future.get();
+    }
+
+    AbfsRestOperation op = client.acquireBlobLease("/hbase/testDir/file5", -1,
+        Mockito.mock(TracingContext.class));
+    String leaseId = op.getResult()
+        .getResponseHeader(HttpHeaderConfigurations.X_MS_LEASE_ID);
+
+    Map<String, String> pathLeaseIdMap = new ConcurrentHashMap<>();
+    AtomicBoolean leaseCanBeTaken = new AtomicBoolean(true);
+    Mockito.doAnswer(answer -> {
+          if (!leaseCanBeTaken.get()) {
+            throw new RuntimeException();
+          }
+          AbfsRestOperation abfsRestOperation
+              = (AbfsRestOperation) answer.callRealMethod();
+          pathLeaseIdMap.put(answer.getArgument(0),
+              abfsRestOperation.getResult().getResponseHeader(X_MS_LEASE_ID));
+          return abfsRestOperation;
+        })
+        .when(client)
+        .acquireBlobLease(Mockito.anyString(), Mockito.anyInt(),
+            Mockito.any(TracingContext.class));
+
+    intercept(Exception.class, () -> {
+      fs.rename(new Path("/hbase/testDir"), new Path("/hbase/testDir2"));
+    });
+
+    leaseCanBeTaken.set(false);
+    for (Map.Entry<String, String> entry : pathLeaseIdMap.entrySet()) {
+      try {
+        client.releaseBlobLease(entry.getKey(), entry.getValue(),
+            Mockito.mock(TracingContext.class));
+      } catch (Exception e) {
+
+      }
+    }
+    client.releaseBlobLease("/hbase/testDir/file5", leaseId,
+        Mockito.mock(TracingContext.class));
+    leaseCanBeTaken.set(true);
   }
 }
