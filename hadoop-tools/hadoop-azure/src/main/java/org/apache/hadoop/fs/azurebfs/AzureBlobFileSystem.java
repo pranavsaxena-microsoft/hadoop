@@ -871,7 +871,7 @@ public class AzureBlobFileSystem extends FileSystem
     statIncrement(CALL_DELETE);
     Path qualifiedPath = makeQualified(f);
     TracingContext tracingContext = new TracingContext(clientCorrelationId,
-            fileSystemId, FSOperationType.DELETE, tracingHeaderFormat,
+            fileSystemId, FSOperationType.DELETE, true, tracingHeaderFormat,
             listener);
 
     if (shouldRedirect(FSOperationType.DELETE, tracingContext)) {
@@ -926,18 +926,17 @@ public class AzureBlobFileSystem extends FileSystem
       TracingContext tracingContext = new TracingContext(clientCorrelationId,
           fileSystemId, FSOperationType.LISTSTATUS, true, tracingHeaderFormat,
           listener);
-      FileStatus[] result = abfsStore.listStatus(qualifiedPath, tracingContext);
+      FileStatus[] result = getAbfsStore().listStatus(qualifiedPath, tracingContext);
       if (getAbfsStore().getAbfsConfiguration().getPrefixMode()
           == PrefixMode.BLOB) {
         FileStatus renamePendingFileStatus
-            = abfsStore.getRenamePendingFileStatus(result);
+            = getAbfsStore().getRenamePendingFileStatus(result);
         if (renamePendingFileStatus != null) {
           RenameAtomicityUtils renameAtomicityUtils =
-              new RenameAtomicityUtils(this,
-                  renamePendingFileStatus.getPath(),
-                  abfsStore.getRedoRenameInvocation(tracingContext));
+              getRenameAtomicityUtilsForRedo(renamePendingFileStatus.getPath(),
+                  tracingContext);
           renameAtomicityUtils.cleanup(renamePendingFileStatus.getPath());
-          result = abfsStore.listStatus(qualifiedPath, tracingContext);
+          result = getAbfsStore().listStatus(qualifiedPath, tracingContext);
         }
       }
       return result;
@@ -945,6 +944,13 @@ public class AzureBlobFileSystem extends FileSystem
       checkException(f, ex);
       return null;
     }
+  }
+
+  RenameAtomicityUtils getRenameAtomicityUtilsForRedo(final Path renamePendingFileStatus,
+      final TracingContext tracingContext) throws IOException {
+    return new RenameAtomicityUtils(this,
+        renamePendingFileStatus,
+        getAbfsStore().getRedoRenameInvocation(tracingContext));
   }
 
   /**
@@ -1048,7 +1054,7 @@ public class AzureBlobFileSystem extends FileSystem
   @Override
   public FileStatus getFileStatus(final Path f) throws IOException {
       TracingContext tracingContext = new TracingContext(clientCorrelationId,
-          fileSystemId, FSOperationType.GET_FILESTATUS, tracingHeaderFormat,
+          fileSystemId, FSOperationType.GET_FILESTATUS, true, tracingHeaderFormat,
           listener);
       return getFileStatus(f, tracingContext);
   }
@@ -1070,17 +1076,16 @@ public class AzureBlobFileSystem extends FileSystem
          * Get File Status over Blob Endpoint will Have an additional call
          * to check if directory is implicit.
          */
-        fileStatus = abfsStore.getFileStatus(qualifiedPath,
+        fileStatus = getAbfsStore().getFileStatus(qualifiedPath,
             tracingContext, useBlobEndpoint);
         if (getAbfsStore().getPrefixMode() == PrefixMode.BLOB
                 && fileStatus != null && fileStatus.isDirectory()
-          && abfsStore.isAtomicRenameKey(fileStatus.getPath().toUri().getPath())
-          && abfsStore.getRenamePendingFileStatusInDirectory(fileStatus,
+          && getAbfsStore().isAtomicRenameKey(fileStatus.getPath().toUri().getPath())
+          && getAbfsStore().getRenamePendingFileStatusInDirectory(fileStatus,
               tracingContext)) {
-        RenameAtomicityUtils renameAtomicityUtils = new RenameAtomicityUtils(
-            this,
+        RenameAtomicityUtils renameAtomicityUtils = getRenameAtomicityUtilsForRedo(
             new Path(fileStatus.getPath().toUri().getPath() + SUFFIX),
-            abfsStore.getRedoRenameInvocation(tracingContext));
+            tracingContext);
         renameAtomicityUtils.cleanup(
             new Path(fileStatus.getPath().toUri().getPath() + SUFFIX));
         throw new AbfsRestOperationException(HttpURLConnection.HTTP_NOT_FOUND,

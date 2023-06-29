@@ -21,6 +21,7 @@ package org.apache.hadoop.fs.azurebfs;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
@@ -413,5 +414,69 @@ public class ITestAzureBlobFileSystemDelete extends
     fs.delete(new Path("/dir1/dir2"), true);
     Long newLmt = fs.getFileStatus(new Path("/dir1")).getModificationTime();
     Assertions.assertThat(lmt).isEqualTo(newLmt);
+  }
+
+  /**
+   * Test to assert that the CID in src marker delete contains the
+   * total number of blobs operated in the delete directory.
+   * Also, to assert that all operations in the delete-directory flow have same
+   * primaryId and opType.
+   */
+  @Test
+  public void testDeleteEmitDeletionCountInClientRequestId() throws Exception {
+    AzureBlobFileSystem fs = Mockito.spy(getFileSystem());
+    Assume.assumeTrue(getPrefixMode(fs) == PrefixMode.BLOB);
+    String dirPathStr = "/testDir/dir1";
+    fs.mkdirs(new Path(dirPathStr));
+    ExecutorService executorService = Executors.newFixedThreadPool(5);
+    List<Future> futures = new ArrayList<>();
+    for (int i = 0; i < 10; i++) {
+      final int iter = i;
+      Future future = executorService.submit(() -> {
+        return fs.create(new Path("/testDir/dir1/file" + iter));
+      });
+      futures.add(future);
+    }
+
+    for (Future future : futures) {
+      future.get();
+    }
+    executorService.shutdown();
+
+
+    AzureBlobFileSystemStore store = Mockito.spy(fs.getAbfsStore());
+    Mockito.doReturn(store).when(fs).getAbfsStore();
+    AbfsClient client = Mockito.spy(store.getClient());
+    store.setClient(client);
+
+    final TracingHeaderValidator tracingHeaderValidator
+        = new TracingHeaderValidator(
+        fs.getAbfsStore().getAbfsConfiguration().getClientCorrelationId(),
+        fs.getFileSystemId(), FSOperationType.DELETE, true, 0);
+    fs.registerListener(tracingHeaderValidator);
+
+    Mockito.doAnswer(answer -> {
+          Mockito.doAnswer(deleteAnswer -> {
+                if (dirPathStr.equalsIgnoreCase(
+                    ((Path) deleteAnswer.getArgument(0)).toUri().getPath())) {
+                  tracingHeaderValidator.setOperatedBlobCount(11);
+                  Object result = deleteAnswer.callRealMethod();
+                  tracingHeaderValidator.setOperatedBlobCount(null);
+                  return result;
+                }
+                return deleteAnswer.callRealMethod();
+              })
+              .when(client)
+              .deleteBlobPath(Mockito.any(Path.class),
+                  Mockito.nullable(String.class),
+                  Mockito.any(TracingContext.class));
+
+          return answer.callRealMethod();
+        })
+        .when(store)
+        .delete(Mockito.any(Path.class), Mockito.anyBoolean(),
+            Mockito.any(TracingContext.class));
+
+    fs.delete(new Path(dirPathStr), true);
   }
 }

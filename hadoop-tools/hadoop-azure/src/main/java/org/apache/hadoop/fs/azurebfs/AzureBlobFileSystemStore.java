@@ -56,6 +56,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.hadoop.classification.VisibleForTesting;
 
@@ -1580,6 +1581,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     final ExecutorService renameBlobExecutorService
         = Executors.newFixedThreadPool(
         getAbfsConfiguration().getBlobDirRenameMaxThread());
+    AtomicInteger renamedBlob = new AtomicInteger(0);
     while(!listBlobConsumer.isCompleted()) {
       blobList = listBlobConsumer.consume();
       if(blobList == null) {
@@ -1611,6 +1613,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
                     blobProperty.getPath(), source),
                 blobLease,
                 tracingContext);
+            renamedBlob.incrementAndGet();
           } catch (AzureBlobFileSystemException e) {
             LOG.error(String.format("rename from %s to %s for blob %s failed",
                 source, destination, blobProperty.getPath()), e);
@@ -1634,11 +1637,13 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     }
     renameBlobExecutorService.shutdown();
 
+    tracingContext.setOperatedBlobCount(renamedBlob.get() + 1);
     renameBlob(
         source, createDestinationPathForBlobPartOfRenameSrcDir(destination,
             source, source),
         srcDirBlobLease,
         tracingContext);
+    tracingContext.setOperatedBlobCount(null);
   }
 
   private Boolean isCreateOperationOnBlobEndpoint() {
@@ -1757,7 +1762,6 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     if (!path.isRoot()) {
       listSrcBuilder.append(FORWARD_SLASH);
     }
-
     String listSrc = listSrcBuilder.toString();
     BlobList blobList = client.getListBlobs(null, listSrc, null, null,
         tracingContext).getResult().getBlobList();
@@ -1868,6 +1872,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
   private void deleteOnConsumedBlobs(final Path srcPath,
       final ListBlobConsumer consumer,
       final TracingContext tracingContext) throws AzureBlobFileSystemException {
+    AtomicInteger deletedBlobCount = new AtomicInteger(0);
     String srcPathStr = srcPath.toUri().getPath();
     ExecutorService deleteBlobExecutorService = Executors.newFixedThreadPool(
         getAbfsConfiguration().getBlobDirDeleteMaxThread());
@@ -1885,6 +1890,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
             try {
               client.deleteBlobPath(blobProperty.getPath(), null,
                   tracingContext);
+              deletedBlobCount.incrementAndGet();
             } catch (AzureBlobFileSystemException ex) {
               if (ex instanceof AbfsRestOperationException
                   && ((AbfsRestOperationException) ex).getStatusCode()
@@ -1912,6 +1918,8 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     } finally {
       deleteBlobExecutorService.shutdown();
     }
+
+    tracingContext.setOperatedBlobCount(deletedBlobCount.get() + 1);
     if (!srcPath.isRoot()) {
       try {
         LOG.debug(String.format("Deleting Path %s", srcPathStr));
@@ -1926,6 +1934,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
             String.format("Path %s is an implicit directory", srcPathStr));
       }
     }
+    tracingContext.setOperatedBlobCount(null);
   }
 
   public FileStatus getFileStatus(Path path, TracingContext tracingContext, boolean useBlobEndpoint) throws IOException {
