@@ -130,7 +130,7 @@ public class ITestAzureBlobFileSystemCheckAccess
     conf.set(FS_AZURE_ACCOUNT_TOKEN_PROVIDER_TYPE_PROPERTY_NAME + "."
             + accountName, ClientCredsTokenProvider.class.getName());
     conf.setBoolean(AZURE_CREATE_REMOTE_FILESYSTEM_DURING_INITIALIZATION,
-            true);
+            false);
     FileSystem testUserFsNonHns;
     testUserFsNonHns = FileSystem.newInstance(conf);
   }
