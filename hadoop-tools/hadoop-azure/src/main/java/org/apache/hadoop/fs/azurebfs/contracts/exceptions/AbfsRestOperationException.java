@@ -85,21 +85,21 @@ public class AbfsRestOperationException extends AzureBlobFileSystemException {
     if (abfsHttpOperation.getMethod().equals("HEAD")) {
       return String.format(
           "Operation failed: \"%1$s\", %2$s, HEAD, %3$s, rId: %4$s",
-          abfsHttpOperation.getStatusDescription(),
-          abfsHttpOperation.getStatusCode(),
-          abfsHttpOperation.getMaskedUrl(),
-          abfsHttpOperation.getRequestId());
+              abfsHttpOperation.getStatusDescription(),
+              abfsHttpOperation.getStatusCode(),
+              abfsHttpOperation.getMaskedUrl(),
+              abfsHttpOperation.getRequestId());
     }
 
     return String.format(
         "Operation failed: \"%1$s\", %2$s, %3$s, %4$s, rId: %5$s, %6$s, \"%7$s\"",
-        abfsHttpOperation.getStatusDescription(),
-        abfsHttpOperation.getStatusCode(),
-        abfsHttpOperation.getMethod(),
-        abfsHttpOperation.getMaskedUrl(),
-        abfsHttpOperation.getRequestId(),
-        abfsHttpOperation.getStorageErrorCode(),
-        // Remove break line to ensure the request id and timestamp can be shown in console.
-        abfsHttpOperation.getStorageErrorMessage().replaceAll("\\n", " "));
+            abfsHttpOperation.getStatusDescription(),
+            abfsHttpOperation.getStatusCode(),
+            abfsHttpOperation.getMethod(),
+            abfsHttpOperation.getMaskedUrl(),
+            abfsHttpOperation.getRequestId(),
+            abfsHttpOperation.getStorageErrorCode(),
+            // Remove break line to ensure the request id and timestamp can be shown in console.
+            abfsHttpOperation.getStorageErrorMessage().replaceAll("\\n", " "));
   }
 }
