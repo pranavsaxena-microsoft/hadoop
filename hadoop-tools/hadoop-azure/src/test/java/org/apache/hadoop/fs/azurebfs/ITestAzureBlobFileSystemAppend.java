@@ -690,6 +690,19 @@ public class ITestAzureBlobFileSystemAppend extends
     new Random().nextBytes(bytes);
 
     AtomicInteger count = new AtomicInteger(0);
+
+    Mockito.doAnswer(answer -> {
+          count.incrementAndGet();
+          while (count.get() < 2) ;
+          Thread.sleep(1000);
+          throw new AbfsRestOperationException(503, "", "", new Exception());
+        })
+        .when(spiedClient)
+        .append(Mockito.anyString(), Mockito.anyString(),
+            Mockito.any(byte[].class), Mockito.any(
+                AppendRequestParameters.class), Mockito.nullable(String.class),
+            Mockito.any(TracingContext.class), Mockito.nullable(String.class));
+
     Mockito.doAnswer(answer -> {
           count.incrementAndGet();
           while (count.get() < 2) ;
