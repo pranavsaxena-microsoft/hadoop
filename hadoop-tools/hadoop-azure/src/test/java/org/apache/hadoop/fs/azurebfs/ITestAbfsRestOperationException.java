@@ -130,10 +130,12 @@ public class ITestAbfsRestOperationException extends AbstractAbfsIntegrationTest
     }
     // Check Exception Format For Put Method
     try {
-      Hashtable<String, String> metadata = new Hashtable<>();
-      metadata.put("hi", "hello");
-      fs.getAbfsStore().setBlobMetadata(fs.makeQualified(nonExistedFilePath1), metadata, Mockito.mock(
-          TracingContext.class));
+      if (useBlobEndpoint) {
+        Hashtable<String, String> metadata = new Hashtable<>();
+        metadata.put("hi", "hello");
+        fs.getAbfsStore().setBlobMetadata(fs.makeQualified(nonExistedFilePath1), metadata, Mockito.mock(
+                TracingContext.class));
+      }
     } catch (AbfsRestOperationException ex) {
       String errorMessage = ex.getLocalizedMessage();
       String[] errorFields = errorMessage.split(",");
