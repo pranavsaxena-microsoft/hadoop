@@ -606,6 +606,8 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
    * written out. If any data remains in the payload it is committed to the
    * service. Data is queued for writing and forced out to the service
    * before the call returns.
+   *
+   * @throws IOException if error occurs in {@link #flushInternal(boolean)} call
    */
   @Override
   public void flush() throws IOException {
@@ -726,6 +728,13 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
     numOfAppendsToServerSinceLastFlush = 0;
   }
 
+  /**
+   * Check if previous write failed. If there is a block left to upload, it will
+   * be uploaded. Before flushing, it waits for the async writes to get completed.
+   *
+   * @throws IOException exception received in previous writes, or in async-writes,
+   * or exceptions from server on Flush operation.
+   */
   private synchronized void flushInternalAsync() throws IOException {
     maybeThrowLastError();
     if (hasActiveBlockDataToUpload()) {
@@ -776,6 +785,11 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
     }
   }
 
+  /**
+   * Waits for all the ongoing async {@link #writeOperations} to complete.
+   *
+   * @throws IOException exception from failed async write operation
+   */
   private synchronized void waitForAppendsToComplete() throws IOException {
     for (WriteOperation writeOperation : writeOperations) {
       try {
