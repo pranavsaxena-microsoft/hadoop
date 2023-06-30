@@ -59,6 +59,7 @@ import static java.net.HttpURLConnection.HTTP_FORBIDDEN;
 import static java.net.HttpURLConnection.HTTP_NOT_FOUND;
 import static java.net.HttpURLConnection.HTTP_OK;
 
+import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_MKDIRS_FALLBACK_TO_DFS;
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_REDIRECT_DELETE;
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_REDIRECT_RENAME;
 import static org.mockito.ArgumentMatchers.any;
@@ -406,6 +407,10 @@ public class ITestAzureBlobFileSystemDelete extends
   @Test
   public void testDeleteCheckIfParentLMTChange() throws Exception {
     AzureBlobFileSystem fs = getFileSystem();
+    AbfsConfiguration conf = getConfiguration();
+    Assume.assumeFalse(
+        getPrefixMode(fs) == PrefixMode.BLOB && (conf.shouldMkdirFallbackToDfs()
+            || conf.shouldIngressFallbackToDfs()));
     fs.mkdirs(new Path("/dir1/dir2"));
     fs.create(new Path("/dir1/dir2/file"));
     FileStatus status = fs.getFileStatus(new Path("/dir1"));
