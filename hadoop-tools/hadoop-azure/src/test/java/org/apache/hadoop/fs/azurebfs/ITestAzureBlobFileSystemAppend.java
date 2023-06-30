@@ -20,7 +20,6 @@ package org.apache.hadoop.fs.azurebfs;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -30,7 +29,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -40,7 +38,6 @@ import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemExc
 import org.apache.hadoop.fs.azurebfs.contracts.services.AppendRequestParameters;
 import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
 import org.apache.hadoop.fs.azurebfs.services.AbfsOutputStream;
-import org.apache.hadoop.fs.azurebfs.services.AbfsOutputStreamUtils;
 import org.apache.hadoop.fs.azurebfs.services.OperativeEndpoint;
 import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
 import org.apache.hadoop.fs.azurebfs.services.ITestAbfsClient;
@@ -618,7 +615,8 @@ public class ITestAzureBlobFileSystemAppend extends
    */
   @Test
   public void testIntermittentAppendFailureToBeReported() throws Exception {
-    AzureBlobFileSystem fs = Mockito.spy((AzureBlobFileSystem) FileSystem.newInstance(getRawConfiguration()));
+    AzureBlobFileSystem fs = Mockito.spy(
+        (AzureBlobFileSystem) FileSystem.newInstance(getRawConfiguration()));
     AzureBlobFileSystemStore store = Mockito.spy(fs.getAbfsStore());
     AbfsClient spiedClient = Mockito.spy(store.getClient());
     store.setClient(spiedClient);
@@ -643,7 +641,6 @@ public class ITestAzureBlobFileSystemAppend extends
     LambdaTestUtils.intercept(IOException.class, () -> {
       try (FSDataOutputStream os = fs.create(new Path("/test/file"))) {
         os.write(bytes);
-        os.write(bytes);
       }
     });
 
@@ -656,47 +653,20 @@ public class ITestAzureBlobFileSystemAppend extends
     LambdaTestUtils.intercept(IOException.class, () -> {
       FSDataOutputStream os = fs.create(new Path("/test/file"));
       os.write(bytes);
-      while (true) {
-        List<Future> futureList = AbfsOutputStreamUtils.getWriteOperationsTasks(
-            (AbfsOutputStream) os.getWrappedStream());
-        Future future = futureList.get(0);
-        if (future.isDone()) {
-          break;
-        }
-      }
-      os.write(bytes);
+      os.hsync();
     });
 
-    spiedClient = Mockito.spy(spiedClient);
-    store.setClient(spiedClient);
-    AtomicInteger count = new AtomicInteger(0);
-    Mockito.doAnswer(answer -> {
-          count.incrementAndGet();
-          while (count.get() < 2) ;
-          Thread.sleep(1000);
-          throw new AbfsRestOperationException(503, "", "", new Exception());
-        })
-        .when(spiedClient)
-        .append(Mockito.anyString(), Mockito.anyString(),
-            Mockito.any(byte[].class), Mockito.any(
-                AppendRequestParameters.class), Mockito.nullable(String.class),
-            Mockito.any(TracingContext.class), Mockito.nullable(String.class));
-
-    Mockito.doAnswer(answer -> {
-          count.incrementAndGet();
-          while (count.get() < 2) ;
-          Thread.sleep(1000);
-          throw new AbfsRestOperationException(503, "", "", new Exception());
-        })
-        .when(spiedClient)
-        .append(Mockito.anyString(), Mockito.any(byte[].class), Mockito.any(
-                AppendRequestParameters.class), Mockito.nullable(String.class),
-            Mockito.any(TracingContext.class));
-    FSDataOutputStream os = fs.create(new Path("/test/file"));
-    os.write(bytes);
-    os.write(bytes);
     LambdaTestUtils.intercept(IOException.class, () -> {
-      os.close();
+      FSDataOutputStream os = fs.create(new Path("/test/file"));
+      os.write(bytes);
+      os.hflush();
+    });
+
+    LambdaTestUtils.intercept(IOException.class, () -> {
+      AbfsOutputStream os = (AbfsOutputStream) fs.create(new Path("/test/file")).getWrappedStream();
+      os.write(bytes);
+      while(!os.getWriteOperationsTasksDone());
+      os.write(bytes);
     });
   }
 }

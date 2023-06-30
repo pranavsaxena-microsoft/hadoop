@@ -1027,12 +1027,13 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
   }
 
   @VisibleForTesting
-  List<Future> getWriteOperationsTasks() {
-    List<Future> futures = new ArrayList<>();
+  public Boolean getWriteOperationsTasksDone() {
     for (WriteOperation writeOperation : writeOperations) {
-      futures.add(writeOperation.task);
+      if (!writeOperation.task.isDone()) {
+        return false;
+      }
     }
-    return futures;
+    return true;
   }
 
   /**
