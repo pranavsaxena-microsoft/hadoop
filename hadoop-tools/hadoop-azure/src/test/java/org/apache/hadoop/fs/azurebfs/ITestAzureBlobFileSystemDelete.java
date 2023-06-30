@@ -408,6 +408,14 @@ public class ITestAzureBlobFileSystemDelete extends
   public void testDeleteCheckIfParentLMTChange() throws Exception {
     AzureBlobFileSystem fs = getFileSystem();
     AbfsConfiguration conf = getConfiguration();
+    /*
+     * LMT of parent directory doesn't change when delete directory triggered with
+     * DFS endpoint (both hns and non-hns account). In Blob endpoint, if there
+     * is no redirect for ingress / mkdirs, the LMT doesn't change. But in case
+     * of ingress redirection, the directory creation of parent overrides the
+     * path which changes the LMT. Hence, for tests running with redirect
+     * configuration, this test is ignored.
+     */
     Assume.assumeFalse(
         getPrefixMode(fs) == PrefixMode.BLOB && (conf.shouldMkdirFallbackToDfs()
             || conf.shouldIngressFallbackToDfs()));
