@@ -667,7 +667,7 @@ public class ITestAzureBlobFileSystemAppend extends
       AbfsOutputStream os = (AbfsOutputStream) fs.create(new Path("/test/file"))
           .getWrappedStream();
       os.write(bytes);
-      while (!os.getWriteOperationsTasksDone()) ;
+      while (!os.areWriteOperationsTasksDone()) ;
       os.write(bytes);
     });
   }

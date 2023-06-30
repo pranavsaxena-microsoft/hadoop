@@ -1027,7 +1027,7 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
   }
 
   @VisibleForTesting
-  public Boolean getWriteOperationsTasksDone() {
+  public Boolean areWriteOperationsTasksDone() {
     for (WriteOperation writeOperation : writeOperations) {
       if (!writeOperation.task.isDone()) {
         return false;
