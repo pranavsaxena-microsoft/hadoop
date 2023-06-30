@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -16,31 +16,31 @@
  * limitations under the License.
  */
 
-package org.apache.hadoop.fs.azurebfs.services;
+package org.apache.hadoop.fs.azurebfs.services.retryReasonCategories;
 
-import java.io.IOException;
+import java.net.SocketException;
 
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.azurebfs.AzureBlobFileSystem;
-import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
+import static org.apache.hadoop.fs.azurebfs.services.RetryReasonConstants.SOCKET_EXCEPTION_ABBREVIATION;
 
-public class RenameNonAtomicUtils extends RenameAtomicityUtils {
+/**
+ * Category that can capture server-response errors for {@link SocketException}.
+ */
+public class UnknownSocketExceptionRetryReason extends
+    RetryReasonCategory {
 
-  public RenameNonAtomicUtils(final AzureBlobFileSystem azureBlobFileSystem,
-      final Path srcPath,
-      final Path dstPath,
-      final TracingContext tracingContext) throws IOException {
-    super(azureBlobFileSystem, srcPath, dstPath, tracingContext);
+  @Override
+  Boolean canCapture(final Exception ex,
+      final Integer statusCode,
+      final String serverErrorMessage) {
+    if (ex instanceof SocketException) {
+      return true;
+    }
+    return false;
   }
 
   @Override
-  public void preRename(final Boolean isCreateOperationOnBlobEndpoint)
-      throws IOException {
-
-  }
-
-  @Override
-  public void cleanup() throws IOException {
-
+  String getAbbreviation(final Integer statusCode,
+      final String serverErrorMessage) {
+    return SOCKET_EXCEPTION_ABBREVIATION;
   }
 }

@@ -48,7 +48,7 @@ public class BlobDirectoryStateHelper {
     path = new Path(fs.makeQualified(path).toUri().getPath());
     if (fs.getAbfsStore().getPrefixMode() == PrefixMode.BLOB) {
       List<BlobProperty> blobProperties = fs.getAbfsStore()
-        .getListBlobs(path,null, Mockito.mock(TracingContext.class), 2, true);
+        .getListBlobs(path,null, null, Mockito.mock(TracingContext.class), 2, true);
       if (blobProperties.size() == 0) {
         return false;
       }
@@ -74,8 +74,7 @@ public class BlobDirectoryStateHelper {
       try {
         FileStatus status = fs.getAbfsStore().getFileStatus(
             path,
-            Mockito.mock(TracingContext.class)
-        );
+            Mockito.mock(TracingContext.class), true);
         return !status.isDirectory();
       }
       catch (AbfsRestOperationException ex) {
@@ -103,7 +102,7 @@ public class BlobDirectoryStateHelper {
       FileStatus status;
       try {
         status = fs.getAbfsStore()
-            .getFileStatus(path, Mockito.mock(TracingContext.class));
+            .getFileStatus(path, Mockito.mock(TracingContext.class), false);
       }
       catch (IOException ex) {
         return false;

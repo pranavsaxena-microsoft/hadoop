@@ -141,7 +141,7 @@ public class ITestAzureBlobFileSystemDelegationSASForBlobEndpoint
       Mockito.doReturn(httpOp).when(op).getResult();
       return op;
     }).when(spiedClient).copyBlob(Mockito.any(Path.class), Mockito.any(Path.class),
-        Mockito.any(TracingContext.class));
+        Mockito.nullable(String.class), Mockito.any(TracingContext.class));
     fileSystem.create(new Path("/test1/file"));
     fileSystem.rename(new Path("/test1/file"), new Path("/test1/file2"));
     Assert.assertTrue(fileSystem.exists(new Path("/test1/file2")));
@@ -159,7 +159,7 @@ public class ITestAzureBlobFileSystemDelegationSASForBlobEndpoint
       i++;
     }
     List<BlobProperty> blobProperties = fs.getAbfsStore()
-        .getListBlobs(new Path("dir"), null,
+        .getListBlobs(new Path("dir"), null, null,
             Mockito.mock(TracingContext.class), null, false);
     Assertions.assertThat(blobProperties)
         .describedAs(
@@ -167,7 +167,7 @@ public class ITestAzureBlobFileSystemDelegationSASForBlobEndpoint
         .hasSize(11);
 
     blobProperties = fs.getAbfsStore()
-        .getListBlobs(new Path("dir"), null,
+        .getListBlobs(new Path("dir"), null, null,
             Mockito.mock(TracingContext.class), null, true);
     Assertions.assertThat(blobProperties)
         .describedAs(

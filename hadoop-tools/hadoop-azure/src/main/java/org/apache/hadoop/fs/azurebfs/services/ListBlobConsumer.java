@@ -18,45 +18,27 @@
 
 package org.apache.hadoop.fs.azurebfs.services;
 
-/**
- * The REST operation type (Read, Append, Other ).
- */
-public enum AbfsRestOperationType {
-    CreateFileSystem,
-    GetFileSystemProperties,
-    SetFileSystemProperties,
-    ListPaths,
-    DeleteFileSystem,
-    CreatePath,
-    RenamePath,
-    GetAcl,
-    GetPathProperties,
-    GetPathStatus,
-    SetAcl,
-    SetOwner,
-    SetPathProperties,
-    SetPermissions,
-    SetBlobMetadata,
-    SetContainerMetadata,
-    Append,
-    Flush,
-    ReadFile,
-    DeletePath,
-    CheckAccess,
-    LeasePath,
-    LeaseBlob,
-    PutBlob,
-    GetBlobProperties,
-    GetContainerProperties,
-    GetBlobMetadata,
-    GetContainerMetadata,
-    PutBlock,
-    PutBlockList,
-    GetBlockList,
-    DeleteBlob,
-    CreateContainer,
-    DeleteContainer,
-    GetListBlobProperties,
-    CopyBlob,
-    GetBlob
+import java.util.List;
+
+import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemException;
+
+public class ListBlobConsumer {
+
+  private final ListBlobQueue listBlobQueue;
+
+  public ListBlobConsumer(final ListBlobQueue listBlobQueue) {
+    this.listBlobQueue = listBlobQueue;
+  }
+
+  public List<BlobProperty> consume() throws AzureBlobFileSystemException {
+    if (listBlobQueue.getException() != null) {
+      throw listBlobQueue.getException();
+    }
+    return listBlobQueue.dequeue();
+  }
+
+  public Boolean isCompleted() {
+    return listBlobQueue.getIsCompleted()
+        && listBlobQueue.size() == 0;
+  }
 }

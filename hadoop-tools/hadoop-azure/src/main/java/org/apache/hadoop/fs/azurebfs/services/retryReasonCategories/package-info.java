@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,31 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.hadoop.fs.azurebfs.services;
+/**
+ * A retryReasonCategory defines methods applicable on server-response errors.
+ */
+@Private
+@Evolving
+package org.apache.hadoop.fs.azurebfs.services.retryReasonCategories;
 
-import java.io.IOException;
-
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.azurebfs.AzureBlobFileSystem;
-import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
-
-public class RenameNonAtomicUtils extends RenameAtomicityUtils {
-
-  public RenameNonAtomicUtils(final AzureBlobFileSystem azureBlobFileSystem,
-      final Path srcPath,
-      final Path dstPath,
-      final TracingContext tracingContext) throws IOException {
-    super(azureBlobFileSystem, srcPath, dstPath, tracingContext);
-  }
-
-  @Override
-  public void preRename(final Boolean isCreateOperationOnBlobEndpoint)
-      throws IOException {
-
-  }
-
-  @Override
-  public void cleanup() throws IOException {
-
-  }
-}
+import org.apache.hadoop.classification.InterfaceAudience.Private;
+import org.apache.hadoop.classification.InterfaceStability.Evolving;

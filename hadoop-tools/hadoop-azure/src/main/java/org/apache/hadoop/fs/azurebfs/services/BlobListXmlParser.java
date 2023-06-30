@@ -26,18 +26,31 @@ import org.xml.sax.helpers.DefaultHandler;
 
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants;
-
-import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.DIRECTORY;
-import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.HDI_ISFOLDER;
-import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.INVALID_XML;
-import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.ROOT_PATH;
+import org.apache.hadoop.fs.azurebfs.utils.DateTimeUtils;
 
 /**
  * Parses the response inputSteam and populates an object of {@link BlobList}. Parsing
  * creates a list of {@link BlobProperty}.<br>
  * <a href="https://learn.microsoft.com/en-us/rest/api/storageservices/list-blobs?tabs=azure-ad#response-body">
  * BlobList API XML response example</a>
+ * <pre>
+ *   {@code
+ *   <EnumerationResults ServiceEndpoint="http://myaccount.blob.core.windows.net/" ContainerName="mycontainer">
+ *    <Prefix>string-value</Prefix>
+ *    <Marker>string-value</Marker>
+ *    <MaxResults>int-value</MaxResults>
+ *    <Delimiter>string-value</Delimiter>
+ *    <Blobs>
+ *      <Blob> </Blob>
+ *      <BlobPrefix> </BlobPrefix>
+ *    </Blobs>
+ *    <NextMarker />
+ *   </EnumerationResults>
+ *   }
+ * </pre>
  */
+
+
 public class BlobListXmlParser extends DefaultHandler {
   /**
    * Object that contains the parsed response.
@@ -46,6 +59,21 @@ public class BlobListXmlParser extends DefaultHandler {
   private final String url;
   /**
    * {@link BlobProperty} for which at a given moment, the parsing is going on.
+   *
+   * Following XML elements will be parsed and added in currentBlobProperty.
+   * 1. Blob: for explicit files and directories
+   * <Blob>
+   *   <Name>blob-name</name>
+   *   <Properties> </Properties>
+   *   <Metadata>
+   *     <Name>value</Name>
+   *   </Metadata>
+   * </Blob>
+   *
+   * 2. BlobPrefix: for directories both explicit and implicit
+   * <BlobPrefix>
+   *   <Name>blob-prefix</Name>
+   * </BlobPrefix>
    */
   private BlobProperty currentBlobProperty;
   /**
@@ -77,7 +105,7 @@ public class BlobListXmlParser extends DefaultHandler {
       final String qName,
       final Attributes attributes) throws SAXException {
     elements.push(localName);
-    if (AbfsHttpConstants.BLOB.equals(localName)) {
+    if (AbfsHttpConstants.BLOB.equals(localName) || AbfsHttpConstants.BLOB_PREFIX.equals(localName)) {
       currentBlobProperty = new BlobProperty();
     }
   }
@@ -96,12 +124,12 @@ public class BlobListXmlParser extends DefaultHandler {
       final String qName)
       throws SAXException {
     String currentNode = elements.pop();
-    /*
-     * Check if the ending tag is correct to the starting tag in the stack.
-     */
+
+    // Check if the ending tag is correct to the starting tag in the stack.
     if (!currentNode.equals(localName)) {
-      throw new SAXException(INVALID_XML);
+      throw new SAXException(AbfsHttpConstants.INVALID_XML);
     }
+
     String parentNode = "";
     if (elements.size() > 0) {
       parentNode = elements.peek();
@@ -121,56 +149,137 @@ public class BlobListXmlParser extends DefaultHandler {
       currentBlobProperty = null;
     }
 
+    /*
+     * If the closing tag is BlobPrefix, there are no more properties to be set in
+     * currentBlobProperty and this is a directory (implicit or explicit)
+     * If implicit, it will be added only once/
+     * If explicit it will be added with Blob Tag as well.
+     */
+    if (AbfsHttpConstants.BLOB_PREFIX.equals(currentNode)) {
+      currentBlobProperty.setIsDirectory(true);
+      blobList.addBlobProperty(currentBlobProperty);
+      currentBlobProperty = null;
+    }
+
+    /*
+     * If the closing tag is Next Marker, it needs to be saved with the
+     * list of blobs currently fetched
+     */
     if (AbfsHttpConstants.NEXT_MARKER.equals(currentNode)) {
       blobList.setNextMarker(value);
     }
 
-    if (parentNode.equals(AbfsHttpConstants.BLOB_PREFIX)) {
-      if (currentNode.equals(AbfsHttpConstants.NAME)) {
-        currentBlobProperty.setBlobPrefix(value);
+    /*
+     * If the closing tag is Name, then it is either for a blob
+     * or for a blob prefix denoting a directory. We will save this
+     * in current BlobProperty for both
+     */
+    if (currentNode.equals(AbfsHttpConstants.NAME)
+        && (parentNode.equals(AbfsHttpConstants.BLOB)
+        || parentNode.equals(AbfsHttpConstants.BLOB_PREFIX))) {
+      // In case of BlobPrefix Name will have a slash at the end
+      // Remove the "/" at the end of name
+      if (value.endsWith(AbfsHttpConstants.FORWARD_SLASH)) {
+        value = value.substring(0, value.length() - 1);
       }
+
+      currentBlobProperty.setName(value);
+      currentBlobProperty.setPath(new Path(AbfsHttpConstants.ROOT_PATH + value));
+      currentBlobProperty.setUrl(url + AbfsHttpConstants.ROOT_PATH + value);
     }
+
     /*
      * For case:
      * <Blob>
-     * <Name>value</name>
-     * ....</Blob>
-     */
-    if (parentNode.equals(AbfsHttpConstants.BLOB)) {
-      if (currentNode.equals(AbfsHttpConstants.NAME)) {
-        currentBlobProperty.setName(value);
-        currentBlobProperty.setPath(new Path(ROOT_PATH + value));
-        currentBlobProperty.setUrl(url + ROOT_PATH + value);
-      }
-    }
-    /*
-     * For case:
-     * <Blob>...<Metadata>
-     * <key1>value</key1>...<keyN>value</keyN></Metadata>
-     * ....</Blob>
+     * ...
+     *   <Metadata>
+     *     <key1>value</key1>
+     *     <keyN>value</keyN>
+     *   </Metadata>
+     *  ...
+     * </Blob>
      * ParentNode will be Metadata for all key1, key2, ... , keyN.
      */
     if (parentNode.equals(AbfsHttpConstants.METADATA)) {
       currentBlobProperty.addMetadata(currentNode, value);
-      if (HDI_ISFOLDER.equals(currentNode)) {
+      // For Marker blobs hdi_isFolder will be present as metadata
+      if (AbfsHttpConstants.HDI_ISFOLDER.equals(currentNode)) {
         currentBlobProperty.setIsDirectory(Boolean.valueOf(value));
       }
     }
+
     /*
      * For case:
-     * <Blob>...<Properties>
-     * <Content-Length>value</Content-Length><ResourceType>value</ResourceType></Metadata>
-     * ....</Blob>
+     * <Blob>
+     * ...
+     *   <Properties>
+     *     <Creation-Time>date-time-value</Creation-Time>
+     *     <Last-Modified>date-time-value</Last-Modified>
+     *     <Etag>Etag</Etag>
+     *     <Owner>owner user id</Owner>
+     *     <Group>owning group id</Group>
+     *     <Permissions>permission string</Permissions>
+     *     <Acl>access control list</Acl>
+     *     <ResourceType>file | directory</ResourceType>
+     *     <Content-Length>size-in-bytes</Content-Length>
+     *     <CopyId>id</CopyId>
+     *     <CopyStatus>pending | success | aborted | failed </CopyStatus>
+     *     <CopySource>source url</CopySource>
+     *     <CopyProgress>bytes copied/bytes total</CopyProgress>
+     *     <CopyCompletionTime>datetime</CopyCompletionTime>
+     *     <CopyStatusDescription>error string</CopyStatusDescription>
+     *   </Properties>
+     *  ...
+     * </Blob>
      * ParentNode will be Properties for Content-Length, ResourceType.
      */
     if (parentNode.equals(AbfsHttpConstants.PROPERTIES)) {
-      if (currentNode.equals(AbfsHttpConstants.CONTENT_LEN)) {
-        currentBlobProperty.setContentLength(Long.valueOf(value));
+      if (currentNode.equals(AbfsHttpConstants.CREATION_TIME)) {
+        currentBlobProperty.setCreationTime(DateTimeUtils.parseLastModifiedTime(value));
+      }
+      if (currentNode.equals(AbfsHttpConstants.LAST_MODIFIED_TIME)) {
+        currentBlobProperty.setLastModifiedTime(DateTimeUtils.parseLastModifiedTime(value));
+      }
+      if (currentNode.equals(AbfsHttpConstants.ETAG)) {
+        currentBlobProperty.setETag(value);
+      }
+      if (currentNode.equals(AbfsHttpConstants.OWNER)) {
+        currentBlobProperty.setOwner(value);
+      }
+      if (currentNode.equals(AbfsHttpConstants.GROUP)) {
+        currentBlobProperty.setGroup(value);
+      }
+      if (currentNode.equals(AbfsHttpConstants.PERMISSIONS)) {
+        currentBlobProperty.setPermission(value);
+      }
+      if (currentNode.equals(AbfsHttpConstants.ACL)) {
+        currentBlobProperty.setAcl(value);
       }
       if (currentNode.equals(AbfsHttpConstants.RESOURCE_TYPE)) {
-        if (DIRECTORY.equals(value)) {
+        if (AbfsHttpConstants.DIRECTORY.equals(value)) {
           currentBlobProperty.setIsDirectory(true);
         }
+      }
+      if (currentNode.equals(AbfsHttpConstants.CONTENT_LEN)) {
+        currentBlobProperty.setContentLength(Long.parseLong(value));
+      }
+      if (currentNode.equals(AbfsHttpConstants.COPY_ID)) {
+        currentBlobProperty.setCopyId(value);
+      }
+      if (currentNode.equals(AbfsHttpConstants.COPY_STATUS)) {
+        currentBlobProperty.setCopyStatus(value);
+      }
+      if (currentNode.equals(AbfsHttpConstants.COPY_SOURCE)) {
+        currentBlobProperty.setCopySourceUrl(value);
+      }
+      if (currentNode.equals(AbfsHttpConstants.COPY_PROGRESS)) {
+        currentBlobProperty.setCopyProgress(value);
+      }
+      if (currentNode.equals(AbfsHttpConstants.COPY_COMPLETION_TIME)) {
+        currentBlobProperty.setCopyCompletionTime(DateTimeUtils.parseLastModifiedTime(value));
+      }
+      if (currentNode.equals(AbfsHttpConstants.COPY_STATUS_DESCRIPTION)) {
+        currentBlobProperty.setCopyStatusDescription(value);
       }
     }
     /*

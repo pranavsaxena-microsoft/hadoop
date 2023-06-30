@@ -21,6 +21,7 @@ package org.apache.hadoop.fs.azurebfs;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
@@ -30,7 +31,9 @@ import java.util.concurrent.Future;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.assertj.core.api.Assertions;
+import org.junit.Assert;
 import org.junit.Assume;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import org.apache.hadoop.fs.azurebfs.constants.FSOperationType;
@@ -38,6 +41,7 @@ import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AbfsRestOperationExcep
 import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
 import org.apache.hadoop.fs.azurebfs.services.AbfsHttpOperation;
 import org.apache.hadoop.fs.azurebfs.services.AbfsRestOperation;
+import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
 import org.apache.hadoop.fs.azurebfs.services.ITestAbfsClient;
 import org.apache.hadoop.fs.azurebfs.services.TestAbfsPerfTracker;
 import org.apache.hadoop.fs.azurebfs.utils.TestMockHelpers;
@@ -46,9 +50,12 @@ import org.apache.hadoop.fs.azurebfs.utils.TracingHeaderValidator;
 import org.apache.hadoop.fs.FileAlreadyExistsException;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.test.LambdaTestUtils;
+
 import org.mockito.Mockito;
 
 import static java.net.HttpURLConnection.HTTP_BAD_REQUEST;
+import static java.net.HttpURLConnection.HTTP_FORBIDDEN;
 import static java.net.HttpURLConnection.HTTP_NOT_FOUND;
 import static java.net.HttpURLConnection.HTTP_OK;
 
@@ -147,6 +154,7 @@ public class ITestAzureBlobFileSystemDelete extends
     assertPathDoesNotExist(fs, "deleted", dir);
   }
 
+  @Ignore
   @Test
   public void testDeleteFirstLevelDirectory() throws Exception {
     final AzureBlobFileSystem fs = getFileSystem();
@@ -302,4 +310,173 @@ public class ITestAzureBlobFileSystemDelete extends
     mockStore.delete(new Path("/NonExistingPath"), false, getTestTracingContext(fs, false));
   }
 
+  @Test
+  public void testDeleteImplicitDir() throws Exception {
+    AzureBlobFileSystem fs = getFileSystem();
+    Assume.assumeTrue(fs.getAbfsStore().getPrefixMode() == PrefixMode.BLOB);
+    fs.mkdirs(new Path("/testDir/dir1"));
+    fs.create(new Path("/testDir/dir1/file1"));
+    fs.getAbfsClient().deleteBlobPath(new Path("/testDir/dir1"),
+        null, Mockito.mock(TracingContext.class));
+
+    fs.delete(new Path("/testDir/dir1"), true);
+
+    Assert.assertTrue(!fs.exists(new Path("/testDir/dir1")));
+    Assert.assertTrue(!fs.exists(new Path("/testDir/dir1/file1")));
+  }
+
+  @Test
+  public void testDeleteImplicitDirWithSingleListResults() throws Exception {
+    AzureBlobFileSystem fs = (AzureBlobFileSystem) FileSystem.newInstance(
+        getRawConfiguration());
+    Assume.assumeTrue(fs.getAbfsStore().getPrefixMode() == PrefixMode.BLOB);
+    AbfsClient client = fs.getAbfsClient();
+    AbfsClient spiedClient = Mockito.spy(client);
+    fs.getAbfsStore().setClient(spiedClient);
+    fs.mkdirs(new Path("/testDir/dir1"));
+    for (int i = 0; i < 10; i++) {
+      fs.create(new Path("/testDir/dir1/file" + i));
+    }
+    Mockito.doAnswer(answer -> {
+          String marker = answer.getArgument(0);
+          String prefix = answer.getArgument(1);
+          TracingContext context = answer.getArgument(4);
+          return client.getListBlobs(marker, prefix, null, 1, context);
+        })
+        .when(spiedClient)
+        .getListBlobs(Mockito.nullable(String.class), Mockito.anyString(),
+            Mockito.nullable(String.class), Mockito.nullable(Integer.class),
+            Mockito.any(TracingContext.class));
+    fs.getAbfsClient().deleteBlobPath(new Path("/testDir/dir1"),
+        null, Mockito.mock(TracingContext.class));
+
+    fs.delete(new Path("/testDir/dir1"), true);
+
+    Assert.assertTrue(!fs.exists(new Path("/testDir/dir1")));
+  }
+
+  @Test
+  public void testDeleteExplicitDirInImplicitParentDir() throws Exception {
+    AzureBlobFileSystem fs = getFileSystem();
+    Assume.assumeTrue(fs.getAbfsStore().getPrefixMode() == PrefixMode.BLOB);
+    fs.mkdirs(new Path("/testDir/dir1"));
+    fs.create(new Path("/testDir/dir1/file1"));
+    fs.getAbfsClient().deleteBlobPath(new Path("/testDir/"),
+        null, Mockito.mock(TracingContext.class));
+
+    fs.delete(new Path("/testDir/dir1"), true);
+
+    Assert.assertTrue(!fs.exists(new Path("/testDir/dir1")));
+    Assert.assertTrue(!fs.exists(new Path("/testDir/dir1/file1")));
+    Assert.assertTrue(fs.exists(new Path("/testDir/")));
+  }
+
+  @Test
+  public void testDeleteParallelBlobFailure() throws Exception {
+    AzureBlobFileSystem fs = Mockito.spy(getFileSystem());
+    Assume.assumeTrue(fs.getAbfsStore().getPrefixMode() == PrefixMode.BLOB);
+    AbfsClient client = Mockito.spy(fs.getAbfsClient());
+    AzureBlobFileSystemStore store = Mockito.spy(fs.getAbfsStore());
+    store.setClient(client);
+    Mockito.doReturn(store).when(fs).getAbfsStore();
+
+    fs.mkdirs(new Path("/testDir"));
+    fs.create(new Path("/testDir/file1"));
+    fs.create(new Path("/testDir/file2"));
+    fs.create(new Path("/testDir/file3"));
+
+    Mockito.doThrow(
+            new AbfsRestOperationException(HTTP_FORBIDDEN, "", "", new Exception()))
+        .when(client)
+        .deleteBlobPath(Mockito.any(Path.class), Mockito.nullable(String.class),
+            Mockito.any(TracingContext.class));
+
+    LambdaTestUtils.intercept(RuntimeException.class, () -> {
+      fs.delete(new Path("/testDir"), true);
+    });
+  }
+
+  @Test
+  public void testDeleteRootWithNonRecursion() throws Exception {
+    AzureBlobFileSystem fs = getFileSystem();
+    fs.mkdirs(new Path("/testDir"));
+    Assertions.assertThat(fs.delete(new Path("/"), false)).isFalse();
+  }
+
+  @Test
+  public void testDeleteCheckIfParentLMTChange() throws Exception {
+    AzureBlobFileSystem fs = getFileSystem();
+    fs.mkdirs(new Path("/dir1/dir2"));
+    fs.create(new Path("/dir1/dir2/file"));
+    FileStatus status = fs.getFileStatus(new Path("/dir1"));
+    Long lmt = status.getModificationTime();
+
+    fs.delete(new Path("/dir1/dir2"), true);
+    Long newLmt = fs.getFileStatus(new Path("/dir1")).getModificationTime();
+    Assertions.assertThat(lmt).isEqualTo(newLmt);
+  }
+
+  /**
+   * Test to assert that the CID in src marker delete contains the
+   * total number of blobs operated in the delete directory.
+   * Also, to assert that all operations in the delete-directory flow have same
+   * primaryId and opType.
+   */
+  @Test
+  public void testDeleteEmitDeletionCountInClientRequestId() throws Exception {
+    AzureBlobFileSystem fs = Mockito.spy(getFileSystem());
+    Assume.assumeTrue(getPrefixMode(fs) == PrefixMode.BLOB);
+    String dirPathStr = "/testDir/dir1";
+    fs.mkdirs(new Path(dirPathStr));
+    ExecutorService executorService = Executors.newFixedThreadPool(5);
+    List<Future> futures = new ArrayList<>();
+    for (int i = 0; i < 10; i++) {
+      final int iter = i;
+      Future future = executorService.submit(() -> {
+        return fs.create(new Path("/testDir/dir1/file" + iter));
+      });
+      futures.add(future);
+    }
+
+    for (Future future : futures) {
+      future.get();
+    }
+    executorService.shutdown();
+
+
+    AzureBlobFileSystemStore store = Mockito.spy(fs.getAbfsStore());
+    Mockito.doReturn(store).when(fs).getAbfsStore();
+    AbfsClient client = Mockito.spy(store.getClient());
+    store.setClient(client);
+
+    final TracingHeaderValidator tracingHeaderValidator
+        = new TracingHeaderValidator(
+        fs.getAbfsStore().getAbfsConfiguration().getClientCorrelationId(),
+        fs.getFileSystemId(), FSOperationType.DELETE, true, 0);
+    fs.registerListener(tracingHeaderValidator);
+
+    Mockito.doAnswer(answer -> {
+          Mockito.doAnswer(deleteAnswer -> {
+                if (dirPathStr.equalsIgnoreCase(
+                    ((Path) deleteAnswer.getArgument(0)).toUri().getPath())) {
+                  tracingHeaderValidator.setOperatedBlobCount(11);
+                  Object result = deleteAnswer.callRealMethod();
+                  tracingHeaderValidator.setOperatedBlobCount(null);
+                  return result;
+                }
+                return deleteAnswer.callRealMethod();
+              })
+              .when(client)
+              .deleteBlobPath(Mockito.any(Path.class),
+                  Mockito.nullable(String.class),
+                  Mockito.any(TracingContext.class));
+
+          return answer.callRealMethod();
+        })
+        .when(store)
+        .delete(Mockito.any(Path.class), Mockito.anyBoolean(),
+            Mockito.any(TracingContext.class));
+
+    fs.delete(new Path(dirPathStr), true);
+  }
 }

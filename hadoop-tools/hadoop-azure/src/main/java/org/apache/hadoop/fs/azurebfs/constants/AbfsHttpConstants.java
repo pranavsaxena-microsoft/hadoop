@@ -136,6 +136,17 @@ public final class AbfsHttpConstants {
   public static final char CHAR_EQUALS = '=';
   public static final char CHAR_STAR = '*';
   public static final char CHAR_PLUS = '+';
+  /**
+   * Value that differentiates categories of the http_status.
+   * <pre>
+   * 100 - 199 : Informational responses
+   * 200 - 299 : Successful responses
+   * 300 - 399 : Redirection messages
+   * 400 - 499 : Client error responses
+   * 500 - 599 : Server error responses
+   * </pre>
+   */
+  public static final Integer HTTP_STATUS_CATEGORY_QUOTIENT = 100;
 
   public static final String BLOB = "Blob";
   private static final String PREFIX = "Prefix";
@@ -151,6 +162,20 @@ public final class AbfsHttpConstants {
   public static final String COPY_STATUS_ABORTED = "aborted";
   public static final String COPY_STATUS_FAILED = "failed";
   public static final String HDI_ISFOLDER = "hdi_isfolder";
+  public static final Integer BLOB_LEASE_ONE_MINUTE_DURATION = 60;
+  public static final String ETAG = "Etag";
+  public static final String LAST_MODIFIED_TIME = "Last-Modified";
+  public static final String CREATION_TIME   = "Creation-Time";
+  public static final String OWNER = "Owner";
+  public static final String GROUP = "Group";
+  public static final String PERMISSIONS = "Permissions";
+  public static final String ACL = "Acl";
+  public static final String COPY_ID = "CopyId";
+  public static final String COPY_STATUS = "CopyStatus";
+  public static final String COPY_SOURCE = "CopySource";
+  public static final String COPY_PROGRESS = "CopyProgress";
+  public static final String COPY_COMPLETION_TIME = "CopyCompletionTime";
+  public static final String COPY_STATUS_DESCRIPTION = "CopyStatusDescription";
 
   private AbfsHttpConstants() {}
 }

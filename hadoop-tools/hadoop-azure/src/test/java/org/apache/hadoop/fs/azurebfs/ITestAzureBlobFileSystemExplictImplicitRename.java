@@ -870,7 +870,7 @@ public class ITestAzureBlobFileSystemExplictImplicitRename
       throws AzureBlobFileSystemException {
     try {
       fs.getAbfsClient()
-          .deleteBlobPath(srcParent, Mockito.mock(TracingContext.class));
+          .deleteBlobPath(srcParent, null, Mockito.mock(TracingContext.class));
     } catch (AbfsRestOperationException ex) {
       if(ex.getStatusCode() != HttpURLConnection.HTTP_NOT_FOUND) {
         throw ex;
@@ -952,12 +952,12 @@ public class ITestAzureBlobFileSystemExplictImplicitRename
     } else {
       Assert.assertFalse(fs.rename(src, dst));
       Assert.assertTrue(fs.getAbfsStore()
-          .getListBlobs(src, null, Mockito.mock(TracingContext.class), null,
+          .getListBlobs(src, null, null, Mockito.mock(TracingContext.class), null,
               false)
           .size() > 0);
       if (dstExist) {
         Assert.assertTrue(fs.getAbfsStore()
-            .getListBlobs(dst, null, Mockito.mock(TracingContext.class), null,
+            .getListBlobs(dst, null, null, Mockito.mock(TracingContext.class), null,
                 false)
             .size() > 0);
       }
