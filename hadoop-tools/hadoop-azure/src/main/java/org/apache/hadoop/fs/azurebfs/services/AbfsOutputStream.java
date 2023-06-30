@@ -325,6 +325,10 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
    * Writes length bytes from the specified byte array starting at off to
    * this output stream.
    *
+   * Before writing, this method checks for any previous write failures by
+   * calling {@link #maybeThrowLastError()}. If a failure occurred,
+   * it throws the exception that caused it.
+   *
    * @param data   the byte array to write.
    * @param off the start off in the data.
    * @param length the number of bytes to write.
@@ -612,7 +616,7 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
 
   /** Similar to posix fsync, flush out the data in client's user buffer
    * all the way to the disk device (but the disk may have it in its cache).
-   * @throws IOException if error occurs
+   * @throws IOException if error occurs in {@link #flushInternal(boolean)} call
    */
   @Override
   public void hsync() throws IOException {
@@ -623,7 +627,8 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
 
   /** Flush out the data in client's user buffer. After the return of
    * this call, new readers will see the data.
-   * @throws IOException if any error occurs
+   * @throws IOException if any error occurs in {@link #flushInternal(boolean)}
+   * call
    */
   @Override
   public void hflush() throws IOException {
@@ -680,6 +685,17 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
     LOG.debug("Closing AbfsOutputStream : {}", this);
   }
 
+  /**
+   * Flushes the internal buffer and uploads the current block to the service.
+   * Before flushing, checks if there has been failure in previous writes. If there
+   * is some data which has not been written to server, that data is written by
+   * {@link #uploadCurrentBlock()}. Post async upload has been invoked,
+   * {@link #flushWrittenBytesToService(boolean)} is called.
+   *
+   * @param isClose stream is closed after this flush call
+   * @throws IOException exception in any of the write operation or server exception
+   * on flush operation
+   */
   private synchronized void flushInternal(boolean isClose) throws IOException {
     maybeThrowLastError();
 
@@ -781,6 +797,14 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
     }
   }
 
+  /**
+   * Wait for the previous writes to complete. Once the previous writes are
+   * successfully completed, the written data is flushed.
+   *
+   * @param isClose stream is closed after this flush
+   * @throws IOException exception from write failure or server exception on flush
+   * operation
+   */
   private synchronized void flushWrittenBytesToService(boolean isClose) throws IOException {
     waitForAppendsToComplete();
     flushWrittenBytesToServiceInternal(position, false, isClose);
