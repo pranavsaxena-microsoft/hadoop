@@ -74,6 +74,11 @@ public final class AbfsHttpConstants {
   public static final String HTTP_METHOD_PATCH = "PATCH";
   public static final String HTTP_METHOD_POST = "POST";
   public static final String HTTP_METHOD_PUT = "PUT";
+  /**
+   * All status codes less than http 100 signify error
+   * and should qualify for retry.
+   */
+  public static final int HTTP_CONTINUE = 100;
 
   // Abfs generic constants
   public static final String SINGLE_WHITE_SPACE = " ";
@@ -120,6 +125,9 @@ public final class AbfsHttpConstants {
   public static final String DEFAULT_SCOPE = "default:";
   public static final String PERMISSION_FORMAT = "%04d";
   public static final String SUPER_USER = "$superuser";
+  // The HTTP 100 Continue informational status response code indicates that everything so far
+  // is OK and that the client should continue with the request or ignore it if it is already finished.
+  public static final String HUNDRED_CONTINUE = "100-continue";
 
   public static final char CHAR_FORWARD_SLASH = '/';
   public static final char CHAR_EXCLAMATION_POINT = '!';
@@ -128,6 +136,17 @@ public final class AbfsHttpConstants {
   public static final char CHAR_EQUALS = '=';
   public static final char CHAR_STAR = '*';
   public static final char CHAR_PLUS = '+';
+  /**
+   * Value that differentiates categories of the http_status.
+   * <pre>
+   * 100 - 199 : Informational responses
+   * 200 - 299 : Successful responses
+   * 300 - 399 : Redirection messages
+   * 400 - 499 : Client error responses
+   * 500 - 599 : Server error responses
+   * </pre>
+   */
+  public static final Integer HTTP_STATUS_CATEGORY_QUOTIENT = 100;
 
   public static final String BLOB = "Blob";
   private static final String PREFIX = "Prefix";
@@ -143,6 +162,20 @@ public final class AbfsHttpConstants {
   public static final String COPY_STATUS_ABORTED = "aborted";
   public static final String COPY_STATUS_FAILED = "failed";
   public static final String HDI_ISFOLDER = "hdi_isfolder";
+  public static final Integer BLOB_LEASE_ONE_MINUTE_DURATION = 60;
+  public static final String ETAG = "Etag";
+  public static final String LAST_MODIFIED_TIME = "Last-Modified";
+  public static final String CREATION_TIME   = "Creation-Time";
+  public static final String OWNER = "Owner";
+  public static final String GROUP = "Group";
+  public static final String PERMISSIONS = "Permissions";
+  public static final String ACL = "Acl";
+  public static final String COPY_ID = "CopyId";
+  public static final String COPY_STATUS = "CopyStatus";
+  public static final String COPY_SOURCE = "CopySource";
+  public static final String COPY_PROGRESS = "CopyProgress";
+  public static final String COPY_COMPLETION_TIME = "CopyCompletionTime";
+  public static final String COPY_STATUS_DESCRIPTION = "CopyStatusDescription";
 
   private AbfsHttpConstants() {}
 }

@@ -41,7 +41,7 @@ public final class AbfsRestOperationTestUtil {
           spiedRestOp.getMethod(), spiedRestOp.getRequestHeaders());
       AbfsHttpOperation spiedOp = Mockito.spy(op);
       return functionRaisingIOE.apply(spiedOp, actualOp);
-    }).when(spiedRestOp).createNewHttpOperation();
+    }).when(spiedRestOp).createHttpOperation();
   }
 
   public static void setResult(final AbfsRestOperation op, final AbfsHttpOperation result) {

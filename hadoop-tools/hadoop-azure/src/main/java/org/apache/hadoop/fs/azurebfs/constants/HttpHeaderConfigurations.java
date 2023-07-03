@@ -68,6 +68,7 @@ public final class HttpHeaderConfigurations {
   public static final String X_MS_LEASE_ACTION = "x-ms-lease-action";
   public static final String X_MS_LEASE_DURATION = "x-ms-lease-duration";
   public static final String X_MS_LEASE_ID = "x-ms-lease-id";
+  public static final String X_MS_SOURCE_LEASE_ID = "x-ms-source-lease-id";
   public static final String X_MS_PROPOSED_LEASE_ID = "x-ms-proposed-lease-id";
   public static final String X_MS_LEASE_BREAK_PERIOD = "x-ms-lease-break-period";
   public static final String X_MS_BLOB_TYPE = "x-ms-blob-type";
@@ -76,6 +77,8 @@ public final class HttpHeaderConfigurations {
   public static final String X_MS_COPY_SOURCE = "x-ms-copy-source";
   public static final String X_MS_COPY_STATUS_DESCRIPTION = "x-ms-copy-status-description";
   public static final String X_MS_COPY_STATUS = "x-ms-copy-status";
+  public static final String EXPECT = "Expect";
+  public static final String X_MS_METADATA_PREFIX = "x-ms-meta-";
 
   private HttpHeaderConfigurations() {}
 }

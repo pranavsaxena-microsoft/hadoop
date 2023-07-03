@@ -71,6 +71,14 @@ runNonHNSSharedKeyTest()
   fi
 }
 
+runNonHNSOAuthTest()
+{
+  accountName=$(xmlstarlet sel -t -v '//property[name = "fs.azure.nonHnsTestAccountName"]/value' -n $azureTestXmlPath)
+  PROPERTIES=("fs.azure.account.auth.type")
+  VALUES=("OAuth")
+  triggerRun "NonHNS-OAuth" "$accountName" "$runTest" $processCount "$cleanUpTestContainers"
+}
+
 runAppendBlobHNSOAuthTest()
 {
   accountName=$(xmlstarlet sel -t -v '//property[name = "fs.azure.hnsTestAccountName"]/value' -n $azureTestXmlPath)
@@ -181,7 +189,7 @@ done
 
 echo ' '
 echo 'Set the active test combination to run the action:'
-select combo in HNS-OAuth HNS-SharedKey nonHNS-SharedKey AppendBlob-HNS-OAuth AllCombinationsTestRun Quit
+select combo in HNS-OAuth HNS-SharedKey nonHNS-SharedKey NonHNS-OAuth AppendBlob-HNS-OAuth AllCombinationsTestRun Quit
 do
    case $combo in
       HNS-OAuth)
@@ -196,6 +204,10 @@ do
          runNonHNSSharedKeyTest
          break
          ;;
+       NonHNS-OAuth)
+          runNonHNSOAuthTest
+          break
+          ;;
        AppendBlob-HNS-OAuth)
          runAppendBlobHNSOAuthTest
          break
@@ -209,6 +221,7 @@ do
          runHNSOAuthTest
          runHNSSharedKeyTest
          runNonHNSSharedKeyTest
+         runNonHNSOAuthTest
          runAppendBlobHNSOAuthTest ## Keep this as the last run scenario always
          break
          ;;

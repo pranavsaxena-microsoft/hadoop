@@ -19,7 +19,6 @@
 package org.apache.hadoop.fs.azurebfs.services;
 
 import java.io.IOException;
-import java.util.List;
 
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.azurebfs.AzureBlobFileSystem;
@@ -35,7 +34,7 @@ public class RenameNonAtomicUtils extends RenameAtomicityUtils {
   }
 
   @Override
-  public void preRename(final List<BlobProperty> blobPropertyList)
+  public void preRename(final Boolean isCreateOperationOnBlobEndpoint)
       throws IOException {
 
   }
