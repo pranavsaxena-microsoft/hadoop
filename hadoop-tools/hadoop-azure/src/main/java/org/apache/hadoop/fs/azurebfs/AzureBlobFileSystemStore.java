@@ -785,7 +785,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
             createDirectory(path, null, FsPermission.getDirDefault(),
                 FsPermission.getUMask(
                     getAbfsConfiguration().getRawConfiguration()),
-                tracingContext);
+                false, tracingContext);
 
             boolean xAttrExists = metadata.containsKey(HDI_ISFOLDER);
             if (!xAttrExists) {
@@ -1242,14 +1242,18 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
   }
 
   public void createDirectory(final Path path, final FileSystem.Statistics statistics, final FsPermission permission,
-      final FsPermission umask, TracingContext tracingContext)
+      final FsPermission umask,
+      final Boolean checkParentChain,
+      TracingContext tracingContext)
           throws IOException {
     try (AbfsPerfInfo perfInfo = startTracking("createDirectory", "createPath")) {
       if (!OperativeEndpoint.isMkdirEnabledOnDFS(abfsConfiguration)) {
         LOG.debug("Mkdir created via blob endpoint for the given path {} and config value {} ",
                 path, abfsConfiguration.shouldMkdirFallbackToDfs());
         ArrayList<Path> keysToCreateAsFolder = new ArrayList<>();
-        checkParentChainForFile(path, tracingContext, keysToCreateAsFolder);
+        if (checkParentChain) {
+          checkParentChainForFile(path, tracingContext, keysToCreateAsFolder);
+        }
         boolean blobOverwrite = abfsConfiguration.isEnabledBlobMkdirOverwrite();
 
         createDirectoryMarkerBlob(path, statistics, permission, umask, tracingContext,
@@ -1638,7 +1642,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       createDirectory(source, null, FsPermission.getDirDefault(),
           FsPermission.getUMask(
               getAbfsConfiguration().getRawConfiguration()),
-          tracingContext);
+          true, tracingContext);
     } else {
       LOG.debug("Source {} is a directory but there is a marker-blob",
           source);
@@ -1959,10 +1963,10 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     String srcParentPathSrc = parentPath.toUri().getPath();
     LOG.debug(String.format(
         "Creating Parent of Path %s : %s", srcPathStr, srcParentPathSrc));
-    createDirectoryMarkerBlob(parentPath, null, FsPermission.getDirDefault(),
+    createDirectory(parentPath, null, FsPermission.getDirDefault(),
         FsPermission.getUMask(
-            getAbfsConfiguration().getRawConfiguration()),
-        tracingContext, true);
+            getAbfsConfiguration().getRawConfiguration()), false,
+        tracingContext);
     LOG.debug(String.format("Directory for parent of Path %s : %s created",
         srcPathStr, srcParentPathSrc));
   }

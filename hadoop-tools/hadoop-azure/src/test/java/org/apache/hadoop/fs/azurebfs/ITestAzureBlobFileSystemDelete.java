@@ -59,6 +59,7 @@ import static java.net.HttpURLConnection.HTTP_FORBIDDEN;
 import static java.net.HttpURLConnection.HTTP_NOT_FOUND;
 import static java.net.HttpURLConnection.HTTP_OK;
 
+import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_MKDIRS_FALLBACK_TO_DFS;
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_REDIRECT_DELETE;
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_REDIRECT_RENAME;
 import static org.mockito.ArgumentMatchers.any;
@@ -406,6 +407,18 @@ public class ITestAzureBlobFileSystemDelete extends
   @Test
   public void testDeleteCheckIfParentLMTChange() throws Exception {
     AzureBlobFileSystem fs = getFileSystem();
+    AbfsConfiguration conf = getConfiguration();
+    /*
+     * LMT of parent directory doesn't change when delete directory triggered with
+     * DFS endpoint (both hns and non-hns account). In Blob endpoint, if there
+     * is no redirect for ingress / mkdirs, the LMT doesn't change. But in case
+     * of ingress redirection, the directory creation of parent overrides the
+     * path which changes the LMT. Hence, for tests running with redirect
+     * configuration, this test is ignored.
+     */
+    Assume.assumeFalse(
+        getPrefixMode(fs) == PrefixMode.BLOB && (conf.shouldMkdirFallbackToDfs()
+            || conf.shouldIngressFallbackToDfs()));
     fs.mkdirs(new Path("/dir1/dir2"));
     fs.create(new Path("/dir1/dir2/file"));
     FileStatus status = fs.getFileStatus(new Path("/dir1"));

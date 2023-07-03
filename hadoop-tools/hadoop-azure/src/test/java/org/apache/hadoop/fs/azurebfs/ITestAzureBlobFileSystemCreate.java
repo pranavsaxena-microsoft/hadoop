@@ -983,6 +983,18 @@ public class ITestAzureBlobFileSystemCreate extends
     }).when(client).createPathBlob(Mockito.anyString(), Mockito.anyBoolean(),
         Mockito.anyBoolean(), Mockito.nullable(HashMap.class), Mockito.nullable(String.class), Mockito.nullable(TracingContext.class));
 
+    Mockito.doAnswer(answer -> {
+          AbfsRestOperation op = (AbfsRestOperation) answer.callRealMethod();
+          createCalled.set(true);
+          while (!parallelRenameDone.get());
+          return op;
+        })
+        .when(client)
+        .createPath(Mockito.anyString(), Mockito.anyBoolean(),
+            Mockito.anyBoolean(), Mockito.nullable(String.class),
+            Mockito.nullable(String.class), Mockito.anyBoolean(),
+            Mockito.nullable(String.class), Mockito.any(TracingContext.class));
+
     new Thread(() -> {
       try {
         while(!createCalled.get());
@@ -1026,6 +1038,18 @@ public class ITestAzureBlobFileSystemCreate extends
       return op;
     }).when(client).createPathBlob(Mockito.anyString(), Mockito.anyBoolean(),
         Mockito.anyBoolean(), Mockito.nullable(HashMap.class), Mockito.nullable(String.class), Mockito.nullable(TracingContext.class));
+
+    Mockito.doAnswer(answer -> {
+          AbfsRestOperation op = (AbfsRestOperation) answer.callRealMethod();
+          createCalled.set(true);
+          while (!parallelRenameDone.get());
+          return op;
+        })
+        .when(client)
+        .createPath(Mockito.anyString(), Mockito.anyBoolean(),
+            Mockito.anyBoolean(), Mockito.nullable(String.class),
+            Mockito.nullable(String.class), Mockito.anyBoolean(),
+            Mockito.nullable(String.class), Mockito.any(TracingContext.class));
 
     new Thread(() -> {
       try {

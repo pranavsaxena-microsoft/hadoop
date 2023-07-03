@@ -1962,6 +1962,7 @@ public class ITestAzureBlobFileSystemRename extends
   public void testBlobAtomicRenameSrcAndDstAreNotLeftLeased() throws Exception {
     AzureBlobFileSystem fs = Mockito.spy(getFileSystem());
     assumeNonHnsAccountBlobEndpoint(fs);
+    Assume.assumeFalse(getConfiguration().shouldIngressFallbackToDfs());
     fs.setWorkingDirectory(new Path("/"));
     fs.create(new Path("/hbase/dir1/blob1"));
     fs.create(new Path("/hbase/dir1/blob2"));
