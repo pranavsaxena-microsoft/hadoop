@@ -986,7 +986,7 @@ public class ITestAzureBlobFileSystemCreate extends
     Mockito.doAnswer(answer -> {
           AbfsRestOperation op = (AbfsRestOperation) answer.callRealMethod();
           createCalled.set(true);
-          while (!parallelRenameDone.get()) ;
+          while (!parallelRenameDone.get());
           return op;
         })
         .when(client)
@@ -1042,7 +1042,7 @@ public class ITestAzureBlobFileSystemCreate extends
     Mockito.doAnswer(answer -> {
           AbfsRestOperation op = (AbfsRestOperation) answer.callRealMethod();
           createCalled.set(true);
-          while (!parallelRenameDone.get()) ;
+          while (!parallelRenameDone.get());
           return op;
         })
         .when(client)
