@@ -807,7 +807,7 @@ public class AzureNativeFileSystemStore implements NativeFileSystemStore {
     LOG.debug("Page blob directories:  {}", setToString(pageBlobDirs));
 
     // User-agent
-    userAgentId = "wasbdriverV2.2";
+    userAgentId = "wasbdriverV2.3";
 
     // Extract the directories that should contain block blobs with compaction
     blockBlobWithCompationDirs = getDirectorySet(
