@@ -29,12 +29,14 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AbfsRestOperationException;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemException;
+import org.apache.hadoop.fs.azurebfs.contracts.services.AppendRequestParameters;
 import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
 import org.apache.hadoop.fs.azurebfs.services.AbfsOutputStream;
 import org.apache.hadoop.fs.azurebfs.services.OperativeEndpoint;
@@ -49,6 +51,8 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.azurebfs.constants.FSOperationType;
 import org.apache.hadoop.fs.azurebfs.utils.TracingHeaderValidator;
 import org.apache.hadoop.fs.contract.ContractTestUtils;
+import org.apache.hadoop.test.LambdaTestUtils;
+
 import org.mockito.Mockito;
 
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.AZURE_ENABLE_SMALL_WRITE_OPTIMIZATION;
@@ -603,4 +607,128 @@ public class ITestAzureBlobFileSystemAppend extends
     assertNotNull(outputStream.getLeaseId());
   }
 
+
+  /**
+   * If a write operation fails asynchronously, when the next write comes once failure is
+   * registered, that operation would fail with the exception caught on previous
+   * write operation.
+   * The next close, hsync, hflush would also fail for the last caught exception.
+   */
+  @Test
+  public void testIntermittentAppendFailureToBeReported() throws Exception {
+    AzureBlobFileSystem fs = Mockito.spy(
+        (AzureBlobFileSystem) FileSystem.newInstance(getRawConfiguration()));
+    AzureBlobFileSystemStore store = Mockito.spy(fs.getAbfsStore());
+    AbfsClient spiedClient = Mockito.spy(store.getClient());
+    store.setClient(spiedClient);
+    Mockito.doReturn(store).when(fs).getAbfsStore();
+    Mockito.doThrow(
+            new AbfsRestOperationException(503, "", "", new Exception()))
+        .when(spiedClient)
+        .append(Mockito.anyString(), Mockito.anyString(),
+            Mockito.any(byte[].class), Mockito.any(
+                AppendRequestParameters.class), Mockito.nullable(String.class),
+            Mockito.any(TracingContext.class), Mockito.nullable(String.class));
+
+    Mockito.doThrow(
+            new AbfsRestOperationException(503, "", "", new Exception()))
+        .when(spiedClient)
+        .append(Mockito.anyString(), Mockito.any(byte[].class), Mockito.any(
+                AppendRequestParameters.class), Mockito.nullable(String.class),
+            Mockito.any(TracingContext.class));
+
+    byte[] bytes = new byte[1024 * 1024 * 8];
+    new Random().nextBytes(bytes);
+    LambdaTestUtils.intercept(IOException.class, () -> {
+      try (FSDataOutputStream os = fs.create(new Path("/test/file"))) {
+        os.write(bytes);
+      }
+    });
+
+    LambdaTestUtils.intercept(IOException.class, () -> {
+      FSDataOutputStream os = fs.create(new Path("/test/file"));
+      os.write(bytes);
+      os.close();
+    });
+
+    LambdaTestUtils.intercept(IOException.class, () -> {
+      FSDataOutputStream os = fs.create(new Path("/test/file"));
+      os.write(bytes);
+      os.hsync();
+    });
+
+    LambdaTestUtils.intercept(IOException.class, () -> {
+      FSDataOutputStream os = fs.create(new Path("/test/file"));
+      os.write(bytes);
+      os.hflush();
+    });
+
+    LambdaTestUtils.intercept(IOException.class, () -> {
+      AbfsOutputStream os = (AbfsOutputStream) fs.create(new Path("/test/file"))
+          .getWrappedStream();
+      os.write(bytes);
+      while (!os.areWriteOperationsTasksDone()) ;
+      os.write(bytes);
+    });
+  }
+
+  /**
+   * Test to check when async write takes time, the close, hsync, hflush method
+   * wait to get async ops completed and then flush. If async ops fail, the methods
+   * will throw exception.
+   */
+  @Test
+  public void testWriteAsyncOpFailedAfterCloseCalled() throws Exception {
+    AzureBlobFileSystem fs = Mockito.spy(
+        (AzureBlobFileSystem) FileSystem.newInstance(getRawConfiguration()));
+    AzureBlobFileSystemStore store = Mockito.spy(fs.getAbfsStore());
+    AbfsClient spiedClient = Mockito.spy(store.getClient());
+    store.setClient(spiedClient);
+    Mockito.doReturn(store).when(fs).getAbfsStore();
+
+    byte[] bytes = new byte[1024 * 1024 * 8];
+    new Random().nextBytes(bytes);
+
+    AtomicInteger count = new AtomicInteger(0);
+
+    Mockito.doAnswer(answer -> {
+          count.incrementAndGet();
+          while (count.get() < 2) ;
+          Thread.sleep(1000);
+          throw new AbfsRestOperationException(503, "", "", new Exception());
+        })
+        .when(spiedClient)
+        .append(Mockito.anyString(), Mockito.anyString(),
+            Mockito.any(byte[].class), Mockito.any(
+                AppendRequestParameters.class), Mockito.nullable(String.class),
+            Mockito.any(TracingContext.class), Mockito.nullable(String.class));
+
+    Mockito.doAnswer(answer -> {
+          count.incrementAndGet();
+          while (count.get() < 2) ;
+          Thread.sleep(1000);
+          throw new AbfsRestOperationException(503, "", "", new Exception());
+        })
+        .when(spiedClient)
+        .append(Mockito.anyString(), Mockito.any(byte[].class), Mockito.any(
+                AppendRequestParameters.class), Mockito.nullable(String.class),
+            Mockito.any(TracingContext.class));
+
+    FSDataOutputStream os = fs.create(new Path("/test/file"));
+    os.write(bytes);
+    os.write(bytes);
+    LambdaTestUtils.intercept(IOException.class, os::close);
+
+    count.set(0);
+    FSDataOutputStream os1 = fs.create(new Path("/test/file1"));
+    os1.write(bytes);
+    os1.write(bytes);
+    LambdaTestUtils.intercept(IOException.class, os1::hsync);
+
+    count.set(0);
+    FSDataOutputStream os2 = fs.create(new Path("/test/file2"));
+    os2.write(bytes);
+    os2.write(bytes);
+    LambdaTestUtils.intercept(IOException.class, os2::hflush);
+  }
 }
