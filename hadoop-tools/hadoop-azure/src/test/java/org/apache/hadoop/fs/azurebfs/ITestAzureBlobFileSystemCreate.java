@@ -45,6 +45,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.InvalidConfigurationValueException;
 import org.apache.hadoop.fs.azurebfs.services.OperativeEndpoint;
 import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
+import org.apache.hadoop.fs.azurebfs.utils.ChangeBlobAccountSettingUtis;
 import org.apache.hadoop.test.LambdaTestUtils;
 
 import org.junit.Assert;
@@ -1527,6 +1528,15 @@ public class ITestAzureBlobFileSystemCreate extends
       op = client.getPathStatus(fileName, true, testTracingContext);
     }
     return AzureBlobFileSystemStore.extractEtagHeader(op.getResult());
+  }
+
+
+  @Test
+  public void test() throws Exception {
+    AzureBlobFileSystem fs = getFileSystem();
+    AbfsClient client = fs.getAbfsClient();
+
+    ChangeBlobAccountSettingUtis.change(getConfiguration().get("subscriptionId"), getAccountName(), true, true, "pranavsaxena", getConfiguration());
   }
 }
 
