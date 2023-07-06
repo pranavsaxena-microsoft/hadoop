@@ -13,6 +13,7 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.azurebfs.AbstractAbfsIntegrationTest;
+import org.apache.hadoop.fs.azurebfs.AzcopyHelper;
 import org.apache.hadoop.fs.azurebfs.utils.ChangeBlobAccountSettingUtis;
 
 import static org.apache.hadoop.test.LambdaTestUtils.intercept;
@@ -80,10 +81,53 @@ public class ITestAppend extends
   private void test(Boolean firstAppendVersioning,
       Boolean secondAppendVersioning,
       Boolean setSoftDelete) throws Exception {
+    FileSystem fileSystem = getFileSystem();
+    testInternal(true, firstAppendVersioning, secondAppendVersioning, setSoftDelete);
+    testInternal(false, firstAppendVersioning, secondAppendVersioning, setSoftDelete);
+  }
+
+  void createAzCopyDirectory(Path path) throws Exception {
+    AzcopyHelper azcopyHelper = new AzcopyHelper(
+        getAccountName(), getFileSystemName(),  getFileSystem().getAbfsStore()
+        .getAbfsConfiguration()
+        .getRawConfiguration(), getFileSystem().getAbfsStore().getPrefixMode());
+    azcopyHelper.createFolderUsingAzcopy(
+        getFileSystem().makeQualified(path).toUri().getPath().substring(1));
+  }
+
+  /**
+   * For creating files with implicit parents. Doesn't change already explicit
+   * parents.
+   */
+  void createAzCopyFile(Path path) throws Exception {
+    AzcopyHelper azcopyHelper = new AzcopyHelper(getAccountName(),
+        getFileSystemName(), getFileSystem().getAbfsStore()
+        .getAbfsConfiguration()
+        .getRawConfiguration(), getFileSystem().getAbfsStore().getPrefixMode());
+    azcopyHelper.createFileUsingAzcopy(
+        getFileSystem().makeQualified(path).toUri().getPath().substring(1));
+  }
+
+
+
+
+  private void testInternal(Boolean createViaAzcopy, Boolean firstAppendVersioning,
+      Boolean secondAppendVersioning,
+      Boolean setSoftDelete) throws Exception {
     FileSystem fs = getFileSystem();
-    fs.mkdirs(new Path("/testDir"));
+    if(createViaAzcopy) {
+      createAzCopyDirectory(new Path("/testDir"));
+    } else {
+      fs.mkdirs(new Path("/testDir"));
+    }
     FileStatus testDirStatus1 = fs.getFileStatus(new Path("/testDir"));
-    OutputStream ps = fs.create(new Path("/testDir/test1"));
+    final OutputStream ps;
+    if(createViaAzcopy) {
+      createAzCopyFile(new Path("/testDir/test1"));
+      ps = fs.append(new Path("/testDir/test1"));
+    } else {
+      ps = fs.create(new Path("/testDir/test1"));
+    }
     String str1 = "abc";
     ps.write(str1.getBytes(StandardCharsets.UTF_8));
     ps.close();
@@ -93,20 +137,22 @@ public class ITestAppend extends
         getConfiguration().get("subscriptionId"), getAccountNameBeforeDot(),
         firstAppendVersioning, setSoftDelete, "pranavsaxena",
         getConfiguration());
-    ps = fs.append(new Path("/testDir/test1"));
+    OutputStream ps1;
+    ps1 = fs.append(new Path("/testDir/test1"));
     String str2 = "def";
-    ps.write(str2.getBytes(StandardCharsets.UTF_8));
-    ps.close();
+    ps1.write(str2.getBytes(StandardCharsets.UTF_8));
+    ps1.close();
 
 
     ChangeBlobAccountSettingUtis.change(
         getConfiguration().get("subscriptionId"), getAccountNameBeforeDot(),
         secondAppendVersioning, setSoftDelete, "pranavsaxena",
         getConfiguration());
-    ps = fs.append(new Path("/testDir/test1"));
+
     String str3 = "ghi";
-    ps.write(str3.getBytes(StandardCharsets.UTF_8));
-    ps.close();
+    ps1 = fs.append(new Path("/testDir/test1"));
+    ps1.write(str3.getBytes(StandardCharsets.UTF_8));
+    ps1.close();
 
 
     InputStream inputStream = fs.open(new Path("/testDir/test1"));
@@ -117,6 +163,7 @@ public class ITestAppend extends
     FileStatus testDirStatus2 = fs.getFileStatus(new Path("/testDir"));
     Assertions.assertThat(testDirStatus1.getModificationTime())
         .isEqualTo(testDirStatus2.getModificationTime());
+    fs.delete(new Path("/testDir/"), true);
   }
 
 }
