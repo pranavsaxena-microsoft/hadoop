@@ -36,7 +36,10 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.LocatedFileStatus;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.RemoteIterator;
 import org.apache.hadoop.fs.azurebfs.constants.FSOperationType;
+import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
+import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 import org.apache.hadoop.fs.azurebfs.utils.TracingHeaderValidator;
 import org.apache.hadoop.fs.contract.ContractTestUtils;
 import org.mockito.Mock;
@@ -446,4 +449,63 @@ public class ITestAzureBlobFileSystemListStatus extends
     Assertions.assertThat(fileStatus.isFile()).isEqualTo(false);
     Assertions.assertThat(fileStatus.getLen()).isEqualTo(0);
   }
+
+  @Test
+  public void testForce4xxBySendingWrongContinuationToken() throws Exception {
+    AzureBlobFileSystem fs = Mockito.spy(getFileSystem());
+    final AbfsClient originalClient = getClient(fs);
+    AbfsClient client = Mockito.spy(originalClient);
+    fs.getAbfsStore().setClient(client);
+
+    fs.mkdirs(new Path("/testDir"));
+    fs.create(new Path("/testDir/file1"));
+
+    Mockito.doAnswer(answer -> {
+      return originalClient.getListBlobs("RANDOMSTR", answer.getArgument(1), answer.getArgument(2), answer.getArgument(3), answer.getArgument(4));
+    }).when(client).getListBlobs(Mockito.nullable(String.class), Mockito.anyString(), Mockito.anyString(), Mockito.nullable(Integer.class), Mockito.any(
+        TracingContext.class));
+
+    fs.listStatus(new Path("/testDir"));
+  }
+
+  @Test
+  public void testForce4xxOnClientCallForListIterator() throws Exception {
+    AzureBlobFileSystem fs = Mockito.spy(getFileSystem());
+    final AbfsClient originalClient = getClient(fs);
+    AbfsClient client = Mockito.spy(originalClient);
+    fs.getAbfsStore().setClient(client);
+
+    fs.mkdirs(new Path("/testDir"));
+    fs.create(new Path("/testDir/file1"));
+
+    Mockito.doAnswer(answer -> {
+      return originalClient.getListBlobs("RANDOMSTR", answer.getArgument(1), answer.getArgument(2), answer.getArgument(3), answer.getArgument(4));
+    }).when(client).getListBlobs(Mockito.nullable(String.class), Mockito.anyString(), Mockito.anyString(), Mockito.nullable(Integer.class), Mockito.any(
+        TracingContext.class));
+
+    RemoteIterator<FileStatus> iterator = fs.listStatusIterator(new Path("/testDir"));
+    while(iterator.hasNext()) {
+      iterator.next();
+    }
+  }
+
+  @Test
+  public void testForce4xxWithGetFileStatusFailingForListStatusOnBlobPath() throws Exception {
+    AzureBlobFileSystem fs = Mockito.spy(getFileSystem());
+    final AbfsClient originalClient = getClient(fs);
+    AbfsClient client = Mockito.spy(originalClient);
+    fs.getAbfsStore().setClient(client);
+
+    fs.mkdirs(new Path("/testDir"));
+    fs.create(new Path("/testDir/file1"));
+
+    Mockito.doAnswer(answer -> {
+      Path path = answer.getArgument(0);
+      client.acquireBlobLease(path.toUri().getPath(), -1, Mockito.mock(TracingContext.class));
+      return answer.callRealMethod();
+    }).when(client).getBlobProperty(Mockito.any(Path.class), Mockito.any(TracingContext.class));
+
+    fs.listStatus(new Path("/testDir/file1"));
+  }
+
 }
