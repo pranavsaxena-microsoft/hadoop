@@ -561,7 +561,7 @@
                   </systemPropertyVariables>
 
                   <includes>
-                    <include>**/azurebfs/versioning/ITest*.java</include>
+
 <!--                    <include>**/azurebfs/**/ITest*.java</include>-->
                   </includes>
                   <excludes>
@@ -607,6 +607,7 @@
                     <fs.azure.scale.test.timeout>${fs.azure.scale.test.timeout}</fs.azure.scale.test.timeout>
                   </systemPropertyVariables>
                   <includes>
+                    <include>**/azurebfs/versioning/ITest*.java</include>
 <!--                    <include>**/azurebfs/contract/ITest*.java</include>-->
 <!--                    <include>**/azurebfs/ITestAzureBlobFileSystemE2EScale.java</include>-->
 <!--                    <include>**/azurebfs/ITestAbfsReadWriteAndSeek.java</include>-->
