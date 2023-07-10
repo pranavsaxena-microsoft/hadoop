@@ -18,8 +18,10 @@
 
 package org.apache.hadoop.fs.azurebfs;
 
+import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.Random;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -28,6 +30,7 @@ import org.mockito.Mockito;
 
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FSInputStream;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.azurebfs.constants.FSOperationType;
 import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
@@ -42,6 +45,7 @@ import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.A
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.DEFAULT_READ_BUFFER_SIZE;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.MAX_BUFFER_SIZE;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.MIN_BUFFER_SIZE;
+import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.ONE_MB;
 import static org.apache.hadoop.fs.statistics.IOStatisticsLogging.logIOStatisticsAtLevel;
 
 /**
@@ -194,5 +198,57 @@ public class ITestAbfsReadWriteAndSeek extends AbstractAbfsScaleTest {
         TracingContext.class));
 
     fs.open(new Path("/testDir"));
+  }
+
+  @Test
+  public void testNotFoundInRead() throws Exception {
+    final AzureBlobFileSystem fs = getFileSystem();
+    final Path path = new Path("/");
+    byte[] bytes = new byte[8 * ONE_MB];
+    new Random().nextBytes(bytes);
+
+    try (OutputStream os = fs.create(new Path("/testDir/file"))) {
+      os.write(bytes);
+    }
+
+    FSDataInputStream is = fs.open(new Path("/testDir/file"));
+
+    fs.delete(new Path("/testDir/file"), true);
+
+    is.read();
+  }
+
+  @Test
+  public void testNotFoundInParallelRead() throws Exception {
+    final AzureBlobFileSystem fs = getFileSystem();
+    final Path path = new Path("/");
+    byte[] bytes = new byte[8 * ONE_MB];
+    new Random().nextBytes(bytes);
+
+    try (OutputStream os = fs.create(new Path("/testDir/file"))) {
+      os.write(bytes);
+    }
+
+    AbfsClient client = Mockito.spy(fs.getAbfsClient());
+    fs.getAbfsStore().setClient(client);
+
+    FSDataInputStream is = fs.open(new Path("/testDir/file"));
+
+    AtomicInteger counter = new AtomicInteger(0);
+    Mockito.doAnswer(answer -> {
+      synchronized (this) {
+        if (counter.get() == 1) {
+          client.deleteBlobPath(new Path("/testDir/file"), null,
+              Mockito.mock(TracingContext.class));
+        }
+        counter.incrementAndGet();
+        return answer.callRealMethod();
+      }
+    }).when(client).read(Mockito.anyString(), Mockito.anyLong(),
+        Mockito.nullable(byte[].class), Mockito.anyInt(), Mockito.anyInt(),
+        Mockito.nullable(String.class), Mockito.nullable(String.class),
+        Mockito.any(TracingContext.class));
+
+    is.read(new byte[8 *ONE_MB], 0, 8 * ONE_MB);
   }
 }
