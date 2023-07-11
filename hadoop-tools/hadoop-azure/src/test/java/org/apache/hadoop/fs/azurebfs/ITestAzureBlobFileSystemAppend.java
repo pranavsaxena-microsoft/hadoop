@@ -20,6 +20,7 @@ package org.apache.hadoop.fs.azurebfs;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -602,5 +603,27 @@ public class ITestAzureBlobFileSystemAppend extends
     outputStream.close();
     assertNotNull(outputStream.getLeaseId());
   }
+
+  @Test
+  public void testOutputStreamOpenFailureOnGetBlockList() throws Exception {
+    AzureBlobFileSystem fs = getFileSystem();
+    try(OutputStream os = fs.create(new Path("/testDir/file1"))) {
+      byte[] bytes = new byte[4 * ONE_MB];
+      new Random().nextBytes(bytes);
+      os.write(bytes);
+    }
+
+    AbfsClient client = Mockito.spy(fs.getAbfsClient());
+    fs.getAbfsStore().setClient(client);
+
+    Mockito.doAnswer(answer -> {
+      client.deleteBlobPath(new Path("/testDir/file1"), null, Mockito.mock(TracingContext.class));
+      return answer.callRealMethod();
+    }).when(client).getBlockList(Mockito.anyString(), Mockito.any(TracingContext.class));
+
+    fs.append(new Path("/testDir/file1"));
+  }
+
+
 
 }
