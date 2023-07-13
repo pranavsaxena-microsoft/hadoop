@@ -271,7 +271,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     boolean useHttps = (usingOauth || abfsConfiguration.isHttpsAlwaysUsed()) ? true : abfsStoreBuilder.isSecureScheme;
     this.abfsPerfTracker = new AbfsPerfTracker(fileSystemName, accountName, this.abfsConfiguration);
     this.abfsCounters = abfsStoreBuilder.abfsCounters;
-    initializeClient(uri, fileSystemName, accountName, useHttps);
+    initializeClient(abfsStoreBuilder.clientURI, fileSystemName, accountName, useHttps);
     final Class<? extends IdentityTransformerInterface> identityTransformerClass =
         abfsStoreBuilder.configuration.getClass(FS_AZURE_IDENTITY_TRANSFORM_CLASS, IdentityTransformer.class,
             IdentityTransformerInterface.class);
@@ -2410,7 +2410,9 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       return;
     }
 
-    final String url = getBaseUrlString(fileSystemName, accountName, isSecure);
+    String[] authorityParts = authorityParts(uri);
+
+    final String url = getBaseUrlString(fileSystemName, authorityParts[1], isSecure);
 
     URL baseUrl;
     try {
@@ -2742,6 +2744,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
   public static final class AzureBlobFileSystemStoreBuilder {
 
     private URI uri;
+    private URI clientURI;
     private boolean isSecureScheme;
     private Configuration configuration;
     private AbfsCounters abfsCounters;
@@ -2750,6 +2753,11 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
 
     public AzureBlobFileSystemStoreBuilder withUri(URI value) {
       this.uri = value;
+      return this;
+    }
+
+    public AzureBlobFileSystemStoreBuilder withClientUri(URI value) {
+      this.clientURI = value;
       return this;
     }
 
