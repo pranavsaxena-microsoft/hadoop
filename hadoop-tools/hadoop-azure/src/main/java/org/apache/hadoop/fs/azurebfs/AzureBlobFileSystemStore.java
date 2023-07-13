@@ -1883,6 +1883,8 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     long countAggregate = 0;
     boolean shouldContinue = true;
 
+    String uri = path.toUri().getScheme() + "://" + path.toUri().getAuthority();
+
     LOG.debug("listStatus filesystem: {} path: {}, startFrom: {}",
             client.getFileSystem(),
             path,
@@ -1934,7 +1936,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
           }
 
           Path entryPath = new Path(File.separator + entry.name());
-          entryPath = entryPath.makeQualified(this.uri, entryPath);
+          entryPath = new Path(uri + entryPath.toUri().getPath());
 
           fileStatuses.add(
                   new VersionedFileStatus(

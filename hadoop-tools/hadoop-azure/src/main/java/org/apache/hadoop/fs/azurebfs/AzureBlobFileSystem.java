@@ -191,6 +191,7 @@ public class AzureBlobFileSystem extends FileSystem
     if (configuration.getBoolean(FS_AZURE_ENABLE_BLOB_ENDPOINT, false)) {
       if (uri.toString().contains(FileSystemUriSchemes.ABFS_DNS_PREFIX)) {
         uri = changePrefixFromDfsToBlob(uri);
+//        this.uri = uri;
       }
     }
 
