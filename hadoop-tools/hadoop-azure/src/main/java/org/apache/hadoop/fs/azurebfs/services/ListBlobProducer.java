@@ -97,7 +97,7 @@ public class ListBlobProducer {
         if (nextMarker == null) {
           listBlobQueue.complete();
         }
-      } while(nextMarker != null);
+      } while(nextMarker != null && listBlobQueue.getConsumptionFailed());
     }).start();
   }
 }

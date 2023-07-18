@@ -41,4 +41,8 @@ public class ListBlobConsumer {
     return listBlobQueue.getIsCompleted()
         && listBlobQueue.size() == 0;
   }
+
+  public void fail() {
+    listBlobQueue.consumptionFailed();
+  }
 }

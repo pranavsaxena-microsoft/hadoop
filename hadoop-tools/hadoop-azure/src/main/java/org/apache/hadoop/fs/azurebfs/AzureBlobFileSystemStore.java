@@ -1743,6 +1743,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         } catch (InterruptedException | ExecutionException e) {
           LOG.error(String.format("rename from %s to %s failed", source,
               destination), e);
+          listBlobConsumer.fail();
           renameBlobExecutorService.shutdown();
           if (srcDirBlobLease != null) {
             srcDirBlobLease.free();
@@ -2015,6 +2016,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
               }
               LOG.error(String.format("Deleting Path %s failed",
                   blobPropertyPathStr), ex);
+              consumer.fail();
               throw new RuntimeException(ex);
             }
           }));
