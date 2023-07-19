@@ -41,6 +41,8 @@ import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AbfsRestOperationExcep
 import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
 import org.apache.hadoop.fs.azurebfs.services.AbfsHttpOperation;
 import org.apache.hadoop.fs.azurebfs.services.AbfsRestOperation;
+import org.apache.hadoop.fs.azurebfs.services.ListBlobProducer;
+import org.apache.hadoop.fs.azurebfs.services.ListBlobQueue;
 import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
 import org.apache.hadoop.fs.azurebfs.services.ITestAbfsClient;
 import org.apache.hadoop.fs.azurebfs.services.TestAbfsPerfTracker;
@@ -60,6 +62,7 @@ import static java.net.HttpURLConnection.HTTP_NOT_FOUND;
 import static java.net.HttpURLConnection.HTTP_OK;
 
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_MKDIRS_FALLBACK_TO_DFS;
+import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_PRODUCER_QUEUE_MAX_SIZE;
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_REDIRECT_DELETE;
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_REDIRECT_RENAME;
 import static org.mockito.ArgumentMatchers.any;
@@ -491,5 +494,80 @@ public class ITestAzureBlobFileSystemDelete extends
             Mockito.any(TracingContext.class));
 
     fs.delete(new Path(dirPathStr), true);
+  }
+
+  @Test
+  public void testProducerStopOnDeleteFailure() throws Exception {
+    Assume.assumeTrue(getPrefixMode(getFileSystem()) == PrefixMode.BLOB);
+    Configuration configuration = Mockito.spy(getRawConfiguration());
+    configuration.set(FS_AZURE_PRODUCER_QUEUE_MAX_SIZE, "1");
+    AzureBlobFileSystem fs = Mockito.spy(
+        (AzureBlobFileSystem) FileSystem.get(configuration));
+
+    fs.mkdirs(new Path("/src"));
+    ExecutorService executorService = Executors.newFixedThreadPool(10);
+    List<Future> futureList = new ArrayList<>();
+    for (int i = 0; i < 20; i++) {
+      int iter = i;
+      Future future = executorService.submit(() -> {
+        try {
+          fs.create(new Path("/src/file" + iter));
+        } catch (IOException ex) {}
+      });
+      futureList.add(future);
+    }
+
+    for (Future future : futureList) {
+      future.get();
+    }
+
+    AbfsClient client = fs.getAbfsClient();
+    AbfsClient spiedClient = Mockito.spy(client);
+    AzureBlobFileSystemStore store = Mockito.spy(fs.getAbfsStore());
+    store.setClient(spiedClient);
+    Mockito.doReturn(store).when(fs).getAbfsStore();
+
+    ListBlobProducer[] producers = new ListBlobProducer[1];
+    Mockito.doAnswer(answer -> {
+      producers[0] = (ListBlobProducer) answer.callRealMethod();
+      return producers[0];
+    }).when(store).getListBlobProducer(Mockito.anyString(), Mockito.any(
+            ListBlobQueue.class), Mockito.nullable(String.class),
+        Mockito.any(TracingContext.class));
+
+    Mockito.doAnswer(answer -> {
+          String marker = answer.getArgument(0);
+          String prefix = answer.getArgument(1);
+          String delimiter = answer.getArgument(2);
+          TracingContext tracingContext = answer.getArgument(4);
+          Object result = client.getListBlobs(marker, prefix, delimiter, 1,
+              tracingContext);
+          return result;
+        })
+        .when(spiedClient)
+        .getListBlobs(Mockito.nullable(String.class),
+            Mockito.nullable(String.class), Mockito.nullable(String.class),
+            Mockito.nullable(Integer.class), Mockito.any(TracingContext.class));
+
+    Mockito.doAnswer(answer -> {
+          spiedClient.acquireBlobLease(
+              ((Path) answer.getArgument(0)).toUri().getPath(), -1,
+              answer.getArgument(2));
+          return answer.callRealMethod();
+        })
+        .when(spiedClient)
+        .deleteBlobPath(Mockito.any(Path.class), Mockito.nullable(String.class),
+            Mockito.any(TracingContext.class));
+
+    intercept(Exception.class, () -> {
+      fs.delete(new Path("/src"), true);
+    });
+
+    producers[0].waitForProcessCompletion();
+
+    Mockito.verify(spiedClient, Mockito.atMost(3))
+        .getListBlobs(Mockito.nullable(String.class),
+            Mockito.nullable(String.class), Mockito.nullable(String.class),
+            Mockito.nullable(Integer.class), Mockito.any(TracingContext.class));
   }
 }

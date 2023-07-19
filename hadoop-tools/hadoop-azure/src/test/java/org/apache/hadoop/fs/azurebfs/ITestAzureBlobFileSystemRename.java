@@ -2234,7 +2234,8 @@ public class ITestAzureBlobFileSystemRename extends
     assumeNonHnsAccountBlobEndpoint(getFileSystem());
     Configuration configuration = Mockito.spy(getRawConfiguration());
     configuration.set(FS_AZURE_PRODUCER_QUEUE_MAX_SIZE, "1");
-    AzureBlobFileSystem fs = Mockito.spy((AzureBlobFileSystem) FileSystem.get(configuration));
+    AzureBlobFileSystem fs = Mockito.spy(
+        (AzureBlobFileSystem) FileSystem.get(configuration));
 
     fs.mkdirs(new Path("/src"));
     ExecutorService executorService = Executors.newFixedThreadPool(10);
@@ -2264,7 +2265,8 @@ public class ITestAzureBlobFileSystemRename extends
       producers[0] = (ListBlobProducer) answer.callRealMethod();
       return producers[0];
     }).when(store).getListBlobProducer(Mockito.anyString(), Mockito.any(
-        ListBlobQueue.class), Mockito.nullable(String.class), Mockito.any(TracingContext.class));
+            ListBlobQueue.class), Mockito.nullable(String.class),
+        Mockito.any(TracingContext.class));
 
     Mockito.doAnswer(answer -> {
           String marker = answer.getArgument(0);
@@ -2281,20 +2283,24 @@ public class ITestAzureBlobFileSystemRename extends
             Mockito.nullable(Integer.class), Mockito.any(TracingContext.class));
 
     Mockito.doAnswer(answer -> {
-      spiedClient.acquireBlobLease(((Path)answer.getArgument(0)).toUri().getPath(), -1, answer.getArgument(2));
-      return answer.callRealMethod();
-    }).when(spiedClient).deleteBlobPath(Mockito.any(Path.class), Mockito.nullable(String.class), Mockito.any(TracingContext.class));
+          spiedClient.acquireBlobLease(
+              ((Path) answer.getArgument(0)).toUri().getPath(), -1,
+              answer.getArgument(2));
+          return answer.callRealMethod();
+        })
+        .when(spiedClient)
+        .deleteBlobPath(Mockito.any(Path.class), Mockito.nullable(String.class),
+            Mockito.any(TracingContext.class));
 
     intercept(Exception.class, () -> {
       fs.rename(new Path("/src"), new Path("/dst"));
     });
 
-
-
     producers[0].waitForProcessCompletion();
 
-    Mockito.verify(spiedClient, Mockito.atMost(3)).getListBlobs(Mockito.nullable(String.class),
-        Mockito.nullable(String.class), Mockito.nullable(String.class),
-        Mockito.nullable(Integer.class), Mockito.any(TracingContext.class));
+    Mockito.verify(spiedClient, Mockito.atMost(3))
+        .getListBlobs(Mockito.nullable(String.class),
+            Mockito.nullable(String.class), Mockito.nullable(String.class),
+            Mockito.nullable(Integer.class), Mockito.any(TracingContext.class));
   }
 }
