@@ -18,6 +18,7 @@
 
 package org.apache.hadoop.fs.azurebfs.services;
 
+import org.apache.hadoop.classification.VisibleForTesting;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemException;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 
@@ -66,6 +67,7 @@ public class ListBlobProducer {
   private final TracingContext tracingContext;
 
   private String nextMarker;
+  private final Thread thread;
 
   public ListBlobProducer(final String src,
       final AbfsClient abfsClient,
@@ -78,7 +80,7 @@ public class ListBlobProducer {
     this.listBlobQueue = listBlobQueue;
     listBlobQueue.setProducer(this);
     this.nextMarker = initNextMarker;
-    new Thread(() -> {
+    thread = new Thread(() -> {
       do {
         int maxResult = listBlobQueue.availableSize();
         if (maxResult == 0) {
@@ -98,6 +100,12 @@ public class ListBlobProducer {
           listBlobQueue.complete();
         }
       } while(nextMarker != null && !listBlobQueue.getConsumptionFailed());
-    }).start();
+    });
+    thread.start();
+  }
+
+  @VisibleForTesting
+  public void waitForProcessCompletion() throws InterruptedException {
+    thread.join();
   }
 }
