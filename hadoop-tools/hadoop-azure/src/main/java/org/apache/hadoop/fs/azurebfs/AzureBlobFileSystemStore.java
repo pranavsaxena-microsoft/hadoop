@@ -1613,8 +1613,8 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         getAbfsConfiguration().getBlobDirRenameMaxThread());
 
     if (blobList.getNextMarker() != null) {
-      new ListBlobProducer(listSrc,
-          client, listBlobQueue, blobList.getNextMarker(), tracingContext);
+      getListBlobProducer(listSrc, listBlobQueue, blobList.getNextMarker(),
+          tracingContext);
     } else {
       listBlobQueue.complete();
     }
@@ -1676,6 +1676,15 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     if (isAtomicRename) {
       renameAtomicityUtils.cleanup();
     }
+  }
+
+  @VisibleForTesting
+  ListBlobProducer getListBlobProducer(final String listSrc,
+      final ListBlobQueue listBlobQueue,
+      final String initNextMarker,
+      final TracingContext tracingContext) {
+    return new ListBlobProducer(listSrc,
+        client, listBlobQueue, initNextMarker, tracingContext);
   }
 
   @VisibleForTesting
@@ -1932,8 +1941,8 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         getAbfsConfiguration().getProducerQueueMaxSize(),
         getAbfsConfiguration().getBlobDirDeleteMaxThread());
     if (blobList.getNextMarker() != null) {
-      new ListBlobProducer(listSrc, client, queue,
-          blobList.getNextMarker(), tracingContext);
+      getListBlobProducer(listSrc, queue, blobList.getNextMarker(),
+          tracingContext);
     } else {
       queue.complete();
     }
@@ -2818,8 +2827,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
           listSrcBuilder.append(FORWARD_SLASH);
         }
         String listSrc = listSrcBuilder.toString();
-        new ListBlobProducer(listSrc, client, listBlobQueue, null,
-            tracingContext);
+        getListBlobProducer(listSrc, listBlobQueue, null, tracingContext);
         AbfsBlobLease abfsBlobLease = getBlobLease(src.toUri().getPath(),
             BLOB_LEASE_ONE_MINUTE_DURATION, tracingContext);
         renameBlobDir(src, destination, tracingContext, listBlobQueue,

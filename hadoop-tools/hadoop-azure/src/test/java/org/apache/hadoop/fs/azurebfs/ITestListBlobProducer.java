@@ -181,7 +181,6 @@ public class ITestListBlobProducer extends AbstractAbfsIntegrationTest {
   @Test
   public void testProducerStopOnConsumerFailure() throws Exception {
     Configuration configuration = Mockito.spy(getRawConfiguration());
-    configuration.set(FS_AZURE_PRODUCER_QUEUE_MAX_SIZE, "10");
     AzureBlobFileSystem fs = (AzureBlobFileSystem) FileSystem.newInstance(
         configuration);
 
