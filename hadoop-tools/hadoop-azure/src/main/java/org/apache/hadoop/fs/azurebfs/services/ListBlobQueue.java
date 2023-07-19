@@ -86,11 +86,11 @@ public class ListBlobQueue {
     isCompleted = true;
   }
 
-  synchronized void consumptionFailed() {
+  void consumptionFailed() {
     isConsumptionFailed = true;
   }
 
-  synchronized Boolean getConsumptionFailed() {
+  Boolean getConsumptionFailed() {
     return isConsumptionFailed;
   }
 

@@ -27,6 +27,8 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -500,7 +502,6 @@ public class ITestAzureBlobFileSystemDelete extends
   public void testProducerStopOnDeleteFailure() throws Exception {
     Assume.assumeTrue(getPrefixMode(getFileSystem()) == PrefixMode.BLOB);
     Configuration configuration = Mockito.spy(getRawConfiguration());
-    configuration.set(FS_AZURE_PRODUCER_QUEUE_MAX_SIZE, "1");
     AzureBlobFileSystem fs = Mockito.spy(
         (AzureBlobFileSystem) FileSystem.get(configuration));
 
@@ -535,11 +536,20 @@ public class ITestAzureBlobFileSystemDelete extends
             ListBlobQueue.class), Mockito.nullable(String.class),
         Mockito.any(TracingContext.class));
 
+    AtomicInteger listCounter = new AtomicInteger(0);
+    AtomicBoolean hasConsumerStarted = new AtomicBoolean(false);
+
     Mockito.doAnswer(answer -> {
           String marker = answer.getArgument(0);
           String prefix = answer.getArgument(1);
           String delimiter = answer.getArgument(2);
           TracingContext tracingContext = answer.getArgument(4);
+          int counter = listCounter.incrementAndGet();
+          if (counter > 1) {
+            while (!hasConsumerStarted.get()) {
+              Thread.sleep(1_000L);
+            }
+          }
           Object result = client.getListBlobs(marker, prefix, delimiter, 1,
               tracingContext);
           return result;
@@ -553,6 +563,7 @@ public class ITestAzureBlobFileSystemDelete extends
           spiedClient.acquireBlobLease(
               ((Path) answer.getArgument(0)).toUri().getPath(), -1,
               answer.getArgument(2));
+          hasConsumerStarted.set(true);
           return answer.callRealMethod();
         })
         .when(spiedClient)

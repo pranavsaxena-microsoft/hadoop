@@ -42,6 +42,9 @@ public class ListBlobConsumer {
         && listBlobQueue.size() == 0;
   }
 
+  /**
+   * Register consumer failure.
+   */
   public void fail() {
     listBlobQueue.consumptionFailed();
   }

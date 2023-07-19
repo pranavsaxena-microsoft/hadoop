@@ -2233,7 +2233,6 @@ public class ITestAzureBlobFileSystemRename extends
   public void testProducerStopOnRenameFailure() throws Exception {
     assumeNonHnsAccountBlobEndpoint(getFileSystem());
     Configuration configuration = Mockito.spy(getRawConfiguration());
-    configuration.set(FS_AZURE_PRODUCER_QUEUE_MAX_SIZE, "1");
     AzureBlobFileSystem fs = Mockito.spy(
         (AzureBlobFileSystem) FileSystem.get(configuration));
 
@@ -2268,11 +2267,20 @@ public class ITestAzureBlobFileSystemRename extends
             ListBlobQueue.class), Mockito.nullable(String.class),
         Mockito.any(TracingContext.class));
 
+    AtomicInteger listCounter = new AtomicInteger(0);
+    AtomicBoolean hasConsumerStarted = new AtomicBoolean(false);
+
     Mockito.doAnswer(answer -> {
           String marker = answer.getArgument(0);
           String prefix = answer.getArgument(1);
           String delimiter = answer.getArgument(2);
           TracingContext tracingContext = answer.getArgument(4);
+          int counter = listCounter.incrementAndGet();
+          if (counter > 1 && producers[0] != null) {
+            while (!hasConsumerStarted.get()) {
+              Thread.sleep(1_000L);
+            }
+          }
           Object result = client.getListBlobs(marker, prefix, delimiter, 1,
               tracingContext);
           return result;
@@ -2286,6 +2294,7 @@ public class ITestAzureBlobFileSystemRename extends
           spiedClient.acquireBlobLease(
               ((Path) answer.getArgument(0)).toUri().getPath(), -1,
               answer.getArgument(2));
+          hasConsumerStarted.set(true);
           return answer.callRealMethod();
         })
         .when(spiedClient)
