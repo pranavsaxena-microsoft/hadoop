@@ -931,11 +931,20 @@ public class AzureBlobFileSystem extends FileSystem
           == PrefixMode.BLOB) {
         FileStatus renamePendingFileStatus
             = getAbfsStore().getRenamePendingFileStatus(result);
+        FileStatus renamePendingSrcFileStatus
+            = getAbfsStore().getRenamePendingSrcFileStatus(result,
+            renamePendingFileStatus);
         if (renamePendingFileStatus != null) {
-          RenameAtomicityUtils renameAtomicityUtils =
-              getRenameAtomicityUtilsForRedo(renamePendingFileStatus.getPath(),
-                  tracingContext);
-          renameAtomicityUtils.cleanup(renamePendingFileStatus.getPath());
+          if (renamePendingSrcFileStatus != null) {
+            RenameAtomicityUtils renameAtomicityUtils =
+                getRenameAtomicityUtilsForRedo(
+                    renamePendingFileStatus.getPath(),
+                    tracingContext,
+                    ((AzureBlobFileSystemStore.VersionedFileStatus) renamePendingSrcFileStatus).getEtag());
+            renameAtomicityUtils.cleanup(renamePendingFileStatus.getPath());
+          } else {
+            delete(renamePendingFileStatus.getPath(), false);
+          }
           result = getAbfsStore().listStatus(qualifiedPath, tracingContext);
         }
       }
@@ -947,10 +956,10 @@ public class AzureBlobFileSystem extends FileSystem
   }
 
   RenameAtomicityUtils getRenameAtomicityUtilsForRedo(final Path renamePendingFileStatus,
-      final TracingContext tracingContext) throws IOException {
+      final TracingContext tracingContext, final String srcEtag) throws IOException {
     return new RenameAtomicityUtils(this,
         renamePendingFileStatus,
-        getAbfsStore().getRedoRenameInvocation(tracingContext));
+        getAbfsStore().getRedoRenameInvocation(tracingContext), srcEtag);
   }
 
   /**
@@ -1083,9 +1092,11 @@ public class AzureBlobFileSystem extends FileSystem
           && getAbfsStore().isAtomicRenameKey(fileStatus.getPath().toUri().getPath())
           && getAbfsStore().getRenamePendingFileStatusInDirectory(fileStatus,
               tracingContext)) {
-        RenameAtomicityUtils renameAtomicityUtils = getRenameAtomicityUtilsForRedo(
-            new Path(fileStatus.getPath().toUri().getPath() + SUFFIX),
-            tracingContext);
+          RenameAtomicityUtils renameAtomicityUtils
+              = getRenameAtomicityUtilsForRedo(
+              new Path(fileStatus.getPath().toUri().getPath() + SUFFIX),
+              tracingContext,
+              ((AzureBlobFileSystemStore.VersionedFileStatus) fileStatus).getEtag());
         renameAtomicityUtils.cleanup(
             new Path(fileStatus.getPath().toUri().getPath() + SUFFIX));
         throw new AbfsRestOperationException(HttpURLConnection.HTTP_NOT_FOUND,

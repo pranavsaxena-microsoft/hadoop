@@ -2805,7 +2805,8 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
   RenameAtomicityUtils.RedoRenameInvocation getRedoRenameInvocation(final TracingContext tracingContext) {
     return new RenameAtomicityUtils.RedoRenameInvocation() {
       @Override
-      public void redo(final Path destination, final Path src)
+      public void redo(final Path destination, final Path src,
+          final String srcEtag)
           throws AzureBlobFileSystemException {
 
         ListBlobQueue listBlobQueue = new ListBlobQueue(
@@ -3048,6 +3049,23 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
   public FileStatus getRenamePendingFileStatus(final FileStatus[] fileStatuses) {
     for (FileStatus fileStatus : fileStatuses) {
       if (fileStatus.getPath().toUri().getPath().endsWith(SUFFIX)) {
+        return fileStatus;
+      }
+    }
+    return null;
+  }
+
+  public FileStatus getRenamePendingSrcFileStatus(final FileStatus[] fileStatuses,
+      FileStatus renamePendingJsonFileStatus) {
+    if (renamePendingJsonFileStatus == null) {
+      return null;
+    }
+    String srcPathSrc = renamePendingJsonFileStatus.getPath()
+        .toUri()
+        .getPath()
+        .split(SUFFIX)[0];
+    for (FileStatus fileStatus : fileStatuses) {
+      if (fileStatus.getPath().toUri().getPath().equals(srcPathSrc)) {
         return fileStatus;
       }
     }

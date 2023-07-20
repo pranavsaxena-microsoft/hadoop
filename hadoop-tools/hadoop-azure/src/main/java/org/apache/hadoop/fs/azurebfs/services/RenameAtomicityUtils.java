@@ -87,13 +87,14 @@ public class RenameAtomicityUtils {
   }
 
   public RenameAtomicityUtils(final AzureBlobFileSystem azureBlobFileSystem,
-      final Path path, final RedoRenameInvocation redoRenameInvocation)
+      final Path path, final RedoRenameInvocation redoRenameInvocation,
+      final String srcEtag)
       throws IOException {
     this.azureBlobFileSystem = azureBlobFileSystem;
     final RenamePendingFileInfo renamePendingFileInfo = readFile(path);
     if (renamePendingFileInfo != null) {
       redoRenameInvocation.redo(renamePendingFileInfo.destination,
-          renamePendingFileInfo.src);
+          renamePendingFileInfo.src, srcEtag);
     }
   }
 
@@ -369,7 +370,7 @@ public class RenameAtomicityUtils {
   }
 
   public static interface RedoRenameInvocation {
-    void redo(Path destination, Path src) throws
+    void redo(Path destination, Path src, final String srcEtag) throws
         AzureBlobFileSystemException;
   }
 }
