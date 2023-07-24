@@ -2213,7 +2213,7 @@ public class ITestAzureBlobFileSystemRename extends
         })
         .when(fs)
         .getRenameAtomicityUtilsForRedo(Mockito.any(Path.class),
-            Mockito.any(TracingContext.class), );
+            Mockito.any(TracingContext.class), Mockito.anyString());
 
     Mockito.doAnswer(answer -> {
           answer.callRealMethod();

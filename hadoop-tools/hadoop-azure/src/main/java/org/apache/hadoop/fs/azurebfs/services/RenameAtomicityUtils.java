@@ -92,7 +92,8 @@ public class RenameAtomicityUtils {
       throws IOException {
     this.azureBlobFileSystem = azureBlobFileSystem;
     final RenamePendingFileInfo renamePendingFileInfo = readFile(path);
-    if (renamePendingFileInfo != null) {
+    if (renamePendingFileInfo != null
+        && renamePendingFileInfo.eTag.equalsIgnoreCase(srcEtag)) {
       redoRenameInvocation.redo(renamePendingFileInfo.destination,
           renamePendingFileInfo.src, srcEtag);
     }

@@ -1097,12 +1097,12 @@ public class AzureBlobFileSystem extends FileSystem
               new Path(fileStatus.getPath().toUri().getPath() + SUFFIX),
               tracingContext,
               ((AzureBlobFileSystemStore.VersionedFileStatus) fileStatus).getEtag());
-        renameAtomicityUtils.cleanup(
-            new Path(fileStatus.getPath().toUri().getPath() + SUFFIX));
-        throw new AbfsRestOperationException(HttpURLConnection.HTTP_NOT_FOUND,
-            AzureServiceErrorCode.PATH_NOT_FOUND.getErrorCode(), null,
-            new FileNotFoundException(
-                qualifiedPath + ": No such file or directory."));
+          renameAtomicityUtils.cleanup(
+              new Path(fileStatus.getPath().toUri().getPath() + SUFFIX));
+          throw new AbfsRestOperationException(HttpURLConnection.HTTP_NOT_FOUND,
+              AzureServiceErrorCode.PATH_NOT_FOUND.getErrorCode(), null,
+              new FileNotFoundException(
+                  qualifiedPath + ": No such file or directory."));
       }
       return fileStatus;
     } catch (AzureBlobFileSystemException ex) {
