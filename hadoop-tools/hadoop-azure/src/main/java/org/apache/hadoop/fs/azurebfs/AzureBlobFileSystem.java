@@ -935,6 +935,7 @@ public class AzureBlobFileSystem extends FileSystem
             = getAbfsStore().getRenamePendingSrcFileStatus(result,
             renamePendingFileStatus);
         if (renamePendingFileStatus != null) {
+          final Boolean isRedone;
           if (renamePendingSrcFileStatus != null) {
             RenameAtomicityUtils renameAtomicityUtils =
                 getRenameAtomicityUtilsForRedo(
@@ -942,10 +943,16 @@ public class AzureBlobFileSystem extends FileSystem
                     tracingContext,
                     ((AzureBlobFileSystemStore.VersionedFileStatus) renamePendingSrcFileStatus).getEtag());
             renameAtomicityUtils.cleanup(renamePendingFileStatus.getPath());
+            isRedone = renameAtomicityUtils.isRedone();
           } else {
+            isRedone = false;
             getAbfsStore().delete(renamePendingFileStatus.getPath(), true, tracingContext);
           }
-          result = getAbfsStore().listStatus(qualifiedPath, tracingContext);
+          if (isRedone) {
+            result = getAbfsStore().listStatus(qualifiedPath, tracingContext);
+          } else {
+            result = ArrayUtils.removeElement(result, renamePendingFileStatus);
+          }
         }
       }
       return result;
