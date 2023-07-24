@@ -95,7 +95,7 @@ public class RenameAtomicityUtils {
     if (renamePendingFileInfo != null
         && renamePendingFileInfo.eTag.equalsIgnoreCase(srcEtag)) {
       redoRenameInvocation.redo(renamePendingFileInfo.destination,
-          renamePendingFileInfo.src, srcEtag);
+          renamePendingFileInfo.src);
     }
   }
 
@@ -380,7 +380,7 @@ public class RenameAtomicityUtils {
   }
 
   public static interface RedoRenameInvocation {
-    void redo(Path destination, Path src, final String srcEtag) throws
+    void redo(Path destination, Path src) throws
         AzureBlobFileSystemException;
   }
 }

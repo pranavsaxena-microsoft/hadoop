@@ -2815,8 +2815,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
   RenameAtomicityUtils.RedoRenameInvocation getRedoRenameInvocation(final TracingContext tracingContext) {
     return new RenameAtomicityUtils.RedoRenameInvocation() {
       @Override
-      public void redo(final Path destination, final Path src,
-          final String srcEtag)
+      public void redo(final Path destination, final Path src)
           throws AzureBlobFileSystemException {
 
         ListBlobQueue listBlobQueue = new ListBlobQueue(
@@ -2829,8 +2828,16 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         String listSrc = listSrcBuilder.toString();
         new ListBlobProducer(listSrc, client, listBlobQueue, null,
             tracingContext);
-        AbfsBlobLease abfsBlobLease = getBlobLease(src.toUri().getPath(),
-            BLOB_LEASE_ONE_MINUTE_DURATION, tracingContext);
+        final AbfsBlobLease abfsBlobLease;
+        try {
+           abfsBlobLease = getBlobLease(src.toUri().getPath(),
+              BLOB_LEASE_ONE_MINUTE_DURATION, tracingContext);
+        } catch (AbfsRestOperationException ex) {
+          if (ex.getStatusCode() == HTTP_NOT_FOUND) {
+            return;
+          }
+          throw ex;
+        }
         renameBlobDir(src, destination, tracingContext, listBlobQueue,
             abfsBlobLease, true);
       }

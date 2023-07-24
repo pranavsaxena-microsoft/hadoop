@@ -943,7 +943,7 @@ public class AzureBlobFileSystem extends FileSystem
                     ((AzureBlobFileSystemStore.VersionedFileStatus) renamePendingSrcFileStatus).getEtag());
             renameAtomicityUtils.cleanup(renamePendingFileStatus.getPath());
           } else {
-            delete(renamePendingFileStatus.getPath(), false);
+            getAbfsStore().delete(renamePendingFileStatus.getPath(), true, tracingContext);
           }
           result = getAbfsStore().listStatus(qualifiedPath, tracingContext);
         }

@@ -2225,4 +2225,55 @@ public class ITestAzureBlobFileSystemRename extends
             Mockito.any(TracingContext.class));
     return copied;
   }
+
+  /*
+  * Test1: listStatus resume when srcDir is missing
+  * Test2: listStatus resume when srcDir got missing just before redo.
+  * Test3: listStatus resume on srcDir etag is changed
+  * Test4: fileStatus resume on srcDir etag is changed
+  * Test5: listStatus resume on srcDir marker created by dfs (implicit dir when rename fired)
+  * Test6: fileStatus resume on srcDir marker created by dfs (implicit dir when rename fired).
+  */
+
+  @Test
+  public void testRenameResumeThroughListStatusWithSrcDirDeleted() throws Exception {
+    assumeNonHnsAccountBlobEndpoint(getFileSystem());
+    AzureBlobFileSystem fs = Mockito.spy(getFileSystem());
+    AzureBlobFileSystemStore store = Mockito.spy(fs.getAbfsStore());
+    AbfsClient client = Mockito.spy(fs.getAbfsClient());
+    Mockito.doReturn(store).when(fs).getAbfsStore();
+    store.setClient(client);
+
+    renameFailureSetup(fs, client);
+
+    fs.delete(new Path("/hbase/testDir"), true);
+    AtomicInteger copied = assertTracingContextOnRenameResumeProcess(fs, store,
+        client, FSOperationType.LISTSTATUS);
+    fs.listStatus(new Path("/hbase"));
+    Assertions.assertThat(copied.get()).isEqualTo(0);
+  }
+
+  @Test
+  public void testRenameResumeThroughListStatusWithSrcDirDeletedJustBeforeResume() throws Exception {
+    assumeNonHnsAccountBlobEndpoint(getFileSystem());
+    AzureBlobFileSystem fs = Mockito.spy(getFileSystem());
+    AzureBlobFileSystemStore store = Mockito.spy(fs.getAbfsStore());
+    AbfsClient client = Mockito.spy(fs.getAbfsClient());
+    Mockito.doReturn(store).when(fs).getAbfsStore();
+    store.setClient(client);
+
+    renameFailureSetup(fs, client);
+
+    AtomicInteger copied = assertTracingContextOnRenameResumeProcess(fs, store,
+        client, FSOperationType.LISTSTATUS);
+    Mockito.doAnswer(answer -> {
+      String path = answer.getArgument(0);
+      if("/hbase/testDir".equalsIgnoreCase(path)) {
+        fs.delete(new Path(path), true);
+      }
+      return answer.callRealMethod();
+    }).when(client).acquireBlobLease(Mockito.anyString(), Mockito.anyInt(), Mockito.any(TracingContext.class));
+    fs.listStatus(new Path("/hbase"));
+    Assertions.assertThat(copied.get()).isEqualTo(0);
+  }
 }
