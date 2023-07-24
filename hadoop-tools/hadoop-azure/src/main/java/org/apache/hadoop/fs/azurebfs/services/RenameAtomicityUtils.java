@@ -274,10 +274,13 @@ public class RenameAtomicityUtils {
    *
    * @return JSON string which represents the operation.
    */
-  private String makeRenamePendingFileContents(final String eTag) {
+  private String makeRenamePendingFileContents(String eTag) {
     SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
     sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
     String time = sdf.format(new Date());
+    if(!eTag.startsWith("\"") && !eTag.endsWith("\"")) {
+      eTag = quote(eTag);
+    }
 
     // Make file contents as a string. Again, quote file names, escaping
     // characters as appropriate.
