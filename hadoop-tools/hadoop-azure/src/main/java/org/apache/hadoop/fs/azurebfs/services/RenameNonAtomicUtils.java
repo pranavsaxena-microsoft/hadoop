@@ -44,4 +44,9 @@ public class RenameNonAtomicUtils extends RenameAtomicityUtils {
   public void cleanup() throws IOException {
 
   }
+
+  @Override
+  public Boolean isRedone() {
+    return true;
+  }
 }

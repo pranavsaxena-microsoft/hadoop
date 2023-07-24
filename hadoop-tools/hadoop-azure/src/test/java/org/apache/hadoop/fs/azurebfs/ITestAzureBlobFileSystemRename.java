@@ -67,6 +67,7 @@ import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
 import org.apache.hadoop.fs.azurebfs.utils.TracingHeaderValidator;
 
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_LEASE_CREATE_NON_RECURSIVE;
+import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_MKDIRS_FALLBACK_TO_DFS;
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_REDIRECT_RENAME;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.TRUE;
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_INGRESS_FALLBACK_TO_DFS;
@@ -2068,7 +2069,7 @@ public class ITestAzureBlobFileSystemRename extends
     Mockito.doReturn(store).when(fs).getAbfsStore();
     store.setClient(client);
 
-    renameFailureSetup(fs, client);
+    renameFailureSetup(fs, client, false);
     AtomicInteger copied = assertTracingContextOnRenameResumeProcess(fs, store,
         client, FSOperationType.LISTSTATUS);
 
@@ -2093,7 +2094,7 @@ public class ITestAzureBlobFileSystemRename extends
     Mockito.doReturn(store).when(fs).getAbfsStore();
     store.setClient(client);
 
-    renameFailureSetup(fs, client);
+    renameFailureSetup(fs, client, false);
     AtomicInteger copied = assertTracingContextOnRenameResumeProcess(fs, store,
         client, FSOperationType.GET_FILESTATUS);
 
@@ -2105,7 +2106,7 @@ public class ITestAzureBlobFileSystemRename extends
   }
 
   private void renameFailureSetup(final AzureBlobFileSystem fs,
-      final AbfsClient client)
+      final AbfsClient client, final Boolean srcMarkerToBeDeleted)
       throws Exception {
     fs.mkdirs(new Path("/hbase/testDir"));
     ExecutorService executorService = Executors.newFixedThreadPool(5);
@@ -2118,6 +2119,11 @@ public class ITestAzureBlobFileSystemRename extends
 
     for (Future future : futures) {
       future.get();
+    }
+
+    if (srcMarkerToBeDeleted) {
+      client.deleteBlobPath(new Path("/hbase/testDir"), null,
+          Mockito.mock(TracingContext.class));
     }
 
     AbfsRestOperation op = client.acquireBlobLease("/hbase/testDir/file5", -1,
@@ -2226,15 +2232,6 @@ public class ITestAzureBlobFileSystemRename extends
     return copied;
   }
 
-  /*
-  * Test1: listStatus resume when srcDir is missing
-  * Test2: listStatus resume when srcDir got missing just before redo.
-  * Test3: listStatus resume on srcDir etag is changed
-  * Test4: fileStatus resume on srcDir etag is changed
-  * Test5: listStatus resume on srcDir marker created by dfs (implicit dir when rename fired)
-  * Test6: fileStatus resume on srcDir marker created by dfs (implicit dir when rename fired).
-  */
-
   @Test
   public void testRenameResumeThroughListStatusWithSrcDirDeleted() throws Exception {
     assumeNonHnsAccountBlobEndpoint(getFileSystem());
@@ -2244,7 +2241,7 @@ public class ITestAzureBlobFileSystemRename extends
     Mockito.doReturn(store).when(fs).getAbfsStore();
     store.setClient(client);
 
-    renameFailureSetup(fs, client);
+    renameFailureSetup(fs, client, false);
 
     fs.delete(new Path("/hbase/testDir"), true);
     AtomicInteger copied = assertTracingContextOnRenameResumeProcess(fs, store,
@@ -2262,7 +2259,7 @@ public class ITestAzureBlobFileSystemRename extends
     Mockito.doReturn(store).when(fs).getAbfsStore();
     store.setClient(client);
 
-    renameFailureSetup(fs, client);
+    renameFailureSetup(fs, client, false);
 
     AtomicInteger copied = assertTracingContextOnRenameResumeProcess(fs, store,
         client, FSOperationType.LISTSTATUS);
@@ -2275,5 +2272,119 @@ public class ITestAzureBlobFileSystemRename extends
     }).when(client).acquireBlobLease(Mockito.anyString(), Mockito.anyInt(), Mockito.any(TracingContext.class));
     fs.listStatus(new Path("/hbase"));
     Assertions.assertThat(copied.get()).isEqualTo(0);
+  }
+
+  @Test
+  public void testRenameResumeThroughListStatusWhenSrcDirectoryETagIsChanged()
+      throws Exception {
+    assumeNonHnsAccountBlobEndpoint(getFileSystem());
+    AzureBlobFileSystem fs = Mockito.spy(getFileSystem());
+    AzureBlobFileSystemStore store = Mockito.spy(fs.getAbfsStore());
+    AbfsClient client = Mockito.spy(fs.getAbfsClient());
+    Mockito.doReturn(store).when(fs).getAbfsStore();
+    store.setClient(client);
+
+    renameFailureSetup(fs, client, false);
+
+    fs.delete(new Path("/hbase/testDir"), true);
+    fs.mkdirs(new Path("/hbase/testDir"));
+    AtomicInteger copied = assertTracingContextOnRenameResumeProcess(fs, store,
+        client, FSOperationType.LISTSTATUS);
+    fs.listStatus(new Path("/hbase"));
+    Assertions.assertThat(copied.get()).isEqualTo(0);
+  }
+
+  @Test
+  public void testRenameResumeThroughGetStatusWhenSrcDirectoryETagIsChanged()
+      throws Exception {
+    assumeNonHnsAccountBlobEndpoint(getFileSystem());
+    AzureBlobFileSystem fs = Mockito.spy(getFileSystem());
+    AzureBlobFileSystemStore store = Mockito.spy(fs.getAbfsStore());
+    AbfsClient client = Mockito.spy(fs.getAbfsClient());
+    Mockito.doReturn(store).when(fs).getAbfsStore();
+    store.setClient(client);
+
+    renameFailureSetup(fs, client, false);
+
+    fs.delete(new Path("/hbase/testDir"), true);
+    fs.mkdirs(new Path("/hbase/testDir"));
+    AtomicInteger copied = assertTracingContextOnRenameResumeProcess(fs, store,
+        client, FSOperationType.GET_FILESTATUS);
+    fs.getFileStatus(new Path("/hbase/testDir"));
+    Assertions.assertThat(copied.get()).isEqualTo(0);
+  }
+
+  @Test
+  public void testRenameResumeThroughGetStatusWhenSrcDirMakerOnRenameCreatedOnDfsEndpoint()
+      throws Exception {
+    assumeNonHnsAccountBlobEndpoint(getFileSystem());
+    Configuration configuration = Mockito.spy(getRawConfiguration());
+    configuration.set(FS_AZURE_MKDIRS_FALLBACK_TO_DFS, "true");
+    commonTestRenameResumeThroughGetStatusWhenSrcDirMarkerCreatedOnRename(
+        configuration);
+  }
+
+  @Test
+  public void testRenameResumeThroughGetStatusWhenSrcDirMakerOnRenameCreatedOnBlobEndpoint()
+      throws Exception {
+    assumeNonHnsAccountBlobEndpoint(getFileSystem());
+    Configuration configuration = Mockito.spy(getRawConfiguration());
+    configuration.set(FS_AZURE_MKDIRS_FALLBACK_TO_DFS, "false");
+    commonTestRenameResumeThroughGetStatusWhenSrcDirMarkerCreatedOnRename(
+        configuration);
+  }
+
+  private void commonTestRenameResumeThroughGetStatusWhenSrcDirMarkerCreatedOnRename(
+      final Configuration configuration) throws Exception {
+    AzureBlobFileSystem fs = Mockito.spy(
+        (AzureBlobFileSystem) FileSystem.newInstance(
+            configuration));
+    AzureBlobFileSystemStore store = Mockito.spy(fs.getAbfsStore());
+    AbfsClient client = Mockito.spy(fs.getAbfsClient());
+    Mockito.doReturn(store).when(fs).getAbfsStore();
+    store.setClient(client);
+
+    renameFailureSetup(fs, client, true);
+    intercept(FileNotFoundException.class, () -> {
+      fs.getFileStatus(new Path("/hbase/testDir"));
+    });
+    FileStatus[] fileStatuses = fs.listStatus(new Path("/hbase/testDir2"));
+    Assertions.assertThat(fileStatuses).hasSize(10);
+  }
+
+  @Test
+  public void testRenameResumeThroughListStatusWhenSrcDirMakerOnRenameCreatedOnDfsEndpoint()
+      throws Exception {
+    assumeNonHnsAccountBlobEndpoint(getFileSystem());
+    Configuration configuration = Mockito.spy(getRawConfiguration());
+    configuration.set(FS_AZURE_MKDIRS_FALLBACK_TO_DFS, "true");
+    commonTestRenameResumeThroughListStatusWhenSrcDirMarkerCreatedOnRename(
+        configuration);
+  }
+
+  @Test
+  public void testRenameResumeThroughListStatusWhenSrcDirMakerOnRenameCreatedOnBlobEndpoint()
+      throws Exception {
+    assumeNonHnsAccountBlobEndpoint(getFileSystem());
+    Configuration configuration = Mockito.spy(getRawConfiguration());
+    configuration.set(FS_AZURE_MKDIRS_FALLBACK_TO_DFS, "false");
+    commonTestRenameResumeThroughListStatusWhenSrcDirMarkerCreatedOnRename(
+        configuration);
+  }
+
+  private void commonTestRenameResumeThroughListStatusWhenSrcDirMarkerCreatedOnRename(
+      final Configuration configuration) throws Exception {
+    AzureBlobFileSystem fs = Mockito.spy(
+        (AzureBlobFileSystem) FileSystem.newInstance(
+            configuration));
+    AzureBlobFileSystemStore store = Mockito.spy(fs.getAbfsStore());
+    AbfsClient client = Mockito.spy(fs.getAbfsClient());
+    Mockito.doReturn(store).when(fs).getAbfsStore();
+    store.setClient(client);
+
+    renameFailureSetup(fs, client, true);
+    Assertions.assertThat(fs.listStatus(new Path("/hbase/"))).hasSize(1);
+    FileStatus[] fileStatuses = fs.listStatus(new Path("/hbase/testDir2"));
+    Assertions.assertThat(fileStatuses).hasSize(10);
   }
 }

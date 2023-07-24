@@ -66,6 +66,7 @@ public class RenameAtomicityUtils {
   private Path srcPath;
   private Path dstPath;
   private TracingContext tracingContext;
+  private Boolean isReDone;
 
   private static final int MAX_RENAME_PENDING_FILE_SIZE = 10000000;
   private static final int FORMATTING_BUFFER = 10000;
@@ -96,6 +97,9 @@ public class RenameAtomicityUtils {
         && renamePendingFileInfo.eTag.equalsIgnoreCase(srcEtag)) {
       redoRenameInvocation.redo(renamePendingFileInfo.destination,
           renamePendingFileInfo.src);
+      isReDone = true;
+    } else {
+      isReDone = false;
     }
   }
 
@@ -282,7 +286,7 @@ public class RenameAtomicityUtils {
         + "  OperationUTCTime: \"" + time + "\",\n"
         + "  OldFolderName: " + quote(srcPath.toUri().getPath()) + ",\n"
         + "  NewFolderName: " + quote(dstPath.toUri().getPath()) + ",\n"
-        + "  ETag: \"" + eTag + "\"\n"
+        + "  ETag: " + eTag + "\n"
         + "}\n";
 
     return contents;
@@ -382,5 +386,9 @@ public class RenameAtomicityUtils {
   public static interface RedoRenameInvocation {
     void redo(Path destination, Path src) throws
         AzureBlobFileSystemException;
+  }
+
+  public Boolean isRedone() {
+    return isReDone;
   }
 }

@@ -1289,7 +1289,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
               isNamespaceEnabled ? getOctalNotation(umask) : null, false, null,
               tracingContext);
       perfInfo.registerResult(op.getResult()).registerSuccess(true);
-      return extractEtagHeader(op.getResult());
+      return op.getResult().getResponseHeader(HttpHeaderConfigurations.ETAG);
     }
   }
 
