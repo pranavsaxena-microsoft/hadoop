@@ -50,7 +50,7 @@ import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 /**
  * For a directory enabled for atomic-rename, before rename starts, a
  * file with -RenamePending.json suffix is created. In this file, the states required
- * for the rename are given. This file is created by {@link #preRename(Boolean)} ()} method.
+ * for the rename are given. This file is created by {@link #preRename(Boolean, String)} ()} method.
  * This is important in case the JVM process crashes during rename, the atomicity
  * will be maintained, when the job calls {@link AzureBlobFileSystem#listStatus(Path)}
  * or {@link AzureBlobFileSystem#getFileStatus(Path)}. On these API calls to filesystem,
@@ -149,13 +149,17 @@ public class RenameAtomicityUtils {
     // initialize this object's fields
     JsonNode oldFolderName = json.get("OldFolderName");
     JsonNode newFolderName = json.get("NewFolderName");
+    JsonNode eTag = json.get("ETag");
+
     if (oldFolderName != null && StringUtils.isNotEmpty(
         oldFolderName.textValue())
         && newFolderName != null && StringUtils.isNotEmpty(
-        newFolderName.textValue())) {
+        newFolderName.textValue()) && eTag != null && StringUtils.isNotEmpty(
+        eTag.textValue())) {
       RenamePendingFileInfo renamePendingFileInfo = new RenamePendingFileInfo();
       renamePendingFileInfo.destination = new Path(newFolderName.textValue());
       renamePendingFileInfo.src = new Path(oldFolderName.textValue());
+      renamePendingFileInfo.eTag = eTag.textValue();
       return renamePendingFileInfo;
     }
     return null;
@@ -187,6 +191,7 @@ public class RenameAtomicityUtils {
    *   OperationTime: "<YYYY-MM-DD HH:MM:SS.MMM>",
    *   OldFolderName: "<key>",
    *   NewFolderName: "<key>"
+   *   Etag: "<etag of the src-directory>"
    * }
    *
    * Here's a sample:
@@ -195,15 +200,17 @@ public class RenameAtomicityUtils {
    *  OperationUTCTime: "2014-07-01 23:50:35.572",
    *  OldFolderName: "user/ehans/folderToRename",
    *  NewFolderName: "user/ehans/renamedFolder"
+   *  Etag: "ETag"
    * } }</pre>
    * @throws IOException Thrown when fail to write file.
    */
-  public void preRename(final Boolean isCreateOperationOnBlobEndpoint) throws IOException {
+  public void preRename(final Boolean isCreateOperationOnBlobEndpoint,
+      final String eTag) throws IOException {
     Path path = getRenamePendingFilePath();
     LOG.debug("Preparing to write atomic rename state to {}", path.toString());
     OutputStream output = null;
 
-    String contents = makeRenamePendingFileContents();
+    String contents = makeRenamePendingFileContents(eTag);
 
     // Write file.
     try {
@@ -262,7 +269,7 @@ public class RenameAtomicityUtils {
    *
    * @return JSON string which represents the operation.
    */
-  private String makeRenamePendingFileContents() {
+  private String makeRenamePendingFileContents(final String eTag) {
     SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
     sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
     String time = sdf.format(new Date());
@@ -273,7 +280,8 @@ public class RenameAtomicityUtils {
         + "  FormatVersion: \"1.0\",\n"
         + "  OperationUTCTime: \"" + time + "\",\n"
         + "  OldFolderName: " + quote(srcPath.toUri().getPath()) + ",\n"
-        + "  NewFolderName: " + quote(dstPath.toUri().getPath()) + "\n"
+        + "  NewFolderName: " + quote(dstPath.toUri().getPath()) + ",\n"
+        + "  ETag: \"" + eTag + "\"\n"
         + "}\n";
 
     return contents;
@@ -367,6 +375,7 @@ public class RenameAtomicityUtils {
   private static class RenamePendingFileInfo {
     public Path destination;
     public Path src;
+    public String eTag;
   }
 
   public static interface RedoRenameInvocation {

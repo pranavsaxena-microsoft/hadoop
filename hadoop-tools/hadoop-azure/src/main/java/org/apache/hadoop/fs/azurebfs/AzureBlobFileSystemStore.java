@@ -681,6 +681,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     blobProperty.setCopyStatus(opResult.getResponseHeader(X_MS_COPY_STATUS));
     blobProperty.setContentLength(
         Long.parseLong(opResult.getResponseHeader(CONTENT_LENGTH)));
+    blobProperty.setETag(extractEtagHeader(opResult));
     return blobProperty;
   }
 
@@ -1027,7 +1028,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
   }
 
   // Fallback plan : default to v1 create flow which will hit dfs endpoint. Config to enable: "fs.azure.ingress.fallback.to.dfs".
-  public OutputStream createFile(final Path path, final FileSystem.Statistics statistics, final boolean overwrite,
+  public AbfsOutputStream createFile(final Path path, final FileSystem.Statistics statistics, final boolean overwrite,
       final FsPermission permission, final FsPermission umask,
       TracingContext tracingContext, HashMap<String, String> metadata) throws IOException {
     try (AbfsPerfInfo perfInfo = startTracking("createFile", "createPath")) {
@@ -1241,7 +1242,12 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
             .build();
   }
 
-  public void createDirectory(final Path path, final FileSystem.Statistics statistics, final FsPermission permission,
+  /**
+   * Creates a directory on the given path.
+   *
+   * @return ETag of the directory created on DFS or blob endpoint.
+   */
+  public String createDirectory(final Path path, final FileSystem.Statistics statistics, final FsPermission permission,
       final FsPermission umask,
       final Boolean checkParentChain,
       TracingContext tracingContext)
@@ -1256,13 +1262,14 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         }
         boolean blobOverwrite = abfsConfiguration.isEnabledBlobMkdirOverwrite();
 
-        createDirectoryMarkerBlob(path, statistics, permission, umask, tracingContext,
+        AbfsOutputStream pathDirectoryOutputStream = createDirectoryMarkerBlob(
+            path, statistics, permission, umask, tracingContext,
             blobOverwrite);
         for (Path pathToCreate: keysToCreateAsFolder) {
           createDirectoryMarkerBlob(pathToCreate, statistics, permission, umask,
               tracingContext, blobOverwrite);
         }
-        return;
+        return pathDirectoryOutputStream.getETag();
       }
       boolean isNamespaceEnabled = getIsNamespaceEnabled(tracingContext);
       LOG.debug("Mkdir created via dfs endpoint for the given path {} and config value {} ",
@@ -1282,10 +1289,11 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
               isNamespaceEnabled ? getOctalNotation(umask) : null, false, null,
               tracingContext);
       perfInfo.registerResult(op.getResult()).registerSuccess(true);
+      return extractEtagHeader(op.getResult());
     }
   }
 
-  private void createDirectoryMarkerBlob(final Path path,
+  private AbfsOutputStream createDirectoryMarkerBlob(final Path path,
       final FileSystem.Statistics statistics,
       final FsPermission permission,
       final FsPermission umask,
@@ -1293,7 +1301,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       final boolean blobOverwrite) throws IOException {
     HashMap<String, String> metadata = new HashMap<>();
     metadata.put(X_MS_META_HDI_ISFOLDER, TRUE);
-    createFile(path, statistics, blobOverwrite,
+    return createFile(path, statistics, blobOverwrite,
         permission, umask, tracingContext, metadata);
   }
 
@@ -1632,6 +1640,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       blobPropOnSrcNullable = null;
     }
 
+    final String srcDirETag;
     if (blobPropOnSrcNullable == null) {
       /*
        * There is no marker-blob, the client has to create marker blob before
@@ -1639,13 +1648,14 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
        */
       LOG.debug("Source {} is a directory but there is no marker-blob",
           source);
-      createDirectory(source, null, FsPermission.getDirDefault(),
+      srcDirETag = createDirectory(source, null, FsPermission.getDirDefault(),
           FsPermission.getUMask(
               getAbfsConfiguration().getRawConfiguration()),
           true, tracingContext);
     } else {
       LOG.debug("Source {} is a directory but there is a marker-blob",
           source);
+      srcDirETag = blobPropOnSrcNullable.getETag();
     }
     /*
      * If source is a directory, all the blobs in the directory have to be
@@ -1661,7 +1671,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
           BLOB_LEASE_ONE_MINUTE_DURATION,
           tracingContext);
       renameAtomicityUtils.preRename(
-          isCreateOperationOnBlobEndpoint());
+          isCreateOperationOnBlobEndpoint(), srcDirETag);
       isAtomicRename = true;
     } else {
       srcDirLease = null;

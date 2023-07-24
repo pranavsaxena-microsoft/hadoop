@@ -34,7 +34,8 @@ public class RenameNonAtomicUtils extends RenameAtomicityUtils {
   }
 
   @Override
-  public void preRename(final Boolean isCreateOperationOnBlobEndpoint)
+  public void preRename(final Boolean isCreateOperationOnBlobEndpoint,
+      final String eTag)
       throws IOException {
 
   }
