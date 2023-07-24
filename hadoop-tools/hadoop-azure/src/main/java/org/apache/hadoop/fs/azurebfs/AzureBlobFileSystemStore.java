@@ -926,7 +926,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       delimiter = "";
     }
     do {
-      AbfsRestOperation op = client.getListBlobs(
+      AbfsRestOperation op = getClient().getListBlobs(
           nextMarker, prefix, delimiter, maxResult, tracingContext
       );
       BlobList blobList = op.getResult().getBlobList();
@@ -2099,7 +2099,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
    * @return VersionedFileStatus object for given path
    * @throws IOException
    */
-  private FileStatus getPathProperty(Path path, TracingContext tracingContext, Boolean useBlobEndpoint) throws IOException {
+  FileStatus getPathProperty(Path path, TracingContext tracingContext, Boolean useBlobEndpoint) throws IOException {
     AbfsPerfInfo perfInfo = startTracking("getFileStatus", "undetermined");
     final AbfsRestOperation op;
     Boolean isNamespaceEnabled = getIsNamespaceEnabled(tracingContext);
@@ -2260,7 +2260,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
          * a single entry corresponding to the directory name will be returned as BlobPrefix.
          */
         try (AbfsPerfInfo perfInfo = startTracking("listStatus", "getListBlobs")) {
-          AbfsRestOperation op = client.getListBlobs(
+          AbfsRestOperation op = getClient().getListBlobs(
               continuation, prefix, delimiter, abfsConfiguration.getListMaxResults(),
               tracingContext
           );
