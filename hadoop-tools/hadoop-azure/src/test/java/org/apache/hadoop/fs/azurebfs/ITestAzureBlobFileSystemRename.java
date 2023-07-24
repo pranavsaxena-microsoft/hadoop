@@ -2246,7 +2246,7 @@ public class ITestAzureBlobFileSystemRename extends
     fs.delete(new Path("/hbase/testDir"), true);
     AtomicInteger copied = assertTracingContextOnRenameResumeProcess(fs, store,
         client, FSOperationType.LISTSTATUS);
-    fs.listStatus(new Path("/hbase"));
+    Assertions.assertThat(fs.listStatus(new Path("/hbase"))).hasSize(1);
     Assertions.assertThat(copied.get()).isEqualTo(0);
   }
 
@@ -2270,7 +2270,7 @@ public class ITestAzureBlobFileSystemRename extends
       }
       return answer.callRealMethod();
     }).when(client).acquireBlobLease(Mockito.anyString(), Mockito.anyInt(), Mockito.any(TracingContext.class));
-    fs.listStatus(new Path("/hbase"));
+    Assertions.assertThat(fs.listStatus(new Path("/hbase"))).hasSize(1);
     Assertions.assertThat(copied.get()).isEqualTo(0);
   }
 
@@ -2290,7 +2290,7 @@ public class ITestAzureBlobFileSystemRename extends
     fs.mkdirs(new Path("/hbase/testDir"));
     AtomicInteger copied = assertTracingContextOnRenameResumeProcess(fs, store,
         client, FSOperationType.LISTSTATUS);
-    fs.listStatus(new Path("/hbase"));
+    Assertions.assertThat(fs.listStatus(new Path("/hbase"))).hasSize(2);
     Assertions.assertThat(copied.get()).isEqualTo(0);
   }
 
