@@ -1242,11 +1242,6 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
             .build();
   }
 
-  /**
-   * Creates a directory on the given path.
-   *
-   * @return ETag of the directory created on DFS or blob endpoint.
-   */
   public String createDirectory(final Path path, final FileSystem.Statistics statistics, final FsPermission permission,
       final FsPermission umask,
       final Boolean checkParentChain,
@@ -3072,6 +3067,16 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     return null;
   }
 
+  /**
+   * Returns the fileStatus of srcDir that has to be renamed for which the
+   * pendingJson file is created.
+   *
+   * @param fileStatuses array of fileStatus of files/directories from which the
+   * required directory is needed to be retrieved.
+   * @param renamePendingJsonFileStatus fileStatus for the pendingJson file created
+   * corresponding to the directory being renamed.
+   * @return fileStatus of the srcDirectory is in the array of fileStatus else null.
+   */
   public FileStatus getRenamePendingSrcFileStatus(final FileStatus[] fileStatuses,
       FileStatus renamePendingJsonFileStatus) {
     if (renamePendingJsonFileStatus == null) {

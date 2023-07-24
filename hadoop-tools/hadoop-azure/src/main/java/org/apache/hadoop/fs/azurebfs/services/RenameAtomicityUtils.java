@@ -196,7 +196,7 @@ public class RenameAtomicityUtils {
    *   OperationTime: "<YYYY-MM-DD HH:MM:SS.MMM>",
    *   OldFolderName: "<key>",
    *   NewFolderName: "<key>"
-   *   Etag: "<etag of the src-directory>"
+   *   ETag: "<etag of the src-directory>"
    * }
    *
    * Here's a sample:
@@ -205,7 +205,7 @@ public class RenameAtomicityUtils {
    *  OperationUTCTime: "2014-07-01 23:50:35.572",
    *  OldFolderName: "user/ehans/folderToRename",
    *  NewFolderName: "user/ehans/renamedFolder"
-   *  Etag: "ETag"
+   *  ETag: "ETag"
    * } }</pre>
    * @throws IOException Thrown when fail to write file.
    */
