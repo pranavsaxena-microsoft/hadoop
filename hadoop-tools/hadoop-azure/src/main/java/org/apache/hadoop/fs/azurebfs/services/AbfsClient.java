@@ -305,7 +305,7 @@ public class AbfsClient implements Closeable {
 
     appendSASTokenToQuery("",
         SASTokenProvider.CREATE_CONTAINER_OPERATION, abfsUriQueryBuilder);
-    final URL url = createRequestUrl(abfsUriQueryBuilder.toString());
+    final URL url = changePrefixFromDfsToBlob(createRequestUrl(abfsUriQueryBuilder.toString()));
 
     final AbfsRestOperation op = new AbfsRestOperation(
         AbfsRestOperationType.CreateContainer,
@@ -427,7 +427,7 @@ public class AbfsClient implements Closeable {
 
     appendSASTokenToQuery("",
         SASTokenProvider.DELETE_CONTAINER_OPERATION, abfsUriQueryBuilder);
-    final URL url = createRequestUrl(abfsUriQueryBuilder.toString());
+    final URL url = changePrefixFromDfsToBlob(createRequestUrl(abfsUriQueryBuilder.toString()));
 
     final AbfsRestOperation op = new AbfsRestOperation(
         AbfsRestOperationType.DeleteContainer,
