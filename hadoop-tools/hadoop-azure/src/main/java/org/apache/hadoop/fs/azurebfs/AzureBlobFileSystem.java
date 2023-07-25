@@ -191,13 +191,6 @@ public class AzureBlobFileSystem extends FileSystem
       blockOutputActiveBlocks = 1;
     }
 
-    if (configuration.getBoolean(FS_AZURE_ENABLE_BLOB_ENDPOINT, false)) {
-      if (uri.toString().contains(FileSystemUriSchemes.ABFS_DNS_PREFIX)) {
-        uri = changePrefixFromDfsToBlob(uri);
-        this.uri = uri;
-      }
-    }
-
     // AzureBlobFileSystemStore with params in builder.
     AzureBlobFileSystemStore.AzureBlobFileSystemStoreBuilder
         systemStoreBuilder =
