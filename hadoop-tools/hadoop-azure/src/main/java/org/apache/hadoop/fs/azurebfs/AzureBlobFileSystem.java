@@ -930,7 +930,8 @@ public class AzureBlobFileSystem extends FileSystem
           listener);
       FileStatus[] result = getAbfsStore().listStatus(qualifiedPath, tracingContext);
       if (getAbfsStore().getAbfsConfiguration().getPrefixMode()
-          == PrefixMode.BLOB && getAbfsStore().isAtomicRenameKey(qualifiedPath.toUri().getPath() + FORWARD_SLASH)) {
+          == PrefixMode.BLOB && getAbfsStore().isAtomicRenameKey(
+          qualifiedPath.toUri().getPath() + FORWARD_SLASH)) {
         Pair<FileStatus, FileStatus> renamePendingJsonAndSrcFileStatusPair
             = getAbfsStore().getRenamePendingFileStatus(result);
         FileStatus renamePendingSrcFileStatus
