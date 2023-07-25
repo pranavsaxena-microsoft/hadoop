@@ -1617,8 +1617,8 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         getAbfsConfiguration().getBlobDirRenameMaxThread());
 
     if (blobList.getNextMarker() != null) {
-      new ListBlobProducer(listSrc,
-          client, listBlobQueue, blobList.getNextMarker(), tracingContext);
+      getListBlobProducer(listSrc, listBlobQueue, blobList.getNextMarker(),
+          tracingContext);
     } else {
       listBlobQueue.complete();
     }
@@ -1682,6 +1682,15 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     if (isAtomicRename) {
       renameAtomicityUtils.cleanup();
     }
+  }
+
+  @VisibleForTesting
+  ListBlobProducer getListBlobProducer(final String listSrc,
+      final ListBlobQueue listBlobQueue,
+      final String initNextMarker,
+      final TracingContext tracingContext) {
+    return new ListBlobProducer(listSrc,
+        client, listBlobQueue, initNextMarker, tracingContext);
   }
 
   @VisibleForTesting
@@ -1749,6 +1758,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         } catch (InterruptedException | ExecutionException e) {
           LOG.error(String.format("rename from %s to %s failed", source,
               destination), e);
+          listBlobConsumer.fail();
           renameBlobExecutorService.shutdown();
           if (srcDirBlobLease != null) {
             srcDirBlobLease.free();
@@ -1937,8 +1947,8 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         getAbfsConfiguration().getProducerQueueMaxSize(),
         getAbfsConfiguration().getBlobDirDeleteMaxThread());
     if (blobList.getNextMarker() != null) {
-      new ListBlobProducer(listSrc, client, queue,
-          blobList.getNextMarker(), tracingContext);
+      getListBlobProducer(listSrc, queue, blobList.getNextMarker(),
+          tracingContext);
     } else {
       queue.complete();
     }
@@ -2021,6 +2031,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
               }
               LOG.error(String.format("Deleting Path %s failed",
                   blobPropertyPathStr), ex);
+              consumer.fail();
               throw new RuntimeException(ex);
             }
           }));
@@ -2822,8 +2833,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
           listSrcBuilder.append(FORWARD_SLASH);
         }
         String listSrc = listSrcBuilder.toString();
-        new ListBlobProducer(listSrc, client, listBlobQueue, null,
-            tracingContext);
+        getListBlobProducer(listSrc, listBlobQueue, null, tracingContext);
         final AbfsBlobLease abfsBlobLease;
         try {
            abfsBlobLease = getBlobLease(src.toUri().getPath(),
