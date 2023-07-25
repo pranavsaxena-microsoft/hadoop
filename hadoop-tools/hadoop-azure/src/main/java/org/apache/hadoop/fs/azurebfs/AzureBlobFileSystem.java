@@ -1018,7 +1018,7 @@ public class AzureBlobFileSystem extends FileSystem
       TracingContext tracingContext = new TracingContext(clientCorrelationId,
               fileSystemId, FSOperationType.MKDIR, false, tracingHeaderFormat,
               listener);
-      abfsStore.createDirectory(qualifiedPath, statistics,
+      getAbfsStore().createDirectory(qualifiedPath, statistics,
               permission == null ? FsPermission.getDirDefault() : permission,
               FsPermission.getUMask(getConf()), true, tracingContext);
       statIncrement(DIRECTORIES_CREATED);

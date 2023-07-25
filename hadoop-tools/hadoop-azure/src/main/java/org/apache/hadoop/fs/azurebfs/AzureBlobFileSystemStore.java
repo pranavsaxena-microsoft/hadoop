@@ -1305,12 +1305,17 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
    */
   private void checkParentChainForFile(Path path, TracingContext tracingContext,
                                        List<Path> keysToCreateAsFolder) throws IOException {
-    if (checkPathIsDirectory(path, tracingContext)) {
+
+    FileStatus fileStatus = tryGetPathProperty(path, tracingContext, true);
+    Boolean isDirectory = fileStatus != null ? fileStatus.isDirectory() : false;
+    if (isDirectory) {
       return;
     }
     Path current = path.getParent();
     while (current != null && !current.isRoot()) {
-      if (checkPathIsDirectory(current, tracingContext)) {
+      fileStatus = tryGetPathProperty(path, tracingContext, true);
+      isDirectory = fileStatus != null ? fileStatus.isDirectory() : false;
+      if (isDirectory) {
         break;
       }
       keysToCreateAsFolder.add(current);
@@ -2087,6 +2092,29 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       } else {
         throw ex;
       }
+    }
+  }
+
+  /**
+   * Method that deals with error cases of calling getPathProperty directly.
+   * getPathProperty itself does not do the error handling, as it is intended to be
+   * one part of the calls constituting getFileStatus. This additional method
+   * would help when getPathProperty has to be called in a direct flow and needs a check for this error.
+   * @param path Current Path
+   * @param tracingContext current tracing context
+   * @param useBlobEndpoint whether to use blob endpoint
+   * @return FileStatus or null if blob does not exist or is not explicit
+   * @throws IOException
+   */
+  FileStatus tryGetPathProperty(Path path, TracingContext tracingContext, Boolean useBlobEndpoint) throws IOException {
+    try {
+      return getPathProperty(path, tracingContext, useBlobEndpoint);
+    } catch(AbfsRestOperationException ex) {
+      if (ex.getStatusCode() == HTTP_NOT_FOUND) {
+        LOG.debug("No explicit directory/path found: {}", path);
+        return null;
+      }
+      throw ex;
     }
   }
 

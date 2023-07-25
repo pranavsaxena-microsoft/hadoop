@@ -182,4 +182,20 @@ public class ITestAzureBlobFileSystemMkDir extends AbstractAbfsIntegrationTest {
             Mockito.any(TracingContext.class));
 
   }
+
+
+  @Test
+  public void testGetPathPropertyCalledOnMkdir() throws Exception {
+    AzureBlobFileSystem fs = Mockito.spy(getFileSystem());
+    AzureBlobFileSystemStore store = Mockito.spy(fs.getAbfsStore());
+    Mockito.doReturn(store).when(fs).getAbfsStore();
+
+    fs.mkdirs(new Path("/testPath"));
+    Mockito.verify(store, Mockito.atLeast(1)).tryGetPathProperty(Mockito.any(Path.class),
+            Mockito.any(TracingContext.class), Mockito.any(Boolean.class));
+    Mockito.verify(store, Mockito.atLeast(1)).getPathProperty(Mockito.any(Path.class),
+            Mockito.any(TracingContext.class), Mockito.any(Boolean.class));
+
+  }
 }
+
