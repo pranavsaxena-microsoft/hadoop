@@ -1323,37 +1323,6 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     }
   }
 
-  /**
-   * Checks if the path is directory and throws exception if it exists as a file.
-   * @param path path to check for file or directory.
-   * @param tracingContext the tracingcontext.
-   * @return true or false.
-   * @throws IOException
-   */
-  private boolean checkPathIsDirectory(Path path, TracingContext tracingContext) throws IOException {
-    BlobProperty blobProperty = null;
-    try {
-      blobProperty = getBlobProperty(path, tracingContext);
-    } catch (AbfsRestOperationException ex) {
-      if (ex.getStatusCode() != HttpURLConnection.HTTP_NOT_FOUND) {
-        throw ex;
-      }
-    }
-
-    if (blobProperty != null) {
-      boolean isDir = blobProperty.getIsDirectory();
-      if (!isDir) {
-        throw new AbfsRestOperationException(HTTP_CONFLICT,
-                AzureServiceErrorCode.PATH_CONFLICT.getErrorCode(),
-                PATH_EXISTS,
-                null);
-      }
-      return true;
-    }
-    return false;
-  }
-
-
   public AbfsInputStream openFileForRead(final Path path,
       final FileSystem.Statistics statistics, TracingContext tracingContext)
       throws IOException {
