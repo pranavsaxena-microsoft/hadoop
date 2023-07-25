@@ -371,7 +371,7 @@ public class AzureBlobFileSystem extends FileSystem
           fileSystemId, FSOperationType.OPEN, tracingHeaderFormat,
           listener);
       InputStream inputStream = getAbfsStore().openFileForRead(qualifiedPath,
-          options, statistics, tracingContext);
+          options, statistics, null, tracingContext);
       return new FSDataInputStream(inputStream);
     } catch(AzureBlobFileSystemException ex) {
       checkException(path, ex);
@@ -971,7 +971,7 @@ public class AzureBlobFileSystem extends FileSystem
       final TracingContext tracingContext, final String srcEtag) throws IOException {
     return new RenameAtomicityUtils(this,
         renamePendingFileStatus,
-        getAbfsStore().getRedoRenameInvocation(tracingContext), srcEtag);
+        getAbfsStore().getRedoRenameInvocation(tracingContext), srcEtag, );
   }
 
   /**

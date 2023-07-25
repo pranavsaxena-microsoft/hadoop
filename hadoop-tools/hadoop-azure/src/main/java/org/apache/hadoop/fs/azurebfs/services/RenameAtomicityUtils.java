@@ -40,6 +40,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.azurebfs.AzureBlobFileSystem;
@@ -88,11 +89,12 @@ public class RenameAtomicityUtils {
   }
 
   public RenameAtomicityUtils(final AzureBlobFileSystem azureBlobFileSystem,
-      final Path path, final RedoRenameInvocation redoRenameInvocation,
-      final String srcEtag)
+      final Path renamePendingJsonPath, final RedoRenameInvocation redoRenameInvocation,
+      final String srcEtag, final FileStatus renamePendingJsonFileStatus)
       throws IOException {
     this.azureBlobFileSystem = azureBlobFileSystem;
-    final RenamePendingFileInfo renamePendingFileInfo = readFile(path);
+    final RenamePendingFileInfo renamePendingFileInfo = readFile(redoRenameInvocation.openFile(
+        renamePendingJsonPath,));
     if (renamePendingFileInfo != null
         && renamePendingFileInfo.eTag.equalsIgnoreCase(srcEtag)) {
       redoRenameInvocation.redo(renamePendingFileInfo.destination,
@@ -389,6 +391,7 @@ public class RenameAtomicityUtils {
   public static interface RedoRenameInvocation {
     void redo(Path destination, Path src) throws
         AzureBlobFileSystemException;
+    AbfsInputStream openFile(Path pendingJsonPath, FileStatus fileStatus);
   }
 
   public Boolean isRedone() {

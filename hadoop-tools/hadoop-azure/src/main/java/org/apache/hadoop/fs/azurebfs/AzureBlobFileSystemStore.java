@@ -1356,12 +1356,15 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
   public AbfsInputStream openFileForRead(final Path path,
       final FileSystem.Statistics statistics, TracingContext tracingContext)
       throws IOException {
-    return openFileForRead(path, Optional.empty(), statistics, tracingContext);
+    return openFileForRead(path, Optional.empty(), statistics, null,
+        tracingContext);
   }
 
   public AbfsInputStream openFileForRead(final Path path,
       final Optional<Configuration> options,
-      final FileSystem.Statistics statistics, TracingContext tracingContext)
+      final FileSystem.Statistics statistics,
+      final VersionedFileStatus pathFileStatus,
+      TracingContext tracingContext)
       throws IOException {
     try (AbfsPerfInfo perfInfo = startTracking("openFileForRead", "getPathStatus")) {
       LOG.debug("openFileForRead filesystem: {} path: {}",
@@ -1375,13 +1378,19 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
                 abfsConfiguration.shouldReadFallbackToDfs(), path);
         useBlobEndpoint = false;
       }
-      VersionedFileStatus fileStatus;
-      fileStatus = (VersionedFileStatus) getFileStatus(path, tracingContext, useBlobEndpoint);
+      final VersionedFileStatus fileStatus;
+      if(pathFileStatus == null) {
+        fileStatus = (VersionedFileStatus) getFileStatus(path, tracingContext,
+            useBlobEndpoint);
+      } else {
+        fileStatus = pathFileStatus;
+      }
 
       boolean isDirectory = fileStatus.isDirectory();
 
       final long contentLength = fileStatus.getLen();
       final String eTag = fileStatus.getEtag();
+
 
       if (isDirectory) {
         throw new AbfsRestOperationException(
@@ -2851,6 +2860,12 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         }
         renameBlobDir(src, destination, tracingContext, listBlobQueue,
             abfsBlobLease, true);
+      }
+
+      @Override
+      public AbfsInputStream openFile(final Path pendingJsonPath,
+          final FileStatus fileStatus) {
+
       }
     };
   }
