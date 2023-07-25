@@ -2100,7 +2100,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
    * @throws IOException
    */
   FileStatus getPathProperty(Path path, TracingContext tracingContext, Boolean useBlobEndpoint) throws IOException {
-    AbfsPerfInfo perfInfo = startTracking("getFileStatus", "undetermined");
+    AbfsPerfInfo perfInfo = startTracking("getPathProperty", "undetermined");
     final AbfsRestOperation op;
     Boolean isNamespaceEnabled = getIsNamespaceEnabled(tracingContext);
     if (useBlobEndpoint) {
