@@ -429,6 +429,7 @@ public class ITestAzureBlobFileSystemListStatus extends
     AbfsClient client = Mockito.spy(store.getClient());
     Mockito.doReturn(store).when(fs).getAbfsStore();
     Mockito.doReturn(client).when(store).getClient();
+    store.setClient(client);
 
     intercept(FileNotFoundException.class, () ->
             fs.listStatus(new Path("a/b")));

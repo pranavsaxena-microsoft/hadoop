@@ -2260,7 +2260,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
          * a single entry corresponding to the directory name will be returned as BlobPrefix.
          */
         try (AbfsPerfInfo perfInfo = startTracking("listStatus", "getListBlobs")) {
-          AbfsRestOperation op = getClient().getListBlobs(
+          AbfsRestOperation op = client.getListBlobs(
               continuation, prefix, delimiter, abfsConfiguration.getListMaxResults(),
               tracingContext
           );
