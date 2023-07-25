@@ -2055,12 +2055,13 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
 
   public FileStatus getFileStatus(Path path, TracingContext tracingContext, boolean useBlobEndpoint) throws IOException {
     try {
+      AbfsPerfInfo perfInfo = startTracking("getFileStatus", "undetermined");
       boolean isNamespaceEnabled = getIsNamespaceEnabled(tracingContext);
       LOG.debug("getFileStatus filesystem: {} path: {} isNamespaceEnabled: {}",
               client.getFileSystem(),
               path,
               isNamespaceEnabled);
-
+      perfInfo.registerCallee("getPathProperty");
       return getPathProperty(path, tracingContext, useBlobEndpoint);
 
     } catch (AbfsRestOperationException ex) {
