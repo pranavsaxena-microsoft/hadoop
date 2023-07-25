@@ -1092,25 +1092,6 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
   }
 
   /**
-   * Returns true if the path is a directory.
-   * @param path path to check for file or directory.
-   * @param tracingContext tracingContext.
-   * @return true or false.
-   */
-  boolean checkIsDirectory(Path path, TracingContext tracingContext) throws IOException {
-   BlobProperty blobProperty;
-    try {
-      blobProperty = getBlobProperty(path, tracingContext);
-    } catch (AbfsRestOperationException ex) {
-      if (ex.getStatusCode() != HttpURLConnection.HTTP_NOT_FOUND) {
-        throw ex;
-      }
-      return false;
-    }
-    return blobProperty.getIsDirectory();
-  }
-
-  /**
    * Conditional create overwrite flow ensures that create overwrites is done
    * only if there is match for eTag of existing file.
    * @param relativePath
