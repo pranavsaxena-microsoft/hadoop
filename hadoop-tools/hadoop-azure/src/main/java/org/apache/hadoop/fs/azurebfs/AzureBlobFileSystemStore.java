@@ -58,6 +58,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.classification.VisibleForTesting;
 
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.InvalidConfigurationValueException;
@@ -3059,44 +3060,28 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
   }
 
   /**
-   * Search for a FileStatus corresponding to a RenamePending JSON file.
-   * @param fileStatuses array of fileStatus from which JSON file has to be searched.
-   * @return filestatus corresponding to RenamePending JSON file.
+   * Returns a pair of fileStatuses for the renamePendingJSON file and the renameSource file.
+   * @param fileStatuses array of fileStatus from which pair has to be searched.
+   * @return Pair of FileStatus. Left of the pair is fileStatus of renamePendingJson file.
+   * Right of the pair is fileStatus of renameSource file.
    */
-  public FileStatus getRenamePendingFileStatus(final FileStatus[] fileStatuses) {
+  public Pair<FileStatus, FileStatus> getRenamePendingFileStatus(final FileStatus[] fileStatuses) {
+    Map<String, FileStatus> fileStatusMap = new HashMap<>();
+    FileStatus renamePendingJsonFileStatus = null;
+    String requiredRenameSrcPath = null;
     for (FileStatus fileStatus : fileStatuses) {
-      if (fileStatus.getPath().toUri().getPath().endsWith(SUFFIX)) {
-        return fileStatus;
+      String path = fileStatus.getPath().toUri().getPath();
+      if (path.equals(requiredRenameSrcPath)) {
+        return Pair.of(renamePendingJsonFileStatus, fileStatus);
+      }
+      fileStatusMap.put(path, fileStatus);
+      if (path.endsWith(SUFFIX)) {
+        renamePendingJsonFileStatus = fileStatus;
+        requiredRenameSrcPath = path.split(SUFFIX)[0];
       }
     }
-    return null;
-  }
-
-  /**
-   * Returns the fileStatus of srcDir that has to be renamed for which the
-   * pendingJson file is created.
-   *
-   * @param fileStatuses array of fileStatus of files/directories from which the
-   * required directory is needed to be retrieved.
-   * @param renamePendingJsonFileStatus fileStatus for the pendingJson file created
-   * corresponding to the directory being renamed.
-   * @return fileStatus of the srcDirectory is in the array of fileStatus else null.
-   */
-  public FileStatus getRenamePendingSrcFileStatus(final FileStatus[] fileStatuses,
-      FileStatus renamePendingJsonFileStatus) {
-    if (renamePendingJsonFileStatus == null) {
-      return null;
-    }
-    String srcPathSrc = renamePendingJsonFileStatus.getPath()
-        .toUri()
-        .getPath()
-        .split(SUFFIX)[0];
-    for (FileStatus fileStatus : fileStatuses) {
-      if (fileStatus.getPath().toUri().getPath().equals(srcPathSrc)) {
-        return fileStatus;
-      }
-    }
-    return null;
+    return Pair.of(renamePendingJsonFileStatus,
+        fileStatusMap.get(requiredRenameSrcPath));
   }
 
   /**

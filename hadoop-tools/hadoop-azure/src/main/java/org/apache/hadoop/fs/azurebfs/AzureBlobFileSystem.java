@@ -43,6 +43,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.InvalidConfigurationValueException;
 import org.apache.hadoop.fs.azurebfs.services.AbfsBlobLease;
 import org.apache.hadoop.fs.azurebfs.services.BlobProperty;
@@ -116,6 +117,7 @@ import static org.apache.hadoop.fs.CommonConfigurationKeys.IOSTATISTICS_LOGGING_
 import static org.apache.hadoop.fs.CommonConfigurationKeys.IOSTATISTICS_LOGGING_LEVEL_DEFAULT;
 import static org.apache.hadoop.fs.azurebfs.AbfsStatistic.*;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.BLOB_LEASE_ONE_MINUTE_DURATION;
+import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.FORWARD_SLASH;
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_ENABLE_BLOB_ENDPOINT;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemUriSchemes.ABFS_DNS_PREFIX;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemUriSchemes.WASB_DNS_PREFIX;
@@ -928,30 +930,33 @@ public class AzureBlobFileSystem extends FileSystem
           listener);
       FileStatus[] result = getAbfsStore().listStatus(qualifiedPath, tracingContext);
       if (getAbfsStore().getAbfsConfiguration().getPrefixMode()
-          == PrefixMode.BLOB) {
-        FileStatus renamePendingFileStatus
+          == PrefixMode.BLOB && getAbfsStore().isAtomicRenameKey(f.toUri().getPath() + FORWARD_SLASH)) {
+        Pair<FileStatus, FileStatus> renamePendingJsonAndSrcFileStatusPair
             = getAbfsStore().getRenamePendingFileStatus(result);
         FileStatus renamePendingSrcFileStatus
-            = getAbfsStore().getRenamePendingSrcFileStatus(result,
-            renamePendingFileStatus);
-        if (renamePendingFileStatus != null) {
+            = renamePendingJsonAndSrcFileStatusPair.getRight();
+        FileStatus renamePendingJsonFileStatus
+            = renamePendingJsonAndSrcFileStatusPair.getLeft();
+        if (renamePendingJsonFileStatus != null) {
           final Boolean isRedone;
           if (renamePendingSrcFileStatus != null) {
             RenameAtomicityUtils renameAtomicityUtils =
                 getRenameAtomicityUtilsForRedo(
-                    renamePendingFileStatus.getPath(),
+                    renamePendingJsonFileStatus.getPath(),
                     tracingContext,
                     ((AzureBlobFileSystemStore.VersionedFileStatus) renamePendingSrcFileStatus).getEtag());
-            renameAtomicityUtils.cleanup(renamePendingFileStatus.getPath());
+            renameAtomicityUtils.cleanup(renamePendingJsonFileStatus.getPath());
             isRedone = renameAtomicityUtils.isRedone();
           } else {
             isRedone = false;
-            getAbfsStore().delete(renamePendingFileStatus.getPath(), true, tracingContext);
+            getAbfsStore().delete(renamePendingJsonFileStatus.getPath(), true,
+                tracingContext);
           }
           if (isRedone) {
             result = getAbfsStore().listStatus(qualifiedPath, tracingContext);
           } else {
-            result = ArrayUtils.removeElement(result, renamePendingFileStatus);
+            result = ArrayUtils.removeElement(result,
+                renamePendingJsonFileStatus);
           }
         }
       }
