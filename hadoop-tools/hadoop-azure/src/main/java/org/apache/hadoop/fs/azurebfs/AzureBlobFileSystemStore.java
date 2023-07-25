@@ -2828,6 +2828,11 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
            abfsBlobLease = getBlobLease(src.toUri().getPath(),
               BLOB_LEASE_ONE_MINUTE_DURATION, tracingContext);
         } catch (AbfsRestOperationException ex) {
+          /*
+           * The required blob might be deleted in between the last check (from
+           * GetFileStatus or ListStatus) and the leaseAcquire. Hence, catching
+           * HTTP_NOT_FOUND error.
+           */
           if (ex.getStatusCode() == HTTP_NOT_FOUND) {
             return;
           }
