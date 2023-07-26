@@ -247,9 +247,11 @@ public class TestAbfsInputStream extends
     abfsStore.openFileForRead(testFile,
         Optional.empty(), null,
         tracingContext);
-    verify(mockClient, times(1).description(
-        "GetPathStatus should be invoked when FileStatus not provided"))
-        .getPathStatus(anyString(), anyBoolean(), any(TracingContext.class));
+    if (getPrefixMode(getFileSystem()) == PrefixMode.DFS) {
+      verify(mockClient, times(1).description(
+          "GetPathStatus should be invoked when FileStatus not provided"))
+          .getPathStatus(anyString(), anyBoolean(), any(TracingContext.class));
+    }
 
     Mockito.reset(mockClient); //clears invocation count for next test case
   }

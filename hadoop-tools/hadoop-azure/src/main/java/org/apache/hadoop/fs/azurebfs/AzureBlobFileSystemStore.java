@@ -1378,7 +1378,8 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
 
       final VersionedFileStatus fileStatus;
       if (parameterFileStatus instanceof VersionedFileStatus) {
-        Preconditions.checkArgument(parameterFileStatus.getPath().equals(path),
+        Preconditions.checkArgument(parameterFileStatus.getPath()
+                .equals(path.makeQualified(this.uri, path)),
             String.format(
                 "Filestatus path [%s] does not match with given path [%s]",
                 parameterFileStatus.getPath(), path));
