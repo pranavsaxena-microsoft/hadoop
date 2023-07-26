@@ -27,7 +27,11 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
+import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
+import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 import org.assertj.core.api.Assertions;
+import org.junit.Assume;
 import org.junit.Test;
 
 import org.apache.hadoop.conf.Configuration;
@@ -49,6 +53,7 @@ import static org.apache.hadoop.fs.contract.ContractTestUtils.assertPathExists;
 import static org.apache.hadoop.fs.contract.ContractTestUtils.rename;
 
 import static org.apache.hadoop.test.LambdaTestUtils.intercept;
+import static org.mockito.Mockito.times;
 
 /**
  * Test listStatus operation.
@@ -417,6 +422,34 @@ public class ITestAzureBlobFileSystemListStatus extends
     fs.mkdirs(testPath);
     FileStatus[] fileStatuses = fs.listStatus(testPath);
     Assertions.assertThat(fileStatuses.length).isEqualTo(0);
+  }
+
+  @Test
+  public void testListStatusUsesGfs() throws Exception {
+    Assume.assumeTrue(getFileSystem().getAbfsStore().getPrefixMode() == PrefixMode.BLOB);
+    AzureBlobFileSystem fs = Mockito.spy(getFileSystem());
+    AzureBlobFileSystemStore store = Mockito.spy(fs.getAbfsStore());
+    AbfsClient client = Mockito.spy(store.getClient());
+    Mockito.doReturn(store).when(fs).getAbfsStore();
+    Mockito.doReturn(client).when(store).getClient();
+    store.setClient(client);
+
+    intercept(FileNotFoundException.class, () ->
+            fs.listStatus(new Path("a/b")));
+
+    Mockito.verify(store, times(1)).getPathProperty(Mockito.any(Path.class),
+            Mockito.any(TracingContext.class), Mockito.any(boolean.class));
+
+    // getListBlobs from within store should not be called - as this is invoked from getFileStatus
+    Mockito.verify(store, times(0)).getListBlobs(Mockito.any(Path.class),
+            Mockito.any(String.class), Mockito.any(String.class), Mockito.any(TracingContext.class),
+            Mockito.any(Integer.class), Mockito.any(Boolean.class));
+
+    // getListBlobs from client should be called once - the call for listStatus that would fail
+    // as this blob is actually non-existent
+    Mockito.verify(client, times(1)).getListBlobs(Mockito.nullable(String.class),
+            Mockito.nullable(String.class), Mockito.nullable(String.class),
+            Mockito.any(Integer.class), Mockito.any(TracingContext.class));
   }
 
   private void assertFileFileStatus(final FileStatus fileStatus,
