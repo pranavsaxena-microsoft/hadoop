@@ -93,8 +93,9 @@ public class RenameAtomicityUtils {
       final String srcEtag, final FileStatus renamePendingJsonFileStatus)
       throws IOException {
     this.azureBlobFileSystem = azureBlobFileSystem;
-    final RenamePendingFileInfo renamePendingFileInfo = readFile(redoRenameInvocation.openFile(
-        renamePendingJsonPath,));
+    final RenamePendingFileInfo renamePendingFileInfo = readFile(
+        renamePendingJsonPath, redoRenameInvocation.openFile(
+            renamePendingJsonPath, renamePendingJsonFileStatus));
     if (renamePendingFileInfo != null
         && renamePendingFileInfo.eTag.equalsIgnoreCase(srcEtag)) {
       redoRenameInvocation.redo(renamePendingFileInfo.destination,
@@ -105,12 +106,12 @@ public class RenameAtomicityUtils {
     }
   }
 
-  private RenamePendingFileInfo readFile(final Path redoFile)
+  private RenamePendingFileInfo readFile(final Path redoFile,
+      final AbfsInputStream inputStream)
       throws IOException {
     Path f = redoFile;
-    FSDataInputStream input = azureBlobFileSystem.open(f);
     byte[] bytes = new byte[MAX_RENAME_PENDING_FILE_SIZE];
-    int l = input.read(bytes);
+    int l = inputStream.read(bytes);
     if (l <= 0) {
       // Jira HADOOP-12678 -Handle empty rename pending metadata file during
       // atomic rename in redo path. If during renamepending file is created

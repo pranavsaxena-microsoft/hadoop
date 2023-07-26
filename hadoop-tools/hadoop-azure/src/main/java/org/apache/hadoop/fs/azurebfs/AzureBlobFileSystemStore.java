@@ -2865,7 +2865,10 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       @Override
       public AbfsInputStream openFile(final Path pendingJsonPath,
           final FileStatus fileStatus) {
-
+        return new AbfsInputStream(client, null,
+            getRelativePath(pendingJsonPath), fileStatus.getLen(),
+            populateAbfsInputStreamContext(Optional.empty()),
+            ((VersionedFileStatus)fileStatus).getEtag(), tracingContext);
       }
     };
   }
@@ -3117,19 +3120,19 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
    * to be searched.
    * @param tracingContext TracingContext object for tracing the backend server calls
    * for the operation.
+   *
    * @throws IOException exception thrown from the call to {@link #getPathStatus(Path, TracingContext)}
    * method.
    */
-  public boolean getRenamePendingFileStatusInDirectory(final FileStatus fileStatus,
+  public FileStatus getRenamePendingFileStatusInDirectory(final FileStatus fileStatus,
       final TracingContext tracingContext) throws IOException {
     try {
-      getFileStatus(
+      return getFileStatus(
           new Path(fileStatus.getPath().toUri().getPath() + SUFFIX),
           tracingContext, true);
-      return true;
     } catch (AbfsRestOperationException ex) {
       if (ex.getStatusCode() == HttpURLConnection.HTTP_NOT_FOUND) {
-        return false;
+        return null;
       }
       throw ex;
     }

@@ -58,6 +58,7 @@ import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
 import org.apache.hadoop.fs.azurebfs.services.AbfsClientTestUtil;
 import org.apache.hadoop.fs.azurebfs.services.AbfsHttpOpTestUtil;
 import org.apache.hadoop.fs.azurebfs.services.AbfsHttpOperation;
+import org.apache.hadoop.fs.azurebfs.services.AbfsInputStream;
 import org.apache.hadoop.fs.azurebfs.services.AbfsLease;
 import org.apache.hadoop.fs.azurebfs.services.AbfsRestOperation;
 import org.apache.hadoop.fs.azurebfs.services.AbfsRestOperationTestUtil;
@@ -2221,7 +2222,8 @@ public class ITestAzureBlobFileSystemRename extends
         })
         .when(fs)
         .getRenameAtomicityUtilsForRedo(Mockito.any(Path.class),
-            Mockito.any(TracingContext.class), Mockito.anyString());
+            Mockito.any(TracingContext.class), Mockito.anyString(), Mockito.any(
+                FileStatus.class));
 
     Mockito.doAnswer(answer -> {
           answer.callRealMethod();

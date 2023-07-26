@@ -944,7 +944,7 @@ public class AzureBlobFileSystem extends FileSystem
                 getRenameAtomicityUtilsForRedo(
                     renamePendingJsonFileStatus.getPath(),
                     tracingContext,
-                    ((AzureBlobFileSystemStore.VersionedFileStatus) renamePendingSrcFileStatus).getEtag());
+                    ((AzureBlobFileSystemStore.VersionedFileStatus) renamePendingSrcFileStatus).getEtag(),renamePendingJsonFileStatus);
             renameAtomicityUtils.cleanup(renamePendingJsonFileStatus.getPath());
             isRedone = renameAtomicityUtils.isRedone();
           } else {
@@ -968,10 +968,11 @@ public class AzureBlobFileSystem extends FileSystem
   }
 
   RenameAtomicityUtils getRenameAtomicityUtilsForRedo(final Path renamePendingFileStatus,
-      final TracingContext tracingContext, final String srcEtag) throws IOException {
+      final TracingContext tracingContext, final String srcEtag,
+      final FileStatus fileStatus) throws IOException {
     return new RenameAtomicityUtils(this,
         renamePendingFileStatus,
-        getAbfsStore().getRedoRenameInvocation(tracingContext), srcEtag, );
+        getAbfsStore().getRedoRenameInvocation(tracingContext), srcEtag, fileStatus);
   }
 
   /**
@@ -1097,18 +1098,22 @@ public class AzureBlobFileSystem extends FileSystem
          * Get File Status over Blob Endpoint will Have an additional call
          * to check if directory is implicit.
          */
-        fileStatus = getAbfsStore().getFileStatus(qualifiedPath,
-            tracingContext, useBlobEndpoint);
-        if (getAbfsStore().getPrefixMode() == PrefixMode.BLOB
-                && fileStatus != null && fileStatus.isDirectory()
-          && getAbfsStore().isAtomicRenameKey(fileStatus.getPath().toUri().getPath())
-          && getAbfsStore().getRenamePendingFileStatusInDirectory(fileStatus,
-              tracingContext)) {
+      fileStatus = getAbfsStore().getFileStatus(qualifiedPath,
+          tracingContext, useBlobEndpoint);
+      if (getAbfsStore().getPrefixMode() == PrefixMode.BLOB
+          && fileStatus != null && fileStatus.isDirectory()
+          && getAbfsStore().isAtomicRenameKey(
+          fileStatus.getPath().toUri().getPath())) {
+        final FileStatus renamePendingJsonFileStatus
+            = getAbfsStore().getRenamePendingFileStatusInDirectory(fileStatus,
+            tracingContext);
+        if (renamePendingJsonFileStatus != null) {
           RenameAtomicityUtils renameAtomicityUtils
               = getRenameAtomicityUtilsForRedo(
               new Path(fileStatus.getPath().toUri().getPath() + SUFFIX),
               tracingContext,
-              ((AzureBlobFileSystemStore.VersionedFileStatus) fileStatus).getEtag());
+              ((AzureBlobFileSystemStore.VersionedFileStatus) fileStatus).getEtag(),
+              renamePendingJsonFileStatus);
           renameAtomicityUtils.cleanup(
               new Path(fileStatus.getPath().toUri().getPath() + SUFFIX));
           if (renameAtomicityUtils.isRedone()) {
@@ -1118,6 +1123,7 @@ public class AzureBlobFileSystem extends FileSystem
                 new FileNotFoundException(
                     qualifiedPath + ": No such file or directory."));
           }
+        }
       }
       return fileStatus;
     } catch (AzureBlobFileSystemException ex) {
