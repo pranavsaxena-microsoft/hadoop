@@ -937,7 +937,8 @@ public class AzureBlobFileSystem extends FileSystem
       TracingContext tracingContext = new TracingContext(clientCorrelationId,
           fileSystemId, FSOperationType.LISTSTATUS, true, tracingHeaderFormat,
           listener);
-      FileStatus[] result = getAbfsStore().listStatus(qualifiedPath, tracingContext);
+      FileStatus[] result = getAbfsStore().listStatus(qualifiedPath,
+          tracingContext);
       if (getAbfsStore().getAbfsConfiguration().getPrefixMode()
           == PrefixMode.BLOB && getAbfsStore().isAtomicRenameKey(
           qualifiedPath.toUri().getPath() + FORWARD_SLASH)) {
@@ -954,7 +955,9 @@ public class AzureBlobFileSystem extends FileSystem
                 getRenameAtomicityUtilsForRedo(
                     renamePendingJsonFileStatus.getPath(),
                     tracingContext,
-                    ((AzureBlobFileSystemStore.VersionedFileStatus) renamePendingSrcFileStatus).getEtag());
+                    ((AzureBlobFileSystemStore.VersionedFileStatus) renamePendingSrcFileStatus).getEtag(),
+                    getRenamePendingJsonInputStream(
+                        renamePendingJsonFileStatus));
             renameAtomicityUtils.cleanup(renamePendingJsonFileStatus.getPath());
             isRedone = renameAtomicityUtils.isRedone();
           } else {
@@ -977,11 +980,13 @@ public class AzureBlobFileSystem extends FileSystem
     }
   }
 
-  RenameAtomicityUtils getRenameAtomicityUtilsForRedo(final Path renamePendingFileStatus,
-      final TracingContext tracingContext, final String srcEtag) throws IOException {
+  RenameAtomicityUtils getRenameAtomicityUtilsForRedo(final Path renamePendingJsonPath,
+      final TracingContext tracingContext, final String srcEtag,
+      final FSDataInputStream renamePendingJsonInputStream) throws IOException {
     return new RenameAtomicityUtils(this,
-        renamePendingFileStatus,
-        getAbfsStore().getRedoRenameInvocation(tracingContext), srcEtag);
+        renamePendingJsonPath,
+        getAbfsStore().getRedoRenameInvocation(tracingContext), srcEtag,
+        renamePendingJsonInputStream);
   }
 
   /**
@@ -1107,18 +1112,22 @@ public class AzureBlobFileSystem extends FileSystem
          * Get File Status over Blob Endpoint will Have an additional call
          * to check if directory is implicit.
          */
-        fileStatus = getAbfsStore().getFileStatus(qualifiedPath,
-            tracingContext, useBlobEndpoint);
-        if (getAbfsStore().getPrefixMode() == PrefixMode.BLOB
-                && fileStatus != null && fileStatus.isDirectory()
-          && getAbfsStore().isAtomicRenameKey(fileStatus.getPath().toUri().getPath())
-          && getAbfsStore().getRenamePendingFileStatusInDirectory(fileStatus,
-              tracingContext)) {
+      fileStatus = getAbfsStore().getFileStatus(qualifiedPath,
+          tracingContext, useBlobEndpoint);
+      if (getAbfsStore().getPrefixMode() == PrefixMode.BLOB
+          && fileStatus != null && fileStatus.isDirectory()
+          && getAbfsStore().isAtomicRenameKey(
+          fileStatus.getPath().toUri().getPath())) {
+        FileStatus renamePendingJsonFileStatus
+            = getAbfsStore().getRenamePendingFileStatusInDirectory(fileStatus,
+            tracingContext);
+        if (renamePendingJsonFileStatus != null) {
           RenameAtomicityUtils renameAtomicityUtils
               = getRenameAtomicityUtilsForRedo(
               new Path(fileStatus.getPath().toUri().getPath() + SUFFIX),
               tracingContext,
-              ((AzureBlobFileSystemStore.VersionedFileStatus) fileStatus).getEtag());
+              ((AzureBlobFileSystemStore.VersionedFileStatus) fileStatus).getEtag(),
+              getRenamePendingJsonInputStream(renamePendingJsonFileStatus));
           renameAtomicityUtils.cleanup(
               new Path(fileStatus.getPath().toUri().getPath() + SUFFIX));
           if (renameAtomicityUtils.isRedone()) {
@@ -1128,12 +1137,19 @@ public class AzureBlobFileSystem extends FileSystem
                 new FileNotFoundException(
                     qualifiedPath + ": No such file or directory."));
           }
+        }
       }
       return fileStatus;
     } catch (AzureBlobFileSystemException ex) {
       checkException(path, ex);
       return null;
     }
+  }
+
+  private FSDataInputStream getRenamePendingJsonInputStream(final FileStatus renamePendingJsonFileStatus)
+      throws IOException {
+    return open(renamePendingJsonFileStatus.getPath(), Optional.of(
+        new OpenFileParameters().withStatus(renamePendingJsonFileStatus)));
   }
 
   /**

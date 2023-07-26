@@ -3125,16 +3125,15 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
    * @throws IOException exception thrown from the call to {@link #getPathStatus(Path, TracingContext)}
    * method.
    */
-  public boolean getRenamePendingFileStatusInDirectory(final FileStatus fileStatus,
+  public FileStatus getRenamePendingFileStatusInDirectory(final FileStatus fileStatus,
       final TracingContext tracingContext) throws IOException {
     try {
-      getFileStatus(
+      return getFileStatus(
           new Path(fileStatus.getPath().toUri().getPath() + SUFFIX),
           tracingContext, true);
-      return true;
     } catch (AbfsRestOperationException ex) {
       if (ex.getStatusCode() == HttpURLConnection.HTTP_NOT_FOUND) {
-        return false;
+        return null;
       }
       throw ex;
     }

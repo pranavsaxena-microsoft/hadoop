@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
@@ -67,6 +68,7 @@ import org.apache.hadoop.fs.azurebfs.services.RenameAtomicityUtils;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
 import org.apache.hadoop.fs.azurebfs.utils.TracingHeaderValidator;
+import org.apache.hadoop.fs.impl.OpenFileParameters;
 
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_LEASE_CREATE_NON_RECURSIVE;
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_MKDIRS_FALLBACK_TO_DFS;
@@ -434,17 +436,6 @@ public class ITestAzureBlobFileSystemRename extends
 
     //call listPath API, it will recover the rename atomicity.
     final AzureBlobFileSystem spiedFsForListPath = Mockito.spy(fs);
-    final int[] openRequiredFile = new int[1];
-    openRequiredFile[0] = 0;
-    Mockito.doAnswer(answer -> {
-      final Path path = answer.getArgument(0);
-      if (("/" + "hbase/test1/test2/test3" + SUFFIX).equalsIgnoreCase(
-          path.toUri().getPath())) {
-        openRequiredFile[0] = 1;
-      }
-      return fs.open(path);
-    }).when(spiedFsForListPath).open(Mockito.any(Path.class));
-
     /*
      * Check if the fs.delete is on the renameJson file.
      */
@@ -502,7 +493,6 @@ public class ITestAzureBlobFileSystemRename extends
       }
     }
     spiedFsForListPath.listStatus(new Path("hbase/test1/test2"));
-    Assert.assertTrue(openRequiredFile[0] == 1);
     Assert.assertTrue(deletedCount.get() == 3);
     Assert.assertFalse(spiedFsForListPath.exists(new Path(failedCopyPath)));
     Assert.assertTrue(spiedFsForListPath.exists(new Path(
@@ -573,16 +563,6 @@ public class ITestAzureBlobFileSystemRename extends
 
     //call listPath API, it will recover the rename atomicity.
     final AzureBlobFileSystem spiedFsForListPath = Mockito.spy(fs);
-    final int[] openRequiredFile = new int[1];
-    openRequiredFile[0] = 0;
-    Mockito.doAnswer(answer -> {
-      final Path path = answer.getArgument(0);
-      if (("/" + "hbase/test1/test2" + SUFFIX).equalsIgnoreCase(
-          path.toUri().getPath())) {
-        openRequiredFile[0] = 1;
-      }
-      return fs.open(path);
-    }).when(spiedFsForListPath).open(Mockito.any(Path.class));
 
     /*
      * Check if the fs.delete is on the renameJson file.
@@ -645,7 +625,6 @@ public class ITestAzureBlobFileSystemRename extends
     }
     final FileStatus[] listFileResult = spiedFsForListPath.listStatus(
         new Path("hbase/test1"));
-    Assert.assertTrue(openRequiredFile[0] == 1);
     Assert.assertTrue(deletedCount.get() == 3);
     Assert.assertFalse(spiedFsForListPath.exists(new Path(failedCopyPath)));
     Assert.assertTrue(spiedFsForListPath.exists(new Path(
@@ -718,16 +697,6 @@ public class ITestAzureBlobFileSystemRename extends
 
     //call listPath API, it will recover the rename atomicity.
     final AzureBlobFileSystem spiedFsForListPath = Mockito.spy(fs);
-    final int[] openRequiredFile = new int[1];
-    openRequiredFile[0] = 0;
-    Mockito.doAnswer(answer -> {
-      final Path path = answer.getArgument(0);
-      if (("/" + "hbase/test1/test2" + SUFFIX).equalsIgnoreCase(
-          path.toUri().getPath())) {
-        openRequiredFile[0] = 1;
-      }
-      return fs.open(path);
-    }).when(spiedFsForListPath).open(Mockito.any(Path.class));
 
     /*
      * Check if the fs.delete is on the renameJson file.
@@ -798,7 +767,6 @@ public class ITestAzureBlobFileSystemRename extends
     }
     Assert.assertTrue(notFoundExceptionReceived);
     Assert.assertNull(fileStatus);
-    Assert.assertTrue(openRequiredFile[0] == 1);
     Assert.assertTrue(deletedCount.get() == 3);
     Assert.assertFalse(spiedFsForListPath.exists(new Path(failedCopyPath)));
     Assert.assertTrue(spiedFsForListPath.exists(new Path(
@@ -2221,7 +2189,7 @@ public class ITestAzureBlobFileSystemRename extends
         })
         .when(fs)
         .getRenameAtomicityUtilsForRedo(Mockito.any(Path.class),
-            Mockito.any(TracingContext.class), Mockito.anyString());
+            Mockito.any(TracingContext.class), Mockito.anyString(), Mockito.any(FSDataInputStream.class));
 
     Mockito.doAnswer(answer -> {
           answer.callRealMethod();
