@@ -1181,15 +1181,6 @@ public class ITestAzureBlobFileSystemCreate extends
         (AzureBlobFileSystem) FileSystem.newInstance(currentFs.getUri(),
             config);
 
-    int ifBlobCheckIfPathDir = 0;
-    if (fs.getAbfsStore().getPrefixMode() == PrefixMode.BLOB) {
-      // connection 1: ListBlobs on path
-      // connection 2: getBlobProperties on Path
-      ifBlobCheckIfPathDir = 2;
-      // in case parent of path is not root,
-      // has to be incremented by 1 to account for an mkdirs call
-    }
-
     long totalConnectionMadeBeforeTest = fs.getInstrumentationMap()
         .get(CONNECTIONS_MADE.getStatName());
 
@@ -1203,21 +1194,16 @@ public class ITestAzureBlobFileSystemCreate extends
 
     // One request to server to create path should be issued
     // two calls added for -
-    // 1. getFileStatus : 1
+    // 1. getFileStatus on DFS endpoint : 1
+    //    getFileStatus on Blob endpoint: 2 (Additional List blob call)
     // 2. actual create call: 1
-    createRequestCount+=2;
-
-    // In case of blob endpoint getFileStatus makes additional call to check if path is implicit
-    if (useBlobEndpoint) {
-      createRequestCount++;
-    }
-
-    createRequestCount+=ifBlobCheckIfPathDir;
+    createRequestCount += (useBlobEndpoint ? 3: 2);
 
     assertAbfsStatistics(
         CONNECTIONS_MADE,
         totalConnectionMadeBeforeTest + createRequestCount,
         fs.getInstrumentationMap());
+
 
     // Case 2: Not Overwrite - File pre-exists
     fs.registerListener(new TracingHeaderValidator(
@@ -1229,9 +1215,10 @@ public class ITestAzureBlobFileSystemCreate extends
 
     // One request to server to create path should be issued
     // Only single tryGetFileStatus should happen
-    // validating path or subpath exists is not reached
-    // createFile call is never reached
-    createRequestCount++;
+    // 1. getFileStatus on DFS endpoint : 1
+    //    getFileStatus on Blob endpoint: 1 (No Additional List blob call as file exists)
+
+    createRequestCount ++;
 
     assertAbfsStatistics(
         CONNECTIONS_MADE,
@@ -1245,10 +1232,12 @@ public class ITestAzureBlobFileSystemCreate extends
     // create should be successful
     fs.create(overwriteFilePath, true);
 
-    // One request to server to create path should be issued
-    // Single increment for actual create call
-    createRequestCount++;
-    createRequestCount+=ifBlobCheckIfPathDir;
+    /// One request to server to create path should be issued
+    // two calls added for -
+    // 1. getFileStatus on DFS endpoint : 1
+    //    getFileStatus on Blob endpoint: 2 (Additional List blob call for non-existing path)
+    // 2. actual create call: 1
+    createRequestCount += (useBlobEndpoint ? 3: 2);
 
     assertAbfsStatistics(
         CONNECTIONS_MADE,
@@ -1262,6 +1251,14 @@ public class ITestAzureBlobFileSystemCreate extends
     fs.create(overwriteFilePath, true);
     fs.registerListener(null);
 
+    // One request to server to create path should be issued
+    // First tryGetFileStatus should happen
+    // 1. getFileStatus on DFS endpoint : 1
+    //    getFileStatus on Blob endpoint: 1 (No Additional List blob call as file exists)
+
+    createRequestCount ++;
+
+    // Second actual create call will hap
     if (enableConditionalCreateOverwrite) {
       // Three requests will be sent to server to create path,
       // 1. create without overwrite
@@ -1271,7 +1268,6 @@ public class ITestAzureBlobFileSystemCreate extends
     } else {
       createRequestCount++;
     }
-    createRequestCount+=ifBlobCheckIfPathDir;
 
     assertAbfsStatistics(
         CONNECTIONS_MADE,
