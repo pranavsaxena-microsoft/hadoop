@@ -1119,12 +1119,14 @@ public class AzureBlobFileSystem extends FileSystem
           && getAbfsStore().isAtomicRenameKey(
           fileStatus.getPath().toUri().getPath())) {
         FileStatus renamePendingJsonFileStatus
-            = getAbfsStore().getRenamePendingFileStatusInDirectory(fileStatus,
-            tracingContext);
+            = getAbfsStore().getFileStatus(makeQualified(
+                new Path(fileStatus.getPath().toUri().getPath() + SUFFIX)),
+            tracingContext, true);
+
         if (renamePendingJsonFileStatus != null) {
           RenameAtomicityUtils renameAtomicityUtils
               = getRenameAtomicityUtilsForRedo(
-              new Path(fileStatus.getPath().toUri().getPath() + SUFFIX),
+              renamePendingJsonFileStatus.getPath(),
               tracingContext,
               ((AzureBlobFileSystemStore.VersionedFileStatus) fileStatus).getEtag(),
               getRenamePendingJsonInputStream(renamePendingJsonFileStatus));

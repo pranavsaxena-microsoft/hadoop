@@ -3115,31 +3115,6 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
   }
 
   /**
-   * For a given directory, returns back the fileStatus information for the
-   * RenamePending JSON file for the directory.
-   *
-   * @param fileStatus FileStatus object of the directory for which JSON file has
-   * to be searched.
-   * @param tracingContext TracingContext object for tracing the backend server calls
-   * for the operation.
-   * @throws IOException exception thrown from the call to {@link #getPathStatus(Path, TracingContext)}
-   * method.
-   */
-  public FileStatus getRenamePendingFileStatusInDirectory(final FileStatus fileStatus,
-      final TracingContext tracingContext) throws IOException {
-    try {
-      return getFileStatus(
-          new Path(fileStatus.getPath().toUri().getPath() + SUFFIX),
-          tracingContext, true);
-    } catch (AbfsRestOperationException ex) {
-      if (ex.getStatusCode() == HttpURLConnection.HTTP_NOT_FOUND) {
-        return null;
-      }
-      throw ex;
-    }
-  }
-
-  /**
    * A File status with version info extracted from the etag value returned
    * in a LIST or HEAD request.
    * The etag is included in the java serialization.
