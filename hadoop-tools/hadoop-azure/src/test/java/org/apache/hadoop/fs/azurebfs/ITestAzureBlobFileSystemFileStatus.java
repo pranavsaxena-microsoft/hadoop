@@ -315,9 +315,9 @@ public class ITestAzureBlobFileSystemFileStatus extends
 
     Assert.assertFalse(fileStatus.isDirectory());
 
-    Mockito.verify(store, times(1)).getPathProperty(Mockito.any(Path.class),
+    Mockito.verify(store, times(2)).getPathProperty(Mockito.any(Path.class),
             Mockito.any(TracingContext.class), Mockito.any(Boolean.class));
-    Mockito.verify(store, times(0)).getListBlobs(Mockito.any(Path.class),
+    Mockito.verify(store, times(1)).getListBlobs(Mockito.any(Path.class),
             Mockito.nullable(String.class), Mockito.nullable(String.class),
             Mockito.any(TracingContext.class), Mockito.any(Integer.class),
             Mockito.any(Boolean.class));
@@ -337,7 +337,7 @@ public class ITestAzureBlobFileSystemFileStatus extends
 
     Mockito.verify(store, times(1)).getPathProperty(Mockito.any(Path.class),
             Mockito.any(TracingContext.class), Mockito.any(Boolean.class));
-    Mockito.verify(store, times(1)).getListBlobs(Mockito.any(Path.class),
+    Mockito.verify(store, times(0)).getListBlobs(Mockito.any(Path.class),
             Mockito.nullable(String.class), Mockito.nullable(String.class),
             Mockito.any(TracingContext.class), Mockito.any(Integer.class),
             Mockito.any(Boolean.class));

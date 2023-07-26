@@ -500,12 +500,12 @@ public class ITestAzureBlobFileSystemRename extends
     }
     spiedFsForListPath.listStatus(new Path("hbase/test1/test2"));
     /*
-     * The invocation of getFileStatus will happen on the reinvocation of listStatus
+     * The invocation of getPathProperty will happen on the reinvocation of listStatus
      * of /hbase/test2/test3 as after the resume, there will be no listing for the path
      * and hence, getFileStatus would be required.
      */
     Mockito.verify(spiedStoreForListPath, Mockito.times(1))
-        .getFileStatus(Mockito.any(Path.class),
+        .getPathProperty(Mockito.any(Path.class),
             Mockito.any(TracingContext.class), Mockito.anyBoolean());
     Assert.assertTrue(deletedCount.get() == 3);
     Assert.assertFalse(spiedFsForListPath.exists(new Path(failedCopyPath)));
@@ -645,12 +645,12 @@ public class ITestAzureBlobFileSystemRename extends
     final FileStatus[] listFileResult = spiedFsForListPath.listStatus(
         new Path("hbase/test1"));
     /*
-     * The invocation of getFileStatus will happen on the reinvocation of listStatus
+     * The invocation of getPathProperty will happen on the reinvocation of listStatus
      * of /hbase/test2/test3 as after the resume, there will be no listing for the path
      * and hence, getFileStatus would be required.
      */
     Mockito.verify(spiedStoreForListPath, Mockito.times(1))
-        .getFileStatus(Mockito.any(Path.class),
+        .getPathProperty(Mockito.any(Path.class),
             Mockito.any(TracingContext.class), Mockito.anyBoolean());
     Assert.assertTrue(deletedCount.get() == 3);
     Assert.assertFalse(spiedFsForListPath.exists(new Path(failedCopyPath)));
@@ -800,11 +800,11 @@ public class ITestAzureBlobFileSystemRename extends
     Assert.assertTrue(notFoundExceptionReceived);
     Assert.assertNull(fileStatus);
     /*
-     * GetFileStatus on store would be called to get FileStatus for srcDirectory
+     * GetPathProperty on store would be called to get FileStatus for srcDirectory
      * and the corresponding renamePendingJson file.
      */
     Mockito.verify(spiedStoreForListPath, Mockito.times(2))
-        .getFileStatus(Mockito.any(Path.class),
+        .getPathProperty(Mockito.any(Path.class),
             Mockito.any(TracingContext.class), Mockito.anyBoolean());
     Assert.assertTrue(deletedCount.get() == 3);
     Assert.assertFalse(spiedFsForListPath.exists(new Path(failedCopyPath)));
