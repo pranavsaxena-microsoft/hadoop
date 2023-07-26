@@ -402,23 +402,6 @@ public class AzureBlobFileSystem extends FileSystem
             open(path, Optional.of(parameters)));
   }
 
-  /**
-   * This handling makes sure that if request to create file for an existing directory or subpath
-   * comes that should fail.
-   * @param path The path to validate.
-   * @param tracingContext The tracingContext.
-   */
-  private void validatePathOrSubPathDoesNotExist(final Path path, TracingContext tracingContext) throws IOException {
-    List<BlobProperty> blobList = abfsStore.getListBlobs(path, null, null,
-            tracingContext, 2, true);
-    if (blobList.size() > 0 || abfsStore.checkIsDirectory(path, tracingContext)) {
-      throw new AbfsRestOperationException(HTTP_CONFLICT,
-              AzureServiceErrorCode.PATH_CONFLICT.getErrorCode(),
-              PATH_EXISTS,
-              null);
-    }
-  }
-
   private boolean shouldRedirect(FSOperationType type, TracingContext context)
           throws AzureBlobFileSystemException {
     if (getIsNamespaceEnabled(context)) {
@@ -473,10 +456,10 @@ public class AzureBlobFileSystem extends FileSystem
             fileSystemId, FSOperationType.CREATE, overwrite, tracingHeaderFormat, listener);
 
     Path qualifiedPath = makeQualified(f);
+    FileStatus fileStatus = tryGetFileStatus(qualifiedPath, tracingContext);
     // This fix is needed for create idempotency, should throw error if overwrite is false and file status is not null.
     boolean fileOverwrite = overwrite;
     if (!fileOverwrite) {
-      FileStatus fileStatus = tryGetFileStatus(qualifiedPath, tracingContext);
       if (fileStatus != null) {
         // path references a file and overwrite is disabled
         throw new FileAlreadyExistsException(f + " already exists");
@@ -485,7 +468,12 @@ public class AzureBlobFileSystem extends FileSystem
     }
 
     if (prefixMode == PrefixMode.BLOB) {
-      validatePathOrSubPathDoesNotExist(qualifiedPath, tracingContext);
+      if (fileStatus != null && fileStatus.isDirectory()) {
+        throw new AbfsRestOperationException(HTTP_CONFLICT,
+            AzureServiceErrorCode.PATH_CONFLICT.getErrorCode(),
+            PATH_EXISTS,
+            null);
+      }
       if (!blobParentDirPresentChecked) {
         Path parent = qualifiedPath.getParent();
         if (parent != null && !parent.isRoot()) {
