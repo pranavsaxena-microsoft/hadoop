@@ -1109,7 +1109,8 @@ public class AzureBlobFileSystem extends FileSystem
           fileStatus.getPath().toUri().getPath())) {
         FileStatus renamePendingJsonFileStatus;
         try {
-          renamePendingJsonFileStatus = getAbfsStore().getFileStatus(makeQualified(
+          renamePendingJsonFileStatus = getAbfsStore().getPathProperty(
+              makeQualified(
                   new Path(fileStatus.getPath().toUri().getPath() + SUFFIX)),
               tracingContext, true);
         } catch (AbfsRestOperationException ex) {

@@ -1141,7 +1141,7 @@ public class ITestAzureBlobFileSystemRename extends
      * and the corresponding renamePendingJson file.
      */
     Mockito.verify(spiedStoreForListPath, Mockito.times(2))
-        .getFileStatus(Mockito.any(Path.class),
+        .getPathProperty(Mockito.any(Path.class),
             Mockito.any(TracingContext.class), Mockito.anyBoolean());
     Assert.assertTrue(deletedCount.get() == 3);
     Assert.assertFalse(spiedFsForListPath.exists(new Path(srcDir)));
