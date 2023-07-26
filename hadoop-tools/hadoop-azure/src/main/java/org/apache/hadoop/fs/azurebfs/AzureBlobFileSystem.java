@@ -46,6 +46,7 @@ import java.util.concurrent.Future;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.InvalidConfigurationValueException;
 import org.apache.hadoop.fs.azurebfs.services.AbfsBlobLease;
+import org.apache.hadoop.fs.azurebfs.services.AbfsInputStream;
 import org.apache.hadoop.fs.azurebfs.services.BlobProperty;
 import org.apache.hadoop.classification.VisibleForTesting;
 import org.apache.hadoop.fs.azurebfs.services.OperativeEndpoint;
@@ -957,7 +958,7 @@ public class AzureBlobFileSystem extends FileSystem
                     tracingContext,
                     ((AzureBlobFileSystemStore.VersionedFileStatus) renamePendingSrcFileStatus).getEtag(),
                     getRenamePendingJsonInputStream(
-                        renamePendingJsonFileStatus));
+                        renamePendingJsonFileStatus, tracingContext));
             renameAtomicityUtils.cleanup(renamePendingJsonFileStatus.getPath());
             isRedone = renameAtomicityUtils.isRedone();
           } else {
@@ -982,7 +983,7 @@ public class AzureBlobFileSystem extends FileSystem
 
   RenameAtomicityUtils getRenameAtomicityUtilsForRedo(final Path renamePendingJsonPath,
       final TracingContext tracingContext, final String srcEtag,
-      final FSDataInputStream renamePendingJsonInputStream) throws IOException {
+      final AbfsInputStream renamePendingJsonInputStream) throws IOException {
     return new RenameAtomicityUtils(this,
         renamePendingJsonPath,
         getAbfsStore().getRedoRenameInvocation(tracingContext), srcEtag,
@@ -1118,10 +1119,18 @@ public class AzureBlobFileSystem extends FileSystem
           && fileStatus != null && fileStatus.isDirectory()
           && getAbfsStore().isAtomicRenameKey(
           fileStatus.getPath().toUri().getPath())) {
-        FileStatus renamePendingJsonFileStatus
-            = getAbfsStore().getFileStatus(makeQualified(
-                new Path(fileStatus.getPath().toUri().getPath() + SUFFIX)),
-            tracingContext, true);
+        FileStatus renamePendingJsonFileStatus;
+        try {
+          renamePendingJsonFileStatus = getAbfsStore().getFileStatus(makeQualified(
+                  new Path(fileStatus.getPath().toUri().getPath() + SUFFIX)),
+              tracingContext, true);
+        } catch (AbfsRestOperationException ex) {
+          if(ex.getStatusCode() == HttpURLConnection.HTTP_NOT_FOUND) {
+            renamePendingJsonFileStatus = null;
+          } else {
+            throw ex;
+          }
+        }
 
         if (renamePendingJsonFileStatus != null) {
           RenameAtomicityUtils renameAtomicityUtils
@@ -1129,7 +1138,7 @@ public class AzureBlobFileSystem extends FileSystem
               renamePendingJsonFileStatus.getPath(),
               tracingContext,
               ((AzureBlobFileSystemStore.VersionedFileStatus) fileStatus).getEtag(),
-              getRenamePendingJsonInputStream(renamePendingJsonFileStatus));
+              getRenamePendingJsonInputStream(renamePendingJsonFileStatus, tracingContext));
           renameAtomicityUtils.cleanup(
               new Path(fileStatus.getPath().toUri().getPath() + SUFFIX));
           if (renameAtomicityUtils.isRedone()) {
@@ -1148,10 +1157,14 @@ public class AzureBlobFileSystem extends FileSystem
     }
   }
 
-  private FSDataInputStream getRenamePendingJsonInputStream(final FileStatus renamePendingJsonFileStatus)
+  private AbfsInputStream getRenamePendingJsonInputStream(final FileStatus renamePendingJsonFileStatus,
+      final TracingContext tracingContext)
       throws IOException {
-    return open(renamePendingJsonFileStatus.getPath(), Optional.of(
-        new OpenFileParameters().withStatus(renamePendingJsonFileStatus)));
+    Path qualifiedPath = makeQualified(renamePendingJsonFileStatus.getPath());
+    return getAbfsStore().openFileForRead(qualifiedPath,
+        Optional.of(
+            new OpenFileParameters().withStatus(renamePendingJsonFileStatus)),
+        statistics, tracingContext);
   }
 
   /**

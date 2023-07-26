@@ -39,7 +39,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.azurebfs.AzureBlobFileSystem;
@@ -91,7 +90,7 @@ public class RenameAtomicityUtils {
       final Path renamePendingJsonPath,
       final RedoRenameInvocation redoRenameInvocation,
       final String srcEtag,
-      final FSDataInputStream renamePendingJsonInputStream)
+      final AbfsInputStream renamePendingJsonInputStream)
       throws IOException {
     this.azureBlobFileSystem = azureBlobFileSystem;
     final RenamePendingFileInfo renamePendingFileInfo = readFile(
@@ -107,7 +106,7 @@ public class RenameAtomicityUtils {
   }
 
   private RenamePendingFileInfo readFile(final Path redoFile,
-      final FSDataInputStream redoFileInputStream)
+      final AbfsInputStream redoFileInputStream)
       throws IOException {
     Path f = redoFile;
     byte[] bytes = new byte[MAX_RENAME_PENDING_FILE_SIZE];
