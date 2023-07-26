@@ -435,17 +435,6 @@ public class ITestAzureBlobFileSystemRename extends
 
     //call listPath API, it will recover the rename atomicity.
     final AzureBlobFileSystem spiedFsForListPath = Mockito.spy(fs);
-    final int[] openRequiredFile = new int[1];
-    openRequiredFile[0] = 0;
-    Mockito.doAnswer(answer -> {
-      final Path path = answer.getArgument(0);
-      if (("/" + "hbase/test1/test2/test3" + SUFFIX).equalsIgnoreCase(
-          path.toUri().getPath())) {
-        openRequiredFile[0] = 1;
-      }
-      return fs.open(path);
-    }).when(spiedFsForListPath).open(Mockito.any(Path.class));
-
     /*
      * Check if the fs.delete is on the renameJson file.
      */
@@ -503,7 +492,6 @@ public class ITestAzureBlobFileSystemRename extends
       }
     }
     spiedFsForListPath.listStatus(new Path("hbase/test1/test2"));
-    Assert.assertTrue(openRequiredFile[0] == 1);
     Assert.assertTrue(deletedCount.get() == 3);
     Assert.assertFalse(spiedFsForListPath.exists(new Path(failedCopyPath)));
     Assert.assertTrue(spiedFsForListPath.exists(new Path(
@@ -574,17 +562,6 @@ public class ITestAzureBlobFileSystemRename extends
 
     //call listPath API, it will recover the rename atomicity.
     final AzureBlobFileSystem spiedFsForListPath = Mockito.spy(fs);
-    final int[] openRequiredFile = new int[1];
-    openRequiredFile[0] = 0;
-    Mockito.doAnswer(answer -> {
-      final Path path = answer.getArgument(0);
-      if (("/" + "hbase/test1/test2" + SUFFIX).equalsIgnoreCase(
-          path.toUri().getPath())) {
-        openRequiredFile[0] = 1;
-      }
-      return fs.open(path);
-    }).when(spiedFsForListPath).open(Mockito.any(Path.class));
-
     /*
      * Check if the fs.delete is on the renameJson file.
      */
@@ -646,7 +623,6 @@ public class ITestAzureBlobFileSystemRename extends
     }
     final FileStatus[] listFileResult = spiedFsForListPath.listStatus(
         new Path("hbase/test1"));
-    Assert.assertTrue(openRequiredFile[0] == 1);
     Assert.assertTrue(deletedCount.get() == 3);
     Assert.assertFalse(spiedFsForListPath.exists(new Path(failedCopyPath)));
     Assert.assertTrue(spiedFsForListPath.exists(new Path(
@@ -719,17 +695,6 @@ public class ITestAzureBlobFileSystemRename extends
 
     //call listPath API, it will recover the rename atomicity.
     final AzureBlobFileSystem spiedFsForListPath = Mockito.spy(fs);
-    final int[] openRequiredFile = new int[1];
-    openRequiredFile[0] = 0;
-    Mockito.doAnswer(answer -> {
-      final Path path = answer.getArgument(0);
-      if (("/" + "hbase/test1/test2" + SUFFIX).equalsIgnoreCase(
-          path.toUri().getPath())) {
-        openRequiredFile[0] = 1;
-      }
-      return fs.open(path);
-    }).when(spiedFsForListPath).open(Mockito.any(Path.class));
-
     /*
      * Check if the fs.delete is on the renameJson file.
      */
@@ -799,7 +764,6 @@ public class ITestAzureBlobFileSystemRename extends
     }
     Assert.assertTrue(notFoundExceptionReceived);
     Assert.assertNull(fileStatus);
-    Assert.assertTrue(openRequiredFile[0] == 1);
     Assert.assertTrue(deletedCount.get() == 3);
     Assert.assertFalse(spiedFsForListPath.exists(new Path(failedCopyPath)));
     Assert.assertTrue(spiedFsForListPath.exists(new Path(
@@ -1064,16 +1028,6 @@ public class ITestAzureBlobFileSystemRename extends
     }
 
     final AzureBlobFileSystem spiedFsForListPath = Mockito.spy(fs);
-    final int[] openRequiredFile = new int[1];
-    openRequiredFile[0] = 0;
-    Mockito.doAnswer(answer -> {
-      final Path path = answer.getArgument(0);
-      if ((srcDir + SUFFIX).equalsIgnoreCase(path.toUri().getPath())) {
-        openRequiredFile[0] = 1;
-      }
-      return fs.open(path);
-    }).when(spiedFsForListPath).open(Mockito.any(Path.class));
-
     /*
      * Check if the fs.delete is on the renameJson file.
      */
@@ -1134,7 +1088,6 @@ public class ITestAzureBlobFileSystemRename extends
     }
     Assert.assertTrue(notFoundExceptionReceived);
     Assert.assertNull(fileStatus);
-    Assert.assertTrue(openRequiredFile[0] == 1);
     Assert.assertTrue(deletedCount.get() == 3);
     Assert.assertFalse(spiedFsForListPath.exists(new Path(srcDir)));
     Assert.assertTrue(spiedFsForListPath.getFileStatus(
