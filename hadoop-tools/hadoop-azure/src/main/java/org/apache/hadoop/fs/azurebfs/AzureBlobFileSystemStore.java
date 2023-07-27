@@ -1308,6 +1308,12 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
 
     FileStatus fileStatus = tryGetPathProperty(path, tracingContext, true);
     Boolean isDirectory = fileStatus != null ? fileStatus.isDirectory() : false;
+    if (fileStatus != null && !isDirectory) {
+      throw new AbfsRestOperationException(HTTP_CONFLICT,
+              AzureServiceErrorCode.PATH_CONFLICT.getErrorCode(),
+              PATH_EXISTS,
+              null);
+    }
     if (isDirectory) {
       return;
     }
@@ -1315,6 +1321,12 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     while (current != null && !current.isRoot()) {
       fileStatus = tryGetPathProperty(path, tracingContext, true);
       isDirectory = fileStatus != null ? fileStatus.isDirectory() : false;
+      if (fileStatus != null && !isDirectory) {
+        throw new AbfsRestOperationException(HTTP_CONFLICT,
+                AzureServiceErrorCode.PATH_CONFLICT.getErrorCode(),
+                PATH_EXISTS,
+                null);
+      }
       if (isDirectory) {
         break;
       }
@@ -2090,6 +2102,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
   /**
    * Method to make a call to get path property based on various configs-
    * like whether to go over blob/dfs endpoint, whether path provided is root etc.
+   * This does not segregate between implicit and explicit paths.
    * @param path Path to call the downstream get property method on
    * @param tracingContext Current tracing context for the call
    * @param useBlobEndpoint Flag indicating whether to use blob endpoint
