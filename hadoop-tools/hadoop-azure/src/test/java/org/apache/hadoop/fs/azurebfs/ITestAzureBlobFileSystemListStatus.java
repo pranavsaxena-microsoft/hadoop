@@ -41,6 +41,8 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.LocatedFileStatus;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.azurebfs.constants.FSOperationType;
+import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
+import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 import org.apache.hadoop.fs.azurebfs.utils.TracingHeaderValidator;
 import org.apache.hadoop.fs.contract.ContractTestUtils;
 import org.mockito.Mock;
@@ -478,5 +480,52 @@ public class ITestAzureBlobFileSystemListStatus extends
     Assertions.assertThat(fileStatus.isDirectory()).isEqualTo(true);
     Assertions.assertThat(fileStatus.isFile()).isEqualTo(false);
     Assertions.assertThat(fileStatus.getLen()).isEqualTo(0);
+  }
+
+  @Test
+  public void testListStatusNotTriesToRenameResumeForNonAtomicDir()
+      throws Exception {
+    Assume.assumeTrue(getPrefixMode(getFileSystem()) == PrefixMode.BLOB);
+    AzureBlobFileSystem fs = Mockito.spy(getFileSystem());
+    AzureBlobFileSystemStore store = Mockito.spy(fs.getAbfsStore());
+    Mockito.doReturn(store).when(fs).getAbfsStore();
+    Mockito.doReturn(new FileStatus[1])
+        .when(store)
+        .listStatus(Mockito.any(Path.class), Mockito.any(
+            TracingContext.class));
+    fs.listStatus(new Path("/testDir/"));
+    Mockito.verify(store, Mockito.times(0))
+        .getRenamePendingFileStatus(Mockito.any(FileStatus[].class));
+  }
+
+  @Test
+  public void testListStatusTriesToRenameResumeForAtomicDir() throws Exception {
+    Assume.assumeTrue(getPrefixMode(getFileSystem()) == PrefixMode.BLOB);
+    AzureBlobFileSystem fs = Mockito.spy(getFileSystem());
+    AzureBlobFileSystemStore store = Mockito.spy(fs.getAbfsStore());
+    Mockito.doReturn(store).when(fs).getAbfsStore();
+    Mockito.doReturn(new FileStatus[0])
+        .when(store)
+        .listStatus(Mockito.any(Path.class), Mockito.any(
+            TracingContext.class));
+    fs.listStatus(new Path("/hbase/"));
+    Mockito.verify(store, Mockito.times(1))
+        .getRenamePendingFileStatus(Mockito.any(FileStatus[].class));
+  }
+
+  @Test
+  public void testListStatusTriesToRenameResumeForAbsoluteAtomicDir()
+      throws Exception {
+    Assume.assumeTrue(getPrefixMode(getFileSystem()) == PrefixMode.BLOB);
+    AzureBlobFileSystem fs = Mockito.spy(getFileSystem());
+    AzureBlobFileSystemStore store = Mockito.spy(fs.getAbfsStore());
+    Mockito.doReturn(store).when(fs).getAbfsStore();
+    Mockito.doReturn(new FileStatus[0])
+        .when(store)
+        .listStatus(Mockito.any(Path.class), Mockito.any(
+            TracingContext.class));
+    fs.listStatus(new Path("/hbase"));
+    Mockito.verify(store, Mockito.times(1))
+        .getRenamePendingFileStatus(Mockito.any(FileStatus[].class));
   }
 }

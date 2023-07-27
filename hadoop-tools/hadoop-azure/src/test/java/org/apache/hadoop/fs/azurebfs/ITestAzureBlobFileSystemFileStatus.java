@@ -315,12 +315,22 @@ public class ITestAzureBlobFileSystemFileStatus extends
 
     Assert.assertFalse(fileStatus.isDirectory());
 
-    Mockito.verify(store, times(1)).getPathProperty(Mockito.any(Path.class),
+    Mockito.verify(store, times(2)).getPathProperty(Mockito.any(Path.class),
             Mockito.any(TracingContext.class), Mockito.any(Boolean.class));
-    Mockito.verify(store, times(0)).getListBlobs(Mockito.any(Path.class),
-            Mockito.nullable(String.class), Mockito.nullable(String.class),
-            Mockito.any(TracingContext.class), Mockito.any(Integer.class),
-            Mockito.any(Boolean.class));
+    final AbfsConfiguration configuration= fs.getAbfsStore().getAbfsConfiguration();
+    final int listBlobAssertionTimes;
+    if (!configuration.shouldMkdirFallbackToDfs()
+        && !configuration.shouldReadFallbackToDfs()
+        && !configuration.shouldIngressFallbackToDfs()) {
+      listBlobAssertionTimes = 1;
+    } else{
+      listBlobAssertionTimes = 0;
+    }
+
+    Mockito.verify(store, times(listBlobAssertionTimes)).getListBlobs(Mockito.any(Path.class),
+        Mockito.nullable(String.class), Mockito.nullable(String.class),
+        Mockito.any(TracingContext.class), Mockito.any(Integer.class),
+        Mockito.any(Boolean.class));
   }
 
   @Test
@@ -335,9 +345,19 @@ public class ITestAzureBlobFileSystemFileStatus extends
 
     Assert.assertTrue(fileStatus.isDirectory());
 
+    final AbfsConfiguration configuration= fs.getAbfsStore().getAbfsConfiguration();
+    final int listBlobAssertionTimes;
+    if (!configuration.shouldMkdirFallbackToDfs()
+        && !configuration.shouldReadFallbackToDfs()
+        && !configuration.shouldIngressFallbackToDfs()) {
+      listBlobAssertionTimes = 1;
+    } else{
+      listBlobAssertionTimes = 0;
+    }
+
     Mockito.verify(store, times(1)).getPathProperty(Mockito.any(Path.class),
             Mockito.any(TracingContext.class), Mockito.any(Boolean.class));
-    Mockito.verify(store, times(1)).getListBlobs(Mockito.any(Path.class),
+    Mockito.verify(store, times(listBlobAssertionTimes)).getListBlobs(Mockito.any(Path.class),
             Mockito.nullable(String.class), Mockito.nullable(String.class),
             Mockito.any(TracingContext.class), Mockito.any(Integer.class),
             Mockito.any(Boolean.class));
