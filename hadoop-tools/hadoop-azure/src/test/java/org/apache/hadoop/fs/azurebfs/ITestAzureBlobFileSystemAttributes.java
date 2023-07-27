@@ -91,7 +91,6 @@ public class ITestAzureBlobFileSystemAttributes extends AbstractAbfsIntegrationT
   /**
    * Test that setting metadata over marker blob do not override
    * x-ms-meta-hdi_IsFolder
-   * TODO: Confirm Expected Behavior
    * @throws Exception
    */
   @Test
