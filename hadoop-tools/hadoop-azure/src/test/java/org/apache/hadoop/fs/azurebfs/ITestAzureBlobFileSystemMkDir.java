@@ -183,7 +183,6 @@ public class ITestAzureBlobFileSystemMkDir extends AbstractAbfsIntegrationTest {
 
   }
 
-
   @Test
   public void testGetPathPropertyCalledOnMkdir() throws Exception {
     AzureBlobFileSystem fs = Mockito.spy(getFileSystem());
@@ -196,6 +195,18 @@ public class ITestAzureBlobFileSystemMkDir extends AbstractAbfsIntegrationTest {
     Mockito.verify(store, Mockito.times(1)).getPathProperty(Mockito.any(Path.class),
             Mockito.any(TracingContext.class), Mockito.any(Boolean.class));
 
+  }
+
+  @Test
+  public void testMkdirWithExistingFilenameBlobEndpoint() throws Exception {
+    Assume.assumeTrue(getFileSystem().getAbfsStore().getPrefixMode() == PrefixMode.BLOB);
+    AzureBlobFileSystem fs = Mockito.spy(getFileSystem());
+    AzureBlobFileSystemStore store = Mockito.spy(fs.getAbfsStore());
+    Mockito.doReturn(store).when(fs).getAbfsStore();
+
+    fs.create(new Path("/testFilePath"));
+    intercept(FileAlreadyExistsException.class, () -> fs.mkdirs(new Path("/testFilePath")));
+    intercept(FileAlreadyExistsException.class, () -> fs.mkdirs(new Path("/testFilePath/newDir")));
   }
 }
 
