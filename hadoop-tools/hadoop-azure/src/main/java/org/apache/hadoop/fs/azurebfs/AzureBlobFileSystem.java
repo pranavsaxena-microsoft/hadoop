@@ -1089,7 +1089,6 @@ public class AzureBlobFileSystem extends FileSystem
     LOG.debug("AzureBlobFileSystem.getFileStatus path: {}", path);
     statIncrement(CALL_GET_FILE_STATUS);
     Path qualifiedPath = makeQualified(path);
-    FileStatus fileStatus;
     PrefixMode prefixMode = getAbfsStore().getPrefixMode();
     AbfsConfiguration abfsConfiguration = getAbfsStore().getAbfsConfiguration();
 
@@ -1101,17 +1100,17 @@ public class AzureBlobFileSystem extends FileSystem
          * Get File Status over Blob Endpoint will Have an additional call
          * to check if directory is implicit.
          */
-      fileStatus = getAbfsStore().getFileStatus(qualifiedPath,
+      final FileStatus fileStatus = getAbfsStore().getFileStatus(qualifiedPath,
           tracingContext, useBlobEndpoint);
+      final String filePathStr = path.toUri().getPath();
       if (getAbfsStore().getPrefixMode() == PrefixMode.BLOB
           && fileStatus != null && fileStatus.isDirectory()
-          && getAbfsStore().isAtomicRenameKey(
-          fileStatus.getPath().toUri().getPath())) {
+          && getAbfsStore().isAtomicRenameKey(filePathStr)) {
         FileStatus renamePendingJsonFileStatus;
         try {
           renamePendingJsonFileStatus = getAbfsStore().getPathProperty(
               makeQualified(
-                  new Path(fileStatus.getPath().toUri().getPath() + SUFFIX)),
+                  new Path(filePathStr + SUFFIX)),
               tracingContext, true);
         } catch (AbfsRestOperationException ex) {
           if(ex.getStatusCode() == HttpURLConnection.HTTP_NOT_FOUND) {
@@ -1128,8 +1127,7 @@ public class AzureBlobFileSystem extends FileSystem
               tracingContext,
               ((AzureBlobFileSystemStore.VersionedFileStatus) fileStatus).getEtag(),
               getRenamePendingJsonInputStream(renamePendingJsonFileStatus, tracingContext));
-          renameAtomicityUtils.cleanup(
-              new Path(fileStatus.getPath().toUri().getPath() + SUFFIX));
+          renameAtomicityUtils.cleanup(renamePendingJsonFileStatus.getPath());
           if (renameAtomicityUtils.isRedone()) {
             throw new AbfsRestOperationException(
                 HttpURLConnection.HTTP_NOT_FOUND,
