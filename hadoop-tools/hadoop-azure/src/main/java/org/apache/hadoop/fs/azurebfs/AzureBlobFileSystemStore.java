@@ -1286,49 +1286,35 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
    */
   private void checkParentChainForFile(Path path, TracingContext tracingContext,
                                        List<Path> keysToCreateAsFolder) throws IOException {
-    if (checkPathIsDirectory(path, tracingContext)) {
+
+    FileStatus fileStatus = tryGetPathProperty(path, tracingContext, true);
+    Boolean isDirectory = fileStatus != null ? fileStatus.isDirectory() : false;
+    if (fileStatus != null && !isDirectory) {
+      throw new AbfsRestOperationException(HTTP_CONFLICT,
+              AzureServiceErrorCode.PATH_CONFLICT.getErrorCode(),
+              PATH_EXISTS,
+              null);
+    }
+    if (isDirectory) {
       return;
     }
     Path current = path.getParent();
     while (current != null && !current.isRoot()) {
-      if (checkPathIsDirectory(current, tracingContext)) {
+      fileStatus = tryGetPathProperty(path, tracingContext, true);
+      isDirectory = fileStatus != null ? fileStatus.isDirectory() : false;
+      if (fileStatus != null && !isDirectory) {
+        throw new AbfsRestOperationException(HTTP_CONFLICT,
+                AzureServiceErrorCode.PATH_CONFLICT.getErrorCode(),
+                PATH_EXISTS,
+                null);
+      }
+      if (isDirectory) {
         break;
       }
       keysToCreateAsFolder.add(current);
       current = current.getParent();
     }
   }
-
-  /**
-   * Checks if the path is directory and throws exception if it exists as a file.
-   * @param path path to check for file or directory.
-   * @param tracingContext the tracingcontext.
-   * @return true or false.
-   * @throws IOException
-   */
-  private boolean checkPathIsDirectory(Path path, TracingContext tracingContext) throws IOException {
-    BlobProperty blobProperty = null;
-    try {
-      blobProperty = getBlobProperty(path, tracingContext);
-    } catch (AbfsRestOperationException ex) {
-      if (ex.getStatusCode() != HttpURLConnection.HTTP_NOT_FOUND) {
-        throw ex;
-      }
-    }
-
-    if (blobProperty != null) {
-      boolean isDir = blobProperty.getIsDirectory();
-      if (!isDir) {
-        throw new AbfsRestOperationException(HTTP_CONFLICT,
-                AzureServiceErrorCode.PATH_CONFLICT.getErrorCode(),
-                PATH_EXISTS,
-                null);
-      }
-      return true;
-    }
-    return false;
-  }
-
 
   public AbfsInputStream openFileForRead(final Path path,
       final FileSystem.Statistics statistics, TracingContext tracingContext)
@@ -2084,8 +2070,32 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
   }
 
   /**
+   * Method that deals with error cases of calling getPathProperty directly.
+   * getPathProperty itself does not do the error handling, as it is intended to be
+   * one part of the calls constituting getFileStatus. This additional method
+   * would help when getPathProperty has to be called in a direct flow and needs a check for this error.
+   * @param path Current Path
+   * @param tracingContext current tracing context
+   * @param useBlobEndpoint whether to use blob endpoint
+   * @return FileStatus or null if blob does not exist or is not explicit
+   * @throws IOException
+   */
+  FileStatus tryGetPathProperty(Path path, TracingContext tracingContext, Boolean useBlobEndpoint) throws IOException {
+    try {
+      return getPathProperty(path, tracingContext, useBlobEndpoint);
+    } catch(AbfsRestOperationException ex) {
+      if (ex.getStatusCode() == HTTP_NOT_FOUND) {
+        LOG.debug("No explicit directory/path found: {}", path);
+        return null;
+      }
+      throw ex;
+    }
+  }
+
+  /**
    * Method to make a call to get path property based on various configs-
    * like whether to go over blob/dfs endpoint, whether path provided is root etc.
+   * This does not segregate between implicit and explicit paths.
    * @param path Path to call the downstream get property method on
    * @param tracingContext Current tracing context for the call
    * @param useBlobEndpoint Flag indicating whether to use blob endpoint
