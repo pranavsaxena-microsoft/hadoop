@@ -185,6 +185,7 @@ public class ITestAzureBlobFileSystemMkDir extends AbstractAbfsIntegrationTest {
 
   @Test
   public void testGetPathPropertyCalledOnMkdir() throws Exception {
+    Assume.assumeTrue(getFileSystem().getAbfsStore().getPrefixMode() == PrefixMode.BLOB);
     AzureBlobFileSystem fs = Mockito.spy(getFileSystem());
     AzureBlobFileSystemStore store = Mockito.spy(fs.getAbfsStore());
     Mockito.doReturn(store).when(fs).getAbfsStore();
