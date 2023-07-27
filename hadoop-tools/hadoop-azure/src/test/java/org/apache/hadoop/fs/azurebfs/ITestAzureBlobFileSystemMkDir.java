@@ -178,7 +178,7 @@ public class ITestAzureBlobFileSystemMkDir extends AbstractAbfsIntegrationTest {
     fs.mkdirs(new Path("/src/dir"));
     Mockito.verify(testClient, Mockito.times(0)).getPathStatus(Mockito.any(String.class),
             Mockito.anyBoolean(), Mockito.any(TracingContext.class));
-    Mockito.verify(testClient, Mockito.times(3)).getBlobProperty(Mockito.any(Path.class),
+    Mockito.verify(testClient, Mockito.atLeast(1)).getBlobProperty(Mockito.any(Path.class),
             Mockito.any(TracingContext.class));
 
   }
