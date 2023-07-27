@@ -1102,7 +1102,7 @@ public class AzureBlobFileSystem extends FileSystem
          */
       final FileStatus fileStatus = getAbfsStore().getFileStatus(qualifiedPath,
           tracingContext, useBlobEndpoint);
-      final String filePathStr = path.toUri().getPath();
+      final String filePathStr = qualifiedPath.toUri().getPath();
       if (getAbfsStore().getPrefixMode() == PrefixMode.BLOB
           && fileStatus != null && fileStatus.isDirectory()
           && getAbfsStore().isAtomicRenameKey(filePathStr)) {
