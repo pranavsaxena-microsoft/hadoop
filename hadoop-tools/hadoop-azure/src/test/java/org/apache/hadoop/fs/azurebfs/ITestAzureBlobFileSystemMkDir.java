@@ -185,10 +185,11 @@ public class ITestAzureBlobFileSystemMkDir extends AbstractAbfsIntegrationTest {
   }
 
   @Test
-  public void testGetPathPropertyCalledOnMkdir() throws Exception {
+  public void testGetPathPropertyCalledOnMkdirBlobEndpoint() throws Exception {
     Assume.assumeTrue(getFileSystem().getAbfsStore().getPrefixMode() == PrefixMode.BLOB);
-    Assume.assumeFalse(OperativeEndpoint.isMkdirEnabledOnDFS(getConfiguration()));
-    AzureBlobFileSystem fs = Mockito.spy(getFileSystem());
+    AbfsConfiguration abfsConfig = getConfiguration();
+    abfsConfig.setBoolean(FS_AZURE_MKDIRS_FALLBACK_TO_DFS, false);
+    AzureBlobFileSystem fs = Mockito.spy((AzureBlobFileSystem) FileSystem.newInstance(abfsConfig.getRawConfiguration()));
     AzureBlobFileSystemStore store = Mockito.spy(fs.getAbfsStore());
     Mockito.doReturn(store).when(fs).getAbfsStore();
 
@@ -196,6 +197,23 @@ public class ITestAzureBlobFileSystemMkDir extends AbstractAbfsIntegrationTest {
     Mockito.verify(store, Mockito.times(1)).tryGetPathProperty(Mockito.any(Path.class),
             Mockito.any(TracingContext.class), Mockito.any(Boolean.class));
     Mockito.verify(store, Mockito.times(1)).getPathProperty(Mockito.any(Path.class),
+            Mockito.any(TracingContext.class), Mockito.any(Boolean.class));
+
+  }
+
+  @Test
+  public void testGetPathPropertyCalledOnMkdirFallbackDFS() throws Exception {
+    Assume.assumeTrue(getFileSystem().getAbfsStore().getPrefixMode() == PrefixMode.BLOB);
+    AbfsConfiguration abfsConfig = getConfiguration();
+    abfsConfig.setBoolean(FS_AZURE_MKDIRS_FALLBACK_TO_DFS, true);
+    AzureBlobFileSystem fs = Mockito.spy((AzureBlobFileSystem) FileSystem.newInstance(abfsConfig.getRawConfiguration()));
+    AzureBlobFileSystemStore store = Mockito.spy(fs.getAbfsStore());
+    Mockito.doReturn(store).when(fs).getAbfsStore();
+
+    fs.mkdirs(new Path("/testPath"));
+    Mockito.verify(store, Mockito.times(0)).tryGetPathProperty(Mockito.any(Path.class),
+            Mockito.any(TracingContext.class), Mockito.any(Boolean.class));
+    Mockito.verify(store, Mockito.times(0)).getPathProperty(Mockito.any(Path.class),
             Mockito.any(TracingContext.class), Mockito.any(Boolean.class));
 
   }
