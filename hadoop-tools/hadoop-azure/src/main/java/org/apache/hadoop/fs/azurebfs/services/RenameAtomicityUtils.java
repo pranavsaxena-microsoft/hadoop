@@ -39,7 +39,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.azurebfs.AzureBlobFileSystem;
@@ -50,7 +49,7 @@ import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 /**
  * For a directory enabled for atomic-rename, before rename starts, a
  * file with -RenamePending.json suffix is created. In this file, the states required
- * for the rename are given. This file is created by {@link #preRename(Boolean)} ()} method.
+ * for the rename are given. This file is created by {@link #preRename(Boolean, String)} ()} method.
  * This is important in case the JVM process crashes during rename, the atomicity
  * will be maintained, when the job calls {@link AzureBlobFileSystem#listStatus(Path)}
  * or {@link AzureBlobFileSystem#getFileStatus(Path)}. On these API calls to filesystem,
@@ -66,6 +65,7 @@ public class RenameAtomicityUtils {
   private Path srcPath;
   private Path dstPath;
   private TracingContext tracingContext;
+  private Boolean isReDone;
 
   private static final int MAX_RENAME_PENDING_FILE_SIZE = 10000000;
   private static final int FORMATTING_BUFFER = 10000;
@@ -87,22 +87,30 @@ public class RenameAtomicityUtils {
   }
 
   public RenameAtomicityUtils(final AzureBlobFileSystem azureBlobFileSystem,
-      final Path path, final RedoRenameInvocation redoRenameInvocation)
+      final Path renamePendingJsonPath,
+      final RedoRenameInvocation redoRenameInvocation,
+      final String srcEtag,
+      final AbfsInputStream renamePendingJsonInputStream)
       throws IOException {
     this.azureBlobFileSystem = azureBlobFileSystem;
-    final RenamePendingFileInfo renamePendingFileInfo = readFile(path);
-    if (renamePendingFileInfo != null) {
+    final RenamePendingFileInfo renamePendingFileInfo = readFile(
+        renamePendingJsonPath, renamePendingJsonInputStream);
+    if (renamePendingFileInfo != null
+        && renamePendingFileInfo.eTag.equalsIgnoreCase(srcEtag)) {
       redoRenameInvocation.redo(renamePendingFileInfo.destination,
           renamePendingFileInfo.src);
+      isReDone = true;
+    } else {
+      isReDone = false;
     }
   }
 
-  private RenamePendingFileInfo readFile(final Path redoFile)
+  private RenamePendingFileInfo readFile(final Path redoFile,
+      final AbfsInputStream redoFileInputStream)
       throws IOException {
     Path f = redoFile;
-    FSDataInputStream input = azureBlobFileSystem.open(f);
     byte[] bytes = new byte[MAX_RENAME_PENDING_FILE_SIZE];
-    int l = input.read(bytes);
+    int l = redoFileInputStream.read(bytes);
     if (l <= 0) {
       // Jira HADOOP-12678 -Handle empty rename pending metadata file during
       // atomic rename in redo path. If during renamepending file is created
@@ -148,13 +156,17 @@ public class RenameAtomicityUtils {
     // initialize this object's fields
     JsonNode oldFolderName = json.get("OldFolderName");
     JsonNode newFolderName = json.get("NewFolderName");
+    JsonNode eTag = json.get("ETag");
+
     if (oldFolderName != null && StringUtils.isNotEmpty(
         oldFolderName.textValue())
         && newFolderName != null && StringUtils.isNotEmpty(
-        newFolderName.textValue())) {
+        newFolderName.textValue()) && eTag != null && StringUtils.isNotEmpty(
+        eTag.textValue())) {
       RenamePendingFileInfo renamePendingFileInfo = new RenamePendingFileInfo();
       renamePendingFileInfo.destination = new Path(newFolderName.textValue());
       renamePendingFileInfo.src = new Path(oldFolderName.textValue());
+      renamePendingFileInfo.eTag = eTag.textValue();
       return renamePendingFileInfo;
     }
     return null;
@@ -186,6 +198,7 @@ public class RenameAtomicityUtils {
    *   OperationTime: "<YYYY-MM-DD HH:MM:SS.MMM>",
    *   OldFolderName: "<key>",
    *   NewFolderName: "<key>"
+   *   ETag: "<etag of the src-directory>"
    * }
    *
    * Here's a sample:
@@ -194,15 +207,17 @@ public class RenameAtomicityUtils {
    *  OperationUTCTime: "2014-07-01 23:50:35.572",
    *  OldFolderName: "user/ehans/folderToRename",
    *  NewFolderName: "user/ehans/renamedFolder"
+   *  ETag: "ETag"
    * } }</pre>
    * @throws IOException Thrown when fail to write file.
    */
-  public void preRename(final Boolean isCreateOperationOnBlobEndpoint) throws IOException {
+  public void preRename(final Boolean isCreateOperationOnBlobEndpoint,
+      final String eTag) throws IOException {
     Path path = getRenamePendingFilePath();
     LOG.debug("Preparing to write atomic rename state to {}", path.toString());
     OutputStream output = null;
 
-    String contents = makeRenamePendingFileContents();
+    String contents = makeRenamePendingFileContents(eTag);
 
     // Write file.
     try {
@@ -261,10 +276,13 @@ public class RenameAtomicityUtils {
    *
    * @return JSON string which represents the operation.
    */
-  private String makeRenamePendingFileContents() {
+  private String makeRenamePendingFileContents(String eTag) {
     SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
     sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
     String time = sdf.format(new Date());
+    if(!eTag.startsWith("\"") && !eTag.endsWith("\"")) {
+      eTag = quote(eTag);
+    }
 
     // Make file contents as a string. Again, quote file names, escaping
     // characters as appropriate.
@@ -272,7 +290,8 @@ public class RenameAtomicityUtils {
         + "  FormatVersion: \"1.0\",\n"
         + "  OperationUTCTime: \"" + time + "\",\n"
         + "  OldFolderName: " + quote(srcPath.toUri().getPath()) + ",\n"
-        + "  NewFolderName: " + quote(dstPath.toUri().getPath()) + "\n"
+        + "  NewFolderName: " + quote(dstPath.toUri().getPath()) + ",\n"
+        + "  ETag: " + eTag + "\n"
         + "}\n";
 
     return contents;
@@ -366,10 +385,15 @@ public class RenameAtomicityUtils {
   private static class RenamePendingFileInfo {
     public Path destination;
     public Path src;
+    public String eTag;
   }
 
   public static interface RedoRenameInvocation {
     void redo(Path destination, Path src) throws
         AzureBlobFileSystemException;
+  }
+
+  public Boolean isRedone() {
+    return isReDone;
   }
 }

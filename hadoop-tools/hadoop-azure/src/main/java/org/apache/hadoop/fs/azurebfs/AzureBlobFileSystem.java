@@ -43,8 +43,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.InvalidConfigurationValueException;
 import org.apache.hadoop.fs.azurebfs.services.AbfsBlobLease;
+import org.apache.hadoop.fs.azurebfs.services.AbfsInputStream;
 import org.apache.hadoop.fs.azurebfs.services.BlobProperty;
 import org.apache.hadoop.classification.VisibleForTesting;
 import org.apache.hadoop.fs.azurebfs.services.OperativeEndpoint;
@@ -116,6 +118,7 @@ import static org.apache.hadoop.fs.CommonConfigurationKeys.IOSTATISTICS_LOGGING_
 import static org.apache.hadoop.fs.CommonConfigurationKeys.IOSTATISTICS_LOGGING_LEVEL_DEFAULT;
 import static org.apache.hadoop.fs.azurebfs.AbfsStatistic.*;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.BLOB_LEASE_ONE_MINUTE_DURATION;
+import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.FORWARD_SLASH;
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_ENABLE_BLOB_ENDPOINT;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemUriSchemes.ABFS_DNS_PREFIX;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemUriSchemes.WASB_DNS_PREFIX;
@@ -353,7 +356,7 @@ public class AzureBlobFileSystem extends FileSystem
   }
 
   private FSDataInputStream open(final Path path,
-      final Optional<Configuration> options) throws IOException {
+      final Optional<OpenFileParameters> parameters) throws IOException {
     statIncrement(CALL_OPEN);
     Path qualifiedPath = makeQualified(path);
 
@@ -362,7 +365,7 @@ public class AzureBlobFileSystem extends FileSystem
           fileSystemId, FSOperationType.OPEN, tracingHeaderFormat,
           listener);
       InputStream inputStream = getAbfsStore().openFileForRead(qualifiedPath,
-          options, statistics, tracingContext);
+          parameters, statistics, tracingContext);
       return new FSDataInputStream(inputStream);
     } catch(AzureBlobFileSystemException ex) {
       checkException(path, ex);
@@ -370,6 +373,15 @@ public class AzureBlobFileSystem extends FileSystem
     }
   }
 
+  /**
+   * Takes config and other options through
+   * {@link org.apache.hadoop.fs.impl.OpenFileParameters}. Ensure that
+   * FileStatus entered is up-to-date, as it will be used to create the
+   * InputStream (with info such as contentLength, eTag)
+   * @param path The location of file to be opened
+   * @param parameters OpenFileParameters instance; can hold FileStatus,
+   *                   Configuration, bufferSize and mandatoryKeys
+   */
   @Override
   protected CompletableFuture<FSDataInputStream> openFileWithOptions(
       final Path path, final OpenFileParameters parameters) throws IOException {
@@ -380,24 +392,7 @@ public class AzureBlobFileSystem extends FileSystem
         "for " + path);
     return LambdaUtils.eval(
         new CompletableFuture<>(), () ->
-            open(path, Optional.of(parameters.getOptions())));
-  }
-
-  /**
-   * This handling makes sure that if request to create file for an existing directory or subpath
-   * comes that should fail.
-   * @param path The path to validate.
-   * @param tracingContext The tracingContext.
-   */
-  private void validatePathOrSubPathDoesNotExist(final Path path, TracingContext tracingContext) throws IOException {
-    List<BlobProperty> blobList = abfsStore.getListBlobs(path, null, null,
-            tracingContext, 2, true);
-    if (blobList.size() > 0 || abfsStore.checkIsDirectory(path, tracingContext)) {
-      throw new AbfsRestOperationException(HTTP_CONFLICT,
-              AzureServiceErrorCode.PATH_CONFLICT.getErrorCode(),
-              PATH_EXISTS,
-              null);
-    }
+            open(path, Optional.of(parameters)));
   }
 
   private boolean shouldRedirect(FSOperationType type, TracingContext context)
@@ -454,10 +449,10 @@ public class AzureBlobFileSystem extends FileSystem
             fileSystemId, FSOperationType.CREATE, overwrite, tracingHeaderFormat, listener);
 
     Path qualifiedPath = makeQualified(f);
+    FileStatus fileStatus = tryGetFileStatus(qualifiedPath, tracingContext);
     // This fix is needed for create idempotency, should throw error if overwrite is false and file status is not null.
     boolean fileOverwrite = overwrite;
     if (!fileOverwrite) {
-      FileStatus fileStatus = tryGetFileStatus(qualifiedPath, tracingContext);
       if (fileStatus != null) {
         // path references a file and overwrite is disabled
         throw new FileAlreadyExistsException(f + " already exists");
@@ -466,7 +461,12 @@ public class AzureBlobFileSystem extends FileSystem
     }
 
     if (prefixMode == PrefixMode.BLOB) {
-      validatePathOrSubPathDoesNotExist(qualifiedPath, tracingContext);
+      if (fileStatus != null && fileStatus.isDirectory()) {
+        throw new AbfsRestOperationException(HTTP_CONFLICT,
+            AzureServiceErrorCode.PATH_CONFLICT.getErrorCode(),
+            PATH_EXISTS,
+            null);
+      }
       if (!blobParentDirPresentChecked) {
         Path parent = qualifiedPath.getParent();
         if (parent != null && !parent.isRoot()) {
@@ -919,17 +919,40 @@ public class AzureBlobFileSystem extends FileSystem
       TracingContext tracingContext = new TracingContext(clientCorrelationId,
           fileSystemId, FSOperationType.LISTSTATUS, true, tracingHeaderFormat,
           listener);
-      FileStatus[] result = getAbfsStore().listStatus(qualifiedPath, tracingContext);
+      FileStatus[] result = getAbfsStore().listStatus(qualifiedPath,
+          tracingContext);
       if (getAbfsStore().getAbfsConfiguration().getPrefixMode()
-          == PrefixMode.BLOB) {
-        FileStatus renamePendingFileStatus
+          == PrefixMode.BLOB && getAbfsStore().isAtomicRenameKey(
+          qualifiedPath.toUri().getPath() + FORWARD_SLASH)) {
+        Pair<FileStatus, FileStatus> renamePendingJsonAndSrcFileStatusPair
             = getAbfsStore().getRenamePendingFileStatus(result);
-        if (renamePendingFileStatus != null) {
-          RenameAtomicityUtils renameAtomicityUtils =
-              getRenameAtomicityUtilsForRedo(renamePendingFileStatus.getPath(),
-                  tracingContext);
-          renameAtomicityUtils.cleanup(renamePendingFileStatus.getPath());
-          result = getAbfsStore().listStatus(qualifiedPath, tracingContext);
+        FileStatus renamePendingSrcFileStatus
+            = renamePendingJsonAndSrcFileStatusPair.getRight();
+        FileStatus renamePendingJsonFileStatus
+            = renamePendingJsonAndSrcFileStatusPair.getLeft();
+        if (renamePendingJsonFileStatus != null) {
+          final Boolean isRedone;
+          if (renamePendingSrcFileStatus != null) {
+            RenameAtomicityUtils renameAtomicityUtils =
+                getRenameAtomicityUtilsForRedo(
+                    renamePendingJsonFileStatus.getPath(),
+                    tracingContext,
+                    ((AzureBlobFileSystemStore.VersionedFileStatus) renamePendingSrcFileStatus).getEtag(),
+                    getRenamePendingJsonInputStream(
+                        renamePendingJsonFileStatus, tracingContext));
+            renameAtomicityUtils.cleanup(renamePendingJsonFileStatus.getPath());
+            isRedone = renameAtomicityUtils.isRedone();
+          } else {
+            isRedone = false;
+            getAbfsStore().delete(renamePendingJsonFileStatus.getPath(), true,
+                tracingContext);
+          }
+          if (isRedone) {
+            result = getAbfsStore().listStatus(qualifiedPath, tracingContext);
+          } else {
+            result = ArrayUtils.removeElement(result,
+                renamePendingJsonFileStatus);
+          }
         }
       }
       return result;
@@ -939,11 +962,13 @@ public class AzureBlobFileSystem extends FileSystem
     }
   }
 
-  RenameAtomicityUtils getRenameAtomicityUtilsForRedo(final Path renamePendingFileStatus,
-      final TracingContext tracingContext) throws IOException {
+  RenameAtomicityUtils getRenameAtomicityUtilsForRedo(final Path renamePendingJsonPath,
+      final TracingContext tracingContext, final String srcEtag,
+      final AbfsInputStream renamePendingJsonInputStream) throws IOException {
     return new RenameAtomicityUtils(this,
-        renamePendingFileStatus,
-        getAbfsStore().getRedoRenameInvocation(tracingContext));
+        renamePendingJsonPath,
+        getAbfsStore().getRedoRenameInvocation(tracingContext), srcEtag,
+        renamePendingJsonInputStream);
   }
 
   /**
@@ -1011,7 +1036,7 @@ public class AzureBlobFileSystem extends FileSystem
       TracingContext tracingContext = new TracingContext(clientCorrelationId,
               fileSystemId, FSOperationType.MKDIR, false, tracingHeaderFormat,
               listener);
-      abfsStore.createDirectory(qualifiedPath, statistics,
+      getAbfsStore().createDirectory(qualifiedPath, statistics,
               permission == null ? FsPermission.getDirDefault() : permission,
               FsPermission.getUMask(getConf()), true, tracingContext);
       statIncrement(DIRECTORIES_CREATED);
@@ -1057,7 +1082,6 @@ public class AzureBlobFileSystem extends FileSystem
     LOG.debug("AzureBlobFileSystem.getFileStatus path: {}", path);
     statIncrement(CALL_GET_FILE_STATUS);
     Path qualifiedPath = makeQualified(path);
-    FileStatus fileStatus;
     PrefixMode prefixMode = getAbfsStore().getPrefixMode();
     AbfsConfiguration abfsConfiguration = getAbfsStore().getAbfsConfiguration();
 
@@ -1069,28 +1093,58 @@ public class AzureBlobFileSystem extends FileSystem
          * Get File Status over Blob Endpoint will Have an additional call
          * to check if directory is implicit.
          */
-        fileStatus = getAbfsStore().getFileStatus(qualifiedPath,
-            tracingContext, useBlobEndpoint);
-        if (getAbfsStore().getPrefixMode() == PrefixMode.BLOB
-                && fileStatus != null && fileStatus.isDirectory()
-          && getAbfsStore().isAtomicRenameKey(fileStatus.getPath().toUri().getPath())
-          && getAbfsStore().getRenamePendingFileStatusInDirectory(fileStatus,
-              tracingContext)) {
-        RenameAtomicityUtils renameAtomicityUtils = getRenameAtomicityUtilsForRedo(
-            new Path(fileStatus.getPath().toUri().getPath() + SUFFIX),
-            tracingContext);
-        renameAtomicityUtils.cleanup(
-            new Path(fileStatus.getPath().toUri().getPath() + SUFFIX));
-        throw new AbfsRestOperationException(HttpURLConnection.HTTP_NOT_FOUND,
-            AzureServiceErrorCode.PATH_NOT_FOUND.getErrorCode(), null,
-            new FileNotFoundException(
-                qualifiedPath + ": No such file or directory."));
+      final FileStatus fileStatus = getAbfsStore().getFileStatus(qualifiedPath,
+          tracingContext, useBlobEndpoint);
+      final String filePathStr = qualifiedPath.toUri().getPath();
+      if (getAbfsStore().getPrefixMode() == PrefixMode.BLOB
+          && fileStatus != null && fileStatus.isDirectory()
+          && getAbfsStore().isAtomicRenameKey(filePathStr)) {
+        FileStatus renamePendingJsonFileStatus;
+        try {
+          renamePendingJsonFileStatus = getAbfsStore().getPathProperty(
+              makeQualified(
+                  new Path(filePathStr + SUFFIX)),
+              tracingContext, true);
+        } catch (AbfsRestOperationException ex) {
+          if(ex.getStatusCode() == HttpURLConnection.HTTP_NOT_FOUND) {
+            renamePendingJsonFileStatus = null;
+          } else {
+            throw ex;
+          }
+        }
+
+        if (renamePendingJsonFileStatus != null) {
+          RenameAtomicityUtils renameAtomicityUtils
+              = getRenameAtomicityUtilsForRedo(
+              renamePendingJsonFileStatus.getPath(),
+              tracingContext,
+              ((AzureBlobFileSystemStore.VersionedFileStatus) fileStatus).getEtag(),
+              getRenamePendingJsonInputStream(renamePendingJsonFileStatus, tracingContext));
+          renameAtomicityUtils.cleanup(renamePendingJsonFileStatus.getPath());
+          if (renameAtomicityUtils.isRedone()) {
+            throw new AbfsRestOperationException(
+                HttpURLConnection.HTTP_NOT_FOUND,
+                AzureServiceErrorCode.PATH_NOT_FOUND.getErrorCode(), null,
+                new FileNotFoundException(
+                    qualifiedPath + ": No such file or directory."));
+          }
+        }
       }
       return fileStatus;
     } catch (AzureBlobFileSystemException ex) {
       checkException(path, ex);
       return null;
     }
+  }
+
+  private AbfsInputStream getRenamePendingJsonInputStream(final FileStatus renamePendingJsonFileStatus,
+      final TracingContext tracingContext)
+      throws IOException {
+    Path qualifiedPath = makeQualified(renamePendingJsonFileStatus.getPath());
+    return getAbfsStore().openFileForRead(qualifiedPath,
+        Optional.of(
+            new OpenFileParameters().withStatus(renamePendingJsonFileStatus)),
+        statistics, tracingContext);
   }
 
   /**

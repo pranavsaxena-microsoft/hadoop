@@ -34,6 +34,7 @@ public class ListBlobQueue {
   private int totalConsumed = 0;
 
   private Boolean isCompleted = false;
+  private Boolean isConsumptionFailed = false;
 
   private AzureBlobFileSystemException failureFromProducer;
 
@@ -83,6 +84,14 @@ public class ListBlobQueue {
 
   public void complete() {
     isCompleted = true;
+  }
+
+  void consumptionFailed() {
+    isConsumptionFailed = true;
+  }
+
+  Boolean getConsumptionFailed() {
+    return isConsumptionFailed;
   }
 
   public Boolean getIsCompleted() {

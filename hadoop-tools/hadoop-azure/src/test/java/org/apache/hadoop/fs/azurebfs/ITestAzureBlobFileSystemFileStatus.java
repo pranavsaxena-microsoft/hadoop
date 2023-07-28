@@ -21,13 +21,19 @@ package org.apache.hadoop.fs.azurebfs;
 import java.io.IOException;
 
 import org.apache.hadoop.fs.CommonConfigurationKeys;
+import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
+import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
+import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.Test;
 
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
+import org.mockito.Mockito;
 
 import static org.apache.hadoop.test.LambdaTestUtils.intercept;
+import static org.mockito.Mockito.times;
 
 /**
  * Test FileStatus.
@@ -295,5 +301,65 @@ public class ITestAzureBlobFileSystemFileStatus extends
     FileStatus fileStatus = fs.getFileStatus(path);
     assertTrue(fileStatus.isDirectory());
     assertTrue(fileStatus.getLen() == 0L);
+  }
+
+  @Test
+  public void testGetPathPropertyCalled() throws Exception {
+    Assume.assumeTrue(getFileSystem().getAbfsStore().getPrefixMode() == PrefixMode.BLOB);
+    AzureBlobFileSystem fs = Mockito.spy(getFileSystem());
+    AzureBlobFileSystemStore store = Mockito.spy(fs.getAbfsStore());
+    Mockito.doReturn(store).when(fs).getAbfsStore();
+
+    fs.create(new Path("/testGetPathProperty"));
+    FileStatus fileStatus = fs.getFileStatus(new Path("/testGetPathProperty"));
+
+    Assert.assertFalse(fileStatus.isDirectory());
+
+    Mockito.verify(store, times(2)).getPathProperty(Mockito.any(Path.class),
+            Mockito.any(TracingContext.class), Mockito.any(Boolean.class));
+    final AbfsConfiguration configuration= fs.getAbfsStore().getAbfsConfiguration();
+    final int listBlobAssertionTimes;
+    if (!configuration.shouldMkdirFallbackToDfs()
+        && !configuration.shouldReadFallbackToDfs()
+        && !configuration.shouldIngressFallbackToDfs()) {
+      listBlobAssertionTimes = 1;
+    } else{
+      listBlobAssertionTimes = 0;
+    }
+
+    Mockito.verify(store, times(listBlobAssertionTimes)).getListBlobs(Mockito.any(Path.class),
+        Mockito.nullable(String.class), Mockito.nullable(String.class),
+        Mockito.any(TracingContext.class), Mockito.any(Integer.class),
+        Mockito.any(Boolean.class));
+  }
+
+  @Test
+  public void testGetPathPropertyCalledImplicit() throws Exception {
+    Assume.assumeTrue(getFileSystem().getAbfsStore().getPrefixMode() == PrefixMode.BLOB);
+    AzureBlobFileSystem fs = Mockito.spy(getFileSystem());
+    AzureBlobFileSystemStore store = Mockito.spy(fs.getAbfsStore());
+    Mockito.doReturn(store).when(fs).getAbfsStore();
+
+    createAzCopyDirectory(new Path("/testImplicitDirectory"));
+    FileStatus fileStatus = fs.getFileStatus(new Path("/testImplicitDirectory"));
+
+    Assert.assertTrue(fileStatus.isDirectory());
+
+    final AbfsConfiguration configuration= fs.getAbfsStore().getAbfsConfiguration();
+    final int listBlobAssertionTimes;
+    if (!configuration.shouldMkdirFallbackToDfs()
+        && !configuration.shouldReadFallbackToDfs()
+        && !configuration.shouldIngressFallbackToDfs()) {
+      listBlobAssertionTimes = 1;
+    } else{
+      listBlobAssertionTimes = 0;
+    }
+
+    Mockito.verify(store, times(1)).getPathProperty(Mockito.any(Path.class),
+            Mockito.any(TracingContext.class), Mockito.any(Boolean.class));
+    Mockito.verify(store, times(listBlobAssertionTimes)).getListBlobs(Mockito.any(Path.class),
+            Mockito.nullable(String.class), Mockito.nullable(String.class),
+            Mockito.any(TracingContext.class), Mockito.any(Integer.class),
+            Mockito.any(Boolean.class));
   }
 }

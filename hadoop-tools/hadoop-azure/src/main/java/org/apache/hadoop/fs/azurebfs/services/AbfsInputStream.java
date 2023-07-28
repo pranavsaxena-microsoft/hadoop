@@ -148,7 +148,16 @@ public class AbfsInputStream extends FSInputStream implements CanUnbuffer,
     this.streamStatistics = abfsInputStreamContext.getStreamStatistics();
     this.inputStreamId = createInputStreamId();
     this.tracingContext = new TracingContext(tracingContext);
-    this.tracingContext.setOperation(FSOperationType.READ);
+    /*
+     * If this inputStream is getting opened in listStatus or GetFileStatus, it would
+     * be in the flow of rename-resume. It required that all operations have the
+     * same primaryId and opType as that of the listStatus or getFileStatus which
+     * is invoking the rename-resume.
+     */
+    if (tracingContext.getOpType() != FSOperationType.LISTSTATUS
+        && this.tracingContext.getOpType() != FSOperationType.GET_FILESTATUS) {
+      this.tracingContext.setOperation(FSOperationType.READ);
+    }
     this.tracingContext.setStreamID(inputStreamId);
     this.context = abfsInputStreamContext;
     readAheadBlockSize = abfsInputStreamContext.getReadAheadBlockSize();
