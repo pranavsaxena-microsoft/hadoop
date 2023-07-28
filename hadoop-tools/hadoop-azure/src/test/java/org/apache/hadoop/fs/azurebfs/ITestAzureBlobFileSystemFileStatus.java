@@ -23,6 +23,8 @@ import java.io.IOException;
 import org.apache.hadoop.fs.CommonConfigurationKeys;
 import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
+
+import org.assertj.core.api.Assertions;
 import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Test;
@@ -32,6 +34,8 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.mockito.Mockito;
 
+import static org.apache.hadoop.fs.azurebfs.constants.FileSystemUriSchemes.ABFS_DNS_PREFIX;
+import static org.apache.hadoop.fs.azurebfs.constants.FileSystemUriSchemes.WASB_DNS_PREFIX;
 import static org.apache.hadoop.test.LambdaTestUtils.intercept;
 import static org.mockito.Mockito.times;
 
@@ -361,5 +365,27 @@ public class ITestAzureBlobFileSystemFileStatus extends
             Mockito.nullable(String.class), Mockito.nullable(String.class),
             Mockito.any(TracingContext.class), Mockito.any(Integer.class),
             Mockito.any(Boolean.class));
+  }
+
+  @Test
+  public void testGetFileStatusReturnStatusWithPathWithSameUriGivenInConfig()
+      throws Exception {
+    AzureBlobFileSystem fs = getFileSystem();
+    String accountName = getAccountName();
+    Boolean isAccountNameInDfs = accountName.contains(ABFS_DNS_PREFIX);
+    final String dnsAssertion;
+    if (isAccountNameInDfs) {
+      dnsAssertion = ABFS_DNS_PREFIX;
+    } else {
+      dnsAssertion = WASB_DNS_PREFIX;
+    }
+
+    final Path path = new Path("/testDir/file");
+    fs.create(path);
+    FileStatus fileStatus = fs.getFileStatus(new Path(
+        "abfs://" + fs.getAbfsClient().getFileSystem() + "@" + accountName
+            + path.toUri().getPath()));
+    Assertions.assertThat(fileStatus.getPath().toString())
+        .contains(dnsAssertion);
   }
 }
