@@ -1465,9 +1465,9 @@ public class AbfsClient implements Closeable {
         SASTokenProvider.COPY_BLOB_SOURCE, abfsUriQueryBuilderSrc);
     final URL url = changePrefixFromDfsToBlob(createRequestUrl(dstBlobRelativePath,
         abfsUriQueryBuilderDst.toString()));
-    final String sourcePathUrl = createRequestUrl(
+    final String sourcePathUrl = changePrefixFromDfsToBlob(createRequestUrl(
         srcBlobRelativePath,
-        abfsUriQueryBuilderSrc.toString()).toString();
+        abfsUriQueryBuilderSrc.toString())).toString();
     List<AbfsHttpHeader> requestHeaders = createDefaultHeaders();
     if (srcLeaseId != null) {
       requestHeaders.add(new AbfsHttpHeader(X_MS_SOURCE_LEASE_ID, srcLeaseId));
