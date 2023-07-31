@@ -328,11 +328,6 @@ public abstract class AbstractAbfsIntegrationTest extends
   }
 
   protected String getTestUrl() {
-    if (abfsConfig.shouldEnableBlobEndPoint()) {
-      if (testUrl.contains(ABFS_DNS_PREFIX)) {
-        testUrl = testUrl.replace(ABFS_DNS_PREFIX, WASB_DNS_PREFIX);
-      }
-    }
     return testUrl;
   }
 

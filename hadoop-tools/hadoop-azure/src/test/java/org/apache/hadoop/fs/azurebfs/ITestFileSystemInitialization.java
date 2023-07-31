@@ -59,11 +59,7 @@ public class ITestFileSystemInitialization extends AbstractAbfsIntegrationTest {
 
     String scheme = this.getAuthType() == AuthType.SharedKey ? FileSystemUriSchemes.ABFS_SCHEME
             : FileSystemUriSchemes.ABFS_SECURE_SCHEME;
-    if (fs.getAbfsStore().getAbfsConfiguration().shouldEnableBlobEndPoint()) {
-      if (accountName.contains(ABFS_DNS_PREFIX)) {
-        accountName = accountName.replace(ABFS_DNS_PREFIX, WASB_DNS_PREFIX);
-      }
-    }
+
     assertEquals(fs.getUri(),
         new URI(scheme,
             filesystem + "@" + accountName,

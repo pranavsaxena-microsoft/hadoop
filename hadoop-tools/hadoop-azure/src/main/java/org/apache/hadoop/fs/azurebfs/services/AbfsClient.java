@@ -874,16 +874,8 @@ public class AbfsClient implements Closeable {
             abfsUriQueryBuilder, cachedSasToken);
 
     final URL url = changePrefixFromDfsToBlob(createRequestUrl(path, abfsUriQueryBuilder.toString()));
-    final AbfsRestOperation op = new AbfsRestOperation(
-            AbfsRestOperationType.PutBlock,
-            this,
-            HTTP_METHOD_PUT,
-            url,
-            requestHeaders,
-            buffer,
-            reqParams.getoffset(),
-            reqParams.getLength(),
-            sasTokenForReuse);
+    final AbfsRestOperation op = getPutBlockOperation(buffer, reqParams, requestHeaders,
+        sasTokenForReuse, url);
     try {
       op.execute(tracingContext);
     } catch (AzureBlobFileSystemException e) {
@@ -908,6 +900,24 @@ public class AbfsClient implements Closeable {
       }
     }
     return op;
+  }
+
+  @VisibleForTesting
+  AbfsRestOperation getPutBlockOperation(final byte[] buffer,
+      final AppendRequestParameters reqParams,
+      final List<AbfsHttpHeader> requestHeaders,
+      final String sasTokenForReuse,
+      final URL url) {
+    return new AbfsRestOperation(
+        AbfsRestOperationType.PutBlock,
+        this,
+        HTTP_METHOD_PUT,
+        url,
+        requestHeaders,
+        buffer,
+        reqParams.getoffset(),
+        reqParams.getLength(),
+        sasTokenForReuse);
   }
 
   /**
@@ -941,17 +951,27 @@ public class AbfsClient implements Closeable {
             abfsUriQueryBuilder, cachedSasToken);
 
     final URL url = changePrefixFromDfsToBlob(createRequestUrl(path, abfsUriQueryBuilder.toString()));
-    final AbfsRestOperation op = new AbfsRestOperation(
-            AbfsRestOperationType.PutBlockList,
-            this,
-            HTTP_METHOD_PUT,
-            url,
-            requestHeaders, buffer,
-            0,
-            buffer.length,
-            sasTokenForReuse);
+    final AbfsRestOperation op = getPutBlockListOperation(buffer,
+        requestHeaders, sasTokenForReuse,
+        url);
     op.execute(tracingContext);
     return op;
+  }
+
+  @VisibleForTesting
+  AbfsRestOperation getPutBlockListOperation(final byte[] buffer,
+      final List<AbfsHttpHeader> requestHeaders,
+      final String sasTokenForReuse,
+      final URL url) {
+    return new AbfsRestOperation(
+        AbfsRestOperationType.PutBlockList,
+        this,
+        HTTP_METHOD_PUT,
+        url,
+        requestHeaders, buffer,
+        0,
+        buffer.length,
+        sasTokenForReuse);
   }
 
   /*

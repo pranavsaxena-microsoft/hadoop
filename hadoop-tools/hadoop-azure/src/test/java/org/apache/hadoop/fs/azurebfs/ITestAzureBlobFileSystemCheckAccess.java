@@ -224,8 +224,11 @@ public class ITestAzureBlobFileSystemCheckAccess
 
     //  When the driver does not know if the account is HNS enabled or not it
     //  makes a server call and fails
-    intercept(Exception.class, "\"This request is not authorized to perform this operation using "
-            + "this permission.\", 403", this::setTestUserFsNonHNS);
+    if(getAccountName().contains(WASB_DNS_PREFIX)) {
+      intercept(Exception.class,
+          "\"This request is not authorized to perform this operation using "
+              + "this permission.\", 403", this::setTestUserFsNonHNS);
+    }
 
     //  When the driver has already determined if the account is HNS enabled
     //  or not, and as the account is non HNS the AzureBlobFileSystem#access
