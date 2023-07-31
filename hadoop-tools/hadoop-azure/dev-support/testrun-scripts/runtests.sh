@@ -94,7 +94,7 @@ runAppendBlobHNSOAuthTest()
 
 trigger() {
         for enableBlob in true false; do
-          if [ $enableBlob == true ]
+          if [ $enableBlob == false ]
           then
             triggerRun $1 $2 $3 $4 $5 "false";
             return ;
