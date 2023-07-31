@@ -400,7 +400,7 @@ public class ITestAzureBlobFileSystemFileStatus extends
       configuration.set(FS_DEFAULT_NAME_KEY,
           configuration.get(FS_DEFAULT_NAME_KEY)
               .replace(WASB_DNS_PREFIX, ABFS_DNS_PREFIX));
-      dnsAssertion = WASB_DNS_PREFIX;
+      dnsAssertion = ABFS_DNS_PREFIX;
     }
     fs = (AzureBlobFileSystem) FileSystem.newInstance(configuration);
     assertGetFileStatusPath(fs, accountName, dnsAssertion, path);
