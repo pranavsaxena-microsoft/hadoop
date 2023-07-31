@@ -187,10 +187,11 @@ public class ITestAzureBlobFileSystemMkDir extends AbstractAbfsIntegrationTest {
   @Test
   public void testGetPathPropertyCalledOnMkdirBlobEndpoint() throws Exception {
     Assume.assumeTrue(getFileSystem().getAbfsStore().getPrefixMode() == PrefixMode.BLOB);
-    AbfsConfiguration abfsConfig = getConfiguration();
-    abfsConfig.setBoolean(FS_AZURE_MKDIRS_FALLBACK_TO_DFS, false);
-    AzureBlobFileSystem fs = Mockito.spy((AzureBlobFileSystem) FileSystem.newInstance(abfsConfig.getRawConfiguration()));
+    AzureBlobFileSystem fs = Mockito.spy(getFileSystem());
     AzureBlobFileSystemStore store = Mockito.spy(fs.getAbfsStore());
+    AbfsConfiguration abfsConfig = Mockito.spy(store.getAbfsConfiguration());
+    Mockito.doReturn(false).when(abfsConfig).shouldMkdirFallbackToDfs();
+    Mockito.doReturn(abfsConfig).when(store).getAbfsConfiguration();
     Mockito.doReturn(store).when(fs).getAbfsStore();
 
     fs.mkdirs(new Path("/testPath"));
@@ -204,11 +205,13 @@ public class ITestAzureBlobFileSystemMkDir extends AbstractAbfsIntegrationTest {
   @Test
   public void testGetPathPropertyCalledOnMkdirFallbackDFS() throws Exception {
     Assume.assumeTrue(getFileSystem().getAbfsStore().getPrefixMode() == PrefixMode.BLOB);
-    AbfsConfiguration abfsConfig = getConfiguration();
-    abfsConfig.setBoolean(FS_AZURE_MKDIRS_FALLBACK_TO_DFS, true);
-    AzureBlobFileSystem fs = Mockito.spy((AzureBlobFileSystem) FileSystem.newInstance(abfsConfig.getRawConfiguration()));
+    AzureBlobFileSystem fs = Mockito.spy(getFileSystem());
     AzureBlobFileSystemStore store = Mockito.spy(fs.getAbfsStore());
+    AbfsConfiguration abfsConfig = Mockito.spy(store.getAbfsConfiguration());
+    Mockito.doReturn(true).when(abfsConfig).shouldMkdirFallbackToDfs();
+    Mockito.doReturn(abfsConfig).when(store).getAbfsConfiguration();
     Mockito.doReturn(store).when(fs).getAbfsStore();
+
 
     fs.mkdirs(new Path("/testPath"));
     Mockito.verify(store, Mockito.times(0)).tryGetPathProperty(Mockito.any(Path.class),

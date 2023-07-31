@@ -1233,7 +1233,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       TracingContext tracingContext)
           throws IOException {
     try (AbfsPerfInfo perfInfo = startTracking("createDirectory", "createPath")) {
-      if (!OperativeEndpoint.isMkdirEnabledOnDFS(abfsConfiguration)) {
+      if (!OperativeEndpoint.isMkdirEnabledOnDFS(getAbfsConfiguration())) {
         LOG.debug("Mkdir created via blob endpoint for the given path {} and config value {} ",
                 path, abfsConfiguration.shouldMkdirFallbackToDfs());
         ArrayList<Path> keysToCreateAsFolder = new ArrayList<>();
