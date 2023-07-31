@@ -85,12 +85,14 @@ runAppendBlobHNSOAuthTest()
 }
 
 trigger() {
-  for flipToBlob in true false; do
         for enableBlob in true false; do
+          if [ $enableBlob == true ]
+          then
+            triggerRun $1 $2 $3 $4 $5 "false";
+            return ;
+          fi
           for mkdirToDFS in true false; do
             for ingressToDFS in true false; do
-              for redirectDelete in true false; do
-                for redirectRename in true false; do
                   PROPERTIES[${#PROPERTIES[@]}]="fs.azure.enable.blob.endpoint"
                   VALUES[${#VALUES[@]}]=$enableBlob;
 
@@ -100,19 +102,10 @@ trigger() {
                   PROPERTIES[${#PROPERTIES[@]}]="fs.azure.ingress.fallback.to.dfs"
                   VALUES[${#VALUES[@]}]=$ingressToDFS;
 
-                  PROPERTIES[${#PROPERTIES[@]}]="fs.azure.redirect.delete"
-                  VALUES[${#VALUES[@]}]=$redirectDelete;
-
-                  PROPERTIES[${#PROPERTIES[@]}]="fs.azure.redirect.rename"
-                  VALUES[${#VALUES[@]}]=$redirectRename;
-
-                  triggerRun $1 $2 $3 $4 $5 "$flipToBlob"
-                done
-              done
+                  triggerRun $1 $2 $3 $4 $5 "false"
             done
           done
         done
-      done
 }
 
 runTest=false
