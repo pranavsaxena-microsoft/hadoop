@@ -774,11 +774,7 @@ public class ITestAzureBlobFileSystemCreate extends
     Assume.assumeTrue(abfsStore.getPrefixMode() == PrefixMode.BLOB);
     Configuration configuration = Mockito.spy(getRawConfiguration());
     String accountName = getAccountName();
-    if (abfsStore.getPrefixMode() == PrefixMode.BLOB) {
-      if (abfsStore.getAbfsConfiguration().shouldEnableBlobEndPoint()) {
-        accountName = getAccountName().replace(ABFS_DNS_PREFIX, WASB_DNS_PREFIX);
-      }
-    }
+
     configuration.set(FS_AZURE_CLIENT_PROVIDED_ENCRYPTION_KEY + "." + accountName, "abcd");
     intercept(InvalidConfigurationValueException.class, () -> (AzureBlobFileSystem) FileSystem.newInstance(configuration));
   }
@@ -792,11 +788,7 @@ public class ITestAzureBlobFileSystemCreate extends
     Assume.assumeTrue(abfsStore.getPrefixMode() == PrefixMode.BLOB);
     Configuration configuration = Mockito.spy(getRawConfiguration());
     String accountName = getAccountName();
-    if (abfsStore.getPrefixMode() == PrefixMode.BLOB) {
-      if (abfsStore.getAbfsConfiguration().shouldEnableBlobEndPoint()) {
-        accountName = getAccountName().replace(ABFS_DNS_PREFIX, WASB_DNS_PREFIX);
-      }
-    }
+
     configuration.set(FS_AZURE_CLIENT_PROVIDED_ENCRYPTION_KEY + "." + accountName, "");
     intercept(InvalidConfigurationValueException.class, () -> (AzureBlobFileSystem) FileSystem.newInstance(configuration));
   }
