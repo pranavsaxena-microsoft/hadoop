@@ -29,6 +29,7 @@ public final class HttpQueryParams {
   public static final String QUERY_PARAM_RESOURCE = "resource";
   public static final String QUERY_PARAM_RESTYPE = "restype";
   public static final String QUERY_PARAM_COMP = "comp";
+  public static final String QUERY_PARAM_COMP_LEASE_VALUE = "lease";
   public static final String QUERY_PARAM_COMP_VALUE_LIST = "list";
   public static final String QUERY_PARAM_PREFIX = "prefix";
   public static final String QUERY_PARAM_MARKER = "marker";
@@ -48,6 +49,7 @@ public final class HttpQueryParams {
   public static final String QUERY_PARAM_UPN = "upn";
   public static final String QUERY_PARAM_BLOBTYPE = "blobtype";
   public static final String QUERY_PARAM_BLOCKID = "blockid";
+  public static final String QUERY_PARAM_DELIMITER = "delimiter";
 
   //query params for SAS
   public static final String QUERY_PARAM_SAOID = "saoid";

@@ -68,6 +68,7 @@ public final class TestAbfsOutputStreamBlob {
             boolean isFlushEnabled,
             boolean disableOutputStreamFlush,
             boolean isAppendBlob,
+            boolean isExpectHeaderEnabled,
             AbfsClient client,
             String path,
             TracingContext tracingContext,
@@ -85,6 +86,7 @@ public final class TestAbfsOutputStreamBlob {
 
         return new AbfsOutputStreamContext(2)
                 .withWriteBufferSize(writeBufferSize)
+                .enableExpectHeader(isExpectHeaderEnabled)
                 .enableFlush(isFlushEnabled)
                 .disableOutputStreamFlush(disableOutputStreamFlush)
                 .withStreamStatistics(new AbfsOutputStreamStatisticsImpl())
@@ -134,23 +136,19 @@ public final class TestAbfsOutputStreamBlob {
     }
 
     public AbfsOutputStream getOutputStream(AbfsClient client, AbfsConfiguration abfsConf) throws IOException, IllegalAccessException {
-        AbfsOutputStream out = Mockito.spy(new AbfsOutputStream(
+        AbfsOutputStream out = new AbfsOutputStream(
                 populateAbfsOutputStreamContext(
                         BUFFER_SIZE,
                         true,
                         false,
                         false,
+                        true,
                         client,
                         PATH,
                         new TracingContext(abfsConf.getClientCorrelationId(), "test-fs-id",
                                 FSOperationType.WRITE, abfsConf.getTracingHeaderFormat(),
                                 null),
-                        createExecutorService(abfsConf))));
-
-        LinkedHashMap<String, BlockStatus> map = Mockito.spy(new LinkedHashMap<>());
-        map.put("MAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", BlockStatus.SUCCESS);
-        when(out.getMap()).thenReturn(map);
-        when(out.getMap().containsKey(any())).thenReturn(true);
+                        createExecutorService(abfsConf)));
         return out;
     }
 
@@ -177,9 +175,9 @@ public final class TestAbfsOutputStreamBlob {
         out.hsync();
 
         AppendRequestParameters firstReqParameters = new AppendRequestParameters(
-                0, 0, WRITE_SIZE, APPEND_MODE, false, null);
+                0, 0, WRITE_SIZE, APPEND_MODE, false, null, true);
         AppendRequestParameters secondReqParameters = new AppendRequestParameters(
-                WRITE_SIZE, 0, 2 * WRITE_SIZE, APPEND_MODE, false, null);
+                WRITE_SIZE, 0, 2 * WRITE_SIZE, APPEND_MODE, false, null, true);
 
         verify(client, times(1)).append(any(),
                 eq(PATH), any(byte[].class), refEq(firstReqParameters), any(),
@@ -209,9 +207,9 @@ public final class TestAbfsOutputStreamBlob {
         out.close();
 
         AppendRequestParameters firstReqParameters = new AppendRequestParameters(
-                0, 0, BUFFER_SIZE, APPEND_MODE, false, null);
+                0, 0, BUFFER_SIZE, APPEND_MODE, false, null, true);
         AppendRequestParameters secondReqParameters = new AppendRequestParameters(
-                BUFFER_SIZE, 0, 5 * WRITE_SIZE - BUFFER_SIZE, APPEND_MODE, false, null);
+                BUFFER_SIZE, 0, 5 * WRITE_SIZE - BUFFER_SIZE, APPEND_MODE, false, null, true);
 
         verify(client, times(1)).append(any(),
                 eq(PATH), any(byte[].class), refEq(firstReqParameters), any(),
@@ -256,9 +254,9 @@ public final class TestAbfsOutputStreamBlob {
         out.close();
 
         AppendRequestParameters firstReqParameters = new AppendRequestParameters(
-                0, 0, BUFFER_SIZE, APPEND_MODE, false, null);
+                0, 0, BUFFER_SIZE, APPEND_MODE, false, null, true);
         AppendRequestParameters secondReqParameters = new AppendRequestParameters(
-                BUFFER_SIZE, 0, BUFFER_SIZE, APPEND_MODE, false, null);
+                BUFFER_SIZE, 0, BUFFER_SIZE, APPEND_MODE, false, null, true);
 
         verify(client, times(1)).append(any(),
                 eq(PATH), any(byte[].class), refEq(firstReqParameters), any(), any(TracingContext.class), any());
@@ -299,9 +297,9 @@ public final class TestAbfsOutputStreamBlob {
         Thread.sleep(1000);
 
         AppendRequestParameters firstReqParameters = new AppendRequestParameters(
-                0, 0, BUFFER_SIZE, APPEND_MODE, false, null);
+                0, 0, BUFFER_SIZE, APPEND_MODE, false, null, true);
         AppendRequestParameters secondReqParameters = new AppendRequestParameters(
-                BUFFER_SIZE, 0, BUFFER_SIZE, APPEND_MODE, false, null);
+                BUFFER_SIZE, 0, BUFFER_SIZE, APPEND_MODE, false, null, true);
 
         verify(client, times(1)).append(any(),
                 eq(PATH), any(byte[].class), refEq(firstReqParameters), any(), any(TracingContext.class), any());
@@ -324,6 +322,7 @@ public final class TestAbfsOutputStreamBlob {
                         BUFFER_SIZE,
                         true,
                         false,
+                        true,
                         true,
                         client,
                         PATH,
@@ -350,10 +349,7 @@ public final class TestAbfsOutputStreamBlob {
     @Test
     public void verifyWriteRequestOfBufferSizeAndHFlush() throws Exception {
         AbfsClient client = getClient();
-        AbfsOutputStream out = Mockito.spy(getOutputStream(client, getConf()));
-        LinkedHashMap<String, BlockStatus> map = Mockito.spy(new LinkedHashMap<>());
-        map.put("MAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", BlockStatus.SUCCESS);
-        when(out.getMap().containsKey(any())).thenReturn(true);
+        AbfsOutputStream out = getOutputStream(client, getConf());
 
         final byte[] b = new byte[BUFFER_SIZE];
         new Random().nextBytes(b);
@@ -364,9 +360,9 @@ public final class TestAbfsOutputStreamBlob {
         out.hflush();
 
         AppendRequestParameters firstReqParameters = new AppendRequestParameters(
-                0, 0, BUFFER_SIZE, APPEND_MODE, false, null);
+                0, 0, BUFFER_SIZE, APPEND_MODE, false, null, true);
         AppendRequestParameters secondReqParameters = new AppendRequestParameters(
-                BUFFER_SIZE, 0, BUFFER_SIZE, APPEND_MODE, false, null);
+                BUFFER_SIZE, 0, BUFFER_SIZE, APPEND_MODE, false, null, true);
 
         verify(client, times(1)).append(any(),
                 eq(PATH), any(byte[].class), refEq(firstReqParameters), any(), any(TracingContext.class), any());
@@ -409,9 +405,9 @@ public final class TestAbfsOutputStreamBlob {
         Thread.sleep(1000);
 
         AppendRequestParameters firstReqParameters = new AppendRequestParameters(
-                0, 0, BUFFER_SIZE, APPEND_MODE, false, null);
+                0, 0, BUFFER_SIZE, APPEND_MODE, false, null, true);
         AppendRequestParameters secondReqParameters = new AppendRequestParameters(
-                BUFFER_SIZE, 0, BUFFER_SIZE, APPEND_MODE, false, null);
+                BUFFER_SIZE, 0, BUFFER_SIZE, APPEND_MODE, false, null, true);
 
         verify(client, times(1)).append(any(),
                 eq(PATH), any(byte[].class), refEq(firstReqParameters), any(), any(TracingContext.class), any());

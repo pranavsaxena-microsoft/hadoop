@@ -23,27 +23,36 @@ import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
 
+import org.junit.Assume;
+
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
 
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.FORWARD_SLASH;
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_SAS_FIXED_TOKEN;
+import static org.apache.hadoop.fs.azurebfs.constants.FileSystemUriSchemes.ABFS_DNS_PREFIX;
+import static org.apache.hadoop.fs.azurebfs.constants.FileSystemUriSchemes.WASB_DNS_PREFIX;
 
-public class ITestAzcopyHelper {
+public class AzcopyHelper {
 
     File hadoopAzureDir;
     String azcopyDirPath;
-
     private String accountName;
     private String fileSystemName;
     private Configuration configuration;
+    private PrefixMode mode;
 
-    public ITestAzcopyHelper(String accountName, String fileSystemName, Configuration configuration) throws Exception {
-      this.accountName = accountName;
+    public AzcopyHelper(String accountName, String fileSystemName, Configuration configuration ,PrefixMode mode) throws Exception {
+      this.accountName = accountName.replace(ABFS_DNS_PREFIX, WASB_DNS_PREFIX);
       this.fileSystemName = fileSystemName;
       this.configuration = configuration;
+      this.mode = mode;
     }
 
     public void downloadAzcopyExecutableIfNotPresent() throws IOException, InterruptedException {
+        // Skip execution if Prefix Mode is DFS.
+        Assume.assumeTrue(mode == PrefixMode.BLOB);
+
         // Find the hadoop-azure directory from the current working directory
         File currentDir = new File(System.getProperty("user.dir"));
         if (!currentDir.isDirectory() && !currentDir.getName().equals("hadoop-azure")) {
@@ -129,18 +138,18 @@ public class ITestAzcopyHelper {
         String configuredFixedToken = configuration.get(FS_AZURE_SAS_FIXED_TOKEN, null);
         if (configuredFixedToken != null) {
             if (isFile) {
-                createFileCreationScript(azcopyDirPath, "createFile.sh", azcopyDirPath, configuredFixedToken, url);
+                createFileCreationScript(azcopyDirPath, "createFile" + Thread.currentThread().getName() + ".sh", azcopyDirPath, configuredFixedToken, url);
             } else {
-                createFolderCreationScript(azcopyDirPath, "createFolder.sh", azcopyDirPath, configuredFixedToken, url);
+                createFolderCreationScript(azcopyDirPath, "createFolder" + Thread.currentThread().getName() + ".sh", azcopyDirPath, configuredFixedToken, url);
             }
         } else {
             throw new Exception("The SAS token provided is null");
         }
         String path;
         if (isFile) {
-            path = azcopyDirPath + "/createFile.sh";
+            path = azcopyDirPath + "/createFile" + Thread.currentThread().getName() + ".sh";
         } else {
-            path = azcopyDirPath + "/createFolder.sh";
+            path = azcopyDirPath + "/createFolder" + Thread.currentThread().getName() + ".sh";
         }
         try {
             ProcessBuilder pb = new ProcessBuilder(path);
