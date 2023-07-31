@@ -42,13 +42,12 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.LocatedFileStatus;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.azurebfs.constants.FSOperationType;
-import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
-import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 import org.apache.hadoop.fs.azurebfs.utils.TracingHeaderValidator;
 import org.apache.hadoop.fs.contract.ContractTestUtils;
-import org.mockito.Mock;
+
 import org.mockito.Mockito;
 
+import static org.apache.hadoop.fs.CommonConfigurationKeysPublic.FS_DEFAULT_NAME_KEY;
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.AZURE_LIST_MAX_RESULTS;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemUriSchemes.ABFS_DNS_PREFIX;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemUriSchemes.WASB_DNS_PREFIX;
@@ -538,7 +537,7 @@ public class ITestAzureBlobFileSystemListStatus extends
     AzureBlobFileSystem fs = getFileSystem();
     String accountName = getAccountName();
     Boolean isAccountNameInDfs = accountName.contains(ABFS_DNS_PREFIX);
-    final String dnsAssertion;
+    String dnsAssertion;
     if (isAccountNameInDfs) {
       dnsAssertion = ABFS_DNS_PREFIX;
     } else {
@@ -547,6 +546,31 @@ public class ITestAzureBlobFileSystemListStatus extends
 
     final Path path = new Path("/testDir/file");
     fs.create(path);
+    assertListStatusPath(fs, accountName, dnsAssertion, path);
+
+    final Configuration configuration;
+    if (isAccountNameInDfs) {
+      configuration = new Configuration(getRawConfiguration());
+      configuration.set(FS_DEFAULT_NAME_KEY,
+          configuration.get(FS_DEFAULT_NAME_KEY)
+              .replace(ABFS_DNS_PREFIX, WASB_DNS_PREFIX));
+      dnsAssertion = WASB_DNS_PREFIX;
+
+    } else {
+      configuration = new Configuration(getRawConfiguration());
+      configuration.set(FS_DEFAULT_NAME_KEY,
+          configuration.get(FS_DEFAULT_NAME_KEY)
+              .replace(WASB_DNS_PREFIX, ABFS_DNS_PREFIX));
+      dnsAssertion = WASB_DNS_PREFIX;
+    }
+    fs = (AzureBlobFileSystem) FileSystem.newInstance(configuration);
+    assertListStatusPath(fs, accountName, dnsAssertion, path);
+  }
+
+  private void assertListStatusPath(final AzureBlobFileSystem fs,
+      final String accountName,
+      final String dnsAssertion,
+      final Path path) throws IOException {
     FileStatus[] fileStatuses = fs.listStatus(new Path(
         "abfs://" + fs.getAbfsClient().getFileSystem() + "@" + accountName
             + path.toUri().getPath()));
@@ -558,42 +582,5 @@ public class ITestAzureBlobFileSystemListStatus extends
             + path.getParent().toUri().getPath()));
     Assertions.assertThat(fileStatuses[0].getPath().toString())
         .contains(dnsAssertion);
-  }
-
-  @Test
-  public void testListStatusIteratorReturnStatusWithPathWithSameUriGivenInConfig() throws Exception {
-    AzureBlobFileSystem fs = getFileSystem();
-    String accountName = getAccountName();
-    Boolean isAccountNameInDfs = accountName.contains(ABFS_DNS_PREFIX);
-    final String dnsAssertion;
-    if (isAccountNameInDfs) {
-      dnsAssertion = ABFS_DNS_PREFIX;
-    } else {
-      dnsAssertion = WASB_DNS_PREFIX;
-    }
-
-    final Path path = new Path("/testDir/file");
-    fs.create(path);
-
-
-    RemoteIterator<FileStatus> fileStatusRemoteIterator = fs.listStatusIterator(new Path(
-        "abfs://" + fs.getAbfsClient().getFileSystem() + "@" + accountName
-            + path.getParent().toUri().getPath()));
-
-    while(fileStatusRemoteIterator.hasNext()) {
-      FileStatus fileStatus = fileStatusRemoteIterator.next();
-      Assertions.assertThat(fileStatus.getPath().toString())
-          .contains(dnsAssertion);
-    }
-
-    fileStatusRemoteIterator = fs.listStatusIterator(new Path(
-        "abfs://" + fs.getAbfsClient().getFileSystem() + "@" + accountName
-            + path.toUri().getPath()));
-
-    while(fileStatusRemoteIterator.hasNext()) {
-      FileStatus fileStatus = fileStatusRemoteIterator.next();
-      Assertions.assertThat(fileStatus.getPath().toString())
-          .contains(dnsAssertion);
-    }
   }
 }

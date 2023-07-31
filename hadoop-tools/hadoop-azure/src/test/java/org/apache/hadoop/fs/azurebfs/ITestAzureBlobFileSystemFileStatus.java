@@ -20,7 +20,9 @@ package org.apache.hadoop.fs.azurebfs;
 
 import java.io.IOException;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.CommonConfigurationKeys;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 
@@ -34,6 +36,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.mockito.Mockito;
 
+import static org.apache.hadoop.fs.CommonConfigurationKeysPublic.FS_DEFAULT_NAME_KEY;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemUriSchemes.ABFS_DNS_PREFIX;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemUriSchemes.WASB_DNS_PREFIX;
 import static org.apache.hadoop.test.LambdaTestUtils.intercept;
@@ -373,7 +376,7 @@ public class ITestAzureBlobFileSystemFileStatus extends
     AzureBlobFileSystem fs = getFileSystem();
     String accountName = getAccountName();
     Boolean isAccountNameInDfs = accountName.contains(ABFS_DNS_PREFIX);
-    final String dnsAssertion;
+    String dnsAssertion;
     if (isAccountNameInDfs) {
       dnsAssertion = ABFS_DNS_PREFIX;
     } else {
@@ -382,6 +385,31 @@ public class ITestAzureBlobFileSystemFileStatus extends
 
     final Path path = new Path("/testDir/file");
     fs.create(path);
+    assertGetFileStatusPath(fs, accountName, dnsAssertion, path);
+
+    final Configuration configuration;
+    if (isAccountNameInDfs) {
+      configuration = new Configuration(getRawConfiguration());
+      configuration.set(FS_DEFAULT_NAME_KEY,
+          configuration.get(FS_DEFAULT_NAME_KEY)
+              .replace(ABFS_DNS_PREFIX, WASB_DNS_PREFIX));
+      dnsAssertion = WASB_DNS_PREFIX;
+
+    } else {
+      configuration = new Configuration(getRawConfiguration());
+      configuration.set(FS_DEFAULT_NAME_KEY,
+          configuration.get(FS_DEFAULT_NAME_KEY)
+              .replace(WASB_DNS_PREFIX, ABFS_DNS_PREFIX));
+      dnsAssertion = WASB_DNS_PREFIX;
+    }
+    fs = (AzureBlobFileSystem) FileSystem.newInstance(configuration);
+    assertGetFileStatusPath(fs, accountName, dnsAssertion, path);
+  }
+
+  private void assertGetFileStatusPath(final AzureBlobFileSystem fs,
+      final String accountName,
+      final String dnsAssertion,
+      final Path path) throws IOException {
     FileStatus fileStatus = fs.getFileStatus(new Path(
         "abfs://" + fs.getAbfsClient().getFileSystem() + "@" + accountName
             + path.toUri().getPath()));
