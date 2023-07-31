@@ -25,6 +25,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicReference;
@@ -117,6 +118,12 @@ public class ITestBlobOperation extends AbstractAbfsIntegrationTest {
 
         // Creates the url for the specified path.
         URL url = testClient.createRequestUrl(finalTestPath, abfsUriQueryBuilder.toString());
+        /*
+        * Since the AbfsRestOperation object is not similar to what is there in
+        * client.createBlobPath (we dont send buffer in client.createBlobPath),
+        * the url would be replaced for `.dfs.` to .blob.`
+        */
+        url = new URL(url.toString().replace(ABFS_DNS_PREFIX, WASB_DNS_PREFIX));
 
         // Create a mock of the AbfsRestOperation to set the urlConnection in the corresponding httpOperation.
         AbfsRestOperation op = new AbfsRestOperation(
@@ -170,31 +177,35 @@ public class ITestBlobOperation extends AbstractAbfsIntegrationTest {
                 abfsConfiguration));
 
         String blockId = "block1";
-        byte[] data = null;
-        Path testPath = path(TEST_PATH);
-        String finalTestPath = testPath.toString().substring(testPath.toString().lastIndexOf("/"));
-        final List<AbfsHttpHeader> requestHeaders = ITestAbfsClient.getTestRequestHeaders(testClient);
-        final AbfsUriQueryBuilder abfsUriQueryBuilder = testClient.createDefaultUriQueryBuilder();
-        abfsUriQueryBuilder.addQuery(QUERY_PARAM_COMP, BLOCK);
+      byte[] data = new byte[0];
+      Path testPath = path(TEST_PATH);
+      String finalTestPath = testPath.toString()
+          .substring(testPath.toString().lastIndexOf("/"));
 
-        String blockId1 = Base64.getEncoder().encodeToString(blockId.getBytes());
-        abfsUriQueryBuilder.addQuery(QUERY_PARAM_BLOCKID, blockId1);
-        URL url = Mockito.spy(testClient.createRequestUrl(finalTestPath, abfsUriQueryBuilder.toString()));
-        requestHeaders.add(new AbfsHttpHeader(CONTENT_LENGTH, "10"));
+      AbfsRestOperation[] op = new AbfsRestOperation[1];
+      Mockito.doAnswer(answer -> {
+            AbfsRestOperation answerOp
+                = (AbfsRestOperation) answer.callRealMethod();
+            op[0] = answerOp;
+            return answerOp;
+          })
+          .when(testClient)
+          .getPutBlockOperation(Mockito.any(byte[].class),
+              Mockito.any(AppendRequestParameters.class), Mockito.anyList(),
+              Mockito.nullable(String.class), Mockito.any(URL.class));
 
-        final AbfsRestOperation op = new AbfsRestOperation(
-                AbfsRestOperationType.PutBlock,
-                testClient,
-                HTTP_METHOD_PUT,
-                url,
-                requestHeaders,
-                data, 0, 0, null);
-
-        TracingContext tracingContext = Mockito.spy(new TracingContext("abcd",
-                "abcde", FSOperationType.APPEND,
-                TracingHeaderFormat.ALL_ID_FORMAT, null));
-
-        intercept(IOException.class, () -> op.execute(tracingContext));
+      TracingContext tracingContext = Mockito.spy(new TracingContext("abcd",
+          "abcde", FSOperationType.APPEND,
+          TracingHeaderFormat.ALL_ID_FORMAT, null));
+      String blockId1 = Base64.getEncoder().encodeToString(blockId.getBytes());
+      AppendRequestParameters appendRequestParameters = Mockito.mock(
+          AppendRequestParameters.class);
+      Mockito.doReturn(0).when(appendRequestParameters).getoffset();
+      Mockito.doReturn(0).when(appendRequestParameters).getLength();
+      intercept(IOException.class, () -> {
+        testClient.append(blockId1, finalTestPath, data,
+            appendRequestParameters, null, tracingContext, null);
+      });
     }
 
     @Test
@@ -222,9 +233,6 @@ public class ITestBlobOperation extends AbstractAbfsIntegrationTest {
 
         Path testPath = path(TEST_PATH);
         String finalTestPath = testPath.toString().substring(testPath.toString().lastIndexOf("/"));
-        final List<AbfsHttpHeader> requestHeaders = ITestAbfsClient.getTestRequestHeaders(testClient);
-        final AbfsUriQueryBuilder abfsUriQueryBuilder = testClient.createDefaultUriQueryBuilder();
-        abfsUriQueryBuilder.addQuery(QUERY_PARAM_COMP, BLOCK);
 
       AbfsRestOperation[] op = new AbfsRestOperation[1];
       Mockito.doAnswer(answer -> {

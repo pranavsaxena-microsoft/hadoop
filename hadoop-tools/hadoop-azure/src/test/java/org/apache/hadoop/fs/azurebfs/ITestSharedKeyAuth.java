@@ -47,11 +47,7 @@ public class ITestSharedKeyAuth extends AbstractAbfsIntegrationTest {
         true);
     AzureBlobFileSystemStore abfsStore = getAbfsStore(getFileSystem());
     String accountName = this.getAccountName();
-    if (abfsStore.getPrefixMode() == PrefixMode.BLOB) {
-      if (abfsStore.getAbfsConfiguration().shouldEnableBlobEndPoint()) {
-        accountName = getAccountName().replace(ABFS_DNS_PREFIX, WASB_DNS_PREFIX);
-      }
-    }
+
     String configkKey = FS_AZURE_ACCOUNT_KEY_PROPERTY_NAME + "." + accountName;
     // a wrong sharedKey
     String secret = "XjUjsGherkDpljuyThd7RpljhR6uhsFjhlxRpmhgD12lnj7lhfRn8kgPt5"
