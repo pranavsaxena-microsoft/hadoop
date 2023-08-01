@@ -177,13 +177,13 @@ public class ITestBlobOperation extends AbstractAbfsIntegrationTest {
                 abfsConfiguration));
 
         String blockId = "block1";
-      byte[] data = new byte[0];
-      Path testPath = path(TEST_PATH);
-      String finalTestPath = testPath.toString()
+        byte[] data = new byte[0];
+        Path testPath = path(TEST_PATH);
+        String finalTestPath = testPath.toString()
           .substring(testPath.toString().lastIndexOf("/"));
 
-      AbfsRestOperation[] op = new AbfsRestOperation[1];
-      Mockito.doAnswer(answer -> {
+        AbfsRestOperation[] op = new AbfsRestOperation[1];
+        Mockito.doAnswer(answer -> {
             AbfsRestOperation answerOp
                 = (AbfsRestOperation) answer.callRealMethod();
             op[0] = answerOp;
@@ -194,18 +194,18 @@ public class ITestBlobOperation extends AbstractAbfsIntegrationTest {
               Mockito.any(AppendRequestParameters.class), Mockito.anyList(),
               Mockito.nullable(String.class), Mockito.any(URL.class));
 
-      TracingContext tracingContext = Mockito.spy(new TracingContext("abcd",
+        TracingContext tracingContext = Mockito.spy(new TracingContext("abcd",
           "abcde", FSOperationType.APPEND,
           TracingHeaderFormat.ALL_ID_FORMAT, null));
-      String blockId1 = Base64.getEncoder().encodeToString(blockId.getBytes());
-      AppendRequestParameters appendRequestParameters = Mockito.mock(
+        String blockId1 = Base64.getEncoder().encodeToString(blockId.getBytes());
+        AppendRequestParameters appendRequestParameters = Mockito.mock(
           AppendRequestParameters.class);
-      Mockito.doReturn(0).when(appendRequestParameters).getoffset();
-      Mockito.doReturn(0).when(appendRequestParameters).getLength();
-      intercept(IOException.class, () -> {
-        testClient.append(blockId1, finalTestPath, data,
+        Mockito.doReturn(0).when(appendRequestParameters).getoffset();
+        Mockito.doReturn(0).when(appendRequestParameters).getLength();
+        intercept(IOException.class, () -> {
+          testClient.append(blockId1, finalTestPath, data,
             appendRequestParameters, null, tracingContext, null);
-      });
+        });
     }
 
     @Test
@@ -234,8 +234,8 @@ public class ITestBlobOperation extends AbstractAbfsIntegrationTest {
         Path testPath = path(TEST_PATH);
         String finalTestPath = testPath.toString().substring(testPath.toString().lastIndexOf("/"));
 
-      AbfsRestOperation[] op = new AbfsRestOperation[1];
-      Mockito.doAnswer(answer -> {
+        AbfsRestOperation[] op = new AbfsRestOperation[1];
+        Mockito.doAnswer(answer -> {
             AbfsRestOperation answerOp
                 = (AbfsRestOperation) answer.callRealMethod();
             op[0] = answerOp;
@@ -245,33 +245,33 @@ public class ITestBlobOperation extends AbstractAbfsIntegrationTest {
           .getPutBlockOperation(Mockito.any(byte[].class),
               Mockito.any(AppendRequestParameters.class), Mockito.anyList(),
               Mockito.nullable(String.class), Mockito.any(URL.class));
-      TracingContext tracingContext = Mockito.spy(new TracingContext("abcd",
+        TracingContext tracingContext = Mockito.spy(new TracingContext("abcd",
           "abcde", FSOperationType.APPEND,
           TracingHeaderFormat.ALL_ID_FORMAT, null));
-      List<String> encodedBlockIds = new ArrayList<>();
-      for (int i = 0; i < blockIds.size(); i++) {
-        String blockId1 = Base64.getEncoder()
+        List<String> encodedBlockIds = new ArrayList<>();
+        for (int i = 0; i < blockIds.size(); i++) {
+          String blockId1 = Base64.getEncoder()
             .encodeToString(blockIds.get(i).getBytes());
-        byte[] data = blockData.get(i);
-        AppendRequestParameters appendRequestParameters = Mockito.mock(
+          byte[] data = blockData.get(i);
+          AppendRequestParameters appendRequestParameters = Mockito.mock(
             AppendRequestParameters.class);
-        Mockito.doReturn(0).when(appendRequestParameters).getoffset();
-        Mockito.doReturn(data.length).when(appendRequestParameters).getLength();
-        if (i >= 1) {
-          intercept(IOException.class, () -> {
-            testClient.append(blockId1, finalTestPath, data,
+          Mockito.doReturn(0).when(appendRequestParameters).getoffset();
+          Mockito.doReturn(data.length).when(appendRequestParameters).getLength();
+          if (i >= 1) {
+            intercept(IOException.class, () -> {
+              testClient.append(blockId1, finalTestPath, data,
                 appendRequestParameters, null, tracingContext, null);
             encodedBlockIds.add(blockId1);
           });
           Assertions.assertThat(op[0].getResult().getStatusCode())
               .describedAs("The error code is not correct")
               .isEqualTo(HTTP_BAD_REQUEST);
-        } else {
-          testClient.append(blockId1, finalTestPath, data,
+          } else {
+            testClient.append(blockId1, finalTestPath, data,
               appendRequestParameters, null, tracingContext, null);
-          encodedBlockIds.add(blockId1);
+            encodedBlockIds.add(blockId1);
+          }
         }
-      }
     }
 
     @Test
@@ -299,29 +299,29 @@ public class ITestBlobOperation extends AbstractAbfsIntegrationTest {
         Path testPath = path(TEST_PATH);
         String finalTestPath = testPath.toString().substring(testPath.toString().lastIndexOf("/"));
 
-      TracingContext tracingContext = Mockito.spy(new TracingContext("abcd",
+        TracingContext tracingContext = Mockito.spy(new TracingContext("abcd",
           "abcde", FSOperationType.APPEND,
           TracingHeaderFormat.ALL_ID_FORMAT, null));
-      List<String> encodedBlockIds = new ArrayList<>();
-      for (int i = 0; i < blockIds.size(); i++) {
-        String blockId1 = Base64.getEncoder()
+        List<String> encodedBlockIds = new ArrayList<>();
+        for (int i = 0; i < blockIds.size(); i++) {
+          String blockId1 = Base64.getEncoder()
             .encodeToString(blockIds.get(i).getBytes());
-        byte[] data = blockData.get(i);
-        AppendRequestParameters appendRequestParameters = Mockito.mock(
+          byte[] data = blockData.get(i);
+          AppendRequestParameters appendRequestParameters = Mockito.mock(
             AppendRequestParameters.class);
-        Mockito.doReturn(0).when(appendRequestParameters).getoffset();
-        Mockito.doReturn(data.length).when(appendRequestParameters).getLength();
-        testClient.append(blockId1, finalTestPath, data,
+          Mockito.doReturn(0).when(appendRequestParameters).getoffset();
+          Mockito.doReturn(data.length).when(appendRequestParameters).getLength();
+          testClient.append(blockId1, finalTestPath, data,
             appendRequestParameters, null, tracingContext, null);
-        encodedBlockIds.add(blockId1);
-      }
-      byte[] bufferString = generateBlockListXml(blockIds).getBytes(
+          encodedBlockIds.add(blockId1);
+        }
+        byte[] bufferString = generateBlockListXml(blockIds).getBytes(
           StandardCharsets.UTF_8);
 
-      tracingContext = Mockito.spy(new TracingContext("abcd",
+        tracingContext = Mockito.spy(new TracingContext("abcd",
           "abcde", FSOperationType.APPEND,
           TracingHeaderFormat.ALL_ID_FORMAT, null));
-      testClient.flush(bufferString, finalTestPath, false, null, null, null,
+        testClient.flush(bufferString, finalTestPath, false, null, null, null,
           tracingContext);
 
         /* Validates that all blocks are committed and fetched */
@@ -359,32 +359,32 @@ public class ITestBlobOperation extends AbstractAbfsIntegrationTest {
         final AbfsUriQueryBuilder abfsUriQueryBuilder = testClient.createDefaultUriQueryBuilder();
         abfsUriQueryBuilder.addQuery(QUERY_PARAM_COMP, BLOCK);
 
-      TracingContext tracingContext = Mockito.spy(new TracingContext("abcd",
+        TracingContext tracingContext = Mockito.spy(new TracingContext("abcd",
           "abcde", FSOperationType.APPEND,
           TracingHeaderFormat.ALL_ID_FORMAT, null));
-      List<String> encodedBlockIds = new ArrayList<>();
-      for (int i = 0; i < blockIds.size() - 1; i++) {
-        String blockId1 = Base64.getEncoder()
+        List<String> encodedBlockIds = new ArrayList<>();
+        for (int i = 0; i < blockIds.size() - 1; i++) {
+          String blockId1 = Base64.getEncoder()
             .encodeToString(blockIds.get(i).getBytes());
-        byte[] data = blockData.get(i);
-        AppendRequestParameters appendRequestParameters = Mockito.mock(
+          byte[] data = blockData.get(i);
+          AppendRequestParameters appendRequestParameters = Mockito.mock(
             AppendRequestParameters.class);
-        Mockito.doReturn(0).when(appendRequestParameters).getoffset();
-        Mockito.doReturn(data.length).when(appendRequestParameters).getLength();
-        testClient.append(blockId1, finalTestPath, data,
+          Mockito.doReturn(0).when(appendRequestParameters).getoffset();
+          Mockito.doReturn(data.length).when(appendRequestParameters).getLength();
+          testClient.append(blockId1, finalTestPath, data,
             appendRequestParameters, null, tracingContext, null);
-        encodedBlockIds.add(blockId1);
-      }
-      byte[] bufferString = generateBlockListXml(blockIds).getBytes(
+          encodedBlockIds.add(blockId1);
+        }
+        byte[] bufferString = generateBlockListXml(blockIds).getBytes(
           StandardCharsets.UTF_8);
 
-      final TracingContext blockListTc = Mockito.spy(new TracingContext("abcd",
+        final TracingContext blockListTc = Mockito.spy(new TracingContext("abcd",
           "abcde", FSOperationType.APPEND,
           TracingHeaderFormat.ALL_ID_FORMAT, null));
 
-      /* Verify that an additional blockId which is not staged if we try to commit, it throws an exception */
-      AbfsRestOperation[] op = new AbfsRestOperation[1];
-      Mockito.doAnswer(answer -> {
+        /* Verify that an additional blockId which is not staged if we try to commit, it throws an exception */
+        AbfsRestOperation[] op = new AbfsRestOperation[1];
+        Mockito.doAnswer(answer -> {
             AbfsRestOperation answerOp
                 = (AbfsRestOperation) answer.callRealMethod();
             op[0] = answerOp;
@@ -394,11 +394,11 @@ public class ITestBlobOperation extends AbstractAbfsIntegrationTest {
           .getPutBlockListOperation(Mockito.any(byte[].class),
               Mockito.anyList(), Mockito.nullable(String.class),
               Mockito.any(URL.class));
-      intercept(IOException.class, () -> {
-        testClient.flush(bufferString, finalTestPath, false, null, null, null,
+        intercept(IOException.class, () -> {
+          testClient.flush(bufferString, finalTestPath, false, null, null, null,
             blockListTc);
-      });
-      Assertions.assertThat(op[0].getResult().getStatusCode())
+        });
+        Assertions.assertThat(op[0].getResult().getStatusCode())
           .describedAs("The error code is not correct")
           .isEqualTo(HTTP_BAD_REQUEST);
     }
