@@ -99,6 +99,7 @@ trigger() {
             triggerRun $1 $2 $3 $4 $5 "false";
             return ;
           fi
+          orig_len=${#PROPERTIES[@]}
           for mkdirToDFS in true false; do
             for ingressToDFS in true false; do
                   PROPERTIES[${#PROPERTIES[@]}]="fs.azure.enable.blob.endpoint"
@@ -112,6 +113,10 @@ trigger() {
 
                   triggerRun $1 $2 $3 $4 $5 "false"
             done
+          done
+          for ((i=${#PROPERTIES[@]}-1; i>=orig_len; i--)); do
+            unset 'PROPERTIES[i]'
+            unset 'VALUES[i]'
           done
         done
 }
