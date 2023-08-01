@@ -37,6 +37,7 @@ import org.mockito.Mockito;
 
 import static org.apache.hadoop.fs.azurebfs.AbfsStatistic.CONNECTIONS_MADE;
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_ENABLE_MKDIR_OVERWRITE;
+import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_MKDIRS_FALLBACK_TO_DFS;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.DEFAULT_FS_AZURE_ENABLE_MKDIR_OVERWRITE;
 import static org.apache.hadoop.fs.contract.ContractTestUtils.assertMkdirs;
 import static org.apache.hadoop.test.LambdaTestUtils.intercept;
@@ -184,8 +185,11 @@ public class ITestAzureBlobFileSystemMkDir extends AbstractAbfsIntegrationTest {
   }
 
   @Test
-  public void testGetPathPropertyCalledOnMkdir() throws Exception {
-    AzureBlobFileSystem fs = Mockito.spy(getFileSystem());
+  public void testGetPathPropertyCalledOnMkdirBlobEndpoint() throws Exception {
+    Assume.assumeTrue(getFileSystem().getAbfsStore().getPrefixMode() == PrefixMode.BLOB);
+    AbfsConfiguration abfsConfig = new AbfsConfiguration(getRawConfiguration(), getAccountName());
+    abfsConfig.setBoolean(FS_AZURE_MKDIRS_FALLBACK_TO_DFS, false);
+    AzureBlobFileSystem fs = Mockito.spy((AzureBlobFileSystem) FileSystem.newInstance(abfsConfig.getRawConfiguration()));
     AzureBlobFileSystemStore store = Mockito.spy(fs.getAbfsStore());
     Mockito.doReturn(store).when(fs).getAbfsStore();
 
@@ -193,6 +197,24 @@ public class ITestAzureBlobFileSystemMkDir extends AbstractAbfsIntegrationTest {
     Mockito.verify(store, Mockito.times(1)).tryGetPathProperty(Mockito.any(Path.class),
             Mockito.any(TracingContext.class), Mockito.any(Boolean.class));
     Mockito.verify(store, Mockito.times(1)).getPathProperty(Mockito.any(Path.class),
+            Mockito.any(TracingContext.class), Mockito.any(Boolean.class));
+
+  }
+
+  @Test
+  public void testGetPathPropertyCalledOnMkdirFallbackDFS() throws Exception {
+    Assume.assumeTrue(getFileSystem().getAbfsStore().getPrefixMode() == PrefixMode.BLOB);
+    AbfsConfiguration abfsConfig = new AbfsConfiguration(getRawConfiguration(), getAccountName());
+    abfsConfig.setBoolean(FS_AZURE_MKDIRS_FALLBACK_TO_DFS, true);
+    AzureBlobFileSystem fs = Mockito.spy((AzureBlobFileSystem) FileSystem.newInstance(abfsConfig.getRawConfiguration()));
+    AzureBlobFileSystemStore store = Mockito.spy(fs.getAbfsStore());
+    Mockito.doReturn(store).when(fs).getAbfsStore();
+
+
+    fs.mkdirs(new Path("/testPath"));
+    Mockito.verify(store, Mockito.times(0)).tryGetPathProperty(Mockito.any(Path.class),
+            Mockito.any(TracingContext.class), Mockito.any(Boolean.class));
+    Mockito.verify(store, Mockito.times(0)).getPathProperty(Mockito.any(Path.class),
             Mockito.any(TracingContext.class), Mockito.any(Boolean.class));
 
   }

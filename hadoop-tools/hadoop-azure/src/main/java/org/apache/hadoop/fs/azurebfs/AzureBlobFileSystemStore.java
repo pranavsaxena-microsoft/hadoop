@@ -1307,7 +1307,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     }
     Path current = path.getParent();
     while (current != null && !current.isRoot()) {
-      fileStatus = tryGetPathProperty(path, tracingContext, true);
+      fileStatus = tryGetPathProperty(current, tracingContext, true);
       isDirectory = fileStatus != null ? fileStatus.isDirectory() : false;
       if (fileStatus != null && !isDirectory) {
         throw new AbfsRestOperationException(HTTP_CONFLICT,
