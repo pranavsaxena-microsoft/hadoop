@@ -112,11 +112,11 @@ trigger() {
                   VALUES[${#VALUES[@]}]=$ingressToDFS;
 
                   triggerRun $1 $2 $3 $4 $5 "false"
+                  for ((i=${#PROPERTIES[@]}-1; i>=orig_len; i--)); do
+                    unset 'PROPERTIES[i]'
+                    unset 'VALUES[i]'
+                  done
             done
-          done
-          for ((i=${#PROPERTIES[@]}-1; i>=orig_len; i--)); do
-            unset 'PROPERTIES[i]'
-            unset 'VALUES[i]'
           done
         done
 }
