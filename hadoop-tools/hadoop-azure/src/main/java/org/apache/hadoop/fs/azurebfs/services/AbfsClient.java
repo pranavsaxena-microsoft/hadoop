@@ -195,7 +195,7 @@ public class AbfsClient implements Closeable {
   }
 
   private URL changePrefixFromDfsToBlob(URL url) throws InvalidUriException {
-    if (url.toString().contains(ABFS_DNS_PREFIX)) {
+    if (url.toString().contains(WASB_DNS_PREFIX)) {
       return url;
     }
     try {
