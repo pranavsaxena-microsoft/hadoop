@@ -56,6 +56,7 @@ import org.apache.hadoop.test.LambdaTestUtils;
 import org.mockito.Mockito;
 
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.AZURE_ENABLE_SMALL_WRITE_OPTIMIZATION;
+import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.DATA_BLOCKS_BUFFER;
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_ENABLE_CONDITIONAL_CREATE_OVERWRITE;
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_INFINITE_LEASE_KEY;
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_LEASE_THREADS;
@@ -730,5 +731,54 @@ public class ITestAzureBlobFileSystemAppend extends
     os2.write(bytes);
     os2.write(bytes);
     LambdaTestUtils.intercept(IOException.class, os2::hflush);
+  }
+
+
+  @Test
+  public void test() throws Exception {
+    Configuration configuration = getRawConfiguration();
+    configuration.set(DATA_BLOCKS_BUFFER, "bytebuffer");
+    byte[] bytes = new byte[8 * ONE_MB];
+    boolean[] done = new boolean[50];
+    Long start = System.currentTimeMillis();
+    for(int i=0;i<50;i++) {
+      done[i] = false;
+      final int fileId = i;
+      new Thread(() -> {
+        try {
+          AzureBlobFileSystem fs = (AzureBlobFileSystem) FileSystem.newInstance(
+              configuration);
+          AbfsOutputStream os = (AbfsOutputStream) fs.create(
+                  new Path("/testFile" + fileId))
+              .getWrappedStream();
+          new Random().nextBytes(bytes);
+
+
+          for (int j = 0; j < 30; j++) {
+            os.write(bytes);
+          }
+          os.close();
+
+        } catch (Exception ex) {
+          System.exit(0);
+        } finally {
+          done[fileId] = true;
+        }
+      }).start();
+    }
+    while(true) {
+      boolean toContinue = false;
+      for(int i=0;i<50;i++) {
+        if(!done[i]) {
+          toContinue = true;
+          break;
+        }
+      }
+      if(!toContinue) {
+        break;
+      }
+    }
+    System.out.println("Time taken: " + (System.currentTimeMillis() - start));
+
   }
 }
