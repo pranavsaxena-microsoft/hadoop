@@ -33,6 +33,10 @@ public class PerfRunner {
     setup = new PerfTestAzureSetup();
   }
 
+  /**
+   *
+   * args{} = {dataBlockBufferProp, parallelism, fileName, xmxPropInMB}
+   */
   public void run(String[] args) throws Exception {
     Configuration configuration = setup.rawConfig;
     configuration.set(DATA_BLOCKS_BUFFER, args[0]);
@@ -86,7 +90,7 @@ public class PerfRunner {
     System.out.println("Time taken: " + timeTaken + "; OOM = " + outOfMemory);
 
     StringBuilder builder  = new StringBuilder();
-    builder.append(timeTaken).append(",").append(outOfMemory.get());
+    builder.append(args[0] + ", ").append(args[1] + ", ").append(args[3] + ", ").append(timeTaken + ", ").append(outOfMemory.get());
     List<String> line = new ArrayList<>();
     line.add(builder.toString());
 
