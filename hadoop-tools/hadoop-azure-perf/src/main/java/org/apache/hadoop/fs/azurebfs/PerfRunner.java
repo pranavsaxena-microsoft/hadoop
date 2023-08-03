@@ -1,6 +1,7 @@
 package org.apache.hadoop.fs.azurebfs;
 
 import java.util.Random;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,10 +31,13 @@ public class PerfRunner {
     configuration.set(DATA_BLOCKS_BUFFER, args[0]);
     setup.setup();
 
+    int parallelism = Integer.parseInt(args[1]);
     byte[] bytes = new byte[8 * ONE_MB];
-    boolean[] done = new boolean[50];
+    boolean[] done = new boolean[parallelism];
     Long start = System.currentTimeMillis();
-    for(int i=0;i<50;i++) {
+    AtomicInteger outOfMemory = new AtomicInteger(0);
+    AtomicInteger doneThreads = new AtomicInteger(0);
+    for(int i=0;i<parallelism;i++) {
       done[i] = false;
       final int fileId = i;
       new Thread(() -> {
@@ -52,27 +56,50 @@ public class PerfRunner {
           os.close();
 
         } catch (Throwable ex) {
-
+          if(getMemoryException(ex)) {
+            outOfMemory.incrementAndGet();
+            System.out.println("OOM!!!!");
+          }
         } finally {
-          done[fileId] = true;
+          doneThreads.incrementAndGet();
+//          done[fileId] = true;
         }
       }).start();
     }
     while(true) {
-      boolean toContinue = false;
-      for(int i=0;i<50;i++) {
-        if(!done[i]) {
-          toContinue = true;
-          break;
-        }
-      }
-      if(!toContinue) {
+      if(doneThreads.get() == parallelism) {
         break;
       }
+//      boolean toContinue = false;
+//      for(int i=0;i<parallelism;i++) {
+//        if(!done[i]) {
+//          toContinue = true;
+//          break;
+//        }
+//      }
+//      if(!toContinue) {
+//        break;
+//      }
     }
     System.out.println("Time taken: " + (System.currentTimeMillis() - start));
   }
 
+  private boolean getMemoryException(Throwable ex) {
+    while(ex != null) {
+      if(ex instanceof  OutOfMemoryError) {
+        return true;
+      }
+      ex = ex.getCause();
+    }
+    return false;
+  }
+
+  /**
+   * Combination of diff parallelism vs diff heap memory: disk vs memory: -> count of OOM ex, time taken,
+   * Write CSV
+   * bash script to create diff combo and invoke jar cmd line.
+   *
+   * */
   public static void main(String[] args) throws Exception {
     PerfRunner perfRunner = new PerfRunner();
     perfRunner.run(args);
