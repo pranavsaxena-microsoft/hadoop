@@ -27,7 +27,7 @@ public class PerfTestAzureSetup extends PerfTestSetup {
   private AzureBlobFileSystem abfs;
   private String abfsScheme;
 
-  private Configuration rawConfig;
+  public Configuration rawConfig;
   private AbfsConfiguration abfsConfig;
   private String fileSystemName;
   private String accountName;
