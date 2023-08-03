@@ -53,7 +53,9 @@ public class PerfRunner {
       done[i] = false;
       final int fileId = i;
       new Thread(() -> {
+        int count = 300;
         while(true) {
+          int completed = 0;
           try {
             AzureBlobFileSystem fs = (AzureBlobFileSystem) FileSystem.newInstance(
                 configuration);
@@ -63,8 +65,9 @@ public class PerfRunner {
             new Random().nextBytes(bytes);
 
 
-            for (int j = 0; j < 30; j++) {
+            for (int j = 0; j < count; j++) {
               os.write(bytes);
+              completed++;
             }
             os.close();
 
@@ -73,6 +76,7 @@ public class PerfRunner {
               outOfMemory.incrementAndGet();
               System.out.println("OOM!!!!");
               System.gc();
+              count-=completed;
               continue;
             }
           }
