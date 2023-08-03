@@ -1,6 +1,13 @@
 package org.apache.hadoop.fs.azurebfs;
 
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.slf4j.Logger;
@@ -37,51 +44,53 @@ public class PerfRunner {
     Long start = System.currentTimeMillis();
     AtomicInteger outOfMemory = new AtomicInteger(0);
     AtomicInteger doneThreads = new AtomicInteger(0);
+    CountDownLatch countDownLatch = new CountDownLatch(parallelism);
     for(int i=0;i<parallelism;i++) {
       done[i] = false;
       final int fileId = i;
       new Thread(() -> {
-        try {
-          AzureBlobFileSystem fs = (AzureBlobFileSystem) FileSystem.newInstance(
-              configuration);
-          AbfsOutputStream os = (AbfsOutputStream) fs.create(
-                  new Path("/testFile" + fileId))
-              .getWrappedStream();
-          new Random().nextBytes(bytes);
+        while(true) {
+          try {
+            AzureBlobFileSystem fs = (AzureBlobFileSystem) FileSystem.newInstance(
+                configuration);
+            AbfsOutputStream os = (AbfsOutputStream) fs.create(
+                    new Path("/testFile" + fileId))
+                .getWrappedStream();
+            new Random().nextBytes(bytes);
 
 
-          for (int j = 0; j < 30; j++) {
-            os.write(bytes);
+            for (int j = 0; j < 30; j++) {
+              os.write(bytes);
+            }
+            os.close();
+
+          } catch (Throwable ex) {
+            if(getMemoryException(ex)) {
+              outOfMemory.incrementAndGet();
+              System.out.println("OOM!!!!");
+              System.gc();
+              continue;
+            }
           }
-          os.close();
-
-        } catch (Throwable ex) {
-          if(getMemoryException(ex)) {
-            outOfMemory.incrementAndGet();
-            System.out.println("OOM!!!!");
-          }
-        } finally {
-          doneThreads.incrementAndGet();
-//          done[fileId] = true;
+          break;
         }
+        doneThreads.incrementAndGet();
+        countDownLatch.countDown();
+        System.out.println(doneThreads.get());
       }).start();
     }
-    while(true) {
-      if(doneThreads.get() == parallelism) {
-        break;
-      }
-//      boolean toContinue = false;
-//      for(int i=0;i<parallelism;i++) {
-//        if(!done[i]) {
-//          toContinue = true;
-//          break;
-//        }
-//      }
-//      if(!toContinue) {
-//        break;
-//      }
-    }
-    System.out.println("Time taken: " + (System.currentTimeMillis() - start));
+
+    countDownLatch.await();
+
+    Long timeTaken = (System.currentTimeMillis() - start);
+    System.out.println("Time taken: " + timeTaken + "; OOM = " + outOfMemory);
+
+    StringBuilder builder  = new StringBuilder();
+    builder.append(timeTaken).append(",").append(outOfMemory.get());
+    List<String> line = new ArrayList<>();
+    line.add(builder.toString());
+
+    Files.write(Paths.get(args[2]), line, StandardCharsets.UTF_8, StandardOpenOption.APPEND);
   }
 
   private boolean getMemoryException(Throwable ex) {
