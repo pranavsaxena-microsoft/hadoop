@@ -321,12 +321,6 @@ public class AbfsClient implements Closeable {
     return op;
   }
 
-  private URL createBlobRequestUrl(final AbfsUriQueryBuilder abfsUriQueryBuilder)
-      throws AzureBlobFileSystemException {
-    return changePrefixFromDfsToBlob(
-        createRequestUrl(abfsUriQueryBuilder.toString()));
-  }
-
   public AbfsRestOperation setFilesystemProperties(final String properties, TracingContext tracingContext) throws AzureBlobFileSystemException {
     final List<AbfsHttpHeader> requestHeaders = createDefaultHeaders();
     // JDK7 does not support PATCH, so to workaround the issue we will use
@@ -565,13 +559,6 @@ public class AbfsClient implements Closeable {
       throw ex;
     }
     return op;
-  }
-
-  private URL createBlobRequestUrl(final String path,
-      final AbfsUriQueryBuilder abfsUriQueryBuilder)
-      throws AzureBlobFileSystemException {
-    return changePrefixFromDfsToBlob(
-        createRequestUrl(path, abfsUriQueryBuilder.toString()));
   }
 
   public AbfsRestOperation acquireLease(final String path, int duration, TracingContext tracingContext) throws AzureBlobFileSystemException {
@@ -1864,6 +1851,19 @@ public class AbfsClient implements Closeable {
       }
     }
     return sasToken;
+  }
+
+  private URL createBlobRequestUrl(final AbfsUriQueryBuilder abfsUriQueryBuilder)
+      throws AzureBlobFileSystemException {
+    return changePrefixFromDfsToBlob(
+        createRequestUrl(abfsUriQueryBuilder.toString()));
+  }
+
+  private URL createBlobRequestUrl(final String path,
+      final AbfsUriQueryBuilder abfsUriQueryBuilder)
+      throws AzureBlobFileSystemException {
+    return changePrefixFromDfsToBlob(
+        createRequestUrl(path, abfsUriQueryBuilder.toString()));
   }
 
   private URL createRequestUrl(final String query) throws AzureBlobFileSystemException {
