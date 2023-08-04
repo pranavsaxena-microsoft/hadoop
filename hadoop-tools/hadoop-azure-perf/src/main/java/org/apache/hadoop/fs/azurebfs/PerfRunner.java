@@ -54,14 +54,19 @@ public class PerfRunner {
       final int fileId = i;
       new Thread(() -> {
         int count = 300;
+        AzureBlobFileSystem fs = null;
+        try {
+          fs = (AzureBlobFileSystem) FileSystem.newInstance(
+              configuration);
+          fs.create(
+              new Path("/testFile" + fileId));
+        } catch (Exception ex) {
+
+        }
         while(true) {
           int completed = 0;
           try {
-            AzureBlobFileSystem fs = (AzureBlobFileSystem) FileSystem.newInstance(
-                configuration);
-            AbfsOutputStream os = (AbfsOutputStream) fs.create(
-                    new Path("/testFile" + fileId))
-                .getWrappedStream();
+            AbfsOutputStream os = (AbfsOutputStream) fs.append(new Path("/testFile" + fileId)).getWrappedStream();
             new Random().nextBytes(bytes);
 
 
