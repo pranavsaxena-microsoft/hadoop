@@ -351,7 +351,8 @@ public class ITestAbfsListStatusRemoteIterator extends AbstractAbfsIntegrationTe
 
 
   @Test
-  public void testListStatusIteratorReturnStatusWithPathWithSameUriGivenInConfig() throws Exception {
+  public void testListStatusIteratorReturnStatusWithPathWithSameUriGivenInConfig()
+      throws Exception {
     AzureBlobFileSystem fs = getFileSystem();
     String accountName = getAccountName();
     Boolean isAccountNameInDfs = accountName.contains(ABFS_DNS_PREFIX);
@@ -389,11 +390,12 @@ public class ITestAbfsListStatusRemoteIterator extends AbstractAbfsIntegrationTe
       final String accountName,
       final String dnsAssertion,
       final Path path) throws IOException {
-    RemoteIterator<FileStatus> fileStatusRemoteIterator = fs.listStatusIterator(new Path(
-        "abfs://" + fs.getAbfsClient().getFileSystem() + "@" + accountName
-            + path.getParent().toUri().getPath()));
+    RemoteIterator<FileStatus> fileStatusRemoteIterator = fs.listStatusIterator(
+        new Path(
+            "abfs://" + fs.getAbfsClient().getFileSystem() + "@" + accountName
+                + path.getParent().toUri().getPath()));
 
-    while(fileStatusRemoteIterator.hasNext()) {
+    while (fileStatusRemoteIterator.hasNext()) {
       FileStatus fileStatus = fileStatusRemoteIterator.next();
       Assertions.assertThat(fileStatus.getPath().toString())
           .contains(dnsAssertion);
@@ -403,7 +405,7 @@ public class ITestAbfsListStatusRemoteIterator extends AbstractAbfsIntegrationTe
         "abfs://" + fs.getAbfsClient().getFileSystem() + "@" + accountName
             + path.toUri().getPath()));
 
-    while(fileStatusRemoteIterator.hasNext()) {
+    while (fileStatusRemoteIterator.hasNext()) {
       FileStatus fileStatus = fileStatusRemoteIterator.next();
       Assertions.assertThat(fileStatus.getPath().toString())
           .contains(dnsAssertion);
