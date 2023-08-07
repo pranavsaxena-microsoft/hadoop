@@ -355,12 +355,14 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
 
     AbfsBlock block = createBlockIfNeeded(position);
     // Put entry in map with status as NEW which is changed to SUCCESS when successfully appended.
-    mapLock.lock();
     try {
-      if (length > 0) {
-        map.put(block.getBlockId(), BlockStatus.NEW);
-        orderedBlockList.add(block.getBlockId());
+      mapLock.lock();
+      if (length == 0) {
+        LOG.debug("The length of the block with blockId {} for the given path {} is 0", block.getBlockId(), path);
+        return;
       }
+      map.put(block.getBlockId(), BlockStatus.NEW);
+      orderedBlockList.add(block.getBlockId());
     } finally {
       mapLock.unlock();
     }
@@ -471,15 +473,15 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
                 op = client.append(blockToUpload.getBlockId(), path, blockUploadData.toByteArray(), reqParams,
                         cachedSasToken.get(), new TracingContext(tracingContext), getETag());
                 String key = blockToUpload.getBlockId();
-                if (!getMap().containsKey(key)) {
-                  throw new Exception("Block is missing with blockId " + blockToUpload.getBlockId());
-                } else {
+                try {
                   mapLock.lock();
-                  try {
+                  if (!getMap().containsKey(key)) {
+                    throw new Exception("Block is missing with blockId " + blockToUpload.getBlockId());
+                  } else {
                     map.put(blockToUpload.getBlockId(), BlockStatus.SUCCESS);
-                  } finally {
-                    mapLock.unlock();
                   }
+                } finally {
+                  mapLock.unlock();
                 }
               } catch (AbfsRestOperationException ex) {
                 // The mechanism to fall back to DFS endpoint if blob operation is not supported.
