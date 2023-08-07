@@ -887,8 +887,13 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
         op = client.flush(blockListXml.getBytes(), path,
                 isClose, cachedSasToken.get(), leaseId, getETag(), new TracingContext(tracingContext));
         setETag(op.getResult().getResponseHeader(HttpHeaderConfigurations.ETAG));
-        getMap().clear();
-        orderedBlockList.clear();
+        try {
+          mapLock.lock();
+          getMap().clear();
+          orderedBlockList.clear();
+        } finally {
+          mapLock.unlock();
+        }
       } else {
         LOG.debug("Flush over DFS for ingress config value {} for path {} ",
                 client.getAbfsConfiguration().shouldIngressFallbackToDfs(), path);
