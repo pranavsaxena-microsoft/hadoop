@@ -353,14 +353,14 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
       throw new PathIOException(path, ERR_WRITE_WITHOUT_LEASE);
     }
 
+    if (length == 0) {
+      return;
+    }
+
     AbfsBlock block = createBlockIfNeeded(position);
     // Put entry in map with status as NEW which is changed to SUCCESS when successfully appended.
     try {
       mapLock.lock();
-      if (length == 0) {
-        LOG.debug("The length of the block with blockId {} for the given path {} is 0", block.getBlockId(), path);
-        return;
-      }
       map.put(block.getBlockId(), BlockStatus.NEW);
       orderedBlockList.add(block.getBlockId());
     } finally {
@@ -470,13 +470,15 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
               try {
                 LOG.debug("Append over Blob for ingress config value {} for path {} ",
                         client.getAbfsConfiguration().shouldIngressFallbackToDfs(), path);
+                TracingContext tracingContextBlobAppend = new TracingContext(tracingContext);
+                tracingContextBlobAppend.setFallbackDFSAppend("B " + offset);
                 op = client.append(blockToUpload.getBlockId(), path, blockUploadData.toByteArray(), reqParams,
-                        cachedSasToken.get(), new TracingContext(tracingContext), getETag());
+                        cachedSasToken.get(), tracingContextBlobAppend, getETag());
                 String key = blockToUpload.getBlockId();
                 try {
                   mapLock.lock();
                   if (!getMap().containsKey(key)) {
-                    throw new Exception("Block is missing with blockId " + blockToUpload.getBlockId());
+                    throw new Exception("Block is missing with blockId " + blockToUpload.getBlockId() + " for offset " + offset + " for path" + path);
                   } else {
                     map.put(blockToUpload.getBlockId(), BlockStatus.SUCCESS);
                   }
@@ -871,7 +873,8 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
             if (!entry.getKey().equals(orderedBlockList.get(mapEntry))) {
               LOG.debug("The order for the given offset {} with blockId {} " +
                       " for the path {} was not successful", offset, entry.getKey(), path);
-              throw new IOException("The ordering in map is incorrect");
+              throw new IOException("The ordering in map is incorrect for blockId " +
+                      entry.getKey() + " and offset " + offset + " for path" + path);
             }
             blockIdList.add(entry.getKey());
             mapEntry++;
@@ -880,7 +883,8 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
         if (!successValue) {
           LOG.debug("A past append for the given offset {} with blockId {} " +
                   " for the path {} was not successful", offset, failedBlockId, path);
-          throw new IOException("A past append was not successful");
+          throw new IOException("A past append was not successful for blockId " +
+                  failedBlockId + " and offset " + offset + " for path" + path);
         }
         // Generate the xml with the list of blockId's to generate putBlockList call.
         String blockListXml = generateBlockListXml(blockIdList);
