@@ -602,7 +602,7 @@ public class ITestAzureBlobFileSystemRandomRead extends
       Mockito.verify(mockClient, Mockito.atLeast(1)).getBlobProperty(
               Mockito.any(Path.class), Mockito.any(TracingContext.class));
     } else {
-      Mockito.verify(mockClient, Mockito.times(1)).getPathStatus(
+      Mockito.verify(mockClient, Mockito.times(2)).getPathStatus(
               Mockito.any(String.class), Mockito.anyBoolean(), Mockito.any(TracingContext.class));
     }
   }
