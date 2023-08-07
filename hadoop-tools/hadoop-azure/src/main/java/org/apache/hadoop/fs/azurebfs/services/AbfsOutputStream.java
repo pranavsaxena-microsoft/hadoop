@@ -478,7 +478,8 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
                 try {
                   mapLock.lock();
                   if (!getMap().containsKey(key)) {
-                    throw new Exception("Block is missing with blockId " + blockToUpload.getBlockId() + " for offset " + offset + " for path" + path);
+                    throw new Exception("Block is missing with blockId " + blockToUpload.getBlockId() +
+                            " for offset " + offset + " for path" + path);
                   } else {
                     map.put(blockToUpload.getBlockId(), BlockStatus.SUCCESS);
                   }
@@ -888,8 +889,10 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
         }
         // Generate the xml with the list of blockId's to generate putBlockList call.
         String blockListXml = generateBlockListXml(blockIdList);
+        TracingContext tracingContextBlobFlush = new TracingContext(tracingContext);
+        tracingContextBlobFlush.setFallbackDFSAppend("B " + position);
         op = client.flush(blockListXml.getBytes(), path,
-                isClose, cachedSasToken.get(), leaseId, getETag(), new TracingContext(tracingContext));
+                isClose, cachedSasToken.get(), leaseId, getETag(), tracingContextBlobFlush);
         setETag(op.getResult().getResponseHeader(HttpHeaderConfigurations.ETAG));
         try {
           mapLock.lock();
