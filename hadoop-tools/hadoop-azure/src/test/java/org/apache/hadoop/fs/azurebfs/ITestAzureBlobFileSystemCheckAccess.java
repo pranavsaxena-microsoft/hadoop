@@ -114,11 +114,6 @@ public class ITestAzureBlobFileSystemCheckAccess
   private void setTestUserFsNonHNS() throws Exception {
     AzureBlobFileSystemStore abfsStore = getAbfsStore(getFileSystem());
     String accountName = this.getAccountName();
-    if (abfsStore.getPrefixMode() == PrefixMode.BLOB) {
-      if (abfsStore.getAbfsConfiguration().shouldEnableBlobEndPoint()) {
-        accountName = getAccountName().replace(ABFS_DNS_PREFIX, WASB_DNS_PREFIX);
-      }
-    }
     checkIfConfigIsSet(FS_AZURE_ACCOUNT_OAUTH_CLIENT_ENDPOINT
             + "." + accountName);
     Configuration conf = Mockito.spy(getRawConfiguration());
@@ -131,6 +126,7 @@ public class ITestAzureBlobFileSystemCheckAccess
             + accountName, ClientCredsTokenProvider.class.getName());
     conf.setBoolean(AZURE_CREATE_REMOTE_FILESYSTEM_DURING_INITIALIZATION,
             false);
+    conf.set(FS_AZURE_ACCOUNT_IS_HNS_ENABLED, "");
     FileSystem testUserFsNonHns;
     testUserFsNonHns = FileSystem.newInstance(conf);
   }
@@ -224,7 +220,9 @@ public class ITestAzureBlobFileSystemCheckAccess
 
     //  When the driver does not know if the account is HNS enabled or not it
     //  makes a server call and fails
-    intercept(Exception.class, "\"This request is not authorized to perform this operation using "
+
+    intercept(Exception.class,
+        "\"This request is not authorized to perform this operation using "
             + "this permission.\", 403", this::setTestUserFsNonHNS);
 
     //  When the driver has already determined if the account is HNS enabled
