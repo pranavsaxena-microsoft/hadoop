@@ -943,7 +943,7 @@ public class ITestAzureBlobFileSystemCreate extends
     Path testFile = new Path("/");
     try {
       fs.createNonRecursive(testFile, FsPermission.getDefault(), false, 1024, (short) 1, 1024, null);
-      fail("Should've thrown");
+      fail("Should've thrown AbfsRestOperationException with HTTP_CONFLICT");
     } catch (AbfsRestOperationException e) {
       assertEquals(e.getStatusCode(), HTTP_CONFLICT);
     }
