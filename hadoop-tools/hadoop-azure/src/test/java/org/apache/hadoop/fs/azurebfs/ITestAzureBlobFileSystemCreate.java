@@ -936,6 +936,20 @@ public class ITestAzureBlobFileSystemCreate extends
   }
 
   @Test
+  @SuppressWarnings("deprecation")
+  public void testCreateNonRecursiveOnRoot() throws Exception {
+    final AzureBlobFileSystem fs = getFileSystem();
+
+    Path testFile = new Path("/");
+    try {
+      fs.createNonRecursive(testFile, FsPermission.getDefault(), false, 1024, (short) 1, 1024, null);
+      fail("Should've thrown");
+    } catch (AbfsRestOperationException e) {
+      assertEquals(e.getStatusCode(), HTTP_CONFLICT);
+    }
+  }
+
+  @Test
   public void testCreateNonRecursiveForAtomicDirectoryFile() throws Exception {
     AzureBlobFileSystem fileSystem = getFileSystem();
     Assume.assumeTrue(

@@ -1373,8 +1373,8 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
 
       if (isDirectory) {
         throw new AbfsRestOperationException(
-                AzureServiceErrorCode.PATH_NOT_FOUND.getStatusCode(),
-                AzureServiceErrorCode.PATH_NOT_FOUND.getErrorCode(),
+                AzureServiceErrorCode.PATH_CONFLICT.getStatusCode(),
+                AzureServiceErrorCode.PATH_CONFLICT.getErrorCode(),
                 "openFileForRead must be used with files and not directories." +
                         "Attempt made for read on explicit directory.",
                 null);
