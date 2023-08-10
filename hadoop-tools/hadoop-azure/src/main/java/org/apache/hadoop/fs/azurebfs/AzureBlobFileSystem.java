@@ -494,6 +494,15 @@ public class AzureBlobFileSystem extends FileSystem
       final Progressable progress) throws IOException {
 
     statIncrement(CALL_CREATE_NON_RECURSIVE);
+
+    if (f.isRoot()) {
+      // Throwing same exception as create() on root.
+      throw new AbfsRestOperationException(HTTP_CONFLICT,
+          AzureServiceErrorCode.PATH_CONFLICT.getErrorCode(),
+          PATH_EXISTS,
+          null);
+    }
+
     final Path parent = f.getParent();
     TracingContext tracingContext = new TracingContext(clientCorrelationId,
         fileSystemId, FSOperationType.CREATE_NON_RECURSIVE, tracingHeaderFormat,
