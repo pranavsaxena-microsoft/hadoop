@@ -87,6 +87,7 @@ import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AbfsRestOperationExcep
  */
 public class AbfsClient implements Closeable {
   public static final Logger LOG = LoggerFactory.getLogger(AbfsClient.class);
+  public static final String HUNDRED_CONTINUE = " 100-continue;";
 
   private final URL baseUrl;
   private final SharedKeyCredentials sharedKeyCredentials;
@@ -783,6 +784,12 @@ public class AbfsClient implements Closeable {
         abfsUriQueryBuilder.addQuery(QUERY_PARAM_CLOSE, TRUE);
       }
     }
+    if (reqParams.isRetryDueToExpect()) {
+      String userAgentRetry = userAgent;
+      userAgentRetry = userAgentRetry.replace(HUNDRED_CONTINUE, EMPTY_STRING);
+      requestHeaders.removeIf(header -> header.getName().equalsIgnoreCase(USER_AGENT));
+      requestHeaders.add(new AbfsHttpHeader(USER_AGENT, userAgentRetry));
+    }
 
     // AbfsInputStream/AbfsOutputStream reuse SAS tokens for better performance
     String sasTokenForReuse = appendSASTokenToQuery(path, SASTokenProvider.WRITE_OPERATION,
@@ -816,6 +823,7 @@ public class AbfsClient implements Closeable {
       if (checkUserError(responseStatusCode) && reqParams.isExpectHeaderEnabled()) {
         LOG.debug("User error, retrying without 100 continue enabled for the given path {}", path);
         reqParams.setExpectHeaderEnabled(false);
+        reqParams.setRetryDueToExpect(true);
         return this.append(path, buffer, reqParams, cachedSasToken,
             tracingContext);
       }
@@ -873,6 +881,13 @@ public class AbfsClient implements Closeable {
     requestHeaders.add(new AbfsHttpHeader(CONTENT_LENGTH, String.valueOf(buffer.length)));
     requestHeaders.add(new AbfsHttpHeader(IF_MATCH, eTag));
 
+    if (reqParams.isRetryDueToExpect()) {
+      String userAgentRetry = userAgent;
+      userAgentRetry = userAgentRetry.replace(HUNDRED_CONTINUE, EMPTY_STRING);
+      requestHeaders.removeIf(header -> header.getName().equalsIgnoreCase(USER_AGENT));
+      requestHeaders.add(new AbfsHttpHeader(USER_AGENT, userAgentRetry));
+    }
+
     // AbfsInputStream/AbfsOutputStream reuse SAS tokens for better performance
     String sasTokenForReuse = appendSASTokenToQuery(path, SASTokenProvider.WRITE_OPERATION,
             abfsUriQueryBuilder, cachedSasToken);
@@ -896,6 +911,7 @@ public class AbfsClient implements Closeable {
       if (checkUserErrorBlob(responseStatusCode) && reqParams.isExpectHeaderEnabled()) {
         LOG.debug("User error, retrying without 100 continue enabled for the given path {}", path);
         reqParams.setExpectHeaderEnabled(false);
+        reqParams.setRetryDueToExpect(true);
         return this.append(blockId, path, buffer, reqParams, cachedSasToken,
                 tracingContext, eTag);
       }
