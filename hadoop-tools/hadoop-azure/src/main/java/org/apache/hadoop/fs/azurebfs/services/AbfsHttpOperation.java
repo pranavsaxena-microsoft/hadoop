@@ -76,6 +76,7 @@ import static org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations.E
  * Represents an HTTP operation.
  */
 public class AbfsHttpOperation implements AbfsPerfLoggable {
+
   private static final Logger LOG = LoggerFactory.getLogger(AbfsHttpOperation.class);
 
   private static final int CONNECT_TIMEOUT = 30 * 1000;
@@ -85,6 +86,11 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
 
   private static final int ONE_THOUSAND = 1000;
   private static final int ONE_MILLION = ONE_THOUSAND * ONE_THOUSAND;
+
+  public static final String CODE_START_XML = "<Code>";
+  public static final String CODE_END_XML = "</Code>";
+  public static final String MESSAGE_START_XML = "<Message>";
+  public static final String MESSAGE_END_XML = "</Message>";
 
   private final String method;
   private final URL url;
@@ -469,7 +475,11 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
     }
 
     if (statusCode >= HttpURLConnection.HTTP_BAD_REQUEST) {
-      processStorageErrorResponse();
+      if (getBaseUrl().contains(WASB_DNS_PREFIX)) {
+        processBlobStorageErrorResponse();
+      } else {
+        processStorageErrorResponse();
+      }
       if (this.isTraceEnabled) {
         this.recvResponseTimeMs += elapsedTimeMs(startTime);
       }
@@ -642,10 +652,6 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
    *
    */
   private void processStorageErrorResponse() {
-    if (getBaseUrl().contains(WASB_DNS_PREFIX)) {
-      processBlobStorageErrorResponse();
-      return;
-    }
     try (InputStream stream = connection.getErrorStream()) {
       if (stream == null) {
         return;
@@ -687,19 +693,22 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
     }
   }
 
-  private void processBlobStorageErrorResponse() {
-    try {
-      SAXParser saxParser = saxParserThreadLocal.get();
-      final BlobErrorMessageXmlParser blobErrorMessageXmlParser
-          = new BlobErrorMessageXmlParser();
-      final String errorStreamData = IOUtils.toString(
-          connection.getErrorStream(), StandardCharsets.UTF_8);
-      LOG.debug("ErrorStream data: " + errorStreamData);
-      saxParser.parse(errorStreamData, blobErrorMessageXmlParser);
-      storageErrorCode = blobErrorMessageXmlParser.getCode();
-      storageErrorMessage = blobErrorMessageXmlParser.getMessage();
-    } catch (IOException | SAXException e) {
-      LOG.debug("Error while parsing errorStream for blob endpoint: ", e);
+  private void processBlobStorageErrorResponse() throws IOException {
+    final String data = IOUtils.toString(connection.getErrorStream(),
+        StandardCharsets.UTF_8);
+
+    int codeStartFirstInstance = data.indexOf(CODE_START_XML);
+    int codeEndFirstInstance = data.indexOf(CODE_END_XML);
+    if (codeEndFirstInstance != -1 && codeStartFirstInstance != -1) {
+      storageErrorCode = data.substring(codeStartFirstInstance,
+          codeEndFirstInstance).replace(CODE_START_XML, "");
+    }
+
+    int msgStartFirstInstance = data.indexOf(MESSAGE_START_XML);
+    int msgEndFirstInstance = data.indexOf(MESSAGE_END_XML);
+    if (msgEndFirstInstance != -1 && msgStartFirstInstance != -1) {
+      storageErrorMessage = data.substring(msgStartFirstInstance,
+          msgEndFirstInstance).replace(MESSAGE_START_XML, "");
     }
   }
 
