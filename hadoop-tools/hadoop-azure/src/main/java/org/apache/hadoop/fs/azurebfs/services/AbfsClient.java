@@ -883,7 +883,7 @@ public class AbfsClient implements Closeable {
 
     if (reqParams.isRetryDueToExpect()) {
       String userAgentRetry = userAgent;
-      userAgentRetry = userAgentRetry.replace(HUNDRED_CONTINUE, EMPTY_STRING);
+      userAgentRetry = userAgentRetry.replace(HUNDRED_CONTINUE_USER_AGENT, EMPTY_STRING);
       requestHeaders.removeIf(header -> header.getName().equalsIgnoreCase(USER_AGENT));
       requestHeaders.add(new AbfsHttpHeader(USER_AGENT, userAgentRetry));
     }
