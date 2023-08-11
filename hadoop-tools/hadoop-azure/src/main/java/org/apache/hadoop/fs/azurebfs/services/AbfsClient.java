@@ -1955,6 +1955,12 @@ public class AbfsClient implements Closeable {
     appendIfNotEmpty(sb,
         ExtensionHelper.getUserAgentSuffix(tokenProvider, EMPTY_STRING), true);
 
+    if (abfsConfiguration.isExpectHeaderEnabled()) {
+      sb.append(SINGLE_WHITE_SPACE);
+      sb.append("100-continue");
+      sb.append(SEMICOLON);
+    }
+
     sb.append(SINGLE_WHITE_SPACE);
     sb.append(abfsConfiguration.getClusterName());
     sb.append(FORWARD_SLASH);
