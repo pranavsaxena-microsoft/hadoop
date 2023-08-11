@@ -25,6 +25,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -37,6 +38,7 @@ import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
 
+import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.classification.VisibleForTesting;
 import org.apache.hadoop.fs.azurebfs.utils.UriUtils;
 import org.apache.hadoop.security.ssl.DelegatingSSLSocketFactory;
@@ -63,6 +65,7 @@ import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.BLOCK_NA
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.COMMITTED_BLOCKS;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.EQUAL;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.NAME;
+import static org.apache.hadoop.fs.azurebfs.constants.FileSystemUriSchemes.WASB_DNS_PREFIX;
 import static org.apache.hadoop.fs.azurebfs.constants.HttpQueryParams.QUERY_PARAM_COMP;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.COMP_LIST;
 
@@ -639,6 +642,10 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
    *
    */
   private void processStorageErrorResponse() {
+    if (getBaseUrl().contains(WASB_DNS_PREFIX)) {
+      processBlobStorageErrorResponse();
+      return;
+    }
     try (InputStream stream = connection.getErrorStream()) {
       if (stream == null) {
         return;
@@ -677,6 +684,22 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
       // error, since the response may have been handled by the HTTP driver
       // or for other reasons have an unexpected
       LOG.debug("ExpectedError: ", ex);
+    }
+  }
+
+  private void processBlobStorageErrorResponse() {
+    try {
+      SAXParser saxParser = saxParserThreadLocal.get();
+      final BlobErrorMessageXmlParser blobErrorMessageXmlParser
+          = new BlobErrorMessageXmlParser();
+      final String errorStreamData = IOUtils.toString(
+          connection.getErrorStream(), StandardCharsets.UTF_8);
+      LOG.debug("ErrorStream data: " + errorStreamData);
+      saxParser.parse(errorStreamData, blobErrorMessageXmlParser);
+      storageErrorCode = blobErrorMessageXmlParser.getCode();
+      storageErrorMessage = blobErrorMessageXmlParser.getMessage();
+    } catch (IOException | SAXException e) {
+      LOG.debug("Error while parsing errorStream for blob endpoint: ", e);
     }
   }
 
