@@ -479,7 +479,7 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
                   mapLock.lock();
                   if (!getMap().containsKey(key)) {
                     throw new Exception("Block is missing with blockId " + blockToUpload.getBlockId() +
-                            " for offset " + offset + " for path" + path);
+                            " for offset " + offset + " for path" + path  + " with streamId " + outputStreamId);
                   } else {
                     map.put(blockToUpload.getBlockId(), BlockStatus.SUCCESS);
                   }
@@ -872,20 +872,20 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
             break;
           } else {
             if (!entry.getKey().equals(orderedBlockList.get(mapEntry))) {
-              LOG.debug("The order for the given offset {} with blockId {} " +
-                      " for the path {} was not successful", offset, entry.getKey(), path);
+              LOG.debug("The order for the given offset {} with blockId {} and streamId {} " +
+                      " for the path {} was not successful", offset, entry.getKey(), outputStreamId, path);
               throw new IOException("The ordering in map is incorrect for blockId " +
-                      entry.getKey() + " and offset " + offset + " for path" + path);
+                      entry.getKey() + " and offset " + offset + " for path" + path + " with streamId " + outputStreamId);
             }
             blockIdList.add(entry.getKey());
             mapEntry++;
           }
         }
         if (!successValue) {
-          LOG.debug("A past append for the given offset {} with blockId {} " +
-                  " for the path {} was not successful", offset, failedBlockId, path);
+          LOG.debug("A past append for the given offset {} with blockId {} and streamId {}" +
+                  " for the path {} was not successful", offset, failedBlockId, outputStreamId, path);
           throw new IOException("A past append was not successful for blockId " +
-                  failedBlockId + " and offset " + offset + " for path" + path);
+                  failedBlockId + " and offset " + offset + " for path" + path + " with streamId " + outputStreamId);
         }
         // Generate the xml with the list of blockId's to generate putBlockList call.
         String blockListXml = generateBlockListXml(blockIdList);
