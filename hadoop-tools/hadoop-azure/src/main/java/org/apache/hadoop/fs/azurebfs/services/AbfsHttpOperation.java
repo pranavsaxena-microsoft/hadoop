@@ -18,10 +18,8 @@
 
 package org.apache.hadoop.fs.azurebfs.services;
 
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -62,8 +60,12 @@ import org.w3c.dom.NodeList;
 
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.BLOCKLIST;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.BLOCK_NAME;
+import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.BLOB_ERROR_CODE_END_XML;
+import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.BLOB_ERROR_CODE_START_XML;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.COMMITTED_BLOCKS;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.EQUAL;
+import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.BLOB_ERROR_MESSAGE_END_XML;
+import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.BLOB_ERROR_MESSAGE_START_XML;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.NAME;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemUriSchemes.WASB_DNS_PREFIX;
 import static org.apache.hadoop.fs.azurebfs.constants.HttpQueryParams.QUERY_PARAM_COMP;
@@ -86,12 +88,6 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
 
   private static final int ONE_THOUSAND = 1000;
   private static final int ONE_MILLION = ONE_THOUSAND * ONE_THOUSAND;
-
-  public static final String CODE_START_XML = "<Code>";
-  public static final String CODE_END_XML = "</Code>";
-  public static final String MESSAGE_START_XML = "<Message>";
-  public static final String MESSAGE_END_XML = "</Message>";
-
   private final String method;
   private final URL url;
   private String maskedUrl;
@@ -693,22 +689,37 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
     }
   }
 
+  /**
+   * Extract errorCode and errorMessage from errorStream populated by server.
+   * Error-message in the form of:
+   * <pre>
+   *   {@code
+   *   <?xml version="1.0" encoding="utf-8"?>
+   *   <Error>
+   *      <Code>string-value</Code>
+   *      <Message>string-value</Message>
+   *   </Error>
+   * }
+   * </pre>
+   * <a href= "https://learn.microsoft.com/en-us/rest/api/storageservices/status-and-error-codes2">
+   *   Reference</a>
+   */
   private void processBlobStorageErrorResponse() throws IOException {
     final String data = IOUtils.toString(connection.getErrorStream(),
         StandardCharsets.UTF_8);
 
-    int codeStartFirstInstance = data.indexOf(CODE_START_XML);
-    int codeEndFirstInstance = data.indexOf(CODE_END_XML);
+    int codeStartFirstInstance = data.indexOf(BLOB_ERROR_CODE_START_XML);
+    int codeEndFirstInstance = data.indexOf(BLOB_ERROR_CODE_END_XML);
     if (codeEndFirstInstance != -1 && codeStartFirstInstance != -1) {
       storageErrorCode = data.substring(codeStartFirstInstance,
-          codeEndFirstInstance).replace(CODE_START_XML, "");
+          codeEndFirstInstance).replace(BLOB_ERROR_CODE_START_XML, "");
     }
 
-    int msgStartFirstInstance = data.indexOf(MESSAGE_START_XML);
-    int msgEndFirstInstance = data.indexOf(MESSAGE_END_XML);
+    int msgStartFirstInstance = data.indexOf(BLOB_ERROR_MESSAGE_START_XML);
+    int msgEndFirstInstance = data.indexOf(BLOB_ERROR_MESSAGE_END_XML);
     if (msgEndFirstInstance != -1 && msgStartFirstInstance != -1) {
       storageErrorMessage = data.substring(msgStartFirstInstance,
-          msgEndFirstInstance).replace(MESSAGE_START_XML, "");
+          msgEndFirstInstance).replace(BLOB_ERROR_MESSAGE_START_XML, "");
     }
   }
 
