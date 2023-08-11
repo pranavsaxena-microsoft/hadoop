@@ -353,14 +353,16 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
       throw new PathIOException(path, ERR_WRITE_WITHOUT_LEASE);
     }
 
+    if (length == 0) {
+      return;
+    }
+
     AbfsBlock block = createBlockIfNeeded(position);
     // Put entry in map with status as NEW which is changed to SUCCESS when successfully appended.
-    mapLock.lock();
     try {
-      if (length > 0) {
-        map.put(block.getBlockId(), BlockStatus.NEW);
-        orderedBlockList.add(block.getBlockId());
-      }
+      mapLock.lock();
+      map.put(block.getBlockId(), BlockStatus.NEW);
+      orderedBlockList.add(block.getBlockId());
     } finally {
       mapLock.unlock();
     }
@@ -468,18 +470,21 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
               try {
                 LOG.debug("Append over Blob for ingress config value {} for path {} ",
                         client.getAbfsConfiguration().shouldIngressFallbackToDfs(), path);
+                TracingContext tracingContextBlobAppend = new TracingContext(tracingContext);
+                tracingContextBlobAppend.setFallbackDFSAppend("B " + offset);
                 op = client.append(blockToUpload.getBlockId(), path, blockUploadData.toByteArray(), reqParams,
-                        cachedSasToken.get(), new TracingContext(tracingContext), getETag());
+                        cachedSasToken.get(), tracingContextBlobAppend, getETag());
                 String key = blockToUpload.getBlockId();
-                if (!getMap().containsKey(key)) {
-                  throw new Exception("Block is missing with blockId " + blockToUpload.getBlockId());
-                } else {
+                try {
                   mapLock.lock();
-                  try {
+                  if (!getMap().containsKey(key)) {
+                    throw new Exception("Block is missing with blockId " + blockToUpload.getBlockId() +
+                            " for offset " + offset + " for path" + path  + " with streamId " + outputStreamId);
+                  } else {
                     map.put(blockToUpload.getBlockId(), BlockStatus.SUCCESS);
-                  } finally {
-                    mapLock.unlock();
                   }
+                } finally {
+                  mapLock.unlock();
                 }
               } catch (AbfsRestOperationException ex) {
                 // The mechanism to fall back to DFS endpoint if blob operation is not supported.
@@ -867,26 +872,35 @@ public class AbfsOutputStream extends OutputStream implements Syncable,
             break;
           } else {
             if (!entry.getKey().equals(orderedBlockList.get(mapEntry))) {
-              LOG.debug("The order for the given offset {} with blockId {} " +
-                      " for the path {} was not successful", offset, entry.getKey(), path);
-              throw new IOException("The ordering in map is incorrect");
+              LOG.debug("The order for the given offset {} with blockId {} and streamId {} " +
+                      " for the path {} was not successful", offset, entry.getKey(), outputStreamId, path);
+              throw new IOException("The ordering in map is incorrect for blockId " +
+                      entry.getKey() + " and offset " + offset + " for path" + path + " with streamId " + outputStreamId);
             }
             blockIdList.add(entry.getKey());
             mapEntry++;
           }
         }
         if (!successValue) {
-          LOG.debug("A past append for the given offset {} with blockId {} " +
-                  " for the path {} was not successful", offset, failedBlockId, path);
-          throw new IOException("A past append was not successful");
+          LOG.debug("A past append for the given offset {} with blockId {} and streamId {}" +
+                  " for the path {} was not successful", offset, failedBlockId, outputStreamId, path);
+          throw new IOException("A past append was not successful for blockId " +
+                  failedBlockId + " and offset " + offset + " for path" + path + " with streamId " + outputStreamId);
         }
         // Generate the xml with the list of blockId's to generate putBlockList call.
         String blockListXml = generateBlockListXml(blockIdList);
+        TracingContext tracingContextBlobFlush = new TracingContext(tracingContext);
+        tracingContextBlobFlush.setFallbackDFSAppend("B " + position);
         op = client.flush(blockListXml.getBytes(), path,
-                isClose, cachedSasToken.get(), leaseId, getETag(), new TracingContext(tracingContext));
+                isClose, cachedSasToken.get(), leaseId, getETag(), tracingContextBlobFlush);
         setETag(op.getResult().getResponseHeader(HttpHeaderConfigurations.ETAG));
-        getMap().clear();
-        orderedBlockList.clear();
+        try {
+          mapLock.lock();
+          getMap().clear();
+          orderedBlockList.clear();
+        } finally {
+          mapLock.unlock();
+        }
       } else {
         LOG.debug("Flush over DFS for ingress config value {} for path {} ",
                 client.getAbfsConfiguration().shouldIngressFallbackToDfs(), path);
