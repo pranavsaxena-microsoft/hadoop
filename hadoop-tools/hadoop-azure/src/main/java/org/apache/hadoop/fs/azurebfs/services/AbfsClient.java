@@ -87,7 +87,7 @@ import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AbfsRestOperationExcep
  */
 public class AbfsClient implements Closeable {
   public static final Logger LOG = LoggerFactory.getLogger(AbfsClient.class);
-  public static final String HUNDRED_CONTINUE = " 100-continue;";
+  public static final String HUNDRED_CONTINUE_USER_AGENT = " 100-continue;";
 
   private final URL baseUrl;
   private final SharedKeyCredentials sharedKeyCredentials;
@@ -786,7 +786,7 @@ public class AbfsClient implements Closeable {
     }
     if (reqParams.isRetryDueToExpect()) {
       String userAgentRetry = userAgent;
-      userAgentRetry = userAgentRetry.replace(HUNDRED_CONTINUE, EMPTY_STRING);
+      userAgentRetry = userAgentRetry.replace(HUNDRED_CONTINUE_USER_AGENT, EMPTY_STRING);
       requestHeaders.removeIf(header -> header.getName().equalsIgnoreCase(USER_AGENT));
       requestHeaders.add(new AbfsHttpHeader(USER_AGENT, userAgentRetry));
     }
