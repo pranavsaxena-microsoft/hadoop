@@ -1515,6 +1515,18 @@ public class AbfsClient implements Closeable {
         requestHeaders);
   }
 
+  @VisibleForTesting
+  AbfsRestOperation getListBlobOperation(final URL url,
+      final List<AbfsHttpHeader> requestHeaders) {
+    return new AbfsRestOperation(
+        AbfsRestOperationType.GetListBlobProperties,
+        this,
+        HTTP_METHOD_GET,
+        url,
+        requestHeaders
+    );
+  }
+
   /**
    * @return the blob properties returned from server.
    * @throws AzureBlobFileSystemException in case it is not a 404 error or some other exception
@@ -1738,13 +1750,8 @@ public class AbfsClient implements Closeable {
         abfsUriQueryBuilder);
     final URL url = createBlobRequestUrl(abfsUriQueryBuilder);
     final List<AbfsHttpHeader> requestHeaders = createDefaultHeaders();
-    final AbfsRestOperation op = new AbfsRestOperation(
-        AbfsRestOperationType.GetListBlobProperties,
-        this,
-        HTTP_METHOD_GET,
-        url,
-        requestHeaders
-    );
+    final AbfsRestOperation op = getListBlobOperation(url, requestHeaders);
+
     op.execute(tracingContext);
     return op;
   }
