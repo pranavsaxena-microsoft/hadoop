@@ -1973,7 +1973,7 @@ public class AbfsClient implements Closeable {
 
     if (abfsConfiguration.isExpectHeaderEnabled()) {
       sb.append(SINGLE_WHITE_SPACE);
-      sb.append("100-continue");
+      sb.append(HUNDRED_CONTINUE);
       sb.append(SEMICOLON);
     }
 
