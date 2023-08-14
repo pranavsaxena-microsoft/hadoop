@@ -174,7 +174,7 @@ public abstract class AbfsLease {
             LOG.debug("Failed to acquire lease on {}, retrying: {}", path, throwable);
             acquireRetryCount++;
             acquireLease(retryPolicy, numRetries + 1, retryInterval,
-                retryInterval, tracingContext);
+                retryInterval, new TracingContext(tracingContext));
           } else {
             exception = throwable;
           }
@@ -191,7 +191,7 @@ public abstract class AbfsLease {
       @Override
       public void run() {
         try {
-          leaseID.set(callRenewLeaseAPI(path, leaseID.get(), tracingContext));
+          leaseID.set(callRenewLeaseAPI(path, leaseID.get(), new TracingContext(tracingContext)));
         } catch (AzureBlobFileSystemException ignored) {
         }
       }

@@ -582,11 +582,11 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     AbfsRestOperation copyOp = null;
     try {
       copyOp = client.copyBlob(srcPath, dstPath,
-          copySrcLeaseId, tracingContext);
+          copySrcLeaseId, new TracingContext(tracingContext));
     } catch (AbfsRestOperationException ex) {
       if (ex.getStatusCode() == HttpURLConnection.HTTP_CONFLICT) {
         final BlobProperty dstBlobProperty = getBlobProperty(dstPath,
-            tracingContext);
+            new TracingContext(tracingContext));
         try {
           if (dstBlobProperty.getCopySourceUrl() != null &&
               (ROOT_PATH + client.getFileSystem() + srcPath.toUri()
@@ -608,7 +608,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     }
     final String copyId = copyOp.getResult().getResponseHeader(X_MS_COPY_ID);
     final long pollWait = abfsConfiguration.getBlobCopyProgressPollWaitMillis();
-    while (handleCopyInProgress(dstPath, tracingContext, copyId)
+    while (handleCopyInProgress(dstPath, new TracingContext(tracingContext), copyId)
         == BlobCopyProgress.PENDING) {
       try {
         Thread.sleep(pollWait);
@@ -1606,7 +1606,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
 
     if (blobList.getNextMarker() != null) {
       getListBlobProducer(listSrc, listBlobQueue, blobList.getNextMarker(),
-          tracingContext);
+          new TracingContext(tracingContext));
     } else {
       listBlobQueue.complete();
     }
@@ -1653,7 +1653,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
           source.toUri().getPath());
       srcDirLease = getBlobLease(source.toUri().getPath(),
           BLOB_LEASE_ONE_MINUTE_DURATION,
-          tracingContext);
+          new TracingContext(tracingContext));
       renameAtomicityUtils.preRename(
           isCreateOperationOnBlobEndpoint(), srcDirETag);
       isAtomicRename = true;
@@ -1724,14 +1724,14 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
                * on a log file, to gain exclusive access to it, before it splits it.
                */
               blobLease = getBlobLease(blobProperty.getPath().toUri().getPath(),
-                  BLOB_LEASE_ONE_MINUTE_DURATION, tracingContext);
+                  BLOB_LEASE_ONE_MINUTE_DURATION, new TracingContext(tracingContext));
             }
             renameBlob(
                 blobProperty.getPath(),
                 createDestinationPathForBlobPartOfRenameSrcDir(destination,
                     blobProperty.getPath(), source),
                 blobLease,
-                tracingContext);
+                new TracingContext(tracingContext));
             renamedBlob.incrementAndGet();
           } catch (AzureBlobFileSystemException e) {
             LOG.error(String.format("rename from %s to %s for blob %s failed",
@@ -1757,13 +1757,13 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     }
     renameBlobExecutorService.shutdown();
 
-    tracingContext.setOperatedBlobCount(renamedBlob.get() + 1);
+    TracingContext srcMarkerBlobRenameTracingContext = new TracingContext(tracingContext);
+    srcMarkerBlobRenameTracingContext.setOperatedBlobCount(renamedBlob.get() + 1);
     renameBlob(
         source, createDestinationPathForBlobPartOfRenameSrcDir(destination,
             source, source),
         srcDirBlobLease,
-        tracingContext);
-    tracingContext.setOperatedBlobCount(null);
+        srcMarkerBlobRenameTracingContext);
   }
 
   private Boolean isCreateOperationOnBlobEndpoint() {
@@ -1817,7 +1817,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       throws AzureBlobFileSystemException {
     try {
       client.deleteBlobPath(sourcePath,
-          lease != null ? lease.getLeaseID() : null, tracingContext);
+          lease != null ? lease.getLeaseID() : null, new TracingContext(tracingContext));
       if (lease != null) {
         lease.cancelTimer();
       }
@@ -1884,15 +1884,15 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     }
     String listSrc = listSrcBuilder.toString();
     BlobList blobList = client.getListBlobs(null, listSrc, null, null,
-        tracingContext).getResult().getBlobList();
+        new TracingContext(tracingContext)).getResult().getBlobList();
     if (blobList.getBlobPropertyList().size() > 0) {
       orchestrateBlobDirDeletion(path, recursive, listSrc, blobList,
-          tracingContext);
+          new TracingContext(tracingContext));
     } else {
       LOG.debug(String.format("Path %s doesn't have child-blobs", srcPathStr));
       if (!path.isRoot()) {
         try {
-          client.deleteBlobPath(path, null, tracingContext);
+          client.deleteBlobPath(path, null, new TracingContext(tracingContext));
         } catch (AbfsRestOperationException ex) {
           if (ex.getStatusCode() == HTTP_NOT_FOUND) {
             LOG.error(String.format("Path %s doesn't exist", srcPathStr), ex);
@@ -1914,7 +1914,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
      * that happening, it is needed to  create marker-based directory on the
      * parentPath. This is inspired from WASB implementation.
      */
-    createParentDirectory(path, tracingContext);
+    createParentDirectory(path, new TracingContext(tracingContext));
     LOG.debug(String.format("Deletion of Path %s completed", srcPathStr));
   }
 
@@ -1936,12 +1936,12 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
         getAbfsConfiguration().getBlobDirDeleteMaxThread());
     if (blobList.getNextMarker() != null) {
       getListBlobProducer(listSrc, queue, blobList.getNextMarker(),
-          tracingContext);
+          new TracingContext(tracingContext));
     } else {
       queue.complete();
     }
     ListBlobConsumer consumer = new ListBlobConsumer(queue);
-    deleteOnConsumedBlobs(path, consumer, tracingContext);
+    deleteOnConsumedBlobs(path, consumer, new TracingContext(tracingContext));
   }
 
   /**
@@ -1970,7 +1970,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
     createDirectory(parentPath, null, FsPermission.getDirDefault(),
         FsPermission.getUMask(
             getAbfsConfiguration().getRawConfiguration()), false,
-        tracingContext);
+        new TracingContext(tracingContext));
     LOG.debug(String.format("Directory for parent of Path %s : %s created",
         srcPathStr, srcParentPathSrc));
   }
@@ -2009,7 +2009,7 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
                 .getPath();
             try {
               client.deleteBlobPath(blobProperty.getPath(), null,
-                  tracingContext);
+                  new TracingContext(tracingContext));
               deletedBlobCount.incrementAndGet();
             } catch (AzureBlobFileSystemException ex) {
               if (ex instanceof AbfsRestOperationException
@@ -2040,11 +2040,12 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
       deleteBlobExecutorService.shutdown();
     }
 
-    tracingContext.setOperatedBlobCount(deletedBlobCount.get() + 1);
+    TracingContext dirMarkerDeletionTracingContext = new TracingContext(tracingContext);
+    dirMarkerDeletionTracingContext.setOperatedBlobCount(deletedBlobCount.get() + 1);
     if (!srcPath.isRoot()) {
       try {
         LOG.debug(String.format("Deleting Path %s", srcPathStr));
-        client.deleteBlobPath(srcPath, null, tracingContext);
+        client.deleteBlobPath(srcPath, null, dirMarkerDeletionTracingContext);
         LOG.debug(String.format("Deleted Path %s", srcPathStr));
       } catch (AbfsRestOperationException ex) {
         if (ex.getStatusCode() != HttpURLConnection.HTTP_NOT_FOUND) {
@@ -2055,7 +2056,6 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
             String.format("Path %s is an implicit directory", srcPathStr));
       }
     }
-    tracingContext.setOperatedBlobCount(null);
   }
 
   public FileStatus getFileStatus(Path path, TracingContext tracingContext, boolean useBlobEndpoint) throws IOException {
@@ -2867,11 +2867,12 @@ public class AzureBlobFileSystemStore implements Closeable, ListingSupport {
           listSrcBuilder.append(FORWARD_SLASH);
         }
         String listSrc = listSrcBuilder.toString();
-        getListBlobProducer(listSrc, listBlobQueue, null, tracingContext);
+        getListBlobProducer(listSrc, listBlobQueue, null,
+            new TracingContext(tracingContext));
         final AbfsBlobLease abfsBlobLease;
         try {
            abfsBlobLease = getBlobLease(src.toUri().getPath(),
-              BLOB_LEASE_ONE_MINUTE_DURATION, tracingContext);
+              BLOB_LEASE_ONE_MINUTE_DURATION, new TracingContext(tracingContext));
         } catch (AbfsRestOperationException ex) {
           /*
            * The required blob might be deleted in between the last check (from
