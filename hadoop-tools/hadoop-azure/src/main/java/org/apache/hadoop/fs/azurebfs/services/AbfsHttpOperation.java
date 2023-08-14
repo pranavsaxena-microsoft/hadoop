@@ -470,11 +470,7 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
     }
 
     if (statusCode >= HttpURLConnection.HTTP_BAD_REQUEST) {
-      if (getBaseUrl().contains(WASB_DNS_PREFIX)) {
-        processBlobStorageErrorResponse();
-      } else {
-        processStorageErrorResponse();
-      }
+      processServerErrorResponse();
       if (this.isTraceEnabled) {
         this.recvResponseTimeMs += elapsedTimeMs(startTime);
       }
@@ -532,6 +528,15 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
         }
         this.bytesReceived = totalBytesRead;
       }
+    }
+  }
+
+  @VisibleForTesting
+  void processServerErrorResponse() throws IOException {
+    if (getBaseUrl().contains(WASB_DNS_PREFIX)) {
+      processBlobStorageErrorResponse();
+    } else {
+      processDfsStorageErrorResponse();
     }
   }
 
@@ -646,8 +651,8 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
    * }
    *
    */
-  private void processStorageErrorResponse() {
-    try (InputStream stream = connection.getErrorStream()) {
+  private void processDfsStorageErrorResponse() {
+    try (InputStream stream = getConnectionErrorStream()) {
       if (stream == null) {
         return;
       }
@@ -704,7 +709,7 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
    *   Reference</a>
    */
   private void processBlobStorageErrorResponse() throws IOException {
-    InputStream errorStream = connection.getErrorStream();
+    InputStream errorStream = getConnectionErrorStream();
     if (errorStream == null) {
       return;
     }
@@ -723,6 +728,11 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
       storageErrorMessage = data.substring(msgStartFirstInstance,
           msgEndFirstInstance).replace(BLOB_ERROR_MESSAGE_START_XML, "");
     }
+  }
+
+  @VisibleForTesting
+  InputStream getConnectionErrorStream() {
+    return connection.getErrorStream();
   }
 
   /**
