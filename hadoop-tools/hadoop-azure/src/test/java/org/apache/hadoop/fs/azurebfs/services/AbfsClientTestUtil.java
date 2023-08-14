@@ -20,14 +20,11 @@ package org.apache.hadoop.fs.azurebfs.services;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
-import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.util.ArrayList;
 
 import org.mockito.Mockito;
-import org.mockito.stubbing.Stubber;
 
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.util.functional.BiFunctionRaisingIOE;
 import org.apache.hadoop.util.functional.FunctionRaisingIOE;
 
@@ -35,10 +32,8 @@ import static java.net.HttpURLConnection.HTTP_OK;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.HTTP_METHOD_GET;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.HTTP_METHOD_PUT;
 import static org.apache.hadoop.fs.azurebfs.services.AuthType.OAuth;
-import static org.apache.hadoop.fs.azurebfs.services.RetryReasonConstants.CONNECTION_TIMEOUT_JDK_MESSAGE;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.nullable;
-import static org.mockito.Mockito.when;
 
 public final class AbfsClientTestUtil {
 
@@ -87,8 +82,8 @@ public final class AbfsClientTestUtil {
     Mockito.doReturn(abfsRestOperation).when(spiedClient).getListBlobOperation(any(), any());
 
     addMockBehaviourToAbfsClient(spiedClient, retryPolicy);
-
     addMockBehaviourToRestOpAndHttpOp(abfsRestOperation, httpOperation);
+
     functionRaisingIOE.apply(httpOperation);
   }
 
