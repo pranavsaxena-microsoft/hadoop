@@ -18,9 +18,7 @@
 
 package org.apache.hadoop.fs.azurebfs.services;
 
-import java.io.IOException;
 import java.io.InterruptedIOException;
-import java.net.HttpURLConnection;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
@@ -41,7 +39,6 @@ import static org.apache.hadoop.fs.azurebfs.contracts.services.AzureServiceError
 import static org.apache.hadoop.fs.azurebfs.contracts.services.AzureServiceErrorCode.INGRESS_OVER_ACCOUNT_LIMIT;
 import static org.apache.hadoop.fs.azurebfs.services.AbfsClientTestUtil.addMockBehaviourToAbfsClient;
 import static org.apache.hadoop.fs.azurebfs.services.AbfsClientTestUtil.addMockBehaviourToRestOpAndHttpOp;
-import static org.apache.hadoop.fs.azurebfs.services.AuthType.OAuth;
 import static org.apache.hadoop.fs.azurebfs.services.RetryReasonConstants.CONNECTION_RESET_ABBREVIATION;
 import static org.apache.hadoop.fs.azurebfs.services.RetryReasonConstants.CONNECTION_RESET_MESSAGE;
 import static org.apache.hadoop.fs.azurebfs.services.RetryReasonConstants.CONNECTION_TIMEOUT_ABBREVIATION;

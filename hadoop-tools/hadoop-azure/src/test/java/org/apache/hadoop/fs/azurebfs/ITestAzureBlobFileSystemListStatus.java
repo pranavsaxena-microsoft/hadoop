@@ -20,6 +20,7 @@ package org.apache.hadoop.fs.azurebfs;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -27,8 +28,11 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants;
 import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
 import org.apache.hadoop.fs.azurebfs.services.AbfsClientTestUtil;
+import org.apache.hadoop.fs.azurebfs.services.BlobList;
+import org.apache.hadoop.fs.azurebfs.services.BlobProperty;
 import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 import org.assertj.core.api.Assertions;
@@ -47,12 +51,15 @@ import org.apache.hadoop.fs.azurebfs.utils.TracingHeaderValidator;
 import org.apache.hadoop.fs.contract.ContractTestUtils;
 
 import org.mockito.Mockito;
+import org.mockito.stubbing.Stubber;
 
+import static java.net.HttpURLConnection.HTTP_OK;
 import static org.apache.hadoop.fs.CommonConfigurationKeysPublic.FS_DEFAULT_NAME_KEY;
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.AZURE_LIST_MAX_RESULTS;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemUriSchemes.ABFS_DNS_PREFIX;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemUriSchemes.WASB_DNS_PREFIX;
 import static org.apache.hadoop.fs.azurebfs.services.RetryReasonConstants.CONNECTION_TIMEOUT_ABBREVIATION;
+import static org.apache.hadoop.fs.azurebfs.services.RetryReasonConstants.CONNECTION_TIMEOUT_JDK_MESSAGE;
 import static org.apache.hadoop.fs.contract.ContractTestUtils.assertMkdirs;
 import static org.apache.hadoop.fs.contract.ContractTestUtils.createFile;
 import static org.apache.hadoop.fs.contract.ContractTestUtils.assertPathExists;
@@ -61,7 +68,9 @@ import static org.apache.hadoop.fs.contract.ContractTestUtils.rename;
 import static org.apache.hadoop.test.LambdaTestUtils.intercept;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.when;
 
 /**
  * Test listStatus operation.
@@ -115,6 +124,9 @@ public class ITestAzureBlobFileSystemListStatus extends
   @Test
   public void testListPathTracingContext() throws Exception {
     final AzureBlobFileSystem fs = getFileSystem();
+    Assume.assumeTrue("To work on only on non-HNS Blob endpoint",
+        fs.getAbfsStore().getAbfsConfiguration().getPrefixMode()
+            == PrefixMode.BLOB);
     TracingHeaderValidator validator = new TracingHeaderValidator(getConfiguration().getClientCorrelationId(),
         fs.getFileSystemId(), FSOperationType.LISTSTATUS, true, 0);
     validator.setDisableValidation(true);
@@ -132,7 +144,26 @@ public class ITestAzureBlobFileSystemListStatus extends
     spiedStore.setClient(spiedClient);
     spiedFs.setWorkingDirectory(new Path("/"));
 
-    AbfsClientTestUtil.setMockAbfsRestOperationForListBlobOperation(spiedClient);
+    AbfsClientTestUtil.setMockAbfsRestOperationForListBlobOperation(spiedClient,
+        (httpOperation) -> {
+          BlobProperty blob = new BlobProperty();
+          blob.setPath(new Path("/abc.txt"));
+          blob.setName("abc.txt");
+          BlobList blobListWithNextMarker = new BlobList();
+          AbfsClientTestUtil.populateBlobListHelper(blobListWithNextMarker, blob, "nextMarker");
+          BlobList blobListWithoutNextMarker = new BlobList();
+          AbfsClientTestUtil.populateBlobListHelper(blobListWithNextMarker, blob, AbfsHttpConstants.EMPTY_STRING);
+          when(httpOperation.getBlobList()).thenReturn(blobListWithNextMarker)
+              .thenReturn(blobListWithoutNextMarker);
+
+          Stubber stubber = Mockito.doThrow(
+              new SocketTimeoutException(CONNECTION_TIMEOUT_JDK_MESSAGE));
+          stubber.doNothing().when(httpOperation).processResponse(
+              nullable(byte[].class), nullable(int.class), nullable(int.class));
+
+          when(httpOperation.getStatusCode()).thenReturn(-1).thenReturn(HTTP_OK);
+          return httpOperation;
+        });
 
     List<FileStatus> fileStatuses = new ArrayList<>();
     spiedStore.listStatus(new Path("/"), "", fileStatuses, true, null, spiedTracingContext);
