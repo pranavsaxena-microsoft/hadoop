@@ -87,7 +87,7 @@ import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AbfsRestOperationExcep
  */
 public class AbfsClient implements Closeable {
   public static final Logger LOG = LoggerFactory.getLogger(AbfsClient.class);
-  public static final String HUNDRED_CONTINUE_USER_AGENT = " 100-continue;";
+  public static final String HUNDRED_CONTINUE_USER_AGENT = SINGLE_WHITE_SPACE + HUNDRED_CONTINUE + SEMICOLON;
 
   private final URL baseUrl;
   private final SharedKeyCredentials sharedKeyCredentials;

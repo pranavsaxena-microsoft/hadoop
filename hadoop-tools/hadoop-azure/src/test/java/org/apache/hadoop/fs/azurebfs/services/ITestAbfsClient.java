@@ -87,7 +87,7 @@ public final class ITestAbfsClient extends AbstractAbfsIntegrationTest {
 
   private static final String ACCOUNT_NAME = "bogusAccountName.dfs.core.windows.net";
   private static final String FS_AZURE_USER_AGENT_PREFIX = "Partner Service";
-  private static final String HUNDRED_CONTINUE_USER_AGENT = "100-continue;";
+  private static final String HUNDRED_CONTINUE_USER_AGENT = SINGLE_WHITE_SPACE + HUNDRED_CONTINUE + SEMICOLON;
   private static final String TEST_PATH = "/testfile";
   public static final int REDUCED_RETRY_COUNT = 2;
   public static final int REDUCED_BACKOFF_INTERVAL = 100;
