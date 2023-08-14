@@ -104,7 +104,7 @@ public class TestAbfsHttpOperation {
   }
 
   @Test
-  public void testParseStorageErrorCodeBlob() throws Exception {
+  public void testParseStorageErrorStreamBlob() throws Exception {
     AbfsHttpOperation op = Mockito.spy(new AbfsHttpOperation(
         new URL("https://account.blob.core.windows.net/container/path"),
         HTTP_METHOD_PUT, new ArrayList<>()));
@@ -154,6 +154,24 @@ public class TestAbfsHttpOperation {
     Assertions.assertThat(op.getStorageErrorCode())
         .isEqualTo("string-value-code");
     Assertions.assertThat(op.getStorageErrorMessage()).isEmpty();
+  }
+
+  @Test
+  public void testParseStorageErrorStreamDfs() throws Exception {
+    AbfsHttpOperation op = Mockito.spy(new AbfsHttpOperation(
+        new URL("https://account.dfs.core.windows.net/container/path"),
+        HTTP_METHOD_PUT, new ArrayList<>()));
+    String xmlString
+        = "{\"error\":{\"code\":\"errorCode\", \"message\":\"errorMessage\"}}";
+    ByteArrayInputStream inputStream = new ByteArrayInputStream(
+        xmlString.getBytes(
+            StandardCharsets.UTF_8));
+    Mockito.doReturn(inputStream).when(op).getConnectionErrorStream();
+    op.processServerErrorResponse();
+    Assertions.assertThat(op.getStorageErrorCode())
+        .isEqualTo("errorCode");
+    Assertions.assertThat(op.getStorageErrorMessage())
+        .isEqualTo("errorMessage");
   }
 
   private void testIfMaskAndEncodeSuccessful(final String scenario,
