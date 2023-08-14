@@ -78,7 +78,6 @@ import static org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations.E
  * Represents an HTTP operation.
  */
 public class AbfsHttpOperation implements AbfsPerfLoggable {
-
   private static final Logger LOG = LoggerFactory.getLogger(AbfsHttpOperation.class);
 
   private static final int CONNECT_TIMEOUT = 30 * 1000;
@@ -705,8 +704,11 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
    *   Reference</a>
    */
   private void processBlobStorageErrorResponse() throws IOException {
-    final String data = IOUtils.toString(connection.getErrorStream(),
-        StandardCharsets.UTF_8);
+    InputStream errorStream = connection.getErrorStream();
+    if (errorStream == null) {
+      return;
+    }
+    final String data = IOUtils.toString(errorStream, StandardCharsets.UTF_8);
 
     int codeStartFirstInstance = data.indexOf(BLOB_ERROR_CODE_START_XML);
     int codeEndFirstInstance = data.indexOf(BLOB_ERROR_CODE_END_XML);
