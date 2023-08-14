@@ -87,6 +87,7 @@ public final class ITestAbfsClient extends AbstractAbfsIntegrationTest {
 
   private static final String ACCOUNT_NAME = "bogusAccountName.dfs.core.windows.net";
   private static final String FS_AZURE_USER_AGENT_PREFIX = "Partner Service";
+  private static final String HUNDRED_CONTINUE_USER_AGENT = SINGLE_WHITE_SPACE + HUNDRED_CONTINUE + SEMICOLON;
   private static final String TEST_PATH = "/testfile";
   public static final int REDUCED_RETRY_COUNT = 2;
   public static final int REDUCED_BACKOFF_INTERVAL = 100;
@@ -196,6 +197,33 @@ public final class ITestAbfsClient extends AbstractAbfsIntegrationTest {
     Assertions.assertThat(userAgentStr)
       .describedAs("User-Agent string should not contain " + FS_AZURE_USER_AGENT_PREFIX)
       .doesNotContain(FS_AZURE_USER_AGENT_PREFIX);
+  }
+
+  @Test
+  public void verifyUserAgentExpectHeader()
+          throws IOException, IllegalAccessException {
+    final Configuration configuration = new Configuration();
+    configuration.addResource(TEST_CONFIGURATION_FILE_NAME);
+    configuration.set(ConfigurationKeys.FS_AZURE_USER_AGENT_PREFIX_KEY, FS_AZURE_USER_AGENT_PREFIX);
+    configuration.setBoolean(ConfigurationKeys.FS_AZURE_ACCOUNT_IS_EXPECT_HEADER_ENABLED, true);
+    AbfsConfiguration abfsConfiguration = new AbfsConfiguration(configuration,
+            ACCOUNT_NAME);
+    String userAgentStr = getUserAgentString(abfsConfiguration, false);
+
+    verifybBasicInfo(userAgentStr);
+    Assertions.assertThat(userAgentStr)
+            .describedAs("User-Agent string should contain " + HUNDRED_CONTINUE_USER_AGENT)
+            .contains(HUNDRED_CONTINUE_USER_AGENT);
+
+    configuration.setBoolean(ConfigurationKeys.FS_AZURE_ACCOUNT_IS_EXPECT_HEADER_ENABLED, false);
+    abfsConfiguration = new AbfsConfiguration(configuration,
+            ACCOUNT_NAME);
+    userAgentStr = getUserAgentString(abfsConfiguration, false);
+
+    verifybBasicInfo(userAgentStr);
+    Assertions.assertThat(userAgentStr)
+            .describedAs("User-Agent string should not contain " + HUNDRED_CONTINUE_USER_AGENT)
+            .doesNotContain(HUNDRED_CONTINUE_USER_AGENT);
   }
 
   @Test
