@@ -24,9 +24,11 @@ import java.net.HttpURLConnection;
 import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -2482,5 +2484,57 @@ public class ITestAzureBlobFileSystemRename extends
     Assertions.assertThat(fs.listStatus(new Path("/hbase/"))).hasSize(1);
     FileStatus[] fileStatuses = fs.listStatus(new Path("/hbase/testDir2"));
     Assertions.assertThat(fileStatuses).hasSize(10);
+  }
+
+  @Test
+  public void renameBlobDirParallelThreadToRenameOnDifferentTracingContext()
+      throws Exception {
+    Assume.assumeTrue(getPrefixMode(getFileSystem()) == PrefixMode.BLOB);
+    Configuration configuration = getRawConfiguration();
+    AzureBlobFileSystem fs = Mockito.spy(
+        (AzureBlobFileSystem) FileSystem.newInstance(configuration));
+    AzureBlobFileSystemStore spiedStore = Mockito.spy(fs.getAbfsStore());
+    AbfsClient spiedClient = Mockito.spy(fs.getAbfsClient());
+
+    Mockito.doReturn(spiedStore).when(fs).getAbfsStore();
+    spiedStore.setClient(spiedClient);
+
+    fs.mkdirs(new Path("/testDir"));
+    fs.create(new Path("/testDir/file1"));
+    fs.create(new Path("/testDir/file2"));
+
+    Set<TracingContext> tracingContextSet = ConcurrentHashMap.newKeySet();
+    Mockito.doAnswer(answer -> {
+          TracingContext tracingContext = answer.getArgument(2);
+          Assertions.assertThat(tracingContextSet).doesNotContain(tracingContext);
+          tracingContextSet.add(tracingContext);
+          return answer.callRealMethod();
+        })
+        .when(spiedClient)
+        .deleteBlobPath(Mockito.any(Path.class), Mockito.nullable(String.class),
+            Mockito.any(TracingContext.class));
+
+    Mockito.doAnswer(answer -> {
+          TracingContext tracingContext = answer.getArgument(4);
+          Assertions.assertThat(tracingContextSet).doesNotContain(tracingContext);
+          tracingContextSet.add(tracingContext);
+          return answer.callRealMethod();
+        })
+        .when(spiedClient)
+        .getListBlobs(Mockito.nullable(String.class),
+            Mockito.nullable(String.class), Mockito.nullable(String.class),
+            Mockito.anyInt(), Mockito.any(TracingContext.class));
+
+    Mockito.doAnswer(answer -> {
+          TracingContext tracingContext = answer.getArgument(3);
+          Assertions.assertThat(tracingContextSet).doesNotContain(tracingContext);
+          tracingContextSet.add(tracingContext);
+          return answer.callRealMethod();
+        })
+        .when(spiedClient)
+        .copyBlob(Mockito.any(Path.class), Mockito.any(Path.class),
+            Mockito.nullable(String.class), Mockito.any(TracingContext.class));
+
+    fs.rename(new Path("/testDir"), new Path("/testDir2"));
   }
 }

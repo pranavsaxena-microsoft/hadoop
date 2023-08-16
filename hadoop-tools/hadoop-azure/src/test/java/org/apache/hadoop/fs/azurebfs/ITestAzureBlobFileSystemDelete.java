@@ -26,6 +26,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -601,7 +602,7 @@ public class ITestAzureBlobFileSystemDelete extends
     fs.create(new Path("/testDir/file1"));
     fs.create(new Path("/testDir/file2"));
 
-    Set<TracingContext> tracingContextSet = new HashSet<>();
+    Set<TracingContext> tracingContextSet = ConcurrentHashMap.newKeySet();
     Mockito.doAnswer(answer -> {
           TracingContext tracingContext = answer.getArgument(2);
           Assertions.assertThat(tracingContextSet).doesNotContain(tracingContext);
