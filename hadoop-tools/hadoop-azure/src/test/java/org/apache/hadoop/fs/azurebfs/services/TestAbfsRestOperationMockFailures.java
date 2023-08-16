@@ -201,6 +201,7 @@ public class TestAbfsRestOperationMockFailures {
 
     TracingContext tracingContext = Mockito.mock(TracingContext.class);
     Mockito.doNothing().when(tracingContext).setRetryCount(nullable(int.class));
+    Mockito.doReturn(tracingContext).when(abfsRestOperation).createNewTracingContext(any());
 
     int[] count = new int[1];
     count[0] = 0;
@@ -252,6 +253,7 @@ public class TestAbfsRestOperationMockFailures {
 
     TracingContext tracingContext = Mockito.mock(TracingContext.class);
     Mockito.doNothing().when(tracingContext).setRetryCount(nullable(int.class));
+    Mockito.doReturn(tracingContext).when(abfsRestOperation).createNewTracingContext(any());
 
     int[] count = new int[1];
     count[0] = 0;
