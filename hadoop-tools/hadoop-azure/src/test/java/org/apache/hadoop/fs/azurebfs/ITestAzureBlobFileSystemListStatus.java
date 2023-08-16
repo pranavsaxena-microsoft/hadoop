@@ -167,9 +167,9 @@ public class ITestAzureBlobFileSystemListStatus extends
     List<FileStatus> fileStatuses = new ArrayList<>();
     spiedStore.listStatus(new Path("/"), "", fileStatuses, true, null, spiedTracingContext);
 
-    // Assert that there were 2 paginated ListBlob calls made and 2 new tracing context were created.
+    // Assert that there were 2 paginated ListBlob calls made and new tracing context were created.
     Mockito.verify(spiedClient, times(2)).getListBlobs(any(), any(), any(), any(), any());
-    AbfsRestOperationTestUtil.assertTracingContextInstantiationCount(spiedClient, 2);
+    Mockito.verify(spiedTracingContext, times(0)).constructHeader(any(), any());
   }
 
   /**
@@ -344,7 +344,7 @@ public class ITestAzureBlobFileSystemListStatus extends
     Path dir1 = new Path("a");
     azcopyHelper.createFolderUsingAzcopy(fs.makeQualified(dir1).toUri().getPath().substring(1));
     assertTrue("Path is implicit.",
-        BlobDirectoryStateHelper.isImplicitDirectory(dir1, fs));
+        BlobDirectoryStateHelper.isImplicitDirectory(dir1, fs, getTestTracingContext(fs, true)));
 
     // Assert that implicit directory is returned
     FileStatus[] fileStatuses = fs.listStatus(root);
@@ -373,7 +373,7 @@ public class ITestAzureBlobFileSystemListStatus extends
     Path dir2 = new Path("c");
     azcopyHelper.createFolderUsingAzcopy(fs.makeQualified(dir2).toUri().getPath().substring(1));
     assertTrue("Path is implicit.",
-        BlobDirectoryStateHelper.isImplicitDirectory(dir2, fs));
+        BlobDirectoryStateHelper.isImplicitDirectory(dir2, fs, getTestTracingContext(fs, true)));
 
     // Assert that three entries are returned in alphabetic order.
     fileStatuses = fs.listStatus(root);
@@ -408,7 +408,7 @@ public class ITestAzureBlobFileSystemListStatus extends
     azcopyHelper.createFolderUsingAzcopy(
         fs.makeQualified(testPath).toUri().getPath().substring(1));
     assertTrue("Path is implicit.",
-        BlobDirectoryStateHelper.isImplicitDirectory(testPath, fs));
+        BlobDirectoryStateHelper.isImplicitDirectory(testPath, fs, getTestTracingContext(fs, true)));
 
     // Assert that one entry is returned as implicit child.
     FileStatus[] fileStatuses = fs.listStatus(testPath);
@@ -437,11 +437,11 @@ public class ITestAzureBlobFileSystemListStatus extends
         fs.makeQualified(implicitChild).toUri().getPath().substring(1));
 
     assertTrue("Test path is explicit",
-        BlobDirectoryStateHelper.isExplicitDirectory(testPath, fs));
+        BlobDirectoryStateHelper.isExplicitDirectory(testPath, fs, getTestTracingContext(fs, true)));
     assertTrue("explicitChild Path is explicit",
-        BlobDirectoryStateHelper.isExplicitDirectory(explicitChild, fs));
+        BlobDirectoryStateHelper.isExplicitDirectory(explicitChild, fs, getTestTracingContext(fs, true)));
     assertTrue("implicitChild Path is implicit.",
-        BlobDirectoryStateHelper.isImplicitDirectory(implicitChild, fs));
+        BlobDirectoryStateHelper.isImplicitDirectory(implicitChild, fs, getTestTracingContext(fs, true)));
 
     // Assert that three entry is returned.
     FileStatus[] fileStatuses = fs.listStatus(testPath);
@@ -474,11 +474,11 @@ public class ITestAzureBlobFileSystemListStatus extends
     fs.mkdirs(explicitChild);
 
     assertTrue("Test path is explicit",
-        BlobDirectoryStateHelper.isExplicitDirectory(testPath, fs));
+        BlobDirectoryStateHelper.isExplicitDirectory(testPath, fs, getTestTracingContext(fs, true)));
     assertTrue("explicitChild Path is explicit",
-        BlobDirectoryStateHelper.isExplicitDirectory(explicitChild, fs));
+        BlobDirectoryStateHelper.isExplicitDirectory(explicitChild, fs, getTestTracingContext(fs, true)));
     assertTrue("implicitChild2 Path is implicit.",
-        BlobDirectoryStateHelper.isImplicitDirectory(implicitChild2, fs));
+        BlobDirectoryStateHelper.isImplicitDirectory(implicitChild2, fs, getTestTracingContext(fs, true)));
 
     // Assert that only 2 entry is returned.
     FileStatus[] fileStatuses = fs.listStatus(testPath);
