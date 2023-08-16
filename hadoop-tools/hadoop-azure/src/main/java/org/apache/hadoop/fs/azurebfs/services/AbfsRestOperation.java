@@ -84,6 +84,11 @@ public class AbfsRestOperation {
   private String failureReason;
 
   /**
+   * This variable stores the tracing context used for last Rest Operation made
+   */
+  private TracingContext lastTracingContext;
+
+  /**
    * Checks if there is non-null HTTP response.
    * @return true if there is a non-null HTTP response from the ABFS call.
    */
@@ -415,9 +420,26 @@ public class AbfsRestOperation {
     return new AbfsHttpOperation(url, method, requestHeaders);
   }
 
+  /**
+   * Creates a new Tracing context before entering the retry loop of a rest operation
+   * This will ensure all rest operations have unique
+   * tracing context that will be used for all the retries
+   * @param tracingContext
+   * @return tracingContext
+   */
   @VisibleForTesting
   final TracingContext createNewTracingContext(final TracingContext tracingContext) {
-    return new TracingContext(tracingContext);
+    lastTracingContext = new TracingContext(tracingContext);
+    return lastTracingContext;
+  }
+
+  /**
+   * Returns the tracing contest used for last rest operation made
+   * @return
+   */
+  @VisibleForTesting
+  public final TracingContext getLastTracingContext() {
+    return lastTracingContext;
   }
 
   /**
