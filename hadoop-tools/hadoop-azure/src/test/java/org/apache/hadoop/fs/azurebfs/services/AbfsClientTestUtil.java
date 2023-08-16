@@ -22,9 +22,15 @@ import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
+import org.assertj.core.api.Assertions;
 import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
+import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 import org.apache.hadoop.util.functional.BiFunctionRaisingIOE;
 import org.apache.hadoop.util.functional.FunctionRaisingIOE;
 
@@ -121,5 +127,39 @@ public final class AbfsClientTestUtil {
   public static void populateBlobListHelper(BlobList list, BlobProperty blob, String nextMarker) {
     list.addBlobProperty(blob);
     list.setNextMarker("nextMarker");
+  }
+
+  public static void hookOnRestOpsForTracingContextSingularity(AbfsClient client) {
+    Set<TracingContext> tracingContextSet = ConcurrentHashMap.newKeySet();
+    Answer answer = new Answer() {
+      @Override
+      public Object answer(final InvocationOnMock invocationOnMock)
+          throws Throwable {
+        AbfsRestOperation op = Mockito.spy((AbfsRestOperation) invocationOnMock.callRealMethod());
+        Mockito.doAnswer(completeExecuteInvocation -> {
+          TracingContext context = completeExecuteInvocation.getArgument(0);
+          Assertions.assertThat(tracingContextSet).doesNotContain(context);
+          tracingContextSet.add(context);
+          return completeExecuteInvocation.callRealMethod();
+        }).when(op).completeExecute(Mockito.any(TracingContext.class));
+        return op;
+      }
+    };
+
+    Mockito.doAnswer(answer)
+        .when(client)
+        .getAbfsRestOperation(Mockito.any(AbfsRestOperationType.class),
+            Mockito.anyString(), Mockito.any(URL.class), Mockito.anyList(),
+            Mockito.nullable(byte[].class), Mockito.anyInt(), Mockito.anyInt(),
+            Mockito.nullable(String.class));
+    Mockito.doAnswer(answer)
+        .when(client)
+        .getAbfsRestOperation(Mockito.any(AbfsRestOperationType.class),
+            Mockito.anyString(), Mockito.any(URL.class), Mockito.anyList());
+    Mockito.doAnswer(answer)
+        .when(client)
+        .getAbfsRestOperation(Mockito.any(AbfsRestOperationType.class),
+            Mockito.anyString(), Mockito.any(URL.class), Mockito.anyList(),
+            Mockito.nullable(String.class));
   }
 }

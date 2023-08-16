@@ -41,6 +41,7 @@ import org.junit.Test;
 import org.apache.hadoop.fs.azurebfs.constants.FSOperationType;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AbfsRestOperationException;
 import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
+import org.apache.hadoop.fs.azurebfs.services.AbfsClientTestUtil;
 import org.apache.hadoop.fs.azurebfs.services.AbfsHttpOperation;
 import org.apache.hadoop.fs.azurebfs.services.AbfsRestOperation;
 import org.apache.hadoop.fs.azurebfs.services.ListBlobProducer;
@@ -580,5 +581,27 @@ public class ITestAzureBlobFileSystemDelete extends
         .getListBlobs(Mockito.nullable(String.class),
             Mockito.nullable(String.class), Mockito.nullable(String.class),
             Mockito.nullable(Integer.class), Mockito.any(TracingContext.class));
+  }
+
+  @Test
+  public void deleteBlobDirParallelThreadToDeleteOnDifferentTracingContext()
+      throws Exception {
+    Assume.assumeTrue(getPrefixMode(getFileSystem()) == PrefixMode.BLOB);
+    Configuration configuration = getRawConfiguration();
+    AzureBlobFileSystem fs = Mockito.spy(
+        (AzureBlobFileSystem) FileSystem.newInstance(configuration));
+    AzureBlobFileSystemStore spiedStore = Mockito.spy(fs.getAbfsStore());
+    AbfsClient spiedClient = Mockito.spy(fs.getAbfsClient());
+
+    Mockito.doReturn(spiedStore).when(fs).getAbfsStore();
+    spiedStore.setClient(spiedClient);
+
+    fs.mkdirs(new Path("/testDir"));
+    fs.create(new Path("/testDir/file1"));
+    fs.create(new Path("/testDir/file2"));
+
+    AbfsClientTestUtil.hookOnRestOpsForTracingContextSingularity(spiedClient);
+
+    fs.delete(new Path("/testDir"), true);
   }
 }

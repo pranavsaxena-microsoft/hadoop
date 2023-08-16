@@ -1663,10 +1663,16 @@ public class ITestAzureBlobFileSystemRename extends
     AzureBlobFileSystem fs = getFileSystem();
     assumeNonHnsAccountBlobEndpoint(fs);
     fs.create(new Path("/src"));
+    TracingContext tracingContext = new TracingContext("clientCorrelationId",
+        "fileSystemId", FSOperationType.TEST_OP,
+        getConfiguration().getTracingHeaderFormat(),
+        null);
     fs.getAbfsStore()
         .getClient()
         .deleteBlobPath(new Path("/src"), null, getTestTracingContext(fs, true));
     Boolean srcBlobNotFoundExReceived = false;
+
+    tracingContext = new TracingContext(tracingContext);
     try {
       fs.getAbfsStore()
           .copyBlob(new Path("/src"), new Path("/dst"),
@@ -2482,5 +2488,26 @@ public class ITestAzureBlobFileSystemRename extends
     Assertions.assertThat(fs.listStatus(new Path("/hbase/"))).hasSize(1);
     FileStatus[] fileStatuses = fs.listStatus(new Path("/hbase/testDir2"));
     Assertions.assertThat(fileStatuses).hasSize(10);
+  }
+
+  @Test
+  public void renameBlobDirParallelThreadToRenameOnDifferentTracingContext()
+      throws Exception {
+    Assume.assumeTrue(getPrefixMode(getFileSystem()) == PrefixMode.BLOB);
+    Configuration configuration = getRawConfiguration();
+    AzureBlobFileSystem fs = Mockito.spy(
+        (AzureBlobFileSystem) FileSystem.newInstance(configuration));
+    AzureBlobFileSystemStore spiedStore = Mockito.spy(fs.getAbfsStore());
+    AbfsClient spiedClient = Mockito.spy(fs.getAbfsClient());
+
+    Mockito.doReturn(spiedStore).when(fs).getAbfsStore();
+    spiedStore.setClient(spiedClient);
+
+    fs.mkdirs(new Path("/testDir"));
+    fs.create(new Path("/testDir/file1"));
+    fs.create(new Path("/testDir/file2"));
+
+    AbfsClientTestUtil.hookOnRestOpsForTracingContextSingularity(spiedClient);
+    fs.rename(new Path("/testDir"), new Path("/testDir2"));
   }
 }
