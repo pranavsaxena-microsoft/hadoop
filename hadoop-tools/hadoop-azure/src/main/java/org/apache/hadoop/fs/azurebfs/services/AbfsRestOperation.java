@@ -198,10 +198,14 @@ public class AbfsRestOperation {
   public void execute(TracingContext tracingContext)
       throws AzureBlobFileSystemException {
 
+    // Since this might be a sub-sequential call triggered by a single
+    // file system call, a new tracing context should be used.
+    final TracingContext newTracingContext = createNewTracingContext(tracingContext);
+
     try {
       IOStatisticsBinding.trackDurationOfInvocation(abfsCounters,
           AbfsStatistic.getStatNameFromHttpCall(method),
-          () -> completeExecute(tracingContext));
+          () -> completeExecute(newTracingContext));
     } catch (AzureBlobFileSystemException aze) {
       throw aze;
     } catch (IOException e) {
@@ -409,6 +413,11 @@ public class AbfsRestOperation {
   @VisibleForTesting
   AbfsHttpOperation createHttpOperation() throws IOException {
     return new AbfsHttpOperation(url, method, requestHeaders);
+  }
+
+  @VisibleForTesting
+  final TracingContext createNewTracingContext(final TracingContext tracingContext) {
+    return new TracingContext(tracingContext);
   }
 
   /**
