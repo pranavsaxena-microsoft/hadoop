@@ -22,7 +22,9 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -580,5 +582,47 @@ public class ITestAzureBlobFileSystemDelete extends
         .getListBlobs(Mockito.nullable(String.class),
             Mockito.nullable(String.class), Mockito.nullable(String.class),
             Mockito.nullable(Integer.class), Mockito.any(TracingContext.class));
+  }
+
+  @Test
+  public void deleteBlobDirParallelThreadToDeleteOnDifferentTracingContext()
+      throws Exception {
+    Assume.assumeTrue(getPrefixMode(getFileSystem()) == PrefixMode.BLOB);
+    Configuration configuration = getRawConfiguration();
+    AzureBlobFileSystem fs = Mockito.spy(
+        (AzureBlobFileSystem) FileSystem.newInstance(configuration));
+    AzureBlobFileSystemStore spiedStore = Mockito.spy(fs.getAbfsStore());
+    AbfsClient spiedClient = Mockito.spy(fs.getAbfsClient());
+
+    Mockito.doReturn(spiedStore).when(fs).getAbfsStore();
+    spiedStore.setClient(spiedClient);
+
+    fs.mkdirs(new Path("/testDir"));
+    fs.create(new Path("/testDir/file1"));
+    fs.create(new Path("/testDir/file2"));
+
+    Set<TracingContext> tracingContextSet = new HashSet<>();
+    Mockito.doAnswer(answer -> {
+          TracingContext tracingContext = answer.getArgument(2);
+          Assertions.assertThat(tracingContextSet).doesNotContain(tracingContext);
+          tracingContextSet.add(tracingContext);
+          return answer.callRealMethod();
+        })
+        .when(spiedClient)
+        .deleteBlobPath(Mockito.any(Path.class), Mockito.nullable(String.class),
+            Mockito.any(TracingContext.class));
+
+    Mockito.doAnswer(answer -> {
+          TracingContext tracingContext = answer.getArgument(4);
+          Assertions.assertThat(tracingContextSet).doesNotContain(tracingContext);
+          tracingContextSet.add(tracingContext);
+          return answer.callRealMethod();
+        })
+        .when(spiedClient)
+        .getListBlobs(Mockito.nullable(String.class),
+            Mockito.nullable(String.class), Mockito.nullable(String.class),
+            Mockito.anyInt(), Mockito.any(TracingContext.class));
+
+    fs.delete(new Path("/testDir"), true);
   }
 }

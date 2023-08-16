@@ -88,7 +88,8 @@ public class ListBlobProducer {
         }
         AbfsRestOperation op = null;
         try {
-          op = client.getListBlobs(nextMarker, src, null, maxResult, tracingContext);
+          op = client.getListBlobs(nextMarker, src, null, maxResult,
+              new TracingContext(tracingContext));
         } catch (AzureBlobFileSystemException ex) {
           listBlobQueue.setFailed(ex);
           return;
