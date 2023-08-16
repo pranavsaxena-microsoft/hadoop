@@ -21,13 +21,16 @@ package org.apache.hadoop.fs.azurebfs;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.assertj.core.api.Assertions;
 import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Test;
@@ -36,6 +39,7 @@ import org.mockito.Mockito;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.azurebfs.constants.FSOperationType;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AbfsRestOperationException;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemException;
 import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
@@ -94,9 +98,13 @@ public class ITestListBlobProducer extends AbstractAbfsIntegrationTest {
         1);
     final CountDownLatch latch = new CountDownLatch(10);
 
+    Set<TracingContext> tracingContextSet = new HashSet<>();
     Mockito.doAnswer(answer -> {
       synchronized (testObj) {
         listBlobInvoked.incrementAndGet();
+        TracingContext tracingContext = answer.getArgument(4);
+        Assertions.assertThat(tracingContextSet).doesNotContain(tracingContext);
+        tracingContextSet.add(tracingContext);
         AbfsRestOperation op = client.getListBlobs(answer.getArgument(0),
             answer.getArgument(1), answer.getArgument(2), 1, answer.getArgument(4));
         producedBlobs.incrementAndGet();
@@ -114,9 +122,12 @@ public class ITestListBlobProducer extends AbstractAbfsIntegrationTest {
             Mockito.nullable(TracingContext.class));
 
 
+    TracingContext tracingContext = new TracingContext("clientCorrelationId",
+        "fileSystemId", FSOperationType.TEST_OP,
+        getConfiguration().getTracingHeaderFormat(),
+        null);
     ListBlobProducer producer = new ListBlobProducer("src/", spiedClient, queue,
-        null, Mockito.mock(
-        TracingContext.class));
+        null, tracingContext);
     ListBlobConsumer consumer = new ListBlobConsumer(queue);
     latch.await();
 

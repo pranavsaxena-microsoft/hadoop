@@ -1669,10 +1669,14 @@ public class ITestAzureBlobFileSystemRename extends
         .getClient()
         .deleteBlobPath(new Path("/src"), null, Mockito.mock(TracingContext.class));
     Boolean srcBlobNotFoundExReceived = false;
+    TracingContext tracingContext = new TracingContext("clientCorrelationId",
+        "fileSystemId", FSOperationType.TEST_OP,
+        getConfiguration().getTracingHeaderFormat(),
+        null);
     try {
       fs.getAbfsStore()
           .copyBlob(new Path("/src"), new Path("/dst"),
-              null, Mockito.mock(TracingContext.class));
+              null, tracingContext);
     } catch (AbfsRestOperationException ex) {
       if (ex.getStatusCode() == HttpURLConnection.HTTP_NOT_FOUND) {
         srcBlobNotFoundExReceived = true;
