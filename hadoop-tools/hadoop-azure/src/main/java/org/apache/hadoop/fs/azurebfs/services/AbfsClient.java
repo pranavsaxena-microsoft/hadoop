@@ -1413,13 +1413,8 @@ public class AbfsClient implements Closeable {
   @VisibleForTesting
   AbfsRestOperation getListBlobOperation(final URL url,
       final List<AbfsHttpHeader> requestHeaders) {
-    return new AbfsRestOperation(
-        AbfsRestOperationType.GetListBlobProperties,
-        this,
-        HTTP_METHOD_GET,
-        url,
-        requestHeaders
-    );
+    return getAbfsRestOperation(AbfsRestOperationType.GetListBlobProperties, HTTP_METHOD_GET,
+        url, requestHeaders);
   }
 
   /**
