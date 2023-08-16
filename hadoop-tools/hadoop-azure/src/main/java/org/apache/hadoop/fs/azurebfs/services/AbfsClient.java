@@ -1663,13 +1663,13 @@ public class AbfsClient implements Closeable {
   }
 
   AbfsRestOperation getAbfsRestOperation(final AbfsRestOperationType operationType,
-      final String httpMethodGet,
+      final String httpMethod,
       final URL url,
       final List<AbfsHttpHeader> requestHeaders) {
     return new AbfsRestOperation(
         operationType,
         this,
-        httpMethodGet,
+        httpMethod,
         url,
         requestHeaders
     );
