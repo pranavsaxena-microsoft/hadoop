@@ -420,11 +420,6 @@ public class AbfsRestOperation {
     return new AbfsHttpOperation(url, method, requestHeaders);
   }
 
-  @VisibleForTesting
-  final TracingContext createNewTracingContext(final TracingContext tracingContext) {
-    return new TracingContext(tracingContext);
-  }
-
   /**
    * Creates a new Tracing context before entering the retry loop of a rest operation
    * This will ensure all rest operations have unique
