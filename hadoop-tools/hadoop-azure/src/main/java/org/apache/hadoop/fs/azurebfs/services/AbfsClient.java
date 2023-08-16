@@ -284,12 +284,9 @@ public class AbfsClient implements Closeable {
     if (url.toString().contains(WASB_DNS_PREFIX)) {
       url = changePrefixFromBlobtoDfs(url);
     }
-    final AbfsRestOperation op = new AbfsRestOperation(
-            AbfsRestOperationType.CreateFileSystem,
-            this,
-            HTTP_METHOD_PUT,
-            url,
-            requestHeaders);
+    final AbfsRestOperation op = getAbfsRestOperation(
+        AbfsRestOperationType.CreateFileSystem, HTTP_METHOD_PUT, url,
+        requestHeaders);
     op.execute(tracingContext);
     return op;
   }
@@ -311,11 +308,8 @@ public class AbfsClient implements Closeable {
         SASTokenProvider.CREATE_CONTAINER_OPERATION, abfsUriQueryBuilder);
     final URL url = createBlobRequestUrl(abfsUriQueryBuilder);
 
-    final AbfsRestOperation op = new AbfsRestOperation(
-        AbfsRestOperationType.CreateContainer,
-        this,
-        HTTP_METHOD_PUT,
-        url,
+    final AbfsRestOperation op = getAbfsRestOperation(
+        AbfsRestOperationType.CreateContainer, HTTP_METHOD_PUT, url,
         requestHeaders);
     op.execute(tracingContext);
     return op;
@@ -338,12 +332,9 @@ public class AbfsClient implements Closeable {
     if (url.toString().contains(WASB_DNS_PREFIX)) {
       url = changePrefixFromBlobtoDfs(url);
     }
-    final AbfsRestOperation op = new AbfsRestOperation(
-            AbfsRestOperationType.SetFileSystemProperties,
-            this,
-            HTTP_METHOD_PUT,
-            url,
-            requestHeaders);
+    final AbfsRestOperation op = getAbfsRestOperation(
+        AbfsRestOperationType.SetFileSystemProperties, HTTP_METHOD_PUT, url,
+        requestHeaders);
     op.execute(tracingContext);
     return op;
   }
@@ -366,12 +357,8 @@ public class AbfsClient implements Closeable {
     if (url.toString().contains(WASB_DNS_PREFIX)) {
       url = changePrefixFromBlobtoDfs(url);
     }
-    final AbfsRestOperation op = new AbfsRestOperation(
-            AbfsRestOperationType.ListPaths,
-            this,
-            HTTP_METHOD_GET,
-            url,
-            requestHeaders);
+    final AbfsRestOperation op = getAbfsRestOperation(
+        AbfsRestOperationType.ListPaths, HTTP_METHOD_GET, url, requestHeaders);
     op.execute(tracingContext);
     return op;
   }
@@ -386,12 +373,9 @@ public class AbfsClient implements Closeable {
     if (url.toString().contains(WASB_DNS_PREFIX)) {
       url = changePrefixFromBlobtoDfs(url);
     }
-    final AbfsRestOperation op = new AbfsRestOperation(
-            AbfsRestOperationType.GetFileSystemProperties,
-            this,
-            HTTP_METHOD_HEAD,
-            url,
-            requestHeaders);
+    final AbfsRestOperation op = getAbfsRestOperation(
+        AbfsRestOperationType.GetFileSystemProperties, HTTP_METHOD_HEAD, url,
+        requestHeaders);
     op.execute(tracingContext);
     return op;
   }
@@ -406,12 +390,9 @@ public class AbfsClient implements Closeable {
     if (url.toString().contains(WASB_DNS_PREFIX)) {
       url = changePrefixFromBlobtoDfs(url);
     }
-    final AbfsRestOperation op = new AbfsRestOperation(
-            AbfsRestOperationType.DeleteFileSystem,
-            this,
-            HTTP_METHOD_DELETE,
-            url,
-            requestHeaders);
+    final AbfsRestOperation op = getAbfsRestOperation(
+        AbfsRestOperationType.DeleteFileSystem, HTTP_METHOD_DELETE, url,
+        requestHeaders);
     op.execute(tracingContext);
     return op;
   }
@@ -433,11 +414,8 @@ public class AbfsClient implements Closeable {
         SASTokenProvider.DELETE_CONTAINER_OPERATION, abfsUriQueryBuilder);
     final URL url = createBlobRequestUrl(abfsUriQueryBuilder);
 
-    final AbfsRestOperation op = new AbfsRestOperation(
-        AbfsRestOperationType.DeleteContainer,
-        this,
-        HTTP_METHOD_DELETE,
-        url,
+    final AbfsRestOperation op = getAbfsRestOperation(
+        AbfsRestOperationType.DeleteContainer, HTTP_METHOD_DELETE, url,
         requestHeaders);
     op.execute(tracingContext);
     return op;
@@ -482,12 +460,8 @@ public class AbfsClient implements Closeable {
     if (url.toString().contains(WASB_DNS_PREFIX)) {
       url = changePrefixFromBlobtoDfs(url);
     }
-    final AbfsRestOperation op = new AbfsRestOperation(
-            AbfsRestOperationType.CreatePath,
-            this,
-            HTTP_METHOD_PUT,
-            url,
-            requestHeaders);
+    final AbfsRestOperation op = getAbfsRestOperation(
+        AbfsRestOperationType.CreatePath, HTTP_METHOD_PUT, url, requestHeaders);
     try {
       op.execute(tracingContext);
     } catch (AzureBlobFileSystemException ex) {
@@ -533,12 +507,8 @@ public class AbfsClient implements Closeable {
     }
     requestHeaders.add(new AbfsHttpHeader(CONTENT_LENGTH, ZERO));
     requestHeaders.add(new AbfsHttpHeader(X_MS_BLOB_TYPE, BLOCK_BLOB_TYPE));
-    final AbfsRestOperation op = new AbfsRestOperation(
-            AbfsRestOperationType.PutBlob,
-            this,
-            HTTP_METHOD_PUT,
-            url,
-            requestHeaders);
+    final AbfsRestOperation op = getAbfsRestOperation(
+        AbfsRestOperationType.PutBlob, HTTP_METHOD_PUT, url, requestHeaders);
     try {
       op.execute(tracingContext);
     } catch (AzureBlobFileSystemException ex) {
@@ -574,12 +544,8 @@ public class AbfsClient implements Closeable {
     if (url.toString().contains(WASB_DNS_PREFIX)) {
       url = changePrefixFromBlobtoDfs(url);
     }
-    final AbfsRestOperation op = new AbfsRestOperation(
-        AbfsRestOperationType.LeasePath,
-        this,
-        HTTP_METHOD_POST,
-        url,
-        requestHeaders);
+    final AbfsRestOperation op = getAbfsRestOperation(
+        AbfsRestOperationType.LeasePath, HTTP_METHOD_POST, url, requestHeaders);
     op.execute(tracingContext);
     return op;
   }
@@ -596,12 +562,8 @@ public class AbfsClient implements Closeable {
 
     final URL url = createBlobRequestUrl(path, abfsUriQueryBuilder);
 
-    final AbfsRestOperation op = new AbfsRestOperation(
-        AbfsRestOperationType.LeaseBlob,
-        this,
-        HTTP_METHOD_PUT,
-        url,
-        requestHeaders);
+    final AbfsRestOperation op = getAbfsRestOperation(
+        AbfsRestOperationType.LeaseBlob, HTTP_METHOD_PUT, url, requestHeaders);
     op.execute(tracingContext);
     return op;
   }
@@ -619,12 +581,8 @@ public class AbfsClient implements Closeable {
     if (url.toString().contains(WASB_DNS_PREFIX)) {
       url = changePrefixFromBlobtoDfs(url);
     }
-    final AbfsRestOperation op = new AbfsRestOperation(
-        AbfsRestOperationType.LeasePath,
-        this,
-        HTTP_METHOD_POST,
-        url,
-        requestHeaders);
+    final AbfsRestOperation op = getAbfsRestOperation(
+        AbfsRestOperationType.LeasePath, HTTP_METHOD_POST, url, requestHeaders);
     op.execute(tracingContext);
     return op;
   }
@@ -642,12 +600,8 @@ public class AbfsClient implements Closeable {
 
     final URL url = createBlobRequestUrl(path, abfsUriQueryBuilder);
 
-    final AbfsRestOperation op = new AbfsRestOperation(
-        AbfsRestOperationType.LeaseBlob,
-        this,
-        HTTP_METHOD_PUT,
-        url,
-        requestHeaders);
+    final AbfsRestOperation op = getAbfsRestOperation(
+        AbfsRestOperationType.LeaseBlob, HTTP_METHOD_PUT, url, requestHeaders);
     op.execute(tracingContext);
     return op;
   }
@@ -665,12 +619,8 @@ public class AbfsClient implements Closeable {
     if (url.toString().contains(WASB_DNS_PREFIX)) {
       url = changePrefixFromBlobtoDfs(url);
     }
-    final AbfsRestOperation op = new AbfsRestOperation(
-        AbfsRestOperationType.LeasePath,
-        this,
-        HTTP_METHOD_POST,
-        url,
-        requestHeaders);
+    final AbfsRestOperation op = getAbfsRestOperation(
+        AbfsRestOperationType.LeasePath, HTTP_METHOD_POST, url, requestHeaders);
     op.execute(tracingContext);
     return op;
   }
@@ -688,12 +638,8 @@ public class AbfsClient implements Closeable {
 
     final URL url = createBlobRequestUrl(path, abfsUriQueryBuilder);
 
-    final AbfsRestOperation op = new AbfsRestOperation(
-        AbfsRestOperationType.LeasePath,
-        this,
-        HTTP_METHOD_PUT,
-        url,
-        requestHeaders);
+    final AbfsRestOperation op = getAbfsRestOperation(
+        AbfsRestOperationType.LeasePath, HTTP_METHOD_PUT, url, requestHeaders);
     op.execute(tracingContext);
     return op;
   }
@@ -711,12 +657,8 @@ public class AbfsClient implements Closeable {
     if (url.toString().contains(WASB_DNS_PREFIX)) {
       url = changePrefixFromBlobtoDfs(url);
     }
-    final AbfsRestOperation op = new AbfsRestOperation(
-        AbfsRestOperationType.LeasePath,
-        this,
-        HTTP_METHOD_POST,
-        url,
-        requestHeaders);
+    final AbfsRestOperation op = getAbfsRestOperation(
+        AbfsRestOperationType.LeasePath, HTTP_METHOD_POST, url, requestHeaders);
     op.execute(tracingContext);
     return op;
   }
@@ -745,12 +687,8 @@ public class AbfsClient implements Closeable {
     if (url.toString().contains(WASB_DNS_PREFIX)) {
       url = changePrefixFromBlobtoDfs(url);
     }
-    final AbfsRestOperation op = new AbfsRestOperation(
-            AbfsRestOperationType.RenamePath,
-            this,
-            HTTP_METHOD_PUT,
-            url,
-            requestHeaders);
+    final AbfsRestOperation op = getAbfsRestOperation(
+        AbfsRestOperationType.RenamePath, HTTP_METHOD_PUT, url, requestHeaders);
     // no attempt at recovery using timestamps as it was not reliable.
     op.execute(tracingContext);
     return op;
@@ -912,15 +850,9 @@ public class AbfsClient implements Closeable {
       final List<AbfsHttpHeader> requestHeaders,
       final String sasTokenForReuse,
       final URL url) {
-    return new AbfsRestOperation(
-        AbfsRestOperationType.PutBlock,
-        this,
-        HTTP_METHOD_PUT,
+    return getAbfsRestOperation(AbfsRestOperationType.PutBlock, HTTP_METHOD_PUT,
         url,
-        requestHeaders,
-        buffer,
-        reqParams.getoffset(),
-        reqParams.getLength(),
+        requestHeaders, buffer, reqParams.getoffset(), reqParams.getLength(),
         sasTokenForReuse);
   }
 
@@ -967,14 +899,8 @@ public class AbfsClient implements Closeable {
       final List<AbfsHttpHeader> requestHeaders,
       final String sasTokenForReuse,
       final URL url) {
-    return new AbfsRestOperation(
-        AbfsRestOperationType.PutBlockList,
-        this,
-        HTTP_METHOD_PUT,
-        url,
-        requestHeaders, buffer,
-        0,
-        buffer.length,
+    return getAbfsRestOperation(AbfsRestOperationType.PutBlockList,
+        HTTP_METHOD_PUT, url, requestHeaders, buffer, 0, buffer.length,
         sasTokenForReuse);
   }
 
@@ -999,15 +925,8 @@ public class AbfsClient implements Closeable {
       final int bufferOffset,
       final int bufferLength,
       final String sasTokenForReuse) {
-    return new AbfsRestOperation(
-        operationType,
-        this,
-        httpMethod,
-        url,
-        requestHeaders,
-        buffer,
-        bufferOffset,
-        bufferLength, sasTokenForReuse);
+    return getAbfsRestOperation(operationType, httpMethod, url, requestHeaders,
+        buffer, bufferOffset, bufferLength, sasTokenForReuse);
   }
 
   /**
@@ -1082,12 +1001,8 @@ public class AbfsClient implements Closeable {
     if (url.toString().contains(WASB_DNS_PREFIX)) {
       url = changePrefixFromBlobtoDfs(url);
     }
-    final AbfsRestOperation op = new AbfsRestOperation(
-            AbfsRestOperationType.Flush,
-            this,
-            HTTP_METHOD_PUT,
-            url,
-            requestHeaders, sasTokenForReuse);
+    final AbfsRestOperation op = getAbfsRestOperation(requestHeaders,
+        sasTokenForReuse, url, AbfsRestOperationType.Flush, HTTP_METHOD_PUT);
     op.execute(tracingContext);
     return op;
   }
@@ -1112,12 +1027,9 @@ public class AbfsClient implements Closeable {
     if (url.toString().contains(WASB_DNS_PREFIX)) {
       url = changePrefixFromBlobtoDfs(url);
     }
-    final AbfsRestOperation op = new AbfsRestOperation(
-            AbfsRestOperationType.SetPathProperties,
-            this,
-            HTTP_METHOD_PUT,
-            url,
-            requestHeaders);
+    final AbfsRestOperation op = getAbfsRestOperation(
+        AbfsRestOperationType.SetPathProperties, HTTP_METHOD_PUT, url,
+        requestHeaders);
     op.execute(tracingContext);
     return op;
   }
@@ -1144,12 +1056,9 @@ public class AbfsClient implements Closeable {
     if (url.toString().contains(WASB_DNS_PREFIX)) {
       url = changePrefixFromBlobtoDfs(url);
     }
-    final AbfsRestOperation op = new AbfsRestOperation(
-            AbfsRestOperationType.GetPathStatus,
-            this,
-            HTTP_METHOD_HEAD,
-            url,
-            requestHeaders);
+    final AbfsRestOperation op = getAbfsRestOperation(
+        AbfsRestOperationType.GetPathStatus, HTTP_METHOD_HEAD, url,
+        requestHeaders);
     op.execute(tracingContext);
     return op;
   }
@@ -1172,12 +1081,9 @@ public class AbfsClient implements Closeable {
     abfsUriQueryBuilder.addQuery(QUERY_PARAM_BLOCKLISTTYPE, COMMITTED);
     final URL url = createBlobRequestUrl(path, abfsUriQueryBuilder);
 
-    final AbfsRestOperation op = new AbfsRestOperation(
-            AbfsRestOperationType.GetBlockList,
-            this,
-            HTTP_METHOD_GET,
-            url,
-            requestHeaders);
+    final AbfsRestOperation op = getAbfsRestOperation(
+        AbfsRestOperationType.GetBlockList, HTTP_METHOD_GET, url,
+        requestHeaders);
     op.execute(tracingContext);
     return op;
   }
@@ -1209,15 +1115,9 @@ public class AbfsClient implements Closeable {
       }
       opType = AbfsRestOperationType.ReadFile;
     }
-    final AbfsRestOperation op = new AbfsRestOperation(
-            opType,
-            this,
-            HTTP_METHOD_GET,
-            url,
-            requestHeaders,
-            buffer,
-            bufferOffset,
-            bufferLength, sasTokenForReuse);
+    final AbfsRestOperation op = getAbfsRestOperation(opType, HTTP_METHOD_GET,
+        url, requestHeaders, buffer, bufferOffset, bufferLength,
+        sasTokenForReuse);
     op.execute(tracingContext);
 
     return op;
@@ -1238,12 +1138,9 @@ public class AbfsClient implements Closeable {
     if (url.toString().contains(WASB_DNS_PREFIX)) {
       url = changePrefixFromBlobtoDfs(url);
     }
-    final AbfsRestOperation op = new AbfsRestOperation(
-            AbfsRestOperationType.DeletePath,
-            this,
-            HTTP_METHOD_DELETE,
-            url,
-            requestHeaders);
+    final AbfsRestOperation op = getAbfsRestOperation(
+        AbfsRestOperationType.DeletePath, HTTP_METHOD_DELETE, url,
+        requestHeaders);
     try {
     op.execute(tracingContext);
     } catch (AzureBlobFileSystemException e) {
@@ -1287,11 +1184,8 @@ public class AbfsClient implements Closeable {
         && DEFAULT_DELETE_CONSIDERED_IDEMPOTENT) {
       // Server has returned HTTP 404, which means path no longer
       // exists. Assuming delete result to be idempotent, return success.
-      final AbfsRestOperation successOp = new AbfsRestOperation(
-          AbfsRestOperationType.DeletePath,
-          this,
-          HTTP_METHOD_DELETE,
-          op.getUrl(),
+      final AbfsRestOperation successOp = getAbfsRestOperation(
+          AbfsRestOperationType.DeletePath, HTTP_METHOD_DELETE, op.getUrl(),
           op.getRequestHeaders());
       successOp.hardSetResult(HttpURLConnection.HTTP_OK);
       LOG.debug("Returning success response from delete idempotency logic");
@@ -1325,11 +1219,8 @@ public class AbfsClient implements Closeable {
     if (url.toString().contains(WASB_DNS_PREFIX)) {
       url = changePrefixFromBlobtoDfs(url);
     }
-    final AbfsRestOperation op = new AbfsRestOperation(
-        AbfsRestOperationType.SetOwner,
-        this,
-        AbfsHttpConstants.HTTP_METHOD_PUT,
-        url,
+    final AbfsRestOperation op = getAbfsRestOperation(
+        AbfsRestOperationType.SetOwner, AbfsHttpConstants.HTTP_METHOD_PUT, url,
         requestHeaders);
     op.execute(tracingContext);
     return op;
@@ -1354,12 +1245,9 @@ public class AbfsClient implements Closeable {
     if (url.toString().contains(WASB_DNS_PREFIX)) {
       url = changePrefixFromBlobtoDfs(url);
     }
-    final AbfsRestOperation op = new AbfsRestOperation(
-        AbfsRestOperationType.SetPermissions,
-        this,
-        AbfsHttpConstants.HTTP_METHOD_PUT,
-        url,
-        requestHeaders);
+    final AbfsRestOperation op = getAbfsRestOperation(
+        AbfsRestOperationType.SetPermissions, AbfsHttpConstants.HTTP_METHOD_PUT,
+        url, requestHeaders);
     op.execute(tracingContext);
     return op;
   }
@@ -1392,11 +1280,8 @@ public class AbfsClient implements Closeable {
     if (url.toString().contains(WASB_DNS_PREFIX)) {
       url = changePrefixFromBlobtoDfs(url);
     }
-    final AbfsRestOperation op = new AbfsRestOperation(
-        AbfsRestOperationType.SetAcl,
-        this,
-        AbfsHttpConstants.HTTP_METHOD_PUT,
-        url,
+    final AbfsRestOperation op = getAbfsRestOperation(
+        AbfsRestOperationType.SetAcl, AbfsHttpConstants.HTTP_METHOD_PUT, url,
         requestHeaders);
     op.execute(tracingContext);
     return op;
@@ -1420,11 +1305,8 @@ public class AbfsClient implements Closeable {
     if (url.toString().contains(WASB_DNS_PREFIX)) {
       url = changePrefixFromBlobtoDfs(url);
     }
-    final AbfsRestOperation op = new AbfsRestOperation(
-        AbfsRestOperationType.GetAcl,
-        this,
-        AbfsHttpConstants.HTTP_METHOD_HEAD,
-        url,
+    final AbfsRestOperation op = getAbfsRestOperation(
+        AbfsRestOperationType.GetAcl, AbfsHttpConstants.HTTP_METHOD_HEAD, url,
         requestHeaders);
     op.execute(tracingContext);
     return op;
@@ -1452,9 +1334,9 @@ public class AbfsClient implements Closeable {
       url = changePrefixFromBlobtoDfs(url);
     }
 
-    AbfsRestOperation op = new AbfsRestOperation(
-        AbfsRestOperationType.CheckAccess, this,
-        AbfsHttpConstants.HTTP_METHOD_HEAD, url, createDefaultHeaders());
+    AbfsRestOperation op = getAbfsRestOperation(
+        AbfsRestOperationType.CheckAccess, AbfsHttpConstants.HTTP_METHOD_HEAD,
+        url, createDefaultHeaders());
     op.execute(tracingContext);
     return op;
   }
@@ -1507,24 +1389,15 @@ public class AbfsClient implements Closeable {
   @VisibleForTesting
   AbfsRestOperation getCopyBlobOperation(final URL url,
       final List<AbfsHttpHeader> requestHeaders) {
-    return new AbfsRestOperation(
-        AbfsRestOperationType.CopyBlob,
-        this,
-        HTTP_METHOD_PUT,
-        url,
-        requestHeaders);
+    return getAbfsRestOperation(AbfsRestOperationType.CopyBlob, HTTP_METHOD_PUT,
+        url, requestHeaders);
   }
 
   @VisibleForTesting
   AbfsRestOperation getListBlobOperation(final URL url,
       final List<AbfsHttpHeader> requestHeaders) {
-    return new AbfsRestOperation(
-        AbfsRestOperationType.GetListBlobProperties,
-        this,
-        HTTP_METHOD_GET,
-        url,
-        requestHeaders
-    );
+    return getAbfsRestOperation(AbfsRestOperationType.GetListBlobProperties,
+        HTTP_METHOD_GET, url, requestHeaders);
   }
 
   /**
@@ -1540,11 +1413,8 @@ public class AbfsClient implements Closeable {
         SASTokenProvider.GET_BLOB_PROPERTIES_OPERATION, abfsUriQueryBuilder);
     final URL url = createBlobRequestUrl(blobRelativePath, abfsUriQueryBuilder);
     final List<AbfsHttpHeader> requestHeaders = createDefaultHeaders();
-    final AbfsRestOperation op = new AbfsRestOperation(
-        AbfsRestOperationType.GetBlobProperties,
-        this,
-        HTTP_METHOD_HEAD,
-        url,
+    final AbfsRestOperation op = getAbfsRestOperation(
+        AbfsRestOperationType.GetBlobProperties, HTTP_METHOD_HEAD, url,
         requestHeaders);
     op.execute(tracingContext);
     return op;
@@ -1567,11 +1437,8 @@ public class AbfsClient implements Closeable {
 
     final URL url = createBlobRequestUrl(abfsUriQueryBuilder);
 
-    final AbfsRestOperation op = new AbfsRestOperation(
-        AbfsRestOperationType.GetContainerProperties,
-        this,
-        HTTP_METHOD_HEAD,
-        url,
+    final AbfsRestOperation op = getAbfsRestOperation(
+        AbfsRestOperationType.GetContainerProperties, HTTP_METHOD_HEAD, url,
         requestHeaders);
     op.execute(tracingContext);
     return op;
@@ -1596,11 +1463,8 @@ public class AbfsClient implements Closeable {
 
     final URL url = createBlobRequestUrl(blobRelativePath, abfsUriQueryBuilder);
 
-    final AbfsRestOperation op = new AbfsRestOperation(
-        AbfsRestOperationType.GetBlobMetadata,
-        this,
-        HTTP_METHOD_HEAD,
-        url,
+    final AbfsRestOperation op = getAbfsRestOperation(
+        AbfsRestOperationType.GetBlobMetadata, HTTP_METHOD_HEAD, url,
         requestHeaders);
     op.execute(tracingContext);
     return op;
@@ -1630,11 +1494,8 @@ public class AbfsClient implements Closeable {
 
     final URL url = createBlobRequestUrl(blobRelativePath, abfsUriQueryBuilder);
 
-    final AbfsRestOperation op = new AbfsRestOperation(
-        AbfsRestOperationType.SetBlobMetadata,
-        this,
-        HTTP_METHOD_PUT,
-        url,
+    final AbfsRestOperation op = getAbfsRestOperation(
+        AbfsRestOperationType.SetBlobMetadata, HTTP_METHOD_PUT, url,
         requestHeaders);
     op.execute(tracingContext);
     return op;
@@ -1660,11 +1521,8 @@ public class AbfsClient implements Closeable {
 
     final URL url = createBlobRequestUrl(abfsUriQueryBuilder);
 
-    final AbfsRestOperation op = new AbfsRestOperation(
-        AbfsRestOperationType.GetContainerMetadata,
-        this,
-        HTTP_METHOD_HEAD,
-        url,
+    final AbfsRestOperation op = getAbfsRestOperation(
+        AbfsRestOperationType.GetContainerMetadata, HTTP_METHOD_HEAD, url,
         requestHeaders);
     op.execute(tracingContext);
     return op;
@@ -1694,11 +1552,8 @@ public class AbfsClient implements Closeable {
 
     final URL url = createBlobRequestUrl(abfsUriQueryBuilder);
 
-    final AbfsRestOperation op = new AbfsRestOperation(
-        AbfsRestOperationType.SetContainerMetadata,
-        this,
-        HTTP_METHOD_PUT,
-        url,
+    final AbfsRestOperation op = getAbfsRestOperation(
+        AbfsRestOperationType.SetContainerMetadata, HTTP_METHOD_PUT, url,
         requestHeaders);
     op.execute(tracingContext);
     return op;
@@ -1779,14 +1634,57 @@ public class AbfsClient implements Closeable {
     if(leaseId != null) {
       requestHeaders.add(new AbfsHttpHeader(X_MS_LEASE_ID, leaseId));
     }
-    final AbfsRestOperation op = new AbfsRestOperation(
-        AbfsRestOperationType.DeleteBlob,
-        this,
-        HTTP_METHOD_DELETE,
-        url,
+    final AbfsRestOperation op = getAbfsRestOperation(
+        AbfsRestOperationType.DeleteBlob, HTTP_METHOD_DELETE, url,
         requestHeaders);
     op.execute(tracingContext);
     return op;
+  }
+
+  AbfsRestOperation getAbfsRestOperation(final AbfsRestOperationType operationType,
+      final String httpMethod,
+      final URL url,
+      final List<AbfsHttpHeader> requestHeaders,
+      final byte[] buffer,
+      final int bufferOffset,
+      final int bufferLength,
+      final String sasTokenForReuse) {
+    return new AbfsRestOperation(
+        operationType,
+        this,
+        httpMethod,
+        url,
+        requestHeaders,
+        buffer,
+        bufferOffset,
+        bufferLength,
+        sasTokenForReuse);
+  }
+
+  AbfsRestOperation getAbfsRestOperation(final AbfsRestOperationType operationType,
+      final String httpMethodGet,
+      final URL url,
+      final List<AbfsHttpHeader> requestHeaders) {
+    return new AbfsRestOperation(
+        operationType,
+        this,
+        httpMethodGet,
+        url,
+        requestHeaders
+    );
+  }
+
+  AbfsRestOperation getAbfsRestOperation(final List<AbfsHttpHeader> requestHeaders,
+      final String sasTokenForReuse,
+      final URL url,
+      final AbfsRestOperationType operationType,
+      final String httpMethod) {
+    return new AbfsRestOperation(
+        operationType,
+        this,
+        httpMethod,
+        url,
+        requestHeaders, sasTokenForReuse);
   }
 
   /**
