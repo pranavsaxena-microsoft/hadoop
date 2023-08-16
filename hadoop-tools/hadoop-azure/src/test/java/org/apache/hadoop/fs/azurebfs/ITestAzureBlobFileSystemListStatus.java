@@ -31,6 +31,7 @@ import java.util.concurrent.Future;
 import org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants;
 import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
 import org.apache.hadoop.fs.azurebfs.services.AbfsClientTestUtil;
+import org.apache.hadoop.fs.azurebfs.services.AbfsRestOperationTestUtil;
 import org.apache.hadoop.fs.azurebfs.services.BlobList;
 import org.apache.hadoop.fs.azurebfs.services.BlobProperty;
 import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
@@ -58,7 +59,6 @@ import static org.apache.hadoop.fs.CommonConfigurationKeysPublic.FS_DEFAULT_NAME
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.AZURE_LIST_MAX_RESULTS;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemUriSchemes.ABFS_DNS_PREFIX;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemUriSchemes.WASB_DNS_PREFIX;
-import static org.apache.hadoop.fs.azurebfs.services.RetryReasonConstants.CONNECTION_TIMEOUT_ABBREVIATION;
 import static org.apache.hadoop.fs.azurebfs.services.RetryReasonConstants.CONNECTION_TIMEOUT_JDK_MESSAGE;
 import static org.apache.hadoop.fs.contract.ContractTestUtils.assertMkdirs;
 import static org.apache.hadoop.fs.contract.ContractTestUtils.createFile;
@@ -67,7 +67,6 @@ import static org.apache.hadoop.fs.contract.ContractTestUtils.rename;
 
 import static org.apache.hadoop.test.LambdaTestUtils.intercept;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
@@ -168,14 +167,9 @@ public class ITestAzureBlobFileSystemListStatus extends
     List<FileStatus> fileStatuses = new ArrayList<>();
     spiedStore.listStatus(new Path("/"), "", fileStatuses, true, null, spiedTracingContext);
 
-    // Assert that the tracing context passed initially, was used only for the
-    // first paginated call. That called failed with CT once and then passed
-    Mockito.verify(spiedTracingContext, times(1)).constructHeader(any(), eq(null));
-    Mockito.verify(spiedTracingContext, times(1)).constructHeader(any(), eq(CONNECTION_TIMEOUT_ABBREVIATION));
-    Mockito.verify(spiedTracingContext, times(2)).constructHeader(any(), any());
-
-    // Assert that there were more than one (2) paginated ListBlob calls made
+    // Assert that there were 2 paginated ListBlob calls made and 2 new tracing context were created.
     Mockito.verify(spiedClient, times(2)).getListBlobs(any(), any(), any(), any(), any());
+    AbfsRestOperationTestUtil.assertTracingContextInstantiationCount(spiedClient, 2);
   }
 
   /**
