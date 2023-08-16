@@ -1001,8 +1001,9 @@ public class AbfsClient implements Closeable {
     if (url.toString().contains(WASB_DNS_PREFIX)) {
       url = changePrefixFromBlobtoDfs(url);
     }
-    final AbfsRestOperation op = getAbfsRestOperation(requestHeaders,
-        sasTokenForReuse, url, AbfsRestOperationType.Flush, HTTP_METHOD_PUT);
+    final AbfsRestOperation op = getAbfsRestOperation(
+        AbfsRestOperationType.Flush, HTTP_METHOD_PUT, url, requestHeaders,
+        sasTokenForReuse);
     op.execute(tracingContext);
     return op;
   }
@@ -1674,11 +1675,11 @@ public class AbfsClient implements Closeable {
     );
   }
 
-  AbfsRestOperation getAbfsRestOperation(final List<AbfsHttpHeader> requestHeaders,
-      final String sasTokenForReuse,
+  AbfsRestOperation getAbfsRestOperation(final AbfsRestOperationType operationType,
+      final String httpMethod,
       final URL url,
-      final AbfsRestOperationType operationType,
-      final String httpMethod) {
+      final List<AbfsHttpHeader> requestHeaders,
+      final String sasTokenForReuse) {
     return new AbfsRestOperation(
         operationType,
         this,
