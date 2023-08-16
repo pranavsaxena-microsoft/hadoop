@@ -323,7 +323,7 @@ public class ITestAzureBlobFileSystemDelete extends
     fs.mkdirs(new Path("/testDir/dir1"));
     fs.create(new Path("/testDir/dir1/file1"));
     fs.getAbfsClient().deleteBlobPath(new Path("/testDir/dir1"),
-        null, Mockito.mock(TracingContext.class));
+        null, getTestTracingContext(fs, true));
 
     fs.delete(new Path("/testDir/dir1"), true);
 
@@ -354,7 +354,7 @@ public class ITestAzureBlobFileSystemDelete extends
             Mockito.nullable(String.class), Mockito.nullable(Integer.class),
             Mockito.any(TracingContext.class));
     fs.getAbfsClient().deleteBlobPath(new Path("/testDir/dir1"),
-        null, Mockito.mock(TracingContext.class));
+        null, getTestTracingContext(fs, true));
 
     fs.delete(new Path("/testDir/dir1"), true);
 
@@ -368,7 +368,7 @@ public class ITestAzureBlobFileSystemDelete extends
     fs.mkdirs(new Path("/testDir/dir1"));
     fs.create(new Path("/testDir/dir1/file1"));
     fs.getAbfsClient().deleteBlobPath(new Path("/testDir/"),
-        null, Mockito.mock(TracingContext.class));
+        null, getTestTracingContext(fs, true));
 
     fs.delete(new Path("/testDir/dir1"), true);
 

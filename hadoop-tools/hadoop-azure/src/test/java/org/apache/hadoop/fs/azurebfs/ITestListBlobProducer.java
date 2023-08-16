@@ -115,8 +115,7 @@ public class ITestListBlobProducer extends AbstractAbfsIntegrationTest {
 
 
     ListBlobProducer producer = new ListBlobProducer("src/", spiedClient, queue,
-        null, Mockito.mock(
-        TracingContext.class));
+        null, getTestTracingContext(fs, true));
     ListBlobConsumer consumer = new ListBlobConsumer(queue);
     latch.await();
 
@@ -162,8 +161,7 @@ public class ITestListBlobProducer extends AbstractAbfsIntegrationTest {
     ListBlobQueue queue = new ListBlobQueue(getConfiguration().getProducerQueueMaxSize(),
         getConfiguration().getProducerQueueMaxSize());
     ListBlobProducer producer = new ListBlobProducer("src/", spiedClient, queue,
-        null, Mockito.mock(
-        TracingContext.class));
+        null, getTestTracingContext(fs, true));
     ListBlobConsumer consumer = new ListBlobConsumer(queue);
 
     Boolean exceptionCaught = false;
@@ -227,8 +225,7 @@ public class ITestListBlobProducer extends AbstractAbfsIntegrationTest {
             Mockito.nullable(Integer.class), Mockito.any(TracingContext.class));
 
     ListBlobProducer producer = new ListBlobProducer("src/", spiedClient, queue,
-        null, Mockito.mock(
-        TracingContext.class));
+        null, getTestTracingContext(fs, true));
 
     producer.waitForProcessCompletion();
     Mockito.verify(spiedClient, Mockito.times(1))

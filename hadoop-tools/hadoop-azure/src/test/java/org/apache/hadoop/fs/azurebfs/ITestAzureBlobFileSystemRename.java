@@ -263,7 +263,7 @@ public class ITestAzureBlobFileSystemRename extends
     assumeNonHnsAccountBlobEndpoint(fs);
     fs.create(new Path("/srcDir/dir/file"));
     fs.getAbfsStore().getClient().deleteBlobPath(new Path("/srcDir/dir"), null,
-        Mockito.mock(TracingContext.class));
+        getTestTracingContext(fs, true));
     Assert.assertTrue(fs.rename(new Path("/srcDir/dir"), new Path("/srcDir")));
   }
 
@@ -493,7 +493,7 @@ public class ITestAzureBlobFileSystemRename extends
       try {
         fs.getAbfsClient()
             .releaseBlobLease(entry.getKey(), entry.getValue(),
-                Mockito.mock(TracingContext.class));
+                getTestTracingContext(fs, true));
       } catch (AbfsRestOperationException ex) {
 
       }
@@ -637,7 +637,7 @@ public class ITestAzureBlobFileSystemRename extends
       try {
         fs.getAbfsClient()
             .releaseBlobLease(entry.getKey(), entry.getValue(),
-                Mockito.mock(TracingContext.class));
+                getTestTracingContext(fs, true));
       } catch (AbfsRestOperationException ex) {
 
       }
@@ -783,7 +783,7 @@ public class ITestAzureBlobFileSystemRename extends
      */
     for(Map.Entry<String, String> entry : pathLeaseIdMap.entrySet()) {
       try {
-        fs.getAbfsClient().releaseBlobLease(entry.getKey(), entry.getValue(), Mockito.mock(TracingContext.class));
+        fs.getAbfsClient().releaseBlobLease(entry.getKey(), entry.getValue(), getTestTracingContext(fs, true));
       } catch (AbfsRestOperationException ex) {
 
       }
@@ -1065,7 +1065,7 @@ public class ITestAzureBlobFileSystemRename extends
       try {
         fs.getAbfsClient()
             .releaseBlobLease(entry.getKey(), entry.getValue(),
-                Mockito.mock(TracingContext.class));
+                getTestTracingContext(fs, true));
       } catch (Exception e) {}
     }
 
@@ -1438,7 +1438,7 @@ public class ITestAzureBlobFileSystemRename extends
 
     fs.getAbfsClient()
         .deleteBlobPath(new Path("/test1/test2"),
-            null, Mockito.mock(TracingContext.class));
+            null, getTestTracingContext(fs, true));
     fs.mkdirs(new Path("/test4/test5"));
     fs.rename(new Path("/test4"), new Path("/test1/test2"));
 
@@ -1450,7 +1450,7 @@ public class ITestAzureBlobFileSystemRename extends
 
     fs.getAbfsClient()
         .deleteBlobPath(new Path("/test1/test2/test4/test5/test6"),
-            null, Mockito.mock(TracingContext.class));
+            null, getTestTracingContext(fs, true));
     fs.mkdirs(new Path("/test7"));
     fs.create(new Path("/test7/file"));
     fs.rename(new Path("/test7"), new Path("/test1/test2/test4/test5/test6"));
@@ -1465,16 +1465,16 @@ public class ITestAzureBlobFileSystemRename extends
     fs.create(new Path("/test1/test2/file1"));
     fs.getAbfsStore()
         .getClient()
-        .deleteBlobPath(new Path("/test1"), null, Mockito.mock(TracingContext.class));
+        .deleteBlobPath(new Path("/test1"), null, getTestTracingContext(fs, true));
     intercept(AbfsRestOperationException.class, () -> {
       fs.getAbfsStore().getBlobProperty(new Path("/test1"),
-              Mockito.mock(TracingContext.class));
+          getTestTracingContext(fs, true));
     });
     fs.mkdirs(new Path("/test2"));
     fs.rename(new Path("/test1"), new Path("/test2"));
     Assert.assertTrue(fs.getAbfsStore()
         .getBlobProperty(new Path("/test2/test1"),
-            Mockito.mock(TracingContext.class)).getIsDirectory());
+            getTestTracingContext(fs, true)).getIsDirectory());
   }
 
   @Test
@@ -1647,7 +1647,7 @@ public class ITestAzureBlobFileSystemRename extends
       final AtomicInteger threadsCompleted) {
     try {
       fs.getAbfsClient().copyBlob(new Path("/src"),
-          new Path("/dst"), null, Mockito.mock(TracingContext.class));
+          new Path("/dst"), null, getTestTracingContext(fs, true));
     } catch (AbfsRestOperationException ex) {
       if (ex.getStatusCode() == HttpURLConnection.HTTP_CONFLICT) {
         dstBlobAlreadyThereExceptionReceived[0] = true;
@@ -1665,12 +1665,12 @@ public class ITestAzureBlobFileSystemRename extends
     fs.create(new Path("/src"));
     fs.getAbfsStore()
         .getClient()
-        .deleteBlobPath(new Path("/src"), null, Mockito.mock(TracingContext.class));
+        .deleteBlobPath(new Path("/src"), null, getTestTracingContext(fs, true));
     Boolean srcBlobNotFoundExReceived = false;
     try {
       fs.getAbfsStore()
           .copyBlob(new Path("/src"), new Path("/dst"),
-              null, Mockito.mock(TracingContext.class));
+              null, getTestTracingContext(fs, true));
     } catch (AbfsRestOperationException ex) {
       if (ex.getStatusCode() == HttpURLConnection.HTTP_NOT_FOUND) {
         srcBlobNotFoundExReceived = true;
@@ -1795,7 +1795,7 @@ public class ITestAzureBlobFileSystemRename extends
 
     fs.getAbfsClient()
         .acquireBlobLease("/hbase/testDir/file2", -1,
-            Mockito.mock(TracingContext.class));
+            getTestTracingContext(fs, true));
 
     AbfsLease[] leases = new AbfsLease[1];
     Mockito.doAnswer(answer -> {
@@ -2134,11 +2134,11 @@ public class ITestAzureBlobFileSystemRename extends
 
     if (srcMarkerToBeDeleted) {
       client.deleteBlobPath(new Path("/hbase/testDir"), null,
-          Mockito.mock(TracingContext.class));
+          getTestTracingContext(fs, true));
     }
 
     AbfsRestOperation op = client.acquireBlobLease("/hbase/testDir/file5", -1,
-        Mockito.mock(TracingContext.class));
+        getTestTracingContext(fs, true));
     String leaseId = op.getResult()
         .getResponseHeader(HttpHeaderConfigurations.X_MS_LEASE_ID);
 
@@ -2166,13 +2166,13 @@ public class ITestAzureBlobFileSystemRename extends
     for (Map.Entry<String, String> entry : pathLeaseIdMap.entrySet()) {
       try {
         client.releaseBlobLease(entry.getKey(), entry.getValue(),
-            Mockito.mock(TracingContext.class));
+            getTestTracingContext(fs, true));
       } catch (Exception e) {
 
       }
     }
     client.releaseBlobLease("/hbase/testDir/file5", leaseId,
-        Mockito.mock(TracingContext.class));
+        getTestTracingContext(fs, true));
     leaseCanBeTaken.set(true);
   }
 
