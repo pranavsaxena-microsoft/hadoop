@@ -49,9 +49,4 @@ public final class AbfsRestOperationTestUtil {
   public static void setResult(final AbfsRestOperation op, final AbfsHttpOperation result) {
     op.setResult(result);
   }
-
-  public static void assertTracingContextInstantiationCount(final AbfsClient client, final int numberOfInstantiation) {
-    AbfsRestOperation op = client.getListBlobOperation(any(), any());
-    Mockito.verify(op, times(numberOfInstantiation)).createNewTracingContext(any());
-  }
 }
