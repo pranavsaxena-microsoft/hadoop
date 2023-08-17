@@ -22,8 +22,10 @@ import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantLock;
 
 import org.assertj.core.api.Assertions;
 import org.mockito.Mockito;
@@ -130,16 +132,22 @@ public final class AbfsClientTestUtil {
   }
 
   public static void hookOnRestOpsForTracingContextSingularity(AbfsClient client) {
-    Set<TracingContext> tracingContextSet = ConcurrentHashMap.newKeySet();
+    Set<TracingContext> tracingContextSet = new HashSet<>();
+    ReentrantLock lock = new ReentrantLock();
     Answer answer = new Answer() {
       @Override
       public Object answer(final InvocationOnMock invocationOnMock)
           throws Throwable {
         AbfsRestOperation op = Mockito.spy((AbfsRestOperation) invocationOnMock.callRealMethod());
         Mockito.doAnswer(completeExecuteInvocation -> {
-          TracingContext context = completeExecuteInvocation.getArgument(0);
-          Assertions.assertThat(tracingContextSet).doesNotContain(context);
-          tracingContextSet.add(context);
+          lock.lock();
+          try {
+            TracingContext context = completeExecuteInvocation.getArgument(0);
+            Assertions.assertThat(tracingContextSet).doesNotContain(context);
+            tracingContextSet.add(context);
+          } finally {
+            lock.unlock();
+          }
           return completeExecuteInvocation.callRealMethod();
         }).when(op).completeExecute(Mockito.any(TracingContext.class));
         return op;
