@@ -933,7 +933,7 @@ public class AbfsClient implements Closeable {
    * @return AbfsRestOperation op.
    */
   @VisibleForTesting
-  AbfsRestOperation getAbfsRestOperationForAppend(final AbfsRestOperationType operationType,
+  public AbfsRestOperation getAbfsRestOperationForAppend(final AbfsRestOperationType operationType,
       final String httpMethod,
       final URL url,
       final List<AbfsHttpHeader> requestHeaders,

@@ -416,7 +416,7 @@ public class AbfsRestOperation {
    * requestHeaders fields of the AbfsRestOperation object.
    */
   @VisibleForTesting
-  AbfsHttpOperation createHttpOperation() throws IOException {
+  public AbfsHttpOperation createHttpOperation() throws IOException {
     return new AbfsHttpOperation(url, method, requestHeaders);
   }
 

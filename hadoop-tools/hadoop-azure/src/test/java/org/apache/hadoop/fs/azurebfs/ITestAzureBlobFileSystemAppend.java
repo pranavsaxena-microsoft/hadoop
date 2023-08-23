@@ -20,7 +20,9 @@ package org.apache.hadoop.fs.azurebfs;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.lang.reflect.Field;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -38,7 +40,10 @@ import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AbfsRestOperationExcep
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemException;
 import org.apache.hadoop.fs.azurebfs.contracts.services.AppendRequestParameters;
 import org.apache.hadoop.fs.azurebfs.services.AbfsClient;
+import org.apache.hadoop.fs.azurebfs.services.AbfsHttpOperation;
 import org.apache.hadoop.fs.azurebfs.services.AbfsOutputStream;
+import org.apache.hadoop.fs.azurebfs.services.AbfsRestOperation;
+import org.apache.hadoop.fs.azurebfs.services.AbfsRestOperationType;
 import org.apache.hadoop.fs.azurebfs.services.OperativeEndpoint;
 import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
 import org.apache.hadoop.fs.azurebfs.services.ITestAbfsClient;
@@ -729,5 +734,36 @@ public class ITestAzureBlobFileSystemAppend extends
     os2.write(bytes);
     os2.write(bytes);
     LambdaTestUtils.intercept(IOException.class, os2::hflush);
+  }
+
+  @Test
+  public void test() throws Exception {
+    AzureBlobFileSystem fs = Mockito.spy(getFileSystem());
+    AzureBlobFileSystemStore store = Mockito.spy(fs.getAbfsStore());
+    Mockito.doReturn(store).when(fs).getAbfsStore();
+    AbfsClient client = Mockito.spy(fs.getAbfsClient());
+    store.setClient(client);
+
+    OutputStream os = fs.create(new Path("/file"));
+    fs.delete(new Path("/file"), true);
+    Mockito.doAnswer(answer -> {
+      AbfsRestOperation op = Mockito.spy((AbfsRestOperation) answer.callRealMethod());
+      Mockito.doAnswer(httpOp -> {
+        AbfsHttpOperation httpOperation = Mockito.spy((AbfsHttpOperation) httpOp.callRealMethod());
+        Mockito.doAnswer(getOutputStream -> {
+          getOutputStream.callRealMethod();
+          fs.create(new Path("/file"));
+          return null;
+        }).when(httpOperation).sendRequest(Mockito.any(byte[].class), Mockito.anyInt(), Mockito.anyInt());
+        return httpOperation;
+      }).when(op).createHttpOperation();
+      return op;
+    }).when(client).getAbfsRestOperationForAppend(Mockito.any(
+        AbfsRestOperationType.class), Mockito.anyString(), Mockito.any(URL.class),
+        Mockito.anyList(), Mockito.any(byte[].class), Mockito.anyInt(), Mockito.anyInt(), Mockito.nullable(String.class));
+
+    byte[] bytes = new byte[8 * ONE_MB];
+    os.write(bytes);
+    while(true);
   }
 }
