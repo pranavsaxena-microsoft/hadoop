@@ -34,6 +34,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.azure.NativeAzureFileSystem;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AbfsRestOperationException;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AzureBlobFileSystemException;
 import org.apache.hadoop.fs.azurebfs.contracts.services.AppendRequestParameters;
@@ -42,6 +43,7 @@ import org.apache.hadoop.fs.azurebfs.services.AbfsOutputStream;
 import org.apache.hadoop.fs.azurebfs.services.OperativeEndpoint;
 import org.apache.hadoop.fs.azurebfs.services.PrefixMode;
 import org.apache.hadoop.fs.azurebfs.services.ITestAbfsClient;
+import org.apache.hadoop.fs.azurebfs.utils.ListenerTcCounterImpl;
 import org.apache.hadoop.fs.azurebfs.utils.TracingContext;
 import org.junit.Assume;
 import org.junit.Test;
@@ -729,5 +731,15 @@ public class ITestAzureBlobFileSystemAppend extends
     os2.write(bytes);
     os2.write(bytes);
     LambdaTestUtils.intercept(IOException.class, os2::hflush);
+  }
+
+  @Test
+  public void testC3() throws Exception {
+    AzureBlobFileSystem fs = getFileSystem();
+    NativeAzureFileSystem nativeAzureFileSystem = fs.getNativeFs();
+    ListenerTcCounterImpl listenerTcCounter = new ListenerTcCounterImpl();
+    fs.registerListener(listenerTcCounter);
+    fs.create(new Path("/file"));
+    System.out.println(listenerTcCounter.getCounter());
   }
 }
