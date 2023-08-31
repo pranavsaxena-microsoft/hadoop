@@ -12,16 +12,16 @@ import sun.net.www.protocol.https.AbstractDelegateHttpsURLConnection;
 import sun.net.www.protocol.https.Handler;
 
 public class AbfsHttpsUrlConnection extends
-    AbstractDelegateHttpsURLConnection implements IAbfsConnection {
+    AbstractDelegateHttpsURLConnection {
 
   private Boolean getOutputStreamFailed = false;
 
   SSLSocketFactory sslSocketFactory;
   HostnameVerifier hostnameVerifier = HttpsURLConnection.getDefaultHostnameVerifier();
 
-  @Override
-  public void registerGetOutputStreamFailure() {
 
+  public void registerGetOutputStreamFailure() {
+    getOutputStreamFailed = true;
   }
 
   public AbfsHttpsUrlConnection(final URL url,

@@ -8,7 +8,7 @@ import java.net.URL;
 import sun.net.www.protocol.http.Handler;
 import sun.net.www.protocol.http.HttpURLConnection;
 
-public class AbfsHttpUrlConnection extends HttpURLConnection implements IAbfsConnection {
+public class AbfsHttpUrlConnection extends HttpURLConnection {
   private Boolean getOutputStreamFailed = false;
 
   public AbfsHttpUrlConnection(final URL url,
@@ -17,7 +17,6 @@ public class AbfsHttpUrlConnection extends HttpURLConnection implements IAbfsCon
     super(url, proxy, handler);
   }
 
-  @Override
   public void registerGetOutputStreamFailure() {
     getOutputStreamFailed = true;
   }
