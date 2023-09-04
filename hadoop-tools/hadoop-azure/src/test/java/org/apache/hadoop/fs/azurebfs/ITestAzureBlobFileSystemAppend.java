@@ -1115,4 +1115,124 @@ public class ITestAzureBlobFileSystemAppend extends
     System.out.println(listenerTcCounter.getCounter());
   }
 
+  @Test
+  public void testC23() throws Exception {
+    AzureBlobFileSystem fs = getFileSystem();
+    NativeAzureFileSystem nativeAzureFileSystem = fs.getNativeFs();
+    fs.mkdirs(new Path("/testDir/src"));
+    ExecutorService service = Executors.newFixedThreadPool(10);
+    CountDownLatch countDownLatch = new CountDownLatch(10);
+    for(int i=0;i<10;i++) {
+      int iter = i;
+      service.submit(() -> {
+        try {
+          fs.create(new Path("/testDir/src/file" + iter));
+        } catch (Exception e) {}
+        countDownLatch.countDown();
+      });
+    }
+    countDownLatch.await();
+    TracingContext tracingContext = new TracingContext("clientCorrelationId",
+        "fileSystemId", FSOperationType.TEST_OP,
+        getConfiguration().getTracingHeaderFormat(),
+        null);
+//    fs.getAbfsClient().deleteBlobPath(new Path("/testDir"), null, tracingContext);
+    fs.getAbfsClient().deleteBlobPath(new Path("/testDir/src"), null, tracingContext);
+    ListenerTcCounterImpl listenerTcCounter = new ListenerTcCounterImpl();
+    System.out.println("NEW");
+    fs.registerListener(listenerTcCounter);
+    nativeAzureFileSystem.listStatus(new Path("/testDir/src"));
+    System.out.println(listenerTcCounter.getCounter());
+  }
+
+  @Test
+  public void testC24() throws Exception {
+    AzureBlobFileSystem fs = getFileSystem();
+    NativeAzureFileSystem nativeAzureFileSystem = fs.getNativeFs();
+    fs.mkdirs(new Path("/testDir/src"));
+    ExecutorService service = Executors.newFixedThreadPool(10);
+    CountDownLatch countDownLatch = new CountDownLatch(10);
+    for(int i=0;i<10;i++) {
+      int iter = i;
+      service.submit(() -> {
+        try {
+          fs.create(new Path("/testDir/src/file" + iter));
+        } catch (Exception e) {}
+        countDownLatch.countDown();
+      });
+    }
+    countDownLatch.await();
+    TracingContext tracingContext = new TracingContext("clientCorrelationId",
+        "fileSystemId", FSOperationType.TEST_OP,
+        getConfiguration().getTracingHeaderFormat(),
+        null);
+//    fs.getAbfsClient().deleteBlobPath(new Path("/testDir"), null, tracingContext);
+//    fs.getAbfsClient().deleteBlobPath(new Path("/testDir/src"), null, tracingContext);
+    ListenerTcCounterImpl listenerTcCounter = new ListenerTcCounterImpl();
+    System.out.println("NEW");
+    fs.registerListener(listenerTcCounter);
+    nativeAzureFileSystem.listStatus(new Path("/testDir/src"));
+    System.out.println(listenerTcCounter.getCounter());
+  }
+
+  @Test
+  public void testC25() throws Exception {
+    AzureBlobFileSystem fs = getFileSystem();
+    NativeAzureFileSystem nativeAzureFileSystem = fs.getNativeFs();
+    fs.mkdirs(new Path("/testDir/src"));
+    ExecutorService service = Executors.newFixedThreadPool(10);
+    CountDownLatch countDownLatch = new CountDownLatch(10);
+    for(int i=0;i<10;i++) {
+      int iter = i;
+      service.submit(() -> {
+        try {
+          fs.create(new Path("/testDir/src/file" + iter));
+        } catch (Exception e) {}
+        countDownLatch.countDown();
+      });
+    }
+    countDownLatch.await();
+    TracingContext tracingContext = new TracingContext("clientCorrelationId",
+        "fileSystemId", FSOperationType.TEST_OP,
+        getConfiguration().getTracingHeaderFormat(),
+        null);
+    fs.getAbfsClient().deleteBlobPath(new Path("/testDir"), null, tracingContext);
+    fs.getAbfsClient().deleteBlobPath(new Path("/testDir/src"), null, tracingContext);
+    ListenerTcCounterImpl listenerTcCounter = new ListenerTcCounterImpl();
+    System.out.println("NEW");
+    fs.registerListener(listenerTcCounter);
+    nativeAzureFileSystem.listStatus(new Path("/testDir/src"));
+    System.out.println(listenerTcCounter.getCounter());
+  }
+
+  @Test
+  public void testC26() throws Exception {
+    AzureBlobFileSystem fs = getFileSystem();
+    NativeAzureFileSystem nativeAzureFileSystem = fs.getNativeFs();
+    fs.mkdirs(new Path("/testDir/src"));
+    ExecutorService service = Executors.newFixedThreadPool(10);
+    CountDownLatch countDownLatch = new CountDownLatch(10);
+    for(int i=0;i<10;i++) {
+      int iter = i;
+      service.submit(() -> {
+        try {
+          fs.create(new Path("/testDir/src/file" + iter));
+        } catch (Exception e) {}
+        countDownLatch.countDown();
+      });
+    }
+    countDownLatch.await();
+    TracingContext tracingContext = new TracingContext("clientCorrelationId",
+        "fileSystemId", FSOperationType.TEST_OP,
+        getConfiguration().getTracingHeaderFormat(),
+        null);
+    fs.getAbfsClient().deleteBlobPath(new Path("/testDir"), null, tracingContext);
+//    fs.getAbfsClient().deleteBlobPath(new Path("/testDir/src"), null, tracingContext);
+    ListenerTcCounterImpl listenerTcCounter = new ListenerTcCounterImpl();
+    System.out.println("NEW");
+    fs.registerListener(listenerTcCounter);
+    nativeAzureFileSystem.listStatus(new Path("/testDir/src"));
+    System.out.println(listenerTcCounter.getCounter());
+  }
+
 }
