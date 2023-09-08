@@ -20,6 +20,7 @@ package org.apache.hadoop.fs.azurebfs;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -729,5 +730,13 @@ public class ITestAzureBlobFileSystemAppend extends
     os2.write(bytes);
     os2.write(bytes);
     LambdaTestUtils.intercept(IOException.class, os2::hflush);
+  }
+
+  @Test
+  public void test() throws Exception {
+    AzureBlobFileSystem fs = getFileSystem();
+    OutputStream os = fs.create(new Path("file"));
+    os.write(1);
+    os.close();
   }
 }

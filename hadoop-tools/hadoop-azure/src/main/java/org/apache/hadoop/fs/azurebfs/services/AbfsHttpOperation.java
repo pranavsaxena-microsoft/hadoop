@@ -330,6 +330,7 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
    *
    * @throws IOException if an error occurs.
    */
+  static int first = 0;
   public AbfsHttpOperation(final URL url, final String method, final List<AbfsHttpHeader> requestHeaders)
       throws IOException {
     this.isTraceEnabled = true;
@@ -347,6 +348,10 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
 
     this.connection.setConnectTimeout(CONNECT_TIMEOUT);
     this.connection.setReadTimeout(READ_TIMEOUT);
+    if(url.toString().contains("blocklist") && first == 0) {
+      connection.setReadTimeout(1);
+      first = 1;
+    }
 
     this.connection.setRequestMethod(method);
 
