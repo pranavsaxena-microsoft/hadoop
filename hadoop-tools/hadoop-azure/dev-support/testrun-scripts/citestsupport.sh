@@ -105,6 +105,7 @@ summary() {
 }
 
 checkdependencies() {
+  echo "Inside check checkdependencies"
   if ! [ "$(command -v pcregrep)" ]; then
     echo "Exiting. pcregrep is required to run the script."
     exit 1
@@ -131,6 +132,7 @@ changeconf() {
 }
 
 init() {
+  echo "Inside init"
   checkdependencies
   if ! mvn clean install -DskipTests
   then
@@ -156,12 +158,17 @@ init() {
   #/bin/bash /home/anmol/Desktop/AbfsHadoop/hadoop-tools/hadoop-azure/dev-support/testrun-scripts/codecoverage.sh
 
   failure_count=$(grep -oP 'Failures:\s*\K\d+' $aggregatedTestResult | awk '{ SUM += $1} END { print SUM }')
+  echo "Failure count:" $failure_count
   error_count=$(grep -oP 'Errors:\s*\K\d+' $aggregatedTestResult | awk '{ SUM += $1} END { print SUM }')
-  sum_failures=`expr failure_count + $error_count`
+  echo "Error count:" $error_count
+  sum_failures=$((failure_count + error_count))
+  echo "Sum failures: $sum_failures"
   aggregated_result=result_$(uuidgen).txt
+  echo "Aggregated result:" $aggregated_result
   perl -pe 's/\x1b\[[0-9;]*[mG]//g' $aggregatedTestResult > $aggregated_result
   #cat $coverage_report >> $aggregated_result
   zipped_file=runresult_$(uuidgen).zip
+  echo "Zipped file:" $zipped_file
   zip -r -j $zipped_file $testOutputLogFolder/*
   if [ $sum_failures -gt 0 ]
   then

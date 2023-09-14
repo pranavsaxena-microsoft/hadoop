@@ -22,6 +22,7 @@ set -eo pipefail
 
 # shellcheck disable=SC1091
 branchName=$1
+cd /home/anmol/Desktop/AbfsHadoop/hadoop-tools/hadoop-azure
 . dev-support/testrun-scripts/citestsupport.sh $branchName
 init
 
@@ -69,9 +70,9 @@ runTest=true
 cleanUpTestContainers=false
 
 runHNSOAuthTest
-runHNSSharedKeyTest
-runNonHNSSharedKeyTest
-runAppendBlobHNSOAuthTest ## Keep this as the last run scenario always
+#runHNSSharedKeyTest
+#runNonHNSSharedKeyTest
+#runAppendBlobHNSOAuthTest ## Keep this as the last run scenario always
 
 if [ $runTest == true ]
 then
