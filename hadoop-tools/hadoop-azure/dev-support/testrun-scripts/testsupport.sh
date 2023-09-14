@@ -80,7 +80,7 @@ ENDOFFILE
     STARTTIME=$(date +%s)
     echo "Running test for combination $combination on account $accountName [ProcessCount=$processcount]"
     logOutput "Test run report can be seen in $testlogfilename"
-    mvn -T 1C -Dparallel-tests=abfs -Dscale -DtestsThreadCount="$processcount" verify >> "$testlogfilename" || true
+    mvn -T 1C -Dparallel-tests=abfs -Dscale -DtestsThreadCount="$processcount" org.jacoco:jacoco-maven-plugin:report verify >> "$testlogfilename" || true
     ENDTIME=$(date +%s)
     summary
   fi
