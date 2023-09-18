@@ -542,6 +542,14 @@
                 <goals>
                   <goal>prepare-agent</goal>
                 </goals>
+                <configuration>
+                  <!--                   Source directories for report-->
+                  <!--                  <sourceDirectories>-->
+                  <!--                    <sourceDirectory>${project.build.sourceDirectory}</sourceDirectory>-->
+                  <!--                  </sourceDirectories>-->
+                  <!--                   Data file for report-->
+                  <destFile>${project.build.directory}/${combination}/jacoco.exec</destFile>
+                </configuration>
               </execution>
               <!-- Generate report from execution data -->
               <execution>
@@ -551,13 +559,13 @@
                   <goal>report</goal>
                 </goals>
                 <configuration>
-                   Source directories for report
-                  <sourceDirectories>
-                    <sourceDirectory>${project.build.sourceDirectory}</sourceDirectory>
-                  </sourceDirectories>
-                   Data file for report
+<!--                   Source directories for report-->
+<!--                  <sourceDirectories>-->
+<!--                    <sourceDirectory>${project.build.sourceDirectory}</sourceDirectory>-->
+<!--                  </sourceDirectories>-->
+<!--                   Data file for report-->
                   <dataFile>${project.build.directory}/${combination}/jacoco.exec</dataFile>
-                   Report format (html, xml, csv)
+<!--                   Report format (html, xml, csv)-->
                   <outputDirectory>${project.reporting.outputDirectory}/jacoco</outputDirectory>
                 </configuration>
               </execution>
