@@ -187,6 +187,10 @@
 
   </build>
 
+  <reporting>
+    <outputDirectory>${project.build.directory}</outputDirectory>
+  </reporting>
+
   <!-- see hadoop-project/pom.xml for version number declarations -->
   <dependencies>
     <dependency>
@@ -552,7 +556,7 @@
                     <sourceDirectory>${project.build.sourceDirectory}</sourceDirectory>
                   </sourceDirectories>
                    Data file for report
-                  <dataFile>${project.build.directory}/${combination}.exec</dataFile>
+                  <dataFile>${project.build.directory}/${combination}/jacoco.exec</dataFile>
                    Report format (html, xml, csv)
                   <outputDirectory>${project.reporting.outputDirectory}/jacoco</outputDirectory>
                 </configuration>
