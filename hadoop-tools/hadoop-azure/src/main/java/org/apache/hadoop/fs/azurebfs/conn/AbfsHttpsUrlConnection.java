@@ -7,9 +7,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.Proxy;
 import java.net.URL;
+import java.util.HashSet;
+import java.util.Set;
 
+import sun.net.www.http.HttpClient;
 import sun.net.www.protocol.https.AbstractDelegateHttpsURLConnection;
 import sun.net.www.protocol.https.Handler;
+
+import static org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations.X_MS_CLIENT_REQUEST_ID;
 
 public class AbfsHttpsUrlConnection extends
     AbstractDelegateHttpsURLConnection {
@@ -19,10 +24,15 @@ public class AbfsHttpsUrlConnection extends
   SSLSocketFactory sslSocketFactory;
   HostnameVerifier hostnameVerifier = HttpsURLConnection.getDefaultHostnameVerifier();
 
+  public Long timeTaken;
+  public Boolean isFromCache = true;
+
 
   public void registerGetOutputStreamFailure() {
     getOutputStreamFailed = true;
   }
+
+  private Set<HttpClient> httpClientSet = new HashSet<>();
 
   public AbfsHttpsUrlConnection(final URL url,
       final Proxy proxy,
@@ -34,6 +44,19 @@ public class AbfsHttpsUrlConnection extends
   public javax.net.ssl.SSLSocketFactory getSSLSocketFactory() {
     return sslSocketFactory;
   }
+
+  @Override
+  protected void plainConnect0() throws IOException {
+    Long start = System.currentTimeMillis();
+    super.plainConnect0();
+    timeTaken = System.currentTimeMillis() - start;
+    if(!httpClientSet.contains(http)) {
+      isFromCache = false;
+    }
+    httpClientSet.add(http);
+  }
+
+
 
   @Override
   public javax.net.ssl.HostnameVerifier getHostnameVerifier() {

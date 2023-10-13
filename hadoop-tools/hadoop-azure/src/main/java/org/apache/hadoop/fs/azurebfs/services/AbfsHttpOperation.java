@@ -28,6 +28,8 @@ import java.util.List;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLSocketFactory;
 
+import org.apache.hadoop.fs.azurebfs.conn.AbfsHttpUrlConnection;
+import org.apache.hadoop.fs.azurebfs.conn.AbfsHttpsUrlConnection;
 import org.apache.hadoop.fs.azurebfs.utils.UriUtils;
 import org.apache.hadoop.security.ssl.DelegatingSSLSocketFactory;
 
@@ -276,13 +278,13 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
     this.method = method;
 
     this.connection = openConnection();
-    if (this.connection instanceof HttpsURLConnection) {
-      HttpsURLConnection secureConn = (HttpsURLConnection) this.connection;
-      SSLSocketFactory sslSocketFactory = DelegatingSSLSocketFactory.getDefaultFactory();
-      if (sslSocketFactory != null) {
-        secureConn.setSSLSocketFactory(sslSocketFactory);
-      }
-    }
+//    if (this.connection instanceof HttpsURLConnection) {
+//      HttpsURLConnection secureConn = (HttpsURLConnection) this.connection;
+//      SSLSocketFactory sslSocketFactory = DelegatingSSLSocketFactory.getDefaultFactory();
+//      if (sslSocketFactory != null) {
+//        secureConn.setSSLSocketFactory(sslSocketFactory);
+//      }
+//    }
 
     this.connection.setConnectTimeout(CONNECT_TIMEOUT);
     this.connection.setReadTimeout(READ_TIMEOUT);
@@ -472,15 +474,25 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
    * @throws IOException if an error occurs.
    */
   private HttpURLConnection openConnection() throws IOException {
-    if (!isTraceEnabled) {
-      return (HttpURLConnection) url.openConnection();
+    if("https".equals(url.getProtocol())) {
+      AbfsHttpsUrlConnection conn = new AbfsHttpsUrlConnection(url, null, new sun.net.www.protocol.https.Handler());
+      SSLSocketFactory sslSocketFactory = DelegatingSSLSocketFactory.getDefaultFactory();
+      if (sslSocketFactory != null) {
+        conn.setSSLSocketFactory(sslSocketFactory);
+      }
+      return conn;
     }
-    long start = System.nanoTime();
-    try {
-      return (HttpURLConnection) url.openConnection();
-    } finally {
-      connectionTimeMs = elapsedTimeMs(start);
-    }
+
+    return  new AbfsHttpUrlConnection(url, null, new sun.net.www.protocol.http.Handler());
+//    if (!isTraceEnabled) {
+//      return (HttpURLConnection) url.openConnection();
+//    }
+//    long start = System.nanoTime();
+//    try {
+//      return (HttpURLConnection) url.openConnection();
+//    } finally {
+//      connectionTimeMs = elapsedTimeMs(start);
+//    }
   }
 
   /**
