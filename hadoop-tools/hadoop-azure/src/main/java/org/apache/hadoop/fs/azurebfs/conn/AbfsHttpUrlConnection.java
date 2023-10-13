@@ -18,6 +18,9 @@ public class AbfsHttpUrlConnection extends HttpURLConnection {
 
   private Set<HttpClient> httpClientSet = new HashSet<>();
 
+  public Long timeTaken;
+  public Boolean isFromCache = true;
+
   public AbfsHttpUrlConnection(final URL url,
       final Proxy proxy,
       final Handler handler) throws IOException {
@@ -28,9 +31,9 @@ public class AbfsHttpUrlConnection extends HttpURLConnection {
   protected void plainConnect0() throws IOException {
     Long start = System.currentTimeMillis();
     super.plainConnect0();
-    Long timeTaken = System.currentTimeMillis() - start;
+    timeTaken = System.currentTimeMillis() - start;
     if(!httpClientSet.contains(http)) {
-      publish(timeTaken);
+      isFromCache = false;
     }
     httpClientSet.add(http);
   }
