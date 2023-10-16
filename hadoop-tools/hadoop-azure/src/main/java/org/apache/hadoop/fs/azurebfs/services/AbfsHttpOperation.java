@@ -94,17 +94,21 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
 
   private static Queue<String> connInfo = new ConcurrentLinkedQueue<>();
 
-  public void  addConnInfo() {
-    StringBuilder stringBuilder = new StringBuilder(requestId + "_");
+  public void  addConnInfo(String operation) {
+    StringBuilder stringBuilder = new StringBuilder("_" +  operation + "_");
     if(url.getProtocol().equals("https")) {
       AbfsHttpsUrlConnection conn = ((AbfsHttpsUrlConnection) connection);
-      stringBuilder.append(conn.timeTaken).append("_").append(conn.isFromCache);
-      connInfo.add(stringBuilder.toString());
+      stringBuilder.append(conn.timeTaken);
+      if(!conn.isFromCache) {
+        connInfo.add(stringBuilder.toString());
+      }
       return;
     }
     AbfsHttpUrlConnection conn = ((AbfsHttpUrlConnection) connection);
-    stringBuilder.append(conn.timeTaken).append("_").append(conn.isFromCache);
-    connInfo.add(stringBuilder.toString());
+    stringBuilder.append(conn.timeTaken);
+    if(!conn.isFromCache) {
+      connInfo.add(stringBuilder.toString());
+    }
   }
 
   public static AbfsHttpOperation getAbfsHttpOperationWithFixedResult(
@@ -311,12 +315,6 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
     this.connection.setRequestMethod(method);
 
     for (AbfsHttpHeader header : requestHeaders) {
-      if(X_MS_CLIENT_REQUEST_ID.equals(header.getName())) {
-        String passConnInfo = connInfo.poll();
-        if(passConnInfo != null) {
-          header = new AbfsHttpHeader(header.getName(), header.getValue() + passConnInfo);
-        }
-      }
       setRequestProperty(header.getName(), header.getValue());
     }
   }
@@ -490,6 +488,12 @@ public class AbfsHttpOperation implements AbfsPerfLoggable {
   }
 
   public void setRequestProperty(String key, String value) {
+    if(X_MS_CLIENT_REQUEST_ID.equals(key)) {
+      String passConnInfo = connInfo.poll();
+      if(passConnInfo != null) {
+        value += passConnInfo;
+      }
+    }
     this.connection.setRequestProperty(key, value);
   }
 

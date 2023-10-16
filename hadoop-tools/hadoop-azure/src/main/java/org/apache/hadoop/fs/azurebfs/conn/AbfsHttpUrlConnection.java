@@ -16,7 +16,7 @@ import static org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations.X
 public class AbfsHttpUrlConnection extends HttpURLConnection {
   private Boolean getOutputStreamFailed = false;
 
-  private Set<HttpClient> httpClientSet = new HashSet<>();
+  private static Set<HttpClient> httpClientSet = new HashSet<>();
 
   public Long timeTaken;
   public Boolean isFromCache = true;

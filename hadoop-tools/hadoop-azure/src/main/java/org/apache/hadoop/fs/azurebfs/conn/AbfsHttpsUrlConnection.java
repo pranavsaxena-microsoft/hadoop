@@ -32,7 +32,7 @@ public class AbfsHttpsUrlConnection extends
     getOutputStreamFailed = true;
   }
 
-  private Set<HttpClient> httpClientSet = new HashSet<>();
+  private static Set<HttpClient> httpClientSet = new HashSet<>();
 
   public AbfsHttpsUrlConnection(final URL url,
       final Proxy proxy,
