@@ -654,7 +654,6 @@
                     <fs.azure.scale.test.timeout>${fs.azure.scale.test.timeout}</fs.azure.scale.test.timeout>
                   </systemPropertyVariables>
                   <includes>
-                    <include>**/azurebfs/contract/ITest*.java</include>
                     <include>**/azurebfs/ITestAzureBlobFileSystemE2EScale.java</include>
                     <include>**/azurebfs/ITestAbfsReadWriteAndSeek.java</include>
                     <include>**/azurebfs/ITestAzureBlobFileSystemListStatus.java</include>
@@ -663,6 +662,40 @@
                     <include>**/azurebfs/services/ITestReadBufferManager.java</include>
                     <include>**/azurebfs/ITestAbfsStreamStatistics*.java</include>
                     <include>**/azurebfs/commit/*.java</include>
+                  </includes>
+                </configuration>
+              </execution>
+              <execution>
+                <id>contract-test-abfs-sequential</id>
+                <goals>
+                  <goal>integration-test</goal>
+                  <goal>verify</goal>
+                </goals>
+                <configuration>
+                  <forkCount>1</forkCount>
+                  <reuseForks>false</reuseForks>
+                  <!--NOTICE: hadoop contract tests methods can not be ran in parallel-->
+                  <argLine>${maven-surefire-plugin.argLine} -DminiClusterDedicatedDirs=true</argLine>
+                  <forkedProcessTimeoutInSeconds>${fs.azure.scale.test.timeout}</forkedProcessTimeoutInSeconds>
+                  <trimStackTrace>false</trimStackTrace>
+                  <systemPropertyVariables>
+                    <!-- Tell tests that they are being executed in parallel -->
+                    <test.parallel.execution>false</test.parallel.execution>
+                    <test.build.data>${test.build.data}/${surefire.forkNumber}</test.build.data>
+                    <test.build.dir>${test.build.dir}/${surefire.forkNumber}</test.build.dir>
+                    <hadoop.tmp.dir>${hadoop.tmp.dir}/${surefire.forkNumber}</hadoop.tmp.dir>
+
+                    <!-- Due to a Maven quirk, setting this to just -->
+                    <!-- surefire.forkNumber won't do the parameter -->
+                    <!-- substitution.  Putting a prefix in front of it like -->
+                    <!-- "fork-" makes it work. -->
+                    <test.unique.fork.id>fork-000${surefire.forkNumber}</test.unique.fork.id>
+                    <!-- Propagate scale parameters -->
+                    <fs.azure.scale.test.enabled>${fs.azure.scale.test.enabled}</fs.azure.scale.test.enabled>
+                    <fs.azure.scale.test.timeout>${fs.azure.scale.test.timeout}</fs.azure.scale.test.timeout>
+                  </systemPropertyVariables>
+                  <includes>
+                    <include>**/azurebfs/contract/ITest*.java</include>
                   </includes>
                 </configuration>
               </execution>
