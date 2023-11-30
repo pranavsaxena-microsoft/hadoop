@@ -52,7 +52,7 @@
       <exclusions>
         <exclusion>
           <groupId>net.bytebuddy</groupId>
-          <artifactId>byte-buddy-parent</artifactId>
+          <artifactId>byte-buddy-agent</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
