@@ -451,7 +451,6 @@ public class AbfsApacheHttpClient {
         final Object state,
         final long keepalive,
         final TimeUnit timeUnit) {
-      System.out.println(getTotalStats());
       if(AbfsAHCHttpOperation.connThatCantBeClosed.contains(managedConn)) {
         return;
       }
