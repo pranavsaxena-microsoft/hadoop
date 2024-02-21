@@ -402,7 +402,7 @@ public class AbfsApacheHttpClient {
       super(createSocketFactoryRegistry(connectionSocketFactory), abfsConnFactory);
       abfsConnFactory.setConnMgr(this);
 //      maxConn = abfsConfiguration.getHttpClientMaxConn();
-      maxConn = 1;
+      maxConn = 100;
       setDefaultMaxPerRoute(maxConn);
       setMaxTotal(maxConn);
       this.abfsConfiguration = abfsConfiguration;
@@ -591,7 +591,7 @@ public class AbfsApacheHttpClient {
   }
 
   public HttpResponse execute(HttpRequestBase httpRequest, final AbfsHttpClientContext abfsHttpClientContext) throws IOException {
-    connMgr.checkAvailablity();
+//    connMgr.checkAvailablity();
     RequestConfig.Builder requestConfigBuilder = RequestConfig
         .custom()
         .setConnectTimeout(30_000)
