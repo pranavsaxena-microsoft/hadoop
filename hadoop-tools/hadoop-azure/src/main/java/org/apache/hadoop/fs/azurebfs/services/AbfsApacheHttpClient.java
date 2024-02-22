@@ -569,12 +569,13 @@ public class AbfsApacheHttpClient {
         //.setRequestExecutor(new AbfsHttpRequestExecutor())
         //.setConnectionReuseStrategy(new AhcConnReuseStrategy(connMgr))
         //.setKeepAliveStrategy(new AbfsKeepAliveStrategy(abfsConfiguration))
+        .setSSLSocketFactory(new SSLConnectionSocketFactory(delegatingSSLSocketFactory, null))
         .setMaxConnTotal(1000)
         .setMaxConnPerRoute(1000)
         .disableContentCompression()
         .disableRedirectHandling()
         .disableAutomaticRetries()
-        .evictIdleConnections(5000L, TimeUnit.MILLISECONDS)
+//        .evictIdleConnections(5000L, TimeUnit.MILLISECONDS)
         .setUserAgent(""); // SDK will set the user agent header in the pipeline. Don't let Apache waste time
     httpClient = builder.build();
   }
