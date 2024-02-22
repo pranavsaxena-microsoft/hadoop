@@ -56,12 +56,12 @@ public class AbfsApacheHttpClient {
 
 
   public static class AbfsHttpClientContext extends HttpClientContext {
-    Long connectTime;
-    Long readTime;
-    Long sendTime;
+    long connectTime;
+    long readTime;
+    long sendTime;
     HttpClientConnection httpClientConnection;
-    Long expect100HeaderSendTime = 0L;
-    Long expect100ResponseTime;
+    long expect100HeaderSendTime = 0L;
+    long expect100ResponseTime;
 
     long keepAliveTime;
 

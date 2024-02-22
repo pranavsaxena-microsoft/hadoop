@@ -214,7 +214,7 @@ public class AbfsAHCHttpOperation extends HttpOperation {
       parseResponse(buffer, offset, length);
       abfsHttpClientContext.isBeingRead = false;
 
-      if(abfsHttpClientContext.connectTime != null) {
+      if(abfsHttpClientContext.connectTime > 0) {
         ConnInfo connInfo = new ConnInfo();
         connInfo.connTime = abfsHttpClientContext.connectTime;
         connInfo.operationType = abfsRestOperationType;
