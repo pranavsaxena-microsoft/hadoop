@@ -565,10 +565,12 @@ public class AbfsApacheHttpClient {
           new SSLConnectionSocketFactory(delegatingSSLSocketFactory, null), abfsConfiguration);
     }
     final HttpClientBuilder builder = HttpClients.custom();
-    builder.setConnectionManager(connMgr)
-        .setRequestExecutor(new AbfsHttpRequestExecutor())
-        .setConnectionReuseStrategy(new AhcConnReuseStrategy(connMgr))
-        .setKeepAliveStrategy(new AbfsKeepAliveStrategy(abfsConfiguration))
+    builder//.setConnectionManager(connMgr)
+        //.setRequestExecutor(new AbfsHttpRequestExecutor())
+        //.setConnectionReuseStrategy(new AhcConnReuseStrategy(connMgr))
+        //.setKeepAliveStrategy(new AbfsKeepAliveStrategy(abfsConfiguration))
+        .setMaxConnTotal(1000)
+        .setMaxConnPerRoute(1000)
         .disableContentCompression()
         .disableRedirectHandling()
         .disableAutomaticRetries()
