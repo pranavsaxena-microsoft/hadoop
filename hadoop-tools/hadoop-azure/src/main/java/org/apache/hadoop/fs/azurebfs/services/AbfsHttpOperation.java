@@ -323,7 +323,7 @@ public class AbfsHttpOperation extends HttpOperation {
     startTime = System.nanoTime();
 
     this.statusCode = getConnResponseCode();
-    this.recvResponseTimeMs = elapsedTimeMs(startTime);
+//    this.recvResponseTimeMs = elapsedTimeMs(startTime);
 
     this.statusDescription = getConnResponseMessage();
 
