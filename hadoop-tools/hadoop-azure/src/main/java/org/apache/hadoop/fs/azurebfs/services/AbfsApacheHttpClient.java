@@ -539,12 +539,12 @@ public class AbfsApacheHttpClient {
     protected HttpResponse doSendRequest(final HttpRequest request,
         final HttpClientConnection conn,
         final HttpContext context) throws IOException, HttpException {
-//      long start = System.currentTimeMillis();
+      long start = System.currentTimeMillis();
       final HttpResponse res = super.doSendRequest(request, conn, context);
-//      long elapsed = System.currentTimeMillis() - start;
+      long elapsed = System.currentTimeMillis() - start;
       if(context instanceof AbfsHttpClientContext) {
         ((AbfsHttpClientContext) context).httpClientConnection = conn;
-//        ((AbfsHttpClientContext) context).sendTime = elapsed;
+        ((AbfsHttpClientContext) context).sendTime = elapsed;
       }
       if(request != null && request.containsHeader(EXPECT) && res != null && res.getStatusLine().getStatusCode() != 200) {
         throw new AbfsApacheHttpExpect100Exception("Server rejected operation", res);
@@ -556,12 +556,12 @@ public class AbfsApacheHttpClient {
     protected HttpResponse doReceiveResponse(final HttpRequest request,
         final HttpClientConnection conn,
         final HttpContext context) throws HttpException, IOException {
-//      long start = System.currentTimeMillis();
+      long start = System.currentTimeMillis();
       final HttpResponse res = super.doReceiveResponse(request, conn, context);
-//      long elapsed = System.currentTimeMillis() - start;
-//      if(context instanceof AbfsHttpClientContext) {
-//        ((AbfsHttpClientContext) context).readTime = elapsed;
-//      }
+      long elapsed = System.currentTimeMillis() - start;
+      if(context instanceof AbfsHttpClientContext) {
+        ((AbfsHttpClientContext) context).readTime = elapsed;
+      }
       return res;
     }
   }

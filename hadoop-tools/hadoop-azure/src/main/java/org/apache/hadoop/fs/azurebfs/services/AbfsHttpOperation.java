@@ -70,7 +70,7 @@ public class AbfsHttpOperation extends HttpOperation {
 
   private static class LatencyCaptureInfo {
 
-    long latencyCapture;
+    String latencyCapture;
 
     AbfsRestOperationType operationType;
 
@@ -81,7 +81,7 @@ public class AbfsHttpOperation extends HttpOperation {
     AbfsHttpsUrlConnection conn = ((AbfsHttpsUrlConnection) connection);
     LatencyCaptureInfo latencyCaptureInfo = new LatencyCaptureInfo();
     latencyCaptureInfo.operationType = operationType;
-    latencyCaptureInfo.latencyCapture = conn.timeTaken;
+    latencyCaptureInfo.latencyCapture = conn.timeTaken +"";
     if(!conn.isFromCache) {
       connLatencyInfos.add(latencyCaptureInfo);
     }
@@ -91,7 +91,7 @@ public class AbfsHttpOperation extends HttpOperation {
   private void captureReadLatency() {
     LatencyCaptureInfo latencyCaptureInfo = new LatencyCaptureInfo();
     latencyCaptureInfo.status = statusCode;
-    latencyCaptureInfo.latencyCapture = recvResponseTimeMs;
+    latencyCaptureInfo.latencyCapture = (((AbfsHttpsUrlConnection)connection).sendTime + "_" + ((AbfsHttpsUrlConnection)connection).recvTime);
     latencyCaptureInfo.operationType =  operationType;
 
     readLatencyInfos.add(latencyCaptureInfo);

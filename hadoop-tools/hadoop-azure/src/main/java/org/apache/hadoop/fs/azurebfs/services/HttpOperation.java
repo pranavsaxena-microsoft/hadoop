@@ -268,7 +268,7 @@ public abstract class HttpOperation implements AbfsPerfLoggable {
         LOG.debug("IO Error: ", ex);
         throw ex;
       } finally {
-        this.recvResponseTimeMs += elapsedTimeMs(startTime);
+//        this.recvResponseTimeMs += elapsedTimeMs(startTime);
         this.bytesReceived = totalBytesRead;
       }
     }

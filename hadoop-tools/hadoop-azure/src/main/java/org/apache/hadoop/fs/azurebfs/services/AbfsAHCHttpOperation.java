@@ -165,7 +165,7 @@ public class AbfsAHCHttpOperation extends HttpOperation {
   }
 
   private static class LatencyCaptureInfo {
-    long latencyCapture;
+    String latencyCapture;
     AbfsRestOperationType operationType;
     int status;
   }
@@ -225,7 +225,7 @@ public class AbfsAHCHttpOperation extends HttpOperation {
         connInfoStack.push(connInfo);
       }
       LatencyCaptureInfo readLatencyCaptureInfo = new LatencyCaptureInfo();
-      readLatencyCaptureInfo.latencyCapture = recvResponseTimeMs;
+      readLatencyCaptureInfo.latencyCapture = sendRequestTimeMs + "_" + recvResponseTimeMs;
       readLatencyCaptureInfo.operationType = abfsRestOperationType;
       readLatencyCaptureInfo.status = statusCode;
       READ_INFO_STACK.push(readLatencyCaptureInfo);

@@ -19,8 +19,6 @@ import sun.net.www.protocol.http.HttpURLConnection;
 import sun.net.www.protocol.https.AbstractDelegateHttpsURLConnection;
 import sun.net.www.protocol.https.Handler;
 
-import static org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations.X_MS_CLIENT_REQUEST_ID;
-
 public class AbfsHttpsUrlConnection extends
     AbstractDelegateHttpsURLConnection {
 
@@ -49,8 +47,12 @@ public class AbfsHttpsUrlConnection extends
 
     private HttpClient httpClient;
 
-    public AbfsHttpClient(HttpClient client) {
+    private final AbfsHttpsUrlConnection abfsHttpsUrlConnection;
+
+    public AbfsHttpClient(HttpClient client,
+        final AbfsHttpsUrlConnection abfsHttpsUrlConnection) {
       httpClient = client;
+      this.abfsHttpsUrlConnection = abfsHttpsUrlConnection;
     }
     public final static Stack<Integer> finishedStack = new Stack<>();
 
@@ -98,17 +100,24 @@ public class AbfsHttpsUrlConnection extends
 
     @Override
     public void writeRequests(MessageHeader messageHeader, PosterOutputStream posterOutputStream) throws IOException {
+      long start = System.currentTimeMillis();
       httpClient.writeRequests(messageHeader, posterOutputStream);
+      abfsHttpsUrlConnection.sendTime = (System.currentTimeMillis() - start);
     }
 
     @Override
     public void writeRequests(MessageHeader messageHeader, PosterOutputStream posterOutputStream, boolean b) throws IOException {
+      long start = System.currentTimeMillis();
       httpClient.writeRequests(messageHeader, posterOutputStream, b);
+      abfsHttpsUrlConnection.sendTime = (System.currentTimeMillis() - start);
     }
 
     @Override
     public boolean parseHTTP(MessageHeader messageHeader, ProgressSource progressSource, HttpURLConnection httpURLConnection) throws IOException {
-      return httpClient.parseHTTP(messageHeader, progressSource, httpURLConnection);
+      long start = System.currentTimeMillis();
+      boolean val = httpClient.parseHTTP(messageHeader, progressSource, httpURLConnection);
+      abfsHttpsUrlConnection.recvTime = (System.currentTimeMillis() - start);
+      return val;
     }
 
     @Override
@@ -194,13 +203,14 @@ public class AbfsHttpsUrlConnection extends
     return sslSocketFactory;
   }
 
+  public long sendTime, recvTime;
   @Override
   public void connect() throws IOException {
     Long start = System.currentTimeMillis();
     super.connect();
     timeTaken = System.currentTimeMillis() - start;
     isFromCache = http.isCachedConnection();
-    http = new AbfsHttpClient(http);
+    http = new AbfsHttpClient(http, this);
 //    if(!httpClientSet.contains(http)) {
 //      isFromCache = false;
 //    }
