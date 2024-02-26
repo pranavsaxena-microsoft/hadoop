@@ -552,9 +552,9 @@ public class AbfsApacheHttpClient {
         ((AbfsHttpClientContext) context).httpClientConnection = conn;
 //        ((AbfsHttpClientContext) context).sendTime = elapsed;
       }
-      if(request != null && request.containsHeader(EXPECT) && res != null && res.getStatusLine().getStatusCode() != 200) {
-        throw new AbfsApacheHttpExpect100Exception("Server rejected operation", res);
-      }
+//      if(request != null && request.containsHeader(EXPECT) && res != null && res.getStatusLine().getStatusCode() != 200) {
+//        throw new AbfsApacheHttpExpect100Exception("Server rejected operation", res);
+//      }
       return res;
     }
 

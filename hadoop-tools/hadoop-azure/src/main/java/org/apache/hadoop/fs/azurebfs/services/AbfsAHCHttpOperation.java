@@ -22,20 +22,23 @@ import org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants;
 import org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations;
 import org.apache.hadoop.fs.azurebfs.contracts.exceptions.AbfsApacheHttpExpect100Exception;
 import org.apache.hadoop.security.ssl.DelegatingSSLSocketFactory;
-import org.apache.http.Header;
-import org.apache.http.HttpClientConnection;
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpResponse;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpDelete;
+import org.apache.hc.client5.http.classic.methods.HttpDelete;
+import org.apache.hc.client5.http.classic.methods.HttpGet;
+import org.apache.hc.client5.http.classic.methods.HttpHead;
+import org.apache.hc.client5.http.classic.methods.HttpPatch;
+import org.apache.hc.client5.http.classic.methods.HttpPost;
+import org.apache.hc.client5.http.classic.methods.HttpPut;
+import org.apache.hc.client5.http.classic.methods.HttpUriRequestBase;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
+import org.apache.hc.core5.http.ContentType;
+import org.apache.hc.core5.http.Header;
+import org.apache.hc.core5.http.HttpEntity;
+import org.apache.hc.core5.http.HttpResponse;
+import org.apache.hc.core5.http.io.HttpClientConnection;
+import org.apache.hc.core5.http.io.entity.ByteArrayEntity;
+import org.apache.hc.core5.http.io.entity.NullEntity;
 import org.apache.http.client.methods.HttpEntityEnclosingRequestBase;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.methods.HttpHead;
-import org.apache.http.client.methods.HttpPatch;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.client.methods.HttpPut;
-import org.apache.http.client.methods.HttpRequestBase;
-import org.apache.http.entity.ByteArrayEntity;
+
 
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.HTTP_METHOD_DELETE;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.HTTP_METHOD_GET;
@@ -50,35 +53,33 @@ public class AbfsAHCHttpOperation extends HttpOperation {
 
   private static final Logger LOG = LoggerFactory.getLogger(AbfsAHCHttpOperation.class);
 
-  private static Map<String, AbfsApacheHttpClient> abfsApacheHttpClientMap = new HashMap<>();
+  private static Map<String, ApacheHttpClient5x> abfsApacheHttpClientMap = new HashMap<>();
 
-  private AbfsApacheHttpClient abfsApacheHttpClient;
+  private ApacheHttpClient5x abfsApacheHttpClient;
 
-  public HttpRequestBase httpRequestBase;
+  public HttpUriRequestBase httpRequestBase;
 
-  private HttpResponse httpResponse;
-
-  private final AbfsApacheHttpClient.AbfsHttpClientContext abfsHttpClientContext;
+  private CloseableHttpResponse httpResponse;
 
   private final AbfsRestOperationType abfsRestOperationType;
 
-  public static void closeAllConn() {
-    for(AbfsApacheHttpClient client : abfsApacheHttpClientMap.values()) {
+  public static void closeAllConn() throws IOException {
+    for(ApacheHttpClient5x client : abfsApacheHttpClientMap.values()) {
       client.closeAllConn();
     }
   }
 
   private synchronized void setAbfsApacheHttpClient(final AbfsConfiguration abfsConfiguration, final String clientId) {
-    AbfsApacheHttpClient client = abfsApacheHttpClientMap.get(clientId);
+    ApacheHttpClient5x client = abfsApacheHttpClientMap.get(clientId);
     if(client == null) {
-      client = new AbfsApacheHttpClient(DelegatingSSLSocketFactory.getDefaultFactory(), abfsConfiguration);
+      client = new ApacheHttpClient5x(DelegatingSSLSocketFactory.getDefaultFactory());
       abfsApacheHttpClientMap.put(clientId, client);
     }
     abfsApacheHttpClient = client;
   }
 
   static void removeClient(final String clientId) throws IOException {
-    AbfsApacheHttpClient client = abfsApacheHttpClientMap.remove(clientId);
+    ApacheHttpClient5x client = abfsApacheHttpClientMap.remove(clientId);
     if(client != null) {
       client.close();
     }
@@ -91,7 +92,7 @@ public class AbfsAHCHttpOperation extends HttpOperation {
     this.url = url;
     this.method = method;
     this.requestHeaders = requestHeaders;
-    abfsHttpClientContext = setFinalAbfsClientContext(method);
+//    abfsHttpClientContext = setFinalAbfsClientContext(method);
   }
 
   private AbfsApacheHttpClient.AbfsHttpClientContext setFinalAbfsClientContext(
@@ -116,7 +117,7 @@ public class AbfsAHCHttpOperation extends HttpOperation {
     this.url = url;
     this.requestHeaders = requestHeaders;
     setAbfsApacheHttpClient(abfsConfiguration, clientId);
-    abfsHttpClientContext = setFinalAbfsClientContext(method);
+//    abfsHttpClientContext = setFinalAbfsClientContext(method);
   }
 
 
@@ -187,12 +188,12 @@ public class AbfsAHCHttpOperation extends HttpOperation {
       try {
         long startTime = 0;
         startTime = System.nanoTime();
-        httpResponse = abfsApacheHttpClient.execute(httpRequestBase, abfsHttpClientContext);
+        httpResponse = abfsApacheHttpClient.execute(httpRequestBase);
         if(httpResponse.getEntity() == null || !httpResponse.getEntity().isStreaming()) {
           toBeClosedLater = false;
         }
-        sendRequestTimeMs = abfsHttpClientContext.sendTime;
-        recvResponseTimeMs = abfsHttpClientContext.readTime;
+//        sendRequestTimeMs = abfsHttpClientContext.sendTime;
+//        recvResponseTimeMs = abfsHttpClientContext.readTime;
 
 //        MetricPercentile.addSendDataPoint(abfsRestOperationType, sendRequestTimeMs);
 //        MetricPercentile.addRcvDataPoint(abfsRestOperationType, recvResponseTimeMs);
@@ -203,15 +204,15 @@ public class AbfsAHCHttpOperation extends HttpOperation {
             "Getting output stream failed with expect header enabled, returning back ",
             ex);
         isExpect100Error = true;
-        httpResponse = ex.getHttpResponse();
+        httpResponse = (CloseableHttpResponse) ex.getHttpResponse();
       }
       // get the response
       long startTime = 0;
       startTime = System.nanoTime();
 
-      this.statusCode = httpResponse.getStatusLine().getStatusCode();
+      this.statusCode = httpResponse.getCode();
 
-      this.statusDescription = httpResponse.getStatusLine().getReasonPhrase();
+      this.statusDescription = httpResponse.getReasonPhrase();
 
       this.requestId = getResponseHeader(HttpHeaderConfigurations.X_MS_REQUEST_ID);
       if (this.requestId == null) {
@@ -223,14 +224,14 @@ public class AbfsAHCHttpOperation extends HttpOperation {
 
 //      connThatCantBeClosed.add(abfsHttpClientContext.httpClientConnection);
       parseResponse(buffer, offset, length);
-      abfsHttpClientContext.isBeingRead = false;
-
-      if(abfsHttpClientContext.connectTime != null) {
-        ConnInfo connInfo = new ConnInfo();
-        connInfo.connTime = abfsHttpClientContext.connectTime;
-        connInfo.operationType = abfsRestOperationType;
-        connInfoStack.push(connInfo);
-      }
+//      abfsHttpClientContext.isBeingRead = false;
+//
+//      if(abfsHttpClientContext.connectTime != null) {
+//        ConnInfo connInfo = new ConnInfo();
+//        connInfo.connTime = abfsHttpClientContext.connectTime;
+//        connInfo.operationType = abfsRestOperationType;
+//        connInfoStack.push(connInfo);
+//      }
       LatencyCaptureInfo readLatencyCaptureInfo = new LatencyCaptureInfo();
       readLatencyCaptureInfo.latencyCapture = recvResponseTimeMs;
       readLatencyCaptureInfo.operationType = abfsRestOperationType;
@@ -256,11 +257,11 @@ public class AbfsAHCHttpOperation extends HttpOperation {
   }
 
   private Map<String, List<String>> getResponseHeaders(final HttpResponse httpResponse) {
-    if(httpResponse == null || httpResponse.getAllHeaders() == null) {
+    if(httpResponse == null || httpResponse.getHeaders() == null) {
       return new HashMap<>();
     }
     Map<String, List<String>> map = new HashMap<>();
-    for(Header header : httpResponse.getAllHeaders()) {
+    for(Header header : httpResponse.getHeaders()) {
       map.put(header.getName(), new ArrayList<String>(
           Collections.singleton(header.getValue())));
     }
@@ -293,7 +294,7 @@ public class AbfsAHCHttpOperation extends HttpOperation {
         int kac = AbfsApacheHttpClient.kacSizeStack.pop();
         stringBuilder.append(":Kac_").append(kac);
       } catch (EmptyStackException ignored) {}
-      stringBuilder.append(":TotalConn_").append(abfsApacheHttpClient.getParallelConnAtMoment());
+//      stringBuilder.append(":TotalConn_").append(abfsApacheHttpClient.getParallelConnAtMoment());
 
     }
     setHeader(key, stringBuilder.toString());
@@ -335,7 +336,7 @@ public class AbfsAHCHttpOperation extends HttpOperation {
       final int length)
       throws IOException {
     try {
-      HttpRequestBase httpRequestBase = null;
+      HttpUriRequestBase httpRequestBase = null;
       if (HTTP_METHOD_PUT.equals(method)) {
         httpRequestBase = new HttpPut(url.toURI());
       }
@@ -351,8 +352,10 @@ public class AbfsAHCHttpOperation extends HttpOperation {
         this.bytesSent = length;
         if(buffer != null) {
           HttpEntity httpEntity = new ByteArrayEntity(buffer, offset, length,
-              TEXT_PLAIN);
-          ((HttpEntityEnclosingRequestBase)httpRequestBase).setEntity(httpEntity);
+              ContentType.TEXT_PLAIN);
+          httpRequestBase.setEntity(httpEntity);
+        } else {
+          httpRequestBase.setEntity(NullEntity.INSTANCE);
         }
       } else {
         if(HTTP_METHOD_GET.equals(method)) {
@@ -372,7 +375,7 @@ public class AbfsAHCHttpOperation extends HttpOperation {
     }
   }
 
-  private void translateHeaders(final HttpRequestBase httpRequestBase, final List<AbfsHttpHeader> requestHeaders) {
+  private void translateHeaders(final HttpUriRequestBase httpRequestBase, final List<AbfsHttpHeader> requestHeaders) {
     for(AbfsHttpHeader header : requestHeaders) {
       httpRequestBase.setHeader(header.getName(), header.getValue());
     }
