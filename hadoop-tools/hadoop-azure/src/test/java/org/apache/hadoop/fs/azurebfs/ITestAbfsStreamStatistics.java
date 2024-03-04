@@ -154,6 +154,10 @@ public class ITestAbfsStreamStatistics extends AbstractAbfsIntegrationTest {
         validateContent(fs, largeOperationsFile,
             largeOperationsValidationString.toString().getBytes()));
 
+    fs.close();
+
+    while(true);
+
   }
 
   /**

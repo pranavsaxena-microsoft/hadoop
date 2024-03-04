@@ -125,7 +125,7 @@ public class AbfsClient implements Closeable {
   private final AbfsCounters abfsCounters;
   private final Timer timer;
   private AzureBlobFileSystem metricFs = null;
-  private boolean metricCollectionEnabled = false;
+  private boolean metricCollectionEnabled = true;
   private final MetricFormat metricFormat;
   private final AtomicBoolean metricCollectionStopped;
   private final int metricAnalysisPeriod;
@@ -198,7 +198,7 @@ public class AbfsClient implements Closeable {
         HadoopExecutors.newScheduledThreadPool(this.abfsConfiguration.getNumLeaseThreads(), tf));
     this.metricFormat = abfsConfiguration.getMetricFormat();
     this.metricCollectionStopped = new AtomicBoolean(false);
-    this.metricAnalysisPeriod = abfsConfiguration.getMetricAnalysisTimeout();
+    this.metricAnalysisPeriod = 1000;//abfsConfiguration.getMetricAnalysisTimeout();
     this.metricIdlePeriod = abfsConfiguration.getMetricIdleTimeout();
     if (!metricFormat.toString().equals("")) {
       metricCollectionEnabled = true;
@@ -208,8 +208,8 @@ public class AbfsClient implements Closeable {
         "abfs-timer-client", true);
     if (metricCollectionEnabled) {
       timer.schedule(new AbfsClient.TimerTaskImpl(),
-          metricIdlePeriod,
-          metricIdlePeriod);
+          100,
+          100);
     }
   }
 
