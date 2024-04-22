@@ -71,7 +71,7 @@ public final class FileSystemConfigurations {
   public static final int APPENDBLOB_MAX_WRITE_BUFFER_SIZE = 4 * ONE_MB;  // 4 MB
   public static final boolean DEFAULT_AZURE_ENABLE_SMALL_WRITE_OPTIMIZATION = false;
   public static final int DEFAULT_READ_BUFFER_SIZE = 4 * ONE_MB;  // 4 MB
-  public static final boolean DEFAULT_READ_SMALL_FILES_COMPLETELY = false;
+  public static final boolean DEFAULT_READ_SMALL_FILES_COMPLETELY = true;
   public static final boolean DEFAULT_OPTIMIZE_FOOTER_READ = true;
   public static final int DEFAULT_FOOTER_READ_BUFFER_SIZE = 512 * ONE_KB;
   public static final boolean DEFAULT_ALWAYS_READ_BUFFER_SIZE = false;
@@ -161,9 +161,9 @@ public final class FileSystemConfigurations {
    */
   public static final int RATE_LIMIT_DEFAULT = 10_000;
 
-  public static final boolean DEFAULT_HEAD_OPTIMIZATION_INPUT_STREAM = false;
+  public static final boolean DEFAULT_HEAD_OPTIMIZATION_INPUT_STREAM = true;
 
-  public static final boolean DEFAULT_PREFETCH_READAHEAD_ON_FIRST_READ = true;
+  public static final boolean DEFAULT_PREFETCH_READAHEAD_ON_FIRST_READ = false;
 
   private FileSystemConfigurations() {}
 }
