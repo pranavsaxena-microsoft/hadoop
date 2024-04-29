@@ -31,6 +31,7 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ThreadFactory;
@@ -471,7 +472,7 @@ public class AbfsClient implements Closeable {
       final boolean isAppendBlob,
       final String eTag,
       final ContextEncryptionAdapter contextEncryptionAdapter,
-      final TracingContext tracingContext)
+      final TracingContext tracingContext, Map<String, String>... additionalHeaders)
       throws AzureBlobFileSystemException {
     final List<AbfsHttpHeader> requestHeaders = createDefaultHeaders();
     if (isFile) {
@@ -495,6 +496,14 @@ public class AbfsClient implements Closeable {
 
     if (eTag != null && !eTag.isEmpty()) {
       requestHeaders.add(new AbfsHttpHeader(HttpHeaderConfigurations.IF_MATCH, eTag));
+    }
+
+    if (additionalHeaders != null) {
+      for (Map<String, String> header : additionalHeaders) {
+        for (Map.Entry<String, String> entry : header.entrySet()) {
+          requestHeaders.add(new AbfsHttpHeader(entry.getKey(), entry.getValue()));
+        }
+      }
     }
 
     final AbfsUriQueryBuilder abfsUriQueryBuilder = createDefaultUriQueryBuilder();
@@ -638,7 +647,7 @@ public class AbfsClient implements Closeable {
           final TracingContext tracingContext,
           String sourceEtag,
           boolean isMetadataIncompleteState,
-          boolean isNamespaceEnabled)
+          boolean isNamespaceEnabled, Map<String, String>... additionalHeaders)
       throws IOException {
     final List<AbfsHttpHeader> requestHeaders = createDefaultHeaders();
 
@@ -678,9 +687,16 @@ public class AbfsClient implements Closeable {
     requestHeaders.add(new AbfsHttpHeader(X_MS_RENAME_SOURCE, encodedRenameSource));
     requestHeaders.add(new AbfsHttpHeader(IF_NONE_MATCH, STAR));
 
+    if(additionalHeaders.length == 1) {
+      for (Map.Entry<String, String> entry : additionalHeaders[0].entrySet()) {
+        requestHeaders.add(new AbfsHttpHeader(entry.getKey(), entry.getValue()));
+      }
+    }
+
     final AbfsUriQueryBuilder abfsUriQueryBuilder = createDefaultUriQueryBuilder();
     abfsUriQueryBuilder.addQuery(QUERY_PARAM_CONTINUATION, continuation);
     appendSASTokenToQuery(destination, SASTokenProvider.RENAME_DESTINATION_OPERATION, abfsUriQueryBuilder);
+
 
     final URL url = createRequestUrl(destination, abfsUriQueryBuilder.toString());
     final AbfsRestOperation op = createRenameRestOperation(url, requestHeaders);
@@ -1054,9 +1070,15 @@ public class AbfsClient implements Closeable {
 
   public AbfsRestOperation getPathStatus(final String path,
       final boolean includeProperties, final TracingContext tracingContext,
-      final ContextEncryptionAdapter contextEncryptionAdapter)
+      final ContextEncryptionAdapter contextEncryptionAdapter, Map<String, String>... additionalHeaders)
       throws AzureBlobFileSystemException {
     final List<AbfsHttpHeader> requestHeaders = createDefaultHeaders();
+
+    if (additionalHeaders.length == 1) {
+      for (Map.Entry<String, String> entry : additionalHeaders[0].entrySet()) {
+        requestHeaders.add(new AbfsHttpHeader(entry.getKey(), entry.getValue()));
+      }
+    }
 
     final AbfsUriQueryBuilder abfsUriQueryBuilder = createDefaultUriQueryBuilder();
     String operation = SASTokenProvider.GET_PROPERTIES_OPERATION;
