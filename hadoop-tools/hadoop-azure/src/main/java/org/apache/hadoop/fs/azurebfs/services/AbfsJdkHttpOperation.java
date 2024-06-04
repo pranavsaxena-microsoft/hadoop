@@ -24,6 +24,7 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.ProtocolException;
 import java.net.URL;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
@@ -53,9 +54,7 @@ public class AbfsJdkHttpOperation extends AbfsHttpOperation {
   private static final Logger LOG = LoggerFactory.getLogger(
       AbfsJdkHttpOperation.class);
 
-  private HttpURLConnection connection;
-
-  private boolean connectionDisconnectedOnError = false;
+  private final HttpURLConnection connection;
 
   /**
    * Initializes a new HTTP request and opens the connection.
@@ -70,8 +69,8 @@ public class AbfsJdkHttpOperation extends AbfsHttpOperation {
   public AbfsJdkHttpOperation(final URL url,
       final String method,
       final List<AbfsHttpHeader> requestHeaders,
-      final int connectionTimeout,
-      final int readTimeout)
+      final Duration connectionTimeout,
+      final Duration readTimeout)
       throws IOException {
     super(LOG, url, method, requestHeaders, connectionTimeout, readTimeout);
 
@@ -85,8 +84,8 @@ public class AbfsJdkHttpOperation extends AbfsHttpOperation {
       }
     }
 
-    this.connection.setConnectTimeout(connectionTimeout);
-    this.connection.setReadTimeout(readTimeout);
+    this.connection.setConnectTimeout(getConnectionTimeout());
+    this.connection.setReadTimeout(getReadTimeout());
     this.connection.setRequestMethod(method);
 
     for (AbfsHttpHeader header : requestHeaders) {
@@ -96,11 +95,6 @@ public class AbfsJdkHttpOperation extends AbfsHttpOperation {
 
   protected HttpURLConnection getConnection() {
     return connection;
-  }
-
-  public String getClientRequestId() {
-    return this.connection
-        .getRequestProperty(HttpHeaderConfigurations.X_MS_CLIENT_REQUEST_ID);
   }
 
   public String getResponseHeader(String httpHeader) {
@@ -331,11 +325,6 @@ public class AbfsJdkHttpOperation extends AbfsHttpOperation {
    */
   String getConnResponseMessage() throws IOException {
     return connection.getResponseMessage();
-  }
-
-  @VisibleForTesting
-  boolean getConnectionDisconnectedOnError() {
-    return connectionDisconnectedOnError;
   }
 
   @Override

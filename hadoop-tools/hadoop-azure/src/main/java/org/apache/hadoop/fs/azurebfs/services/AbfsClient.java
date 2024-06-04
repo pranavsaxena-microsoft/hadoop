@@ -1240,7 +1240,8 @@ public class AbfsClient implements Closeable {
             this,
             HTTP_METHOD_DELETE,
             url,
-            requestHeaders, abfsConfiguration);
+            requestHeaders,
+            abfsConfiguration);
     try {
     op.execute(tracingContext);
     } catch (AzureBlobFileSystemException e) {

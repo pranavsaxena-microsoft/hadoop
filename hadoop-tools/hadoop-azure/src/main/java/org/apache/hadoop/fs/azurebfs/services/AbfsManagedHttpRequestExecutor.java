@@ -77,7 +77,7 @@ public class AbfsManagedHttpRequestExecutor extends HttpRequestExecutor {
     * or the expect100 assertion is failed.
     */
     if (request != null && request.containsHeader(EXPECT) && res != null) {
-      throw new AbfsApacheHttpExpect100Exception(EXPECT_100_JDK_ERROR, res);
+      throw new AbfsApacheHttpExpect100Exception(res);
     }
     return res;
   }

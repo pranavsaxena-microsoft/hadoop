@@ -60,7 +60,7 @@ final class AbfsApacheHttpClient {
         createSocketFactoryRegistry(
             new SSLConnectionSocketFactory(delegatingSSLSocketFactory,
                 getDefaultHostnameVerifier())),
-        new AbfsConnFactory(), keepAliveCache);
+        new AbfsHttpClientConnectionFactory(), keepAliveCache);
     final HttpClientBuilder builder = HttpClients.custom();
     builder.setConnectionManager(connMgr)
         .setRequestExecutor(new AbfsManagedHttpRequestExecutor(readTimeout))

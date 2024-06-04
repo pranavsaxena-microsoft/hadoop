@@ -22,6 +22,9 @@ import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.apache.http.HttpClientConnection;
 import org.apache.http.config.Registry;
 import org.apache.http.config.SocketConfig;
@@ -36,23 +39,25 @@ import org.apache.http.impl.conn.ManagedHttpClientConnectionFactory;
 import org.apache.http.protocol.HttpContext;
 
 /**
- * AbfsConnectionManager is a custom implementation of {@link HttpClientConnectionManager}.
+ * AbfsConnectionManager is a custom implementation of {@code HttpClientConnectionManager}.
  * This implementation manages connection-pooling heuristics and custom implementation
  * of {@link ManagedHttpClientConnectionFactory}.
  */
 class AbfsConnectionManager implements HttpClientConnectionManager {
 
+  private static final Logger LOG = LoggerFactory.getLogger(
+      AbfsAHCHttpOperation.class);
   private final KeepAliveCache kac;
 
-  private final AbfsConnFactory httpConnectionFactory;
+  private final AbfsHttpClientConnectionFactory httpConnectionFactory;
 
   private final HttpClientConnectionOperator connectionOperator;
 
   AbfsConnectionManager(Registry<ConnectionSocketFactory> socketFactoryRegistry,
-      AbfsConnFactory connectionFactory, KeepAliveCache kac) {
+      AbfsHttpClientConnectionFactory connectionFactory, KeepAliveCache kac) {
     this.httpConnectionFactory = connectionFactory;
     this.kac = kac;
-    connectionOperator = new DefaultHttpClientConnectionOperator(
+    this.connectionOperator = new DefaultHttpClientConnectionOperator(
         socketFactoryRegistry, null, null);
   }
 
@@ -65,11 +70,14 @@ class AbfsConnectionManager implements HttpClientConnectionManager {
           final TimeUnit timeUnit)
           throws InterruptedException, ExecutionException,
           ConnectionPoolTimeoutException {
+        LOG.debug("Connection requested");
         try {
           HttpClientConnection clientConn = kac.get();
           if (clientConn != null) {
+            LOG.debug("Connection retrieved from KAC: {}", clientConn);
             return clientConn;
           }
+          LOG.debug("Creating new connection");
           return httpConnectionFactory.create(route, null);
         } catch (IOException ex) {
           throw new ExecutionException(ex);
@@ -102,6 +110,7 @@ class AbfsConnectionManager implements HttpClientConnectionManager {
     }
     if (conn.isOpen() && conn instanceof AbfsManagedApacheHttpConnection) {
       kac.put(conn);
+      LOG.debug("Connection released: {}", conn);
     }
   }
 
@@ -111,9 +120,11 @@ class AbfsConnectionManager implements HttpClientConnectionManager {
       final int connectTimeout,
       final HttpContext context) throws IOException {
     long start = System.currentTimeMillis();
+    LOG.debug("Connecting {} to {}", conn, route.getTargetHost());
     connectionOperator.connect((AbfsManagedApacheHttpConnection) conn,
         route.getTargetHost(), route.getLocalSocketAddress(),
         connectTimeout, SocketConfig.DEFAULT, context);
+    LOG.debug("Connection established: {}", conn);
     if (context instanceof AbfsManagedHttpClientContext) {
       ((AbfsManagedHttpClientContext) context).setConnectTime(
           System.currentTimeMillis() - start);
@@ -138,12 +149,12 @@ class AbfsConnectionManager implements HttpClientConnectionManager {
   @Override
   public void closeIdleConnections(final long idletime,
       final TimeUnit timeUnit) {
-
+    kac.evictIdleConnection();
   }
 
   @Override
   public void closeExpiredConnections() {
-
+    kac.evictIdleConnection();
   }
 
   @Override

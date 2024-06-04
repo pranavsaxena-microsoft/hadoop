@@ -23,6 +23,7 @@ import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -72,24 +73,65 @@ public class AbfsAHCHttpOperation extends AbfsHttpOperation {
   private static final Logger LOG = LoggerFactory.getLogger(
       AbfsAHCHttpOperation.class);
 
-  private HttpRequestBase httpRequestBase;
+  /**
+   * Request object for network call over ApacheHttpClient.
+   */
+  private final HttpRequestBase httpRequestBase;
 
+  /**
+   * Response object received from a server call over ApacheHttpClient.
+   */
   private HttpResponse httpResponse;
 
-  private boolean connectionDisconnectedOnError = false;
-
+  /**
+   * Flag to indicate if the request is a payload request. API methods PUT, POST,
+   * PATCH are payload requests.
+   */
   private final boolean isPayloadRequest;
 
-  private final AbfsClient abfsClient;
+  /**
+   * ApacheHttpClient to make network calls.
+   */
+  private final AbfsApacheHttpClient abfsApacheHttpClient;
 
   public AbfsAHCHttpOperation(final URL url,
       final String method,
       final List<AbfsHttpHeader> requestHeaders,
-      final int connectionTimeout,
-      final int readTimeout, final AbfsClient abfsClient) {
+      final Duration connectionTimeout,
+      final Duration readTimeout,
+      final AbfsApacheHttpClient abfsApacheHttpClient) throws IOException {
     super(LOG, url, method, requestHeaders, connectionTimeout, readTimeout);
     this.isPayloadRequest = isPayloadRequest(method);
-    this.abfsClient = abfsClient;
+    this.abfsApacheHttpClient = abfsApacheHttpClient;
+
+
+    switch (getMethod()) {
+    case HTTP_METHOD_PUT:
+      httpRequestBase = new HttpPut(getUri());
+      break;
+    case HTTP_METHOD_PATCH:
+      httpRequestBase = new HttpPatch(getUri());
+      break;
+    case HTTP_METHOD_POST:
+      httpRequestBase = new HttpPost(getUri());
+      break;
+    case HTTP_METHOD_GET:
+      httpRequestBase = new HttpGet(getUri());
+      break;
+    case HTTP_METHOD_DELETE:
+      httpRequestBase = new HttpDelete(getUri());
+      break;
+    case HTTP_METHOD_HEAD:
+      httpRequestBase = new HttpHead(getUri());
+      break;
+    default:
+      /*
+       * This would not happen as the AbfsClient would always be sending valid
+       * method.
+       */
+      throw new PathIOException(getUrl().toString(),
+          "Unsupported HTTP method: " + getMethod());
+    }
   }
 
   @VisibleForTesting
@@ -141,6 +183,7 @@ public class AbfsAHCHttpOperation extends AbfsHttpOperation {
     return getStatusDescription();
   }
 
+  @Override
   public void processResponse(final byte[] buffer,
       final int offset,
       final int length) throws IOException {
@@ -179,8 +222,10 @@ public class AbfsAHCHttpOperation extends AbfsHttpOperation {
     setRequestId(requestId);
 
     // dump the headers
-    AbfsIoUtils.dumpHeadersToDebugLog("Response Headers",
-        getResponseHeaders(httpResponse));
+    if(LOG.isDebugEnabled()) {
+      AbfsIoUtils.dumpHeadersToDebugLog("Request Headers",
+          getRequestProperties());
+    }
     parseResponse(buffer, offset, length);
   }
 
@@ -193,13 +238,18 @@ public class AbfsAHCHttpOperation extends AbfsHttpOperation {
   HttpResponse executeRequest() throws IOException {
     AbfsManagedHttpClientContext abfsHttpClientContext
         = setFinalAbfsClientContext();
-    HttpResponse response
-        = abfsClient.abfsApacheHttpClient.execute(httpRequestBase,
-        abfsHttpClientContext, getConnectionTimeout(), getReadTimeout());
-    setConnectionTimeMs(abfsHttpClientContext.getConnectTime());
-    setSendRequestTimeMs(abfsHttpClientContext.getSendTime());
-    setRecvResponseTimeMs(abfsHttpClientContext.getReadTime());
-    return response;
+    try {
+      LOG.debug("Executing request: {}", httpRequestBase);
+      HttpResponse response = abfsApacheHttpClient.execute(httpRequestBase,
+          abfsHttpClientContext, getConnectionTimeout(), getReadTimeout());
+      setConnectionTimeMs(abfsHttpClientContext.getConnectTime());
+      setSendRequestTimeMs(abfsHttpClientContext.getSendTime());
+      setRecvResponseTimeMs(abfsHttpClientContext.getReadTime());
+      return response;
+    } catch (IOException e) {
+      LOG.debug("Failed to execute request: {}", httpRequestBase, e);
+      throw e;
+    }
   }
 
   private Map<String, List<String>> getResponseHeaders(final HttpResponse httpResponse) {
@@ -260,24 +310,6 @@ public class AbfsAHCHttpOperation extends AbfsHttpOperation {
       return;
     }
 
-    switch (getMethod()) {
-    case HTTP_METHOD_PUT:
-      httpRequestBase = new HttpPut(getUri());
-      break;
-    case HTTP_METHOD_PATCH:
-      httpRequestBase = new HttpPatch(getUri());
-      break;
-    case HTTP_METHOD_POST:
-      httpRequestBase = new HttpPost(getUri());
-      break;
-    default:
-      /*
-       * This should never happen as the method is already validated in
-       * isPayloadRequest.
-       */
-      return;
-    }
-
     setExpectedBytesToBeSent(length);
     if (buffer != null) {
       HttpEntity httpEntity = new ByteArrayEntity(buffer, offset, length,
@@ -305,25 +337,7 @@ public class AbfsAHCHttpOperation extends AbfsHttpOperation {
     }
   }
 
-  private void prepareRequest() throws IOException {
-    switch (getMethod()) {
-    case HTTP_METHOD_GET:
-      httpRequestBase = new HttpGet(getUri());
-      break;
-    case HTTP_METHOD_DELETE:
-      httpRequestBase = new HttpDelete(getUri());
-      break;
-    case HTTP_METHOD_HEAD:
-      httpRequestBase = new HttpHead(getUri());
-      break;
-    default:
-      /*
-       * This would not happen as the AbfsClient would always be sending valid
-       * method.
-       */
-      throw new PathIOException(getUrl().toString(),
-          "Unsupported HTTP method: " + getMethod());
-    }
+  private void prepareRequest() {
     translateHeaders(httpRequestBase, getRequestHeaders());
   }
 
@@ -357,21 +371,7 @@ public class AbfsAHCHttpOperation extends AbfsHttpOperation {
   }
 
   @Override
-  boolean getConnectionDisconnectedOnError() {
-    return connectionDisconnectedOnError;
-  }
-
-  @Override
   public String getTracingContextSuffix() {
     return APACHE_IMPL;
-  }
-
-  public String getClientRequestId() {
-    for (AbfsHttpHeader header : getRequestHeaders()) {
-      if (X_MS_CLIENT_REQUEST_ID.equals(header.getName())) {
-        return header.getValue();
-      }
-    }
-    return EMPTY_STRING;
   }
 }

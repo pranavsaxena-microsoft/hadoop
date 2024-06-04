@@ -18,19 +18,13 @@
 
 package org.apache.hadoop.fs.azurebfs.contracts.exceptions;
 
-import java.io.IOException;
-
 import org.apache.http.HttpResponse;
 
-public class AbfsApacheHttpExpect100Exception extends IOException {
-  private final HttpResponse httpResponse;
+import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.EXPECT_100_JDK_ERROR;
 
-  public AbfsApacheHttpExpect100Exception(final String s, final HttpResponse httpResponse) {
-    super(s);
-    this.httpResponse = httpResponse;
-  }
+public class AbfsApacheHttpExpect100Exception extends HttpResponseException {
 
-  public HttpResponse getHttpResponse() {
-    return httpResponse;
+  public AbfsApacheHttpExpect100Exception(final HttpResponse httpResponse) {
+    super(EXPECT_100_JDK_ERROR, httpResponse);
   }
 }

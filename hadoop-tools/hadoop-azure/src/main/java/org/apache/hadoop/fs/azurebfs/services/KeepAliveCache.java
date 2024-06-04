@@ -7,13 +7,10 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.hadoop.classification.VisibleForTesting;
 import org.apache.hadoop.fs.azurebfs.AbfsConfiguration;
 import org.apache.http.HttpClientConnection;
 
-import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.DEFAULT_MAX_CONN_SYS_PROP;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.HTTP_MAX_CONN_SYS_PROP;
-import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.KAC_DEFAULT_CONN_TTL;
 
 public class KeepAliveCache extends Stack<KeepAliveCache.KeepAliveEntry>
     implements
@@ -60,28 +57,29 @@ public class KeepAliveCache extends Stack<KeepAliveCache.KeepAliveEntry>
     this.timerTask = new TimerTask() {
       @Override
       public void run() {
-        synchronized (KeepAliveCache.this) {
           if (isPaused) {
             return;
           }
-          long currentTime = System.currentTimeMillis();
-          int i;
-
-          for (i = 0; i < size(); i++) {
-            KeepAliveEntry e = elementAt(i);
-            if ((currentTime - e.idleStartTime) > connectionIdleTTL
-                || e.httpClientConnection.isStale()) {
-              HttpClientConnection hc = e.httpClientConnection;
-              closeHtpClientConnection(hc);
-            } else {
-              break;
-            }
-          }
-          subList(0, i).clear();
-        }
+          evictIdleConnection();
       }
     };
     timer.schedule(timerTask, 0, connectionIdleTTL);
+  }
+
+  synchronized void evictIdleConnection() {
+    long currentTime = System.currentTimeMillis();
+    int i;
+    for (i = 0; i < size(); i++) {
+      KeepAliveEntry e = elementAt(i);
+      if ((currentTime - e.idleStartTime) > connectionIdleTTL
+          || e.httpClientConnection.isStale()) {
+        HttpClientConnection hc = e.httpClientConnection;
+        closeHtpClientConnection(hc);
+      } else {
+        break;
+      }
+    }
+    subList(0, i).clear();
   }
 
   private void closeHtpClientConnection(final HttpClientConnection hc) {

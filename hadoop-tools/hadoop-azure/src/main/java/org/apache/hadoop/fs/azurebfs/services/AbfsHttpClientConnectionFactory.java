@@ -28,7 +28,7 @@ import org.apache.http.impl.conn.ManagedHttpClientConnectionFactory;
  * {@link ManagedHttpClientConnectionFactory#create(HttpRoute, ConnectionConfig)} to return
  * {@link AbfsManagedApacheHttpConnection}.
  */
-public class AbfsConnFactory extends ManagedHttpClientConnectionFactory {
+public class AbfsHttpClientConnectionFactory extends ManagedHttpClientConnectionFactory {
 
   @Override
   public ManagedHttpClientConnection create(final HttpRoute route,
