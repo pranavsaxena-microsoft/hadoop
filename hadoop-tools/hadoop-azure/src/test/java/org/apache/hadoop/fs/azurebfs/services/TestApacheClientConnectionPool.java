@@ -29,6 +29,8 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Mockito;
 
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.azurebfs.AbfsConfiguration;
 import org.apache.hadoop.fs.azurebfs.AbstractAbfsTestWithTimeout;
 import org.apache.hadoop.util.functional.FutureIO;
 import org.apache.http.HttpClientConnection;
@@ -46,21 +48,22 @@ public class TestApacheClientConnectionPool extends
   }
 
   @Test
-  public void testBasicPool() throws IOException {
+  public void testBasicPool() throws Exception {
     System.clearProperty(HTTP_MAX_CONN_SYS_PROP);
     validatePoolSize(DEFAULT_MAX_CONN_SYS_PROP);
   }
 
   @Test
-  public void testSysPropAppliedPool() throws IOException {
+  public void testSysPropAppliedPool() throws Exception {
     final String customPoolSize = "10";
     System.setProperty(HTTP_MAX_CONN_SYS_PROP, customPoolSize);
     validatePoolSize(Integer.parseInt(customPoolSize));
   }
 
-  private void validatePoolSize(int size) throws IOException {
-    try (KeepAliveCache keepAliveCache = new KeepAliveCache()) {
-      keepAliveCache.clearThread();
+  private void validatePoolSize(int size) throws Exception {
+    try (KeepAliveCache keepAliveCache = new KeepAliveCache(
+        new AbfsConfiguration(new Configuration(), ""))) {
+      keepAliveCache.clear();
       final HttpClientConnection[] connections = new HttpClientConnection[size
           * 2];
 
@@ -88,9 +91,10 @@ public class TestApacheClientConnectionPool extends
   }
 
   @Test
-  public void testKeepAliveCache() throws IOException {
-    try (KeepAliveCache keepAliveCache = new KeepAliveCache()) {
-      keepAliveCache.clearThread();
+  public void testKeepAliveCache() throws Exception {
+    try (KeepAliveCache keepAliveCache = new KeepAliveCache(
+        new AbfsConfiguration(new Configuration(), ""))) {
+      keepAliveCache.clear();
       final HttpRoute routes = new HttpRoute(new HttpHost("localhost"));
       HttpClientConnection connection = Mockito.mock(
           HttpClientConnection.class);
@@ -104,8 +108,9 @@ public class TestApacheClientConnectionPool extends
 
   @Test
   public void testKeepAliveCacheCleanup() throws Exception {
-    try (KeepAliveCache keepAliveCache = new KeepAliveCache()) {
-      keepAliveCache.clearThread();
+    try (KeepAliveCache keepAliveCache = new KeepAliveCache(
+        new AbfsConfiguration(new Configuration(), ""))) {
+      keepAliveCache.clear();
       HttpClientConnection connection = Mockito.mock(
           HttpClientConnection.class);
       keepAliveCache.put(connection);
@@ -119,9 +124,10 @@ public class TestApacheClientConnectionPool extends
 
   @Test
   public void testKeepAliveCacheCleanupWithConnections() throws Exception {
-    try (KeepAliveCache keepAliveCache = new KeepAliveCache()) {
+    try (KeepAliveCache keepAliveCache = new KeepAliveCache(
+        new AbfsConfiguration(new Configuration(), ""))) {
       keepAliveCache.pauseThread();
-      keepAliveCache.clearThread();
+      keepAliveCache.clear();
       HttpClientConnection connection = Mockito.mock(
           HttpClientConnection.class);
       keepAliveCache.put(connection);
@@ -136,8 +142,9 @@ public class TestApacheClientConnectionPool extends
 
   @Test
   public void testKeepAliveCacheParallelismAtSingleRoute() throws Exception {
-    try (KeepAliveCache keepAliveCache = new KeepAliveCache()) {
-      keepAliveCache.clearThread();
+    try (KeepAliveCache keepAliveCache = new KeepAliveCache(
+        new AbfsConfiguration(new Configuration(), ""))) {
+      keepAliveCache.clear();
       int parallelism = 4;
       ExecutorService executorService = Executors.newFixedThreadPool(
           parallelism);
@@ -199,8 +206,9 @@ public class TestApacheClientConnectionPool extends
 
   @Test
   public void testKeepAliveCacheConnectionRecache() throws Exception {
-    try (KeepAliveCache keepAliveCache = new KeepAliveCache()) {
-      keepAliveCache.clearThread();
+    try (KeepAliveCache keepAliveCache = new KeepAliveCache(
+        new AbfsConfiguration(new Configuration(), ""))) {
+      keepAliveCache.clear();
       HttpClientConnection connection = Mockito.mock(
           HttpClientConnection.class);
       keepAliveCache.put(connection);
@@ -213,8 +221,9 @@ public class TestApacheClientConnectionPool extends
 
   @Test
   public void testKeepAliveCacheRemoveStaleConnection() throws Exception {
-    try (KeepAliveCache keepAliveCache = new KeepAliveCache()) {
-      keepAliveCache.clearThread();
+    try (KeepAliveCache keepAliveCache = new KeepAliveCache(
+        new AbfsConfiguration(new Configuration(), ""))) {
+      keepAliveCache.clear();
       HttpClientConnection[] connections = new HttpClientConnection[5];
       for (int i = 0; i < 5; i++) {
         connections[i] = Mockito.mock(HttpClientConnection.class);

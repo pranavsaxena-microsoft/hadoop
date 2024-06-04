@@ -27,11 +27,9 @@ public class KeepAliveCache extends Stack<KeepAliveCache.KeepAliveEntry>
 
   private static final AtomicInteger KAC_COUNTER = new AtomicInteger(0);
 
-  private int maxConn;
+  private final int maxConn;
 
-  private long connectionIdleTTL = KAC_DEFAULT_CONN_TTL;
-
-  private Thread keepAliveTimer = null;
+  private final long connectionIdleTTL;
 
   private boolean isPaused = false;
 
@@ -43,35 +41,22 @@ public class KeepAliveCache extends Stack<KeepAliveCache.KeepAliveEntry>
     isPaused = false;
   }
 
-  private void setMaxConn() {
-    String sysPropMaxConn = System.getProperty(HTTP_MAX_CONN_SYS_PROP);
-    if (sysPropMaxConn == null) {
-      maxConn = DEFAULT_MAX_CONN_SYS_PROP;
-    } else {
-      maxConn = Integer.parseInt(sysPropMaxConn);
-    }
-  }
-
-  public void setAbfsConfig(AbfsConfiguration abfsConfiguration) {
-    this.maxConn = abfsConfiguration.getMaxApacheHttpClientCacheConnections();
-    this.connectionIdleTTL
-        = abfsConfiguration.getMaxApacheHttpClientConnectionIdleTime();
-  }
-
   public long getConnectionIdleTTL() {
     return connectionIdleTTL;
   }
 
-  @VisibleForTesting
-  void clearThread() {
-    clear();
-    setMaxConn();
-  }
-
-  public KeepAliveCache() {
+  public KeepAliveCache(AbfsConfiguration abfsConfiguration) {
     this.timer = new Timer(
         String.format("abfs-kac-" + KAC_COUNTER.getAndIncrement()), true);
-    setMaxConn();
+    String sysPropMaxConn = System.getProperty(HTTP_MAX_CONN_SYS_PROP);
+    if (sysPropMaxConn == null) {
+      this.maxConn = abfsConfiguration.getMaxApacheHttpClientCacheConnections();
+    } else {
+      maxConn = Integer.parseInt(sysPropMaxConn);
+    }
+
+    this.connectionIdleTTL
+        = abfsConfiguration.getMaxApacheHttpClientConnectionIdleTime();
     this.timerTask = new TimerTask() {
       @Override
       public void run() {

@@ -197,8 +197,7 @@ public class AbfsClient implements Closeable {
     }
     if (abfsConfiguration.getPreferredHttpOperationType()
         == HttpOperationType.APACHE_HTTP_CLIENT) {
-      keepAliveCache = new KeepAliveCache();
-      keepAliveCache.setAbfsConfig(abfsConfiguration);
+      keepAliveCache = new KeepAliveCache(abfsConfiguration);
 
       abfsApacheHttpClient = new AbfsApacheHttpClient(
           DelegatingSSLSocketFactory.getDefaultFactory(),
