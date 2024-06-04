@@ -567,7 +567,7 @@ public class AbfsRestOperation {
   AbfsAHCHttpOperation createAbfsAHCHttpOperation() {
     return new AbfsAHCHttpOperation(url, method, requestHeaders,
         client.getAbfsConfiguration().getHttpConnectionTimeout(),
-        client.getAbfsConfiguration().getHttpReadTimeout()
+        client.getAbfsConfiguration().getHttpReadTimeout(), client
     );
   }
 

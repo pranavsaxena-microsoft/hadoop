@@ -54,25 +54,13 @@ final class AbfsApacheHttpClient {
     return usable;
   }
 
-  static synchronized void setClient(DelegatingSSLSocketFactory delegatingSSLSocketFactory,
-      final int readTimeout) {
-    if (abfsApacheHttpClient == null) {
-      abfsApacheHttpClient = new AbfsApacheHttpClient(
-          delegatingSSLSocketFactory, readTimeout);
-    }
-  }
-
-  static AbfsApacheHttpClient getClient() {
-    return abfsApacheHttpClient;
-  }
-
-  private AbfsApacheHttpClient(DelegatingSSLSocketFactory delegatingSSLSocketFactory,
-      final int readTimeout) {
+  public AbfsApacheHttpClient(DelegatingSSLSocketFactory delegatingSSLSocketFactory,
+      final int readTimeout, final KeepAliveCache keepAliveCache) {
     final AbfsConnectionManager connMgr = new AbfsConnectionManager(
         createSocketFactoryRegistry(
             new SSLConnectionSocketFactory(delegatingSSLSocketFactory,
                 getDefaultHostnameVerifier())),
-        new AbfsConnFactory());
+        new AbfsConnFactory(), keepAliveCache);
     final HttpClientBuilder builder = HttpClients.custom();
     builder.setConnectionManager(connMgr)
         .setRequestExecutor(new AbfsManagedHttpRequestExecutor(readTimeout))

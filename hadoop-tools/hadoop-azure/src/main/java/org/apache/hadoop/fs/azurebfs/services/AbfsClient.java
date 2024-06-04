@@ -143,6 +143,10 @@ public class AbfsClient implements Closeable {
   private boolean isSendMetricCall;
   private SharedKeyCredentials metricSharedkeyCredentials = null;
 
+  private KeepAliveCache keepAliveCache;
+
+  AbfsApacheHttpClient abfsApacheHttpClient;
+
   /**
    * logging the rename failure if metadata is in an incomplete state.
    */
@@ -193,10 +197,13 @@ public class AbfsClient implements Closeable {
     }
     if (abfsConfiguration.getPreferredHttpOperationType()
         == HttpOperationType.APACHE_HTTP_CLIENT) {
-      KeepAliveCache.getInstance().setAbfsConfig(abfsConfiguration);
-      AbfsApacheHttpClient.setClient(
+      keepAliveCache = new KeepAliveCache();
+      keepAliveCache.setAbfsConfig(abfsConfiguration);
+
+      abfsApacheHttpClient = new AbfsApacheHttpClient(
           DelegatingSSLSocketFactory.getDefaultFactory(),
-          abfsConfiguration.getHttpReadTimeout());
+          abfsConfiguration.getHttpReadTimeout(),
+          keepAliveCache);
     }
 
     this.userAgent = initializeUserAgent(abfsConfiguration, sslProviderName);
@@ -265,6 +272,12 @@ public class AbfsClient implements Closeable {
     if (runningTimerTask != null) {
       runningTimerTask.cancel();
       timer.purge();
+    }
+    if(keepAliveCache != null) {
+      keepAliveCache.close();
+    }
+    if(abfsApacheHttpClient != null) {
+      abfsApacheHttpClient.close();
     }
     if (tokenProvider instanceof Closeable) {
       IOUtils.cleanupWithLogger(LOG,

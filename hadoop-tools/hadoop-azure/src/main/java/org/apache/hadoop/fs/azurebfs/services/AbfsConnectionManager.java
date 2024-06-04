@@ -42,15 +42,16 @@ import org.apache.http.protocol.HttpContext;
  */
 class AbfsConnectionManager implements HttpClientConnectionManager {
 
-  private final KeepAliveCache kac = KeepAliveCache.getInstance();
+  private final KeepAliveCache kac;
 
   private final AbfsConnFactory httpConnectionFactory;
 
   private final HttpClientConnectionOperator connectionOperator;
 
   AbfsConnectionManager(Registry<ConnectionSocketFactory> socketFactoryRegistry,
-      AbfsConnFactory connectionFactory) {
+      AbfsConnFactory connectionFactory, KeepAliveCache kac) {
     this.httpConnectionFactory = connectionFactory;
+    this.kac = kac;
     connectionOperator = new DefaultHttpClientConnectionOperator(
         socketFactoryRegistry, null, null);
   }
@@ -65,7 +66,7 @@ class AbfsConnectionManager implements HttpClientConnectionManager {
           throws InterruptedException, ExecutionException,
           ConnectionPoolTimeoutException {
         try {
-          HttpClientConnection clientConn = kac.get(route);
+          HttpClientConnection clientConn = kac.get();
           if (clientConn != null) {
             return clientConn;
           }
@@ -100,10 +101,7 @@ class AbfsConnectionManager implements HttpClientConnectionManager {
       return;
     }
     if (conn.isOpen() && conn instanceof AbfsManagedApacheHttpConnection) {
-      HttpRoute route = ((AbfsManagedApacheHttpConnection) conn).getHttpRoute();
-      if (route != null) {
-        kac.put(route, conn);
-      }
+      kac.put(conn);
     }
   }
 

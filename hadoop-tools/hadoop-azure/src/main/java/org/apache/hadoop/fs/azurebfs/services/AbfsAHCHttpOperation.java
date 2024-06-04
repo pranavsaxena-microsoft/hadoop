@@ -80,13 +80,16 @@ public class AbfsAHCHttpOperation extends AbfsHttpOperation {
 
   private final boolean isPayloadRequest;
 
+  private final AbfsClient abfsClient;
+
   public AbfsAHCHttpOperation(final URL url,
       final String method,
       final List<AbfsHttpHeader> requestHeaders,
       final int connectionTimeout,
-      final int readTimeout) {
+      final int readTimeout, final AbfsClient abfsClient) {
     super(LOG, url, method, requestHeaders, connectionTimeout, readTimeout);
     this.isPayloadRequest = isPayloadRequest(method);
+    this.abfsClient = abfsClient;
   }
 
   @VisibleForTesting
@@ -191,7 +194,7 @@ public class AbfsAHCHttpOperation extends AbfsHttpOperation {
     AbfsManagedHttpClientContext abfsHttpClientContext
         = setFinalAbfsClientContext();
     HttpResponse response
-        = AbfsApacheHttpClient.getClient().execute(httpRequestBase,
+        = abfsClient.abfsApacheHttpClient.execute(httpRequestBase,
         abfsHttpClientContext, getConnectionTimeout(), getReadTimeout());
     setConnectionTimeMs(abfsHttpClientContext.getConnectTime());
     setSendRequestTimeMs(abfsHttpClientContext.getSendTime());
