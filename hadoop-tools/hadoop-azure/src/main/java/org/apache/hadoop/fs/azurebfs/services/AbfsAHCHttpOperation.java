@@ -103,6 +103,8 @@ public class AbfsAHCHttpOperation extends AbfsHttpOperation {
         || HTTP_METHOD_PATCH.equals(method)
         || HTTP_METHOD_POST.equals(method);
     this.abfsApacheHttpClient = abfsApacheHttpClient;
+    LOG.debug("Creating AbfsAHCHttpOperation for URL: {}, method: {}",
+        url, method);
 
     final URI requestUri;
     try {
@@ -201,7 +203,10 @@ public class AbfsAHCHttpOperation extends AbfsHttpOperation {
     try {
       if (!isPayloadRequest) {
         prepareRequest();
+        LOG.debug("Sending request: {}", httpRequestBase);
         httpResponse = executeRequest();
+        LOG.debug("Request sent: {}; response {}", httpRequestBase,
+            httpResponse);
       }
       parseResponseHeaderAndBody(buffer, offset, length);
     } finally {
@@ -349,6 +354,7 @@ public class AbfsAHCHttpOperation extends AbfsHttpOperation {
 
     prepareRequest();
     try {
+      LOG.debug("Sending request: {}", httpRequestBase);
       httpResponse = executeRequest();
     } catch (AbfsApacheHttpExpect100Exception ex) {
       LOG.debug(
@@ -358,7 +364,16 @@ public class AbfsAHCHttpOperation extends AbfsHttpOperation {
           ex);
       connectionDisconnectedOnError = true;
       httpResponse = ex.getHttpResponse();
+    } catch (IOException ex) {
+      LOG.debug("Getting output stream failed for uri {}, exception: {}",
+          getMaskedUrl(), ex);
+      connectionDisconnectedOnError = true;
+      throw ex;
     } finally {
+      if(httpResponse != null) {
+        LOG.debug("Request sent: {}; response {}", httpRequestBase,
+            httpResponse);
+      }
       if (!connectionDisconnectedOnError
           && httpRequestBase instanceof HttpEntityEnclosingRequestBase) {
         setBytesSent(length);

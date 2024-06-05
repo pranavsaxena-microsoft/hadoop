@@ -7,37 +7,81 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.hadoop.classification.VisibleForTesting;
 import org.apache.hadoop.fs.azurebfs.AbfsConfiguration;
 import org.apache.http.HttpClientConnection;
 
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.HTTP_MAX_CONN_SYS_PROP;
 
+/**
+ * Connection-pooling heuristics used by {@link AbfsConnectionManager}. Each
+ * instance of FileSystem has its own KeepAliveCache.
+ * <p>
+ * Why this implementation is required in comparison to {@link org.apache.http.impl.conn.PoolingHttpClientConnectionManager}
+ * connection-pooling:
+ * <ol>
+ * <li>PoolingHttpClientConnectionManager heuristic caches all the reusable connections it has created.
+ * JDK's implementation only caches limited number of connections. The limit is given by JVM system
+ * property "http.maxConnections". If there is no system-property, it defaults to 5.</li>
+ * <li>In PoolingHttpClientConnectionManager, it expects the application to provide `setMaxPerRoute` and `setMaxTotal`,
+ * which the implementation uses as the total number of connections it can create. For application using ABFS, it is not
+ * feasible to provide a value in the initialisation of the connectionManager. JDK's implementation has no cap on the
+ * number of connections it can create.</li>
+ * </ol>
+ */
 public class KeepAliveCache extends Stack<KeepAliveCache.KeepAliveEntry>
     implements
     Closeable {
 
+  /**
+   * Scheduled timer that evicts idle connections.
+   */
   private final Timer timer;
 
+  /**
+   * Task provided to the timer that owns eviction logic.
+   */
   private final TimerTask timerTask;
 
+  /**
+   * Flag to indicate if the cache is closed.
+   */
   private boolean isClosed;
 
+  /**
+   * Counter to keep track of the number of KeepAliveCache instances created.
+   */
   private static final AtomicInteger KAC_COUNTER = new AtomicInteger(0);
 
+  /**
+   * Maximum number of connections that can be cached.
+   */
   private final int maxConn;
 
+  /**
+   * Time-to-live for an idle connection.
+   */
   private final long connectionIdleTTL;
 
+  /**
+   * Flag to indicate if the eviction thread is paused.
+   */
   private boolean isPaused = false;
 
+  @VisibleForTesting
   synchronized void pauseThread() {
     isPaused = true;
   }
 
+  @VisibleForTesting
   synchronized void resumeThread() {
     isPaused = false;
   }
 
+  /**
+   * @return connectionIdleTTL
+   */
+  @VisibleForTesting
   public long getConnectionIdleTTL() {
     return connectionIdleTTL;
   }
@@ -66,6 +110,10 @@ public class KeepAliveCache extends Stack<KeepAliveCache.KeepAliveEntry>
     timer.schedule(timerTask, 0, connectionIdleTTL);
   }
 
+  /**
+   * Iterate over the cache and evict the idle connections. An idle connection is
+   * one that has been in the cache for more than connectionIdleTTL milliseconds.
+   */
   synchronized void evictIdleConnection() {
     long currentTime = System.currentTimeMillis();
     int i;
@@ -82,6 +130,11 @@ public class KeepAliveCache extends Stack<KeepAliveCache.KeepAliveEntry>
     subList(0, i).clear();
   }
 
+  /**
+   * Safe close of the HttpClientConnection.
+   *
+   * @param hc HttpClientConnection to be closed
+   */
   private void closeHtpClientConnection(final HttpClientConnection hc) {
     try {
       hc.close();
@@ -90,6 +143,9 @@ public class KeepAliveCache extends Stack<KeepAliveCache.KeepAliveEntry>
     }
   }
 
+  /**
+   * Close all connections in cache and cancel the eviction timer.
+   */
   @Override
   public synchronized void close() {
     isClosed = true;
@@ -101,6 +157,11 @@ public class KeepAliveCache extends Stack<KeepAliveCache.KeepAliveEntry>
     }
   }
 
+  /**
+   * Gets the latest added HttpClientConnection from the cache.
+   *
+   * @return HttpClientConnection
+   */
   public synchronized HttpClientConnection get()
       throws IOException {
     if (isClosed) {
@@ -115,7 +176,7 @@ public class KeepAliveCache extends Stack<KeepAliveCache.KeepAliveEntry>
       KeepAliveEntry e = pop();
       if ((currentTime - e.idleStartTime) > connectionIdleTTL
           || e.httpClientConnection.isStale()) {
-        e.httpClientConnection.close();
+        closeHtpClientConnection(e.httpClientConnection);
       } else {
         hc = e.httpClientConnection;
       }
@@ -123,6 +184,12 @@ public class KeepAliveCache extends Stack<KeepAliveCache.KeepAliveEntry>
     return hc;
   }
 
+  /**
+   * Puts the HttpClientConnection in the cache. If the size of cache is equal to
+   * maxConn, the give HttpClientConnection is closed and not added in cache.
+   *
+   * @param httpClientConnection HttpClientConnection to be cached
+   */
   public synchronized void put(HttpClientConnection httpClientConnection) {
     if (isClosed) {
       return;
@@ -136,10 +203,15 @@ public class KeepAliveCache extends Stack<KeepAliveCache.KeepAliveEntry>
     push(entry);
   }
 
+  /**
+   * Entry data-structure in the cache.
+   */
   static class KeepAliveEntry {
 
+    /**HttpClientConnection in the cache entry.*/
     private final HttpClientConnection httpClientConnection;
 
+    /**Time at which the HttpClientConnection was added to the cache.*/
     private final long idleStartTime;
 
     KeepAliveEntry(HttpClientConnection hc, long idleStartTime) {

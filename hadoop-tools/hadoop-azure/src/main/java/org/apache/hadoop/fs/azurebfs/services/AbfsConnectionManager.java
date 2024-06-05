@@ -46,7 +46,7 @@ import org.apache.http.protocol.HttpContext;
 class AbfsConnectionManager implements HttpClientConnectionManager {
 
   private static final Logger LOG = LoggerFactory.getLogger(
-      AbfsAHCHttpOperation.class);
+      AbfsConnectionManager.class);
   private final KeepAliveCache kac;
 
   private final AbfsHttpClientConnectionFactory httpConnectionFactory;
