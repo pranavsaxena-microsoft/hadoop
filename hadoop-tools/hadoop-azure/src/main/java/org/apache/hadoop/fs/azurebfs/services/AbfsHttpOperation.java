@@ -204,6 +204,12 @@ public abstract class AbfsHttpOperation implements AbfsPerfLoggable {
     return listResultSchema;
   }
 
+  /**
+   * Get response header value for the given headerKey.
+   *
+   * @param httpHeader header key.
+   * @return header value.
+   */
   public abstract String getResponseHeader(String httpHeader);
 
   final void setExpectedBytesToBeSent(int expectedBytesToBeSent) {
@@ -319,16 +325,52 @@ public abstract class AbfsHttpOperation implements AbfsPerfLoggable {
     return maskedEncodedUrl;
   }
 
+  /**
+   * Sends the HTTP request.  Note that HttpUrlConnection requires that an
+   * empty buffer be sent in order to set the "Content-Length: 0" header, which
+   * is required by our endpoint.
+   *
+   * @param buffer the request entity body.
+   * @param offset an offset into the buffer where the data beings.
+   * @param length the length of the data in the buffer.
+   *
+   * @throws IOException if an error occurs.
+   */
+
   public abstract void sendPayload(byte[] buffer, int offset, int length) throws
       IOException;
 
+  /**
+   * Gets and processes the HTTP response.
+   *
+   * @param buffer a buffer to hold the response entity body
+   * @param offset an offset in the buffer where the data will being.
+   * @param length the number of bytes to be written to the buffer.
+   *
+   * @throws IOException if an error occurs.
+   */
   public abstract void processResponse(byte[] buffer,
       int offset,
       int length) throws IOException;
 
+  /**
+   * Set request header.
+   *
+   * @param key header key.
+   * @param value header value.
+   */
   public abstract void setRequestProperty(String key, String value);
 
-  void parseResponse(final byte[] buffer,
+  /**
+   * Parse response body from the connection.
+   *
+   * @param buffer byte array to store the response body.
+   * @param offset offset in the buffer.
+   * @param length length of the response body.
+   *
+   * @throws IOException if network error occurs while reading the response.
+   */
+  final void parseResponse(final byte[] buffer,
       final int offset,
       final int length) throws IOException {
     long startTime;
@@ -399,6 +441,11 @@ public abstract class AbfsHttpOperation implements AbfsPerfLoggable {
     }
   }
 
+  /**
+   * Get the response stream from the connection.
+   * @return InputStream: response stream from the connection after network call.
+   * @throws IOException if the response stream could not be created from the connection.
+   */
   abstract InputStream getContentInputStream() throws IOException;
 
   /**
@@ -460,6 +507,11 @@ public abstract class AbfsHttpOperation implements AbfsPerfLoggable {
     }
   }
 
+  /***
+   * Get the error stream from the connection.
+   * @return InputStream
+   * @throws IOException: if the error stream could not be created from the response stream.
+   */
   protected abstract InputStream getErrorStream() throws IOException;
 
   /**
@@ -538,14 +590,30 @@ public abstract class AbfsHttpOperation implements AbfsPerfLoggable {
    */
   abstract String getConnResponseMessage() throws IOException;
 
+  /**
+   * Get request headers.
+   *
+   * @return request headers.
+   */
   abstract Map<String, List<String>> getRequestProperties();
 
+  /**
+   * Get request header value for a header name.
+   *
+   * @param headerName header name.
+   * @return header value.
+   */
   abstract String getRequestProperty(String headerName);
 
   final boolean getConnectionDisconnectedOnError() {
     return connectionDisconnectedOnError;
   }
 
+  /**
+   * Get the suffix to add to the tracing context that defines what http-client is
+   * used to make the network call
+   * @return the suffix to distinguish http client
+   */
   public abstract String getTracingContextSuffix();
 
   public final long getSendLatency() {
