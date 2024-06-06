@@ -97,7 +97,7 @@ public final class AbfsClientTestUtil {
    * @throws IOException
    */
   public static void addGeneralMockBehaviourToRestOpAndHttpOp(final AbfsRestOperation abfsRestOperation,
-                                                              final AbfsJdkHttpOperation httpOperation) throws IOException {
+                                                              final AbfsHttpOperation httpOperation) throws IOException {
     HttpURLConnection httpURLConnection = Mockito.mock(HttpURLConnection.class);
     Mockito.doNothing().when(httpURLConnection)
         .setRequestProperty(nullable(String.class), nullable(String.class));

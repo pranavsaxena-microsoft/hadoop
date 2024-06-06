@@ -367,7 +367,6 @@ public class AbfsAHCHttpOperation extends AbfsHttpOperation {
     } catch (IOException ex) {
       LOG.debug("Getting output stream failed for uri {}, exception: {}",
           getMaskedUrl(), ex);
-      connectionDisconnectedOnError = true;
       throw ex;
     } finally {
       if(httpResponse != null) {
