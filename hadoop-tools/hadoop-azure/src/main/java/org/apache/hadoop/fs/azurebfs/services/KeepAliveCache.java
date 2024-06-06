@@ -158,9 +158,14 @@ public class KeepAliveCache extends Stack<KeepAliveCache.KeepAliveEntry>
   }
 
   /**
-   * Gets the latest added HttpClientConnection from the cache.
+   * Gets the latest added HttpClientConnection from the cache. The returned connection
+   * is non-stale and has been in the cache for less than connectionIdleTTL milliseconds.
    *
-   * @return HttpClientConnection
+   * The cache is checked from the top of the stack. If the connection is stale or has been
+   * in the cache for more than connectionIdleTTL milliseconds, it is closed and the next
+   * connection is checked. Once a valid connection is found, it is returned.
+   *
+   * @return HttpClientConnection: if a valid connection is found, else null.
    */
   public synchronized HttpClientConnection get()
       throws IOException {

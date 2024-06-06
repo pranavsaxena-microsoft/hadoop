@@ -31,12 +31,20 @@ import org.apache.http.protocol.HttpRequestExecutor;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.EXPECT_100_JDK_ERROR;
 import static org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations.EXPECT;
 
+/**
+ * This class extends {@link HttpRequestExecutor} to intercept the connection
+ * activity and register the latency of different phases of a network call. It
+ * also overrides the HttpRequestExecutor's expect100 failure handling as the ADLS
+ * can send any failure statusCode in expect100 hand-shake failure and non
+ * necessarily 1XX code.
+ */
 public class AbfsManagedHttpRequestExecutor extends HttpRequestExecutor {
 
   public AbfsManagedHttpRequestExecutor(final int expect100WaitTimeout) {
     super(expect100WaitTimeout);
   }
 
+  /**{@inheritDoc}*/
   @Override
   public HttpResponse execute(final HttpRequest request,
       final HttpClientConnection conn,
@@ -49,6 +57,7 @@ public class AbfsManagedHttpRequestExecutor extends HttpRequestExecutor {
     return super.execute(request, conn, context);
   }
 
+  /**{@inheritDoc}*/
   @Override
   protected HttpResponse doSendRequest(final HttpRequest request,
       final HttpClientConnection conn,
@@ -82,6 +91,7 @@ public class AbfsManagedHttpRequestExecutor extends HttpRequestExecutor {
     return res;
   }
 
+  /**{@inheritDoc}*/
   @Override
   protected HttpResponse doReceiveResponse(final HttpRequest request,
       final HttpClientConnection conn,

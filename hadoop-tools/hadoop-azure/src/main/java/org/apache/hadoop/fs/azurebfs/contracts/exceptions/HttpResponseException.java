@@ -5,6 +5,9 @@ import java.util.Objects;
 
 import org.apache.http.HttpResponse;
 
+/**
+ * Encapsulates an exception thrown from ApacheHttpClient response parsing.
+ */
 public class HttpResponseException extends IOException {
   protected final HttpResponse httpResponse;
   public HttpResponseException(final String s, final HttpResponse httpResponse) {

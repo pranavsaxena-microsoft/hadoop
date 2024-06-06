@@ -47,10 +47,20 @@ class AbfsConnectionManager implements HttpClientConnectionManager {
 
   private static final Logger LOG = LoggerFactory.getLogger(
       AbfsConnectionManager.class);
+
+  /**
+   * Connection pool for the ABFS managed connections.
+   */
   private final KeepAliveCache kac;
 
+  /**
+   * Factory to create new connections.
+   */
   private final AbfsHttpClientConnectionFactory httpConnectionFactory;
 
+  /**
+   * Operator to manage the network connection state of ABFS managed connections.
+   */
   private final HttpClientConnectionOperator connectionOperator;
 
   AbfsConnectionManager(Registry<ConnectionSocketFactory> socketFactoryRegistry,
@@ -61,10 +71,20 @@ class AbfsConnectionManager implements HttpClientConnectionManager {
         socketFactoryRegistry, null, null);
   }
 
+  /**
+   * Returns a custom implementation of connection request for the given route.
+   * The implementation would return a connection from the {@link KeepAliveCache} if available,
+   * else it would create a new non-connected {@link AbfsManagedApacheHttpConnection}.
+   */
   @Override
   public ConnectionRequest requestConnection(final HttpRoute route,
       final Object state) {
     return new ConnectionRequest() {
+
+      /**
+       * Synchronously gets a connection from the {@link KeepAliveCache} or
+       * creates a new un-connected instance of {@link AbfsManagedApacheHttpConnection}.
+       */
       @Override
       public HttpClientConnection get(final long timeout,
           final TimeUnit timeUnit)
@@ -114,6 +134,8 @@ class AbfsConnectionManager implements HttpClientConnectionManager {
     }
   }
 
+  /**{@inheritDoc}*/
+
   @Override
   public void connect(final HttpClientConnection conn,
       final HttpRoute route,
@@ -131,6 +153,7 @@ class AbfsConnectionManager implements HttpClientConnectionManager {
     }
   }
 
+  /**{@inheritDoc}*/
   @Override
   public void upgrade(final HttpClientConnection conn,
       final HttpRoute route,
@@ -139,6 +162,7 @@ class AbfsConnectionManager implements HttpClientConnectionManager {
         route.getTargetHost(), context);
   }
 
+  /**{@inheritDoc}*/
   @Override
   public void routeComplete(final HttpClientConnection conn,
       final HttpRoute route,
@@ -146,19 +170,22 @@ class AbfsConnectionManager implements HttpClientConnectionManager {
 
   }
 
+  /**{@inheritDoc}*/
   @Override
   public void closeIdleConnections(final long idletime,
       final TimeUnit timeUnit) {
     kac.evictIdleConnection();
   }
 
+  /**{@inheritDoc}*/
   @Override
   public void closeExpiredConnections() {
     kac.evictIdleConnection();
   }
 
+  /**{@inheritDoc}*/
   @Override
   public void shutdown() {
-
+    kac.close();
   }
 }

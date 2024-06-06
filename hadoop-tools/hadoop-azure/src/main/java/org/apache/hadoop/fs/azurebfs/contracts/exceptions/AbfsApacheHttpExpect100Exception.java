@@ -22,6 +22,10 @@ import org.apache.http.HttpResponse;
 
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.EXPECT_100_JDK_ERROR;
 
+/**
+ * Exception that marks expect100 handshake error. This exception is thrown when
+ * the expect100 handshake fails with ADLS server sending 4xx or 5xx status code.
+ */
 public class AbfsApacheHttpExpect100Exception extends HttpResponseException {
 
   public AbfsApacheHttpExpect100Exception(final HttpResponse httpResponse) {
