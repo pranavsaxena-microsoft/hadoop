@@ -145,7 +145,7 @@ public class AbfsClient implements Closeable {
 
   private KeepAliveCache keepAliveCache;
 
-  AbfsApacheHttpClient abfsApacheHttpClient;
+  private AbfsApacheHttpClient abfsApacheHttpClient;
 
   /**
    * logging the rename failure if metadata is in an incomplete state.
@@ -272,10 +272,10 @@ public class AbfsClient implements Closeable {
       runningTimerTask.cancel();
       timer.purge();
     }
-    if(keepAliveCache != null) {
+    if (keepAliveCache != null) {
       keepAliveCache.close();
     }
-    if(abfsApacheHttpClient != null) {
+    if (abfsApacheHttpClient != null) {
       abfsApacheHttpClient.close();
     }
     if (tokenProvider instanceof Closeable) {
@@ -2020,5 +2020,10 @@ public class AbfsClient implements Closeable {
         httpMethod,
         url,
         requestHeaders, sasTokenForReuse, abfsConfiguration);
+  }
+
+  @VisibleForTesting
+  AbfsApacheHttpClient getAbfsApacheHttpClient() {
+    return abfsApacheHttpClient;
   }
 }

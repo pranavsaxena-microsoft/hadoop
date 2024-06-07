@@ -374,7 +374,7 @@ public class AbfsRestOperation {
     } catch (IOException e) {
       LOG.debug("Auth failure: {}, {}", method, url);
       throw new AbfsRestOperationException(-1, null,
-          "Auth failure: " + e.getMessage(), e, result);
+          "Auth failure: " + e.getMessage(), e);
     }
 
     try {
@@ -571,8 +571,8 @@ public class AbfsRestOperation {
   AbfsAHCHttpOperation createAbfsAHCHttpOperation() throws IOException {
     return new AbfsAHCHttpOperation(url, method, requestHeaders,
         Duration.ofMillis(client.getAbfsConfiguration().getHttpConnectionTimeout()),
-        Duration.ofMillis(client.getAbfsConfiguration().getHttpReadTimeout()), client.abfsApacheHttpClient
-    );
+        Duration.ofMillis(client.getAbfsConfiguration().getHttpReadTimeout()),
+        client.getAbfsApacheHttpClient());
   }
 
   /**
