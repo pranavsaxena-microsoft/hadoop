@@ -30,7 +30,7 @@ import org.apache.http.impl.conn.ManagedHttpClientConnectionFactory;
  */
 public class AbfsHttpClientConnectionFactory extends ManagedHttpClientConnectionFactory {
 
-  /***
+  /**
    * Creates a new {@link AbfsManagedApacheHttpConnection} instance which has to
    * be connected.
    * @param route route for which connection is required.

@@ -34,6 +34,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.hadoop.classification.VisibleForTesting;
 import org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants;
 import org.apache.hadoop.fs.azurebfs.constants.HttpHeaderConfigurations;
 import org.apache.hadoop.fs.azurebfs.contracts.services.AbfsPerfLoggable;
@@ -62,28 +63,41 @@ public abstract class AbfsHttpOperation implements AbfsPerfLoggable {
   private final URL url;
   private String maskedUrl;
   private String maskedEncodedUrl;
-  private int statusCode;
-  private String statusDescription;
+  protected int statusCode;
+  protected String statusDescription;
   private String storageErrorCode = "";
   private String storageErrorMessage = "";
-  private String requestId = "";
+  protected String requestId = "";
   private String expectedAppendPos = "";
   private ListResultSchema listResultSchema = null;
 
   // metrics
-  private int bytesSent;
-  private int expectedBytesToBeSent;
-  private long bytesReceived;
+  protected int bytesSent;
+  protected int expectedBytesToBeSent;
+  protected long bytesReceived;
 
-  private long connectionTimeMs;
-  private long sendRequestTimeMs;
-  private long recvResponseTimeMs;
+  protected long connectionTimeMs;
+  protected long sendRequestTimeMs;
+  protected long recvResponseTimeMs;
   private boolean shouldMask = false;
   protected boolean connectionDisconnectedOnError = false;
 
+  /**Request headers to be sent in the request.*/
   private final List<AbfsHttpHeader> requestHeaders;
 
-  private final int connectionTimeout, readTimeout;
+  /**
+   * Timeout that defines maximum allowed connection establishment time for a request.
+   * Timeout is in milliseconds. Not all requests need to establish a new connection,
+   * it depends on the connection pooling-heuristic of the networking library.
+   */
+  private final int connectionTimeout;
+
+  /**
+   * Timeout in milliseconds that defines maximum allowed time to read the response.
+   * This timeout starts once request is sent. It includes server reponse time,
+   * network latency, and time to read the response.
+   */
+  private final int readTimeout;
 
   public static AbfsHttpOperation getAbfsHttpOperationWithFixedResult(
       final URL url,
@@ -136,12 +150,6 @@ public abstract class AbfsHttpOperation implements AbfsPerfLoggable {
 
   List<AbfsHttpHeader> getRequestHeaders() {
     return requestHeaders;
-  }
-
-  void addHeaderToRequestHeaderList(AbfsHttpHeader abfsHttpHeader) {
-    if (requestHeaders != null) {
-      requestHeaders.add(abfsHttpHeader);
-    }
   }
 
   public String getMethod() {
@@ -212,38 +220,6 @@ public abstract class AbfsHttpOperation implements AbfsPerfLoggable {
    */
   public abstract String getResponseHeader(String httpHeader);
 
-  final void setExpectedBytesToBeSent(int expectedBytesToBeSent) {
-    this.expectedBytesToBeSent = expectedBytesToBeSent;
-  }
-
-  final void setStatusCode(int statusCode) {
-    this.statusCode = statusCode;
-  }
-
-  final void setStatusDescription(String statusDescription) {
-    this.statusDescription = statusDescription;
-  }
-
-  final void setBytesSent(int bytesSent) {
-    this.bytesSent = bytesSent;
-  }
-
-  final void setSendRequestTimeMs(long sendRequestTimeMs) {
-    this.sendRequestTimeMs = sendRequestTimeMs;
-  }
-
-  final void setRecvResponseTimeMs(long recvResponseTimeMs) {
-    this.recvResponseTimeMs = recvResponseTimeMs;
-  }
-
-  final void setRequestId(String requestId) {
-    this.requestId = requestId;
-  }
-
-  final void setConnectionTimeMs(long connectionTimeMs) {
-    this.connectionTimeMs = connectionTimeMs;
-  }
-
   // Returns a trace message for the request
   @Override
   public String toString() {
@@ -306,6 +282,7 @@ public abstract class AbfsHttpOperation implements AbfsPerfLoggable {
     return sb.toString();
   }
 
+  @VisibleForTesting
   public String getMaskedUrl() {
     if (!shouldMask) {
       return url.toString();
@@ -446,7 +423,7 @@ public abstract class AbfsHttpOperation implements AbfsPerfLoggable {
    * @return InputStream: response stream from the connection after network call.
    * @throws IOException if the response stream could not be created from the connection.
    */
-  abstract InputStream getContentInputStream() throws IOException;
+  protected abstract InputStream getContentInputStream() throws IOException;
 
   /**
    * When the request fails, this function is used to parse the responseAbfsHttpClient.LOG.debug("ExpectedError: ", ex);
@@ -507,7 +484,7 @@ public abstract class AbfsHttpOperation implements AbfsPerfLoggable {
     }
   }
 
-  /***
+  /**
    * Get the error stream from the connection.
    * @return InputStream
    * @throws IOException: if the error stream could not be created from the response stream.
@@ -568,12 +545,6 @@ public abstract class AbfsHttpOperation implements AbfsPerfLoggable {
    * @return url.
    */
   abstract URL getConnUrl();
-
-  /**
-   * Gets the connection request method.
-   * @return request method.
-   */
-  abstract String getConnRequestMethod();
 
   /**
    * Gets the connection response code.
@@ -653,7 +624,7 @@ public abstract class AbfsHttpOperation implements AbfsPerfLoggable {
     }
 
     @Override
-    InputStream getContentInputStream() throws IOException {
+    protected InputStream getContentInputStream() throws IOException {
       return null;
     }
 
@@ -669,11 +640,6 @@ public abstract class AbfsHttpOperation implements AbfsPerfLoggable {
 
     @Override
     URL getConnUrl() {
-      return null;
-    }
-
-    @Override
-    String getConnRequestMethod() {
       return null;
     }
 

@@ -179,12 +179,6 @@ public class AbfsAHCHttpOperation extends AbfsHttpOperation {
 
   /**{@inheritDoc}*/
   @Override
-  String getConnRequestMethod() {
-    return getMethod();
-  }
-
-  /**{@inheritDoc}*/
-  @Override
   Integer getConnResponseCode() throws IOException {
     return getStatusCode();
   }
@@ -235,19 +229,18 @@ public class AbfsAHCHttpOperation extends AbfsHttpOperation {
   void parseResponseHeaderAndBody(final byte[] buffer,
       final int offset,
       final int length) throws IOException {
-    setStatusCode(parseStatusCode(httpResponse));
+    statusCode = parseStatusCode(httpResponse);
 
-    setStatusDescription(httpResponse.getStatusLine().getReasonPhrase());
+    statusDescription = httpResponse.getStatusLine().getReasonPhrase();
 
-    String requestId = getResponseHeader(
+    requestId = getResponseHeader(
         HttpHeaderConfigurations.X_MS_REQUEST_ID);
     if (requestId == null) {
       requestId = AbfsHttpConstants.EMPTY_STRING;
     }
-    setRequestId(requestId);
 
     // dump the headers
-    if(LOG.isDebugEnabled()) {
+    if (LOG.isDebugEnabled()) {
       AbfsIoUtils.dumpHeadersToDebugLog("Request Headers",
           getRequestProperties());
     }
@@ -279,9 +272,9 @@ public class AbfsAHCHttpOperation extends AbfsHttpOperation {
       LOG.debug("Executing request: {}", httpRequestBase);
       HttpResponse response = abfsApacheHttpClient.execute(httpRequestBase,
           abfsHttpClientContext, getConnectionTimeout(), getReadTimeout());
-      setConnectionTimeMs(abfsHttpClientContext.getConnectTime());
-      setSendRequestTimeMs(abfsHttpClientContext.getSendTime());
-      setRecvResponseTimeMs(abfsHttpClientContext.getReadTime());
+      connectionTimeMs = abfsHttpClientContext.getConnectTime();
+      sendRequestTimeMs = abfsHttpClientContext.getSendTime();
+      recvResponseTimeMs = abfsHttpClientContext.getReadTime();
       return response;
     } catch (IOException e) {
       LOG.debug("Failed to execute request: {}", httpRequestBase, e);
@@ -293,7 +286,7 @@ public class AbfsAHCHttpOperation extends AbfsHttpOperation {
   @Override
   public void setRequestProperty(final String key, final String value) {
     List<AbfsHttpHeader> headers = getRequestHeaders();
-    if(headers != null) {
+    if (headers != null) {
       headers.add(new AbfsHttpHeader(key, value));
     }
   }
@@ -326,7 +319,7 @@ public class AbfsAHCHttpOperation extends AbfsHttpOperation {
 
   /**{@inheritDoc}*/
   @Override
-  InputStream getContentInputStream()
+  protected InputStream getContentInputStream()
       throws IOException {
     if (httpResponse == null || httpResponse.getEntity() == null) {
       return null;
@@ -344,7 +337,7 @@ public class AbfsAHCHttpOperation extends AbfsHttpOperation {
       return;
     }
 
-    setExpectedBytesToBeSent(length);
+    expectedBytesToBeSent = length;
     if (buffer != null) {
       HttpEntity httpEntity = new ByteArrayEntity(buffer, offset, length,
           TEXT_PLAIN);
@@ -369,13 +362,13 @@ public class AbfsAHCHttpOperation extends AbfsHttpOperation {
           getMaskedUrl(), ex);
       throw ex;
     } finally {
-      if(httpResponse != null) {
+      if (httpResponse != null) {
         LOG.debug("Request sent: {}; response {}", httpRequestBase,
             httpResponse);
       }
       if (!connectionDisconnectedOnError
           && httpRequestBase instanceof HttpEntityEnclosingRequestBase) {
-        setBytesSent(length);
+        bytesSent = length;
       }
     }
   }

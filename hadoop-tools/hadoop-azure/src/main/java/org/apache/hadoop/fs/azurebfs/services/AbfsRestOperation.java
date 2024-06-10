@@ -497,6 +497,10 @@ public class AbfsRestOperation {
     return true;
   }
 
+  /**
+   * Registers switch off of ApacheHttpClient in case of IOException retries increases
+   * more than the threshold.
+   */
   private void registerApacheHttpClientIoException() {
     apacheHttpClientIoExceptions++;
     if (apacheHttpClientIoExceptions
@@ -555,8 +559,7 @@ public class AbfsRestOperation {
     return createAbfsHttpOperation();
   }
 
-  @VisibleForTesting
-  boolean isApacheClientUsable() {
+  private boolean isApacheClientUsable() {
     return AbfsApacheHttpClient.usable();
   }
 

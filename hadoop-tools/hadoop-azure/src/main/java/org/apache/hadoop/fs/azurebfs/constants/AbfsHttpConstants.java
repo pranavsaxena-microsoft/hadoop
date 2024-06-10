@@ -171,7 +171,6 @@ public final class AbfsHttpConstants {
    * number of cached-connections at JVM level.
    */
   public static final String HTTP_MAX_CONN_SYS_PROP = "http.maxConnections";
-  public static final Integer DEFAULT_MAX_CONN_SYS_PROP = 5;
   public static final String JDK_IMPL = "JDK";
   public static final String APACHE_IMPL = "Apache";
   public static final String JDK_FALLBACK = "JDK_fallback";

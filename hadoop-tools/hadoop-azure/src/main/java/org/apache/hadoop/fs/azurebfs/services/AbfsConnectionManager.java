@@ -135,7 +135,6 @@ class AbfsConnectionManager implements HttpClientConnectionManager {
   }
 
   /**{@inheritDoc}*/
-
   @Override
   public void connect(final HttpClientConnection conn,
       final HttpRoute route,

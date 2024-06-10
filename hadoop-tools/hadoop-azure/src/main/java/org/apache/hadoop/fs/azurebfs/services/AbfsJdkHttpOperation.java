@@ -117,7 +117,7 @@ public class AbfsJdkHttpOperation extends AbfsHttpOperation {
     startTime = System.nanoTime();
     OutputStream outputStream = null;
     // Updates the expected bytes to be sent based on length.
-    setExpectedBytesToBeSent(length);
+    expectedBytesToBeSent = length;
     try {
       try {
         /* Without expect header enabled, if getOutputStream() throws
@@ -147,8 +147,8 @@ public class AbfsJdkHttpOperation extends AbfsHttpOperation {
            * case of Expect-100 error. Reason being, in JDK, it stores the responseCode
            * in the HttpUrlConnection object before throwing exception to the caller.
            */
-          setStatusCode(getConnResponseCode());
-          setStatusDescription(getConnResponseMessage());
+          statusCode = getConnResponseCode();
+          statusDescription = getConnResponseMessage();
           return;
         } else {
           LOG.debug(
@@ -159,7 +159,7 @@ public class AbfsJdkHttpOperation extends AbfsHttpOperation {
       }
       // update bytes sent for successful as well as failed attempts via the
       // accompanying statusCode.
-      setBytesSent(length);
+      bytesSent = length;
 
       // If this fails with or without expect header enabled,
       // it throws an IOException.
@@ -169,7 +169,7 @@ public class AbfsJdkHttpOperation extends AbfsHttpOperation {
       if (outputStream != null) {
         outputStream.close();
       }
-      setSendRequestTimeMs(elapsedTimeMs(startTime));
+      sendRequestTimeMs = elapsedTimeMs(startTime);
     }
   }
 
@@ -187,7 +187,7 @@ public class AbfsJdkHttpOperation extends AbfsHttpOperation {
 
   /**{@inheritDoc}*/
   @Override
-  InputStream getContentInputStream() throws IOException {
+  protected InputStream getContentInputStream() throws IOException {
     return connection.getInputStream();
   }
 
@@ -220,17 +220,16 @@ public class AbfsJdkHttpOperation extends AbfsHttpOperation {
     long startTime = 0;
     startTime = System.nanoTime();
 
-    setStatusCode(getConnResponseCode());
-    setRecvResponseTimeMs(elapsedTimeMs(startTime));
+    statusCode = getConnResponseCode();
+    recvResponseTimeMs = elapsedTimeMs(startTime);
 
-    setStatusDescription(getConnResponseMessage());
+    statusDescription = getConnResponseMessage();
 
-    String requestId = this.connection.getHeaderField(
+    requestId = this.connection.getHeaderField(
         HttpHeaderConfigurations.X_MS_REQUEST_ID);
     if (requestId == null) {
       requestId = AbfsHttpConstants.EMPTY_STRING;
     }
-    setRequestId(requestId);
 
     // dump the headers
     AbfsIoUtils.dumpHeadersToDebugLog("Response Headers",
@@ -261,7 +260,7 @@ public class AbfsJdkHttpOperation extends AbfsHttpOperation {
     try {
       return (HttpURLConnection) getUrl().openConnection();
     } finally {
-      setConnectionTimeMs(elapsedTimeMs(start));
+      connectionTimeMs = (elapsedTimeMs(start));
     }
   }
 
@@ -279,11 +278,6 @@ public class AbfsJdkHttpOperation extends AbfsHttpOperation {
   /**{@inheritDoc}*/
   URL getConnUrl() {
     return connection.getURL();
-  }
-
-  /**{@inheritDoc}*/
-  String getConnRequestMethod() {
-    return connection.getRequestMethod();
   }
 
   /**{@inheritDoc}*/
