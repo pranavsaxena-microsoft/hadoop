@@ -504,6 +504,17 @@ public class AbfsConfiguration{
   }
 
   /**
+   * Returns the account-specific value if it exists, then looks for an
+   * account-agnostic value, and finally tries the default value.
+   * @param key Account-agnostic configuration key
+   * @param defaultValue Value returned if none is configured
+   * @return value if one exists, else the default value
+   */
+  public int getInt(String key, int defaultValue) {
+    return rawConfig.getInt(accountConf(key), rawConfig.getInt(key, defaultValue));
+  }
+
+  /**
    * Returns the account-specific password in string form if it exists, then
    * looks for an account-agnostic value.
    * @param key Account-agnostic configuration key
