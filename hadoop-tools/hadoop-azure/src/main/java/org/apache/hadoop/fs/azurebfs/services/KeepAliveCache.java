@@ -115,16 +115,25 @@ public final class KeepAliveCache extends Stack<KeepAliveCache.KeepAliveEntry>
 
   /**
    * Creates an {@link KeepAliveCache} instance using filesystem's configuration.
-   *
+   * <p>
+   * The size of the cache is determined by the configuration
+   * {@value org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys#FS_AZURE_APACHE_HTTP_CLIENT_MAX_CACHE_CONNECTION_SIZE}.
+   * If the configuration is not set, the system-property {@value org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants#HTTP_MAX_CONN_SYS_PROP}.
+   * If the system-property is not set or set to 0, the default value
+   * {@value org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations#DEFAULT_HTTP_CLIENT_CONN_MAX_CACHED_CONNECTIONS} is used.
+   * </p> <p>
+   * This schedules an eviction thread to run every connectionIdleTTL milliseconds
+   * given by the configuration {@link AbfsConfiguration#getMaxApacheHttpClientConnectionIdleTime()}.
+   * </p>
    * @param abfsConfiguration Configuration of the filesystem.
    */
   public KeepAliveCache(AbfsConfiguration abfsConfiguration) {
     this.timer = new Timer("abfs-kac-" + KAC_COUNTER.getAndIncrement(), true);
 
-    String sysPropMaxConn = System.getProperty(HTTP_MAX_CONN_SYS_PROP);
+    int sysPropMaxConn = Integer.parseInt(System.getProperty(HTTP_MAX_CONN_SYS_PROP, "0"));
     final int defaultMaxConn;
-    if (sysPropMaxConn != null) {
-      defaultMaxConn = Integer.parseInt(sysPropMaxConn);
+    if (sysPropMaxConn > 0) {
+      defaultMaxConn = sysPropMaxConn;
     } else {
       defaultMaxConn = DEFAULT_HTTP_CLIENT_CONN_MAX_CACHED_CONNECTIONS;
     }
