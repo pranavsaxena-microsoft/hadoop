@@ -19,6 +19,7 @@
 package org.apache.hadoop.fs.azurebfs.services;
 
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.assertj.core.api.Assertions;
 import org.junit.Assert;
@@ -35,6 +36,7 @@ import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.EMPTY_ST
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.HTTP_MAX_CONN_SYS_PROP;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.KEEP_ALIVE_CACHE_CLOSED;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.DEFAULT_HTTP_CLIENT_CONN_MAX_CACHED_CONNECTIONS;
+import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.DEFAULT_HTTP_CLIENT_CONN_MAX_IDLE_TIME;
 import static org.apache.hadoop.test.LambdaTestUtils.intercept;
 
 public class TestApacheClientConnectionPool extends
@@ -42,6 +44,11 @@ public class TestApacheClientConnectionPool extends
 
   public TestApacheClientConnectionPool() throws Exception {
     super();
+  }
+
+  @Override
+  protected int getTestTimeoutMillis() {
+    return (int) DEFAULT_HTTP_CLIENT_CONN_MAX_IDLE_TIME * 4;
   }
 
   @Test
@@ -118,11 +125,21 @@ public class TestApacheClientConnectionPool extends
       keepAliveCache.clear();
       HttpClientConnection connection = Mockito.mock(
           HttpClientConnection.class);
+
+
+      // Eviction thread would close the TTL-elapsed connection and remove it from cache.
+      AtomicBoolean isConnClosed = new AtomicBoolean(false);
+      Mockito.doAnswer(closeInvocation -> {
+        isConnClosed.set(true);
+        return null;
+      }).when(connection).close();
       keepAliveCache.put(connection);
 
-      Thread.sleep(2 * keepAliveCache.getConnectionIdleTTL());
-      // Eviction thread would close the TTL-elapsed connection and remove it from cache.
-      Mockito.verify(connection, Mockito.times(1)).close();
+      while(!isConnClosed.get()) {
+        Thread.sleep(100);
+      }
+
+      // Assert that the closed connection is removed from the cache.
       Assert.assertNull(keepAliveCache.get());
       Mockito.verify(connection, Mockito.times(1)).close();
     }
