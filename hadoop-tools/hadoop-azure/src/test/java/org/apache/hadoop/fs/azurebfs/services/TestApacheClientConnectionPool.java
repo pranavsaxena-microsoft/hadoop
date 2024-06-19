@@ -18,6 +18,9 @@
 
 package org.apache.hadoop.fs.azurebfs.services;
 
+import java.io.IOException;
+
+import org.assertj.core.api.Assertions;
 import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Mockito;
@@ -30,7 +33,9 @@ import org.apache.http.HttpClientConnection;
 
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.EMPTY_STRING;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.HTTP_MAX_CONN_SYS_PROP;
+import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.KEEP_ALIVE_CACHE_CLOSED;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.DEFAULT_HTTP_CLIENT_CONN_MAX_CACHED_CONNECTIONS;
+import static org.apache.hadoop.test.LambdaTestUtils.intercept;
 
 public class TestApacheClientConnectionPool extends
     AbstractAbfsTestWithTimeout {
@@ -50,6 +55,13 @@ public class TestApacheClientConnectionPool extends
     final String customPoolSize = "10";
     System.setProperty(HTTP_MAX_CONN_SYS_PROP, customPoolSize);
     validatePoolSize(Integer.parseInt(customPoolSize));
+  }
+
+  @Test
+  public void testPoolWithZeroSysProp() throws Exception {
+    final String customPoolSize = "0";
+    System.setProperty(HTTP_MAX_CONN_SYS_PROP, customPoolSize);
+    validatePoolSize(DEFAULT_HTTP_CLIENT_CONN_MAX_CACHED_CONNECTIONS);
   }
 
   private void validatePoolSize(int size) throws Exception {
@@ -189,5 +201,20 @@ public class TestApacheClientConnectionPool extends
         }
       }
     }
+  }
+
+  @Test
+  public void testKeepAliveCacheClosed() throws Exception {
+    KeepAliveCache keepAliveCache = new KeepAliveCache(
+        new AbfsConfiguration(new Configuration(), EMPTY_STRING));
+    keepAliveCache.put(Mockito.mock(HttpClientConnection.class));
+    keepAliveCache.close();
+    IOException ex = intercept(IOException.class,
+        () -> keepAliveCache.get());
+    Assertions.assertThat(ex.getMessage()).isEqualTo(KEEP_ALIVE_CACHE_CLOSED);
+
+    HttpClientConnection conn = Mockito.mock(HttpClientConnection.class);
+    Assertions.assertThat(keepAliveCache.put(conn)).isFalse();
+    Mockito.verify(conn, Mockito.times(1)).close();
   }
 }
