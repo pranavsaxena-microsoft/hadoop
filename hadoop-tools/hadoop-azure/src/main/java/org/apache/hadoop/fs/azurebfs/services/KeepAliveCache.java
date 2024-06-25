@@ -57,6 +57,7 @@ import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.D
 public final class KeepAliveCache extends Stack<KeepAliveCache.KeepAliveEntry>
     implements
     Closeable {
+  private static final long serialVersionUID = 1L;
 
   private static final Logger LOG = LoggerFactory.getLogger(KeepAliveCache.class);
 
@@ -73,7 +74,7 @@ public final class KeepAliveCache extends Stack<KeepAliveCache.KeepAliveEntry>
   /**
    * Flag to indicate if the cache is closed.
    */
-  private AtomicBoolean isClosed = new AtomicBoolean(false);
+  private final AtomicBoolean isClosed = new AtomicBoolean(false);
 
   /**
    * Counter to keep track of the number of KeepAliveCache instances created.
@@ -93,7 +94,7 @@ public final class KeepAliveCache extends Stack<KeepAliveCache.KeepAliveEntry>
   /**
    * Flag to indicate if the eviction thread is paused.
    */
-  private AtomicBoolean isPaused = new AtomicBoolean(false);
+  private final AtomicBoolean isPaused = new AtomicBoolean(false);
 
   @VisibleForTesting
   synchronized void pauseThread() {
@@ -193,7 +194,6 @@ public final class KeepAliveCache extends Stack<KeepAliveCache.KeepAliveEntry>
    */
   @Override
   public synchronized void close() {
-
     boolean closed = isClosed.getAndSet(true);
     if (closed) {
       return;
