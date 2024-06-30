@@ -22,11 +22,13 @@ import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.assertj.core.api.Assertions;
+import org.checkerframework.checker.units.qual.C;
 import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Mockito;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.ClosedException;
 import org.apache.hadoop.fs.azurebfs.AbfsConfiguration;
 import org.apache.hadoop.fs.azurebfs.AbstractAbfsTestWithTimeout;
 
@@ -35,6 +37,7 @@ import org.apache.http.HttpClientConnection;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.EMPTY_STRING;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.HTTP_MAX_CONN_SYS_PROP;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.KEEP_ALIVE_CACHE_CLOSED;
+import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_APACHE_HTTP_CLIENT_IDLE_CONNECTION_TTL;
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_APACHE_HTTP_CLIENT_MAX_CACHE_CONNECTION_SIZE;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.DEFAULT_HTTP_CLIENT_CONN_MAX_CACHED_CONNECTIONS;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.DEFAULT_HTTP_CLIENT_CONN_MAX_IDLE_TIME;
@@ -133,8 +136,11 @@ public class TestApacheClientConnectionPool extends
 
   @Test
   public void testKeepAliveCacheCleanup() throws Exception {
+    Configuration configuration = new Configuration();
+    configuration.set(FS_AZURE_APACHE_HTTP_CLIENT_IDLE_CONNECTION_TTL,
+        HUNDRED + EMPTY_STRING);
     try (KeepAliveCache keepAliveCache = new KeepAliveCache(
-        new AbfsConfiguration(new Configuration(), EMPTY_STRING))) {
+        new AbfsConfiguration(configuration, EMPTY_STRING))) {
       keepAliveCache.clear();
       HttpClientConnection connection = Mockito.mock(
           HttpClientConnection.class);
@@ -160,8 +166,11 @@ public class TestApacheClientConnectionPool extends
 
   @Test
   public void testKeepAliveCacheCleanupWithConnections() throws Exception {
+    Configuration configuration = new Configuration();
+    configuration.set(FS_AZURE_APACHE_HTTP_CLIENT_IDLE_CONNECTION_TTL,
+        HUNDRED + EMPTY_STRING);
     try (KeepAliveCache keepAliveCache = new KeepAliveCache(
-        new AbfsConfiguration(new Configuration(), EMPTY_STRING))) {
+        new AbfsConfiguration(configuration, EMPTY_STRING))) {
       keepAliveCache.pauseThread();
       keepAliveCache.clear();
       HttpClientConnection connection = Mockito.mock(
@@ -239,9 +248,9 @@ public class TestApacheClientConnectionPool extends
         new AbfsConfiguration(new Configuration(), EMPTY_STRING)));
     keepAliveCache.put(Mockito.mock(HttpClientConnection.class));
     keepAliveCache.close();
-    IOException ex = intercept(IOException.class,
+    intercept(ClosedException.class,
+        KEEP_ALIVE_CACHE_CLOSED,
         () -> keepAliveCache.get());
-    Assertions.assertThat(ex.getMessage()).isEqualTo(KEEP_ALIVE_CACHE_CLOSED);
 
     HttpClientConnection conn = Mockito.mock(HttpClientConnection.class);
     Assertions.assertThat(keepAliveCache.put(conn)).isFalse();

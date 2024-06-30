@@ -30,6 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.hadoop.classification.VisibleForTesting;
+import org.apache.hadoop.fs.ClosedException;
 import org.apache.hadoop.fs.azurebfs.AbfsConfiguration;
 import org.apache.hadoop.fs.azurebfs.AbfsStatistic;
 import org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants;
@@ -482,8 +483,7 @@ public class AbfsRestOperation {
       if (httpOperation instanceof AbfsAHCHttpOperation) {
         registerApacheHttpClientIoException();
         if (ex instanceof RequestAbortedException
-            && ex.getCause() instanceof IOException
-            && KEEP_ALIVE_CACHE_CLOSED.equals(ex.getCause().getMessage())) {
+            && ex.getCause() instanceof ClosedException) {
           throw new AbfsDriverException((IOException) ex.getCause());
         }
       }
