@@ -30,6 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.hadoop.classification.VisibleForTesting;
+import org.apache.hadoop.fs.ClosedIOException;
 import org.apache.hadoop.fs.azurebfs.AbfsConfiguration;
 import org.apache.http.HttpClientConnection;
 
@@ -54,7 +55,7 @@ import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.D
  * number of connections it can create.</li>
  * </ol>
  */
-public final class KeepAliveCache extends Stack<KeepAliveCache.KeepAliveEntry>
+class KeepAliveCache extends Stack<KeepAliveCache.KeepAliveEntry>
     implements
     Closeable {
   private static final long serialVersionUID = 1L;
@@ -96,6 +97,8 @@ public final class KeepAliveCache extends Stack<KeepAliveCache.KeepAliveEntry>
    */
   private final AtomicBoolean isPaused = new AtomicBoolean(false);
 
+  private final String accountNamePath;
+
   @VisibleForTesting
   synchronized void pauseThread() {
     isPaused.set(true);
@@ -122,13 +125,13 @@ public final class KeepAliveCache extends Stack<KeepAliveCache.KeepAliveEntry>
    * If the configuration is not set, the system-property {@value org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants#HTTP_MAX_CONN_SYS_PROP}.
    * If the system-property is not set or set to 0, the default value
    * {@value org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations#DEFAULT_HTTP_CLIENT_CONN_MAX_CACHED_CONNECTIONS} is used.
-   * </p> <p>
+   * <p>
    * This schedules an eviction thread to run every connectionIdleTTL milliseconds
    * given by the configuration {@link AbfsConfiguration#getMaxApacheHttpClientConnectionIdleTime()}.
-   * </p>
    * @param abfsConfiguration Configuration of the filesystem.
    */
-  public KeepAliveCache(AbfsConfiguration abfsConfiguration) {
+  KeepAliveCache(AbfsConfiguration abfsConfiguration) {
+    accountNamePath = abfsConfiguration.getAccountName();
     this.timer = new Timer("abfs-kac-" + KAC_COUNTER.getAndIncrement(), true);
 
     int sysPropMaxConn = Integer.parseInt(System.getProperty(HTTP_MAX_CONN_SYS_PROP, "0"));
@@ -185,7 +188,9 @@ public final class KeepAliveCache extends Stack<KeepAliveCache.KeepAliveEntry>
     try {
       hc.close();
     } catch (IOException ex) {
-      LOG.debug("Close failed for connection: " + hc, ex);
+      if(LOG.isDebugEnabled()) {
+        LOG.debug("Close failed for connection: {}", hc, ex);
+      }
     }
   }
 
@@ -198,6 +203,11 @@ public final class KeepAliveCache extends Stack<KeepAliveCache.KeepAliveEntry>
     if (closed) {
       return;
     }
+    closeInternal();
+  }
+
+  @VisibleForTesting
+  void closeInternal() {
     timerTask.cancel();
     timer.purge();
     while (!empty()) {
@@ -210,18 +220,17 @@ public final class KeepAliveCache extends Stack<KeepAliveCache.KeepAliveEntry>
    * <p>
    * Gets the latest added HttpClientConnection from the cache. The returned connection
    * is non-stale and has been in the cache for less than connectionIdleTTL milliseconds.
-   * </p> <p>
+   * <p>
    * The cache is checked from the top of the stack. If the connection is stale or has been
    * in the cache for more than connectionIdleTTL milliseconds, it is closed and the next
    * connection is checked. Once a valid connection is found, it is returned.
-   * </p>
    * @return HttpClientConnection: if a valid connection is found, else null.
    * @throws IOException if the cache is closed.
    */
   public synchronized HttpClientConnection get()
       throws IOException {
     if (isClosed.get()) {
-      throw new IOException(KEEP_ALIVE_CACHE_CLOSED);
+      throw new ClosedIOException(accountNamePath, KEEP_ALIVE_CACHE_CLOSED);
     }
     if (empty()) {
       return null;
@@ -243,14 +252,14 @@ public final class KeepAliveCache extends Stack<KeepAliveCache.KeepAliveEntry>
   /**
    * Puts the HttpClientConnection in the cache. If the size of cache is equal to
    * maxConn, the oldest connection is closed and removed from the cache, which
-   * will make space for the new connection. If the cache is closed, the connection
-   * is closed and not added to the cache.
+   * will make space for the new connection. If the cache is closed or of zero size,
+   * the connection is closed and not added to the cache.
    *
    * @param httpClientConnection HttpClientConnection to be cached
    * @return true if the HttpClientConnection is added in active cache, false otherwise.
    */
   public synchronized boolean put(HttpClientConnection httpClientConnection) {
-    if (isClosed.get()) {
+    if (isClosed.get() || maxConn == 0) {
       closeHttpClientConnection(httpClientConnection);
       return false;
     }

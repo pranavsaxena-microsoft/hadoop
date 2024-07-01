@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -22,11 +22,11 @@ import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.assertj.core.api.Assertions;
-import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Mockito;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.ClosedIOException;
 import org.apache.hadoop.fs.azurebfs.AbfsConfiguration;
 import org.apache.hadoop.fs.azurebfs.AbstractAbfsTestWithTimeout;
 
@@ -35,6 +35,8 @@ import org.apache.http.HttpClientConnection;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.EMPTY_STRING;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.HTTP_MAX_CONN_SYS_PROP;
 import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.KEEP_ALIVE_CACHE_CLOSED;
+import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_APACHE_HTTP_CLIENT_IDLE_CONNECTION_TTL;
+import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_APACHE_HTTP_CLIENT_MAX_CACHE_CONNECTION_SIZE;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.DEFAULT_HTTP_CLIENT_CONN_MAX_CACHED_CONNECTIONS;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.DEFAULT_HTTP_CLIENT_CONN_MAX_IDLE_TIME;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.HUNDRED;
@@ -72,6 +74,49 @@ public class TestApacheClientConnectionPool extends
     validatePoolSize(DEFAULT_HTTP_CLIENT_CONN_MAX_CACHED_CONNECTIONS);
   }
 
+  @Test
+  public void testEmptySizePool() throws Exception {
+    Configuration configuration = new Configuration();
+    configuration.set(FS_AZURE_APACHE_HTTP_CLIENT_MAX_CACHE_CONNECTION_SIZE,
+        "0");
+    AbfsConfiguration abfsConfiguration = new AbfsConfiguration(configuration,
+        EMPTY_STRING);
+    try (KeepAliveCache keepAliveCache = new KeepAliveCache(
+        abfsConfiguration)) {
+      assertCachePutFail(keepAliveCache,
+          Mockito.mock(HttpClientConnection.class));
+      assertCacheGetNull(keepAliveCache);
+    }
+  }
+
+  private void assertCacheGetNull(final KeepAliveCache keepAliveCache)
+      throws IOException {
+    Assertions.assertThat(keepAliveCache.get())
+        .describedAs("cache.get()")
+        .isNull();
+  }
+
+  private void assertCacheGetNonNull(final KeepAliveCache keepAliveCache)
+      throws IOException {
+    Assertions.assertThat(keepAliveCache.get())
+        .describedAs("cache.get()")
+        .isNotNull();
+  }
+
+  private void assertCachePutFail(final KeepAliveCache keepAliveCache,
+      final HttpClientConnection mock) {
+    Assertions.assertThat(keepAliveCache.put(mock))
+        .describedAs("cache.put()")
+        .isFalse();
+  }
+
+  private void assertCachePutSuccess(final KeepAliveCache keepAliveCache,
+      final HttpClientConnection connections) {
+    Assertions.assertThat(keepAliveCache.put(connections))
+        .describedAs("cache.put()")
+        .isTrue();
+  }
+
   private void validatePoolSize(int size) throws Exception {
     try (KeepAliveCache keepAliveCache = new KeepAliveCache(
         new AbfsConfiguration(new Configuration(), EMPTY_STRING))) {
@@ -84,20 +129,20 @@ public class TestApacheClientConnectionPool extends
       }
 
       for (int i = 0; i < size; i++) {
-        keepAliveCache.put(connections[i]);
+        assertCachePutSuccess(keepAliveCache, connections[i]);
         Mockito.verify(connections[i], Mockito.times(0)).close();
       }
 
       for (int i = size; i < size * 2; i++) {
-        keepAliveCache.put(connections[i]);
+        assertCachePutSuccess(keepAliveCache, connections[i]);
         Mockito.verify(connections[i - size], Mockito.times(1)).close();
       }
 
       for (int i = 0; i < size * 2; i++) {
         if (i < size) {
-          Assert.assertNotNull(keepAliveCache.get());
+          assertCacheGetNonNull(keepAliveCache);
         } else {
-          Assert.assertNull(keepAliveCache.get());
+          assertCacheGetNull(keepAliveCache);
         }
       }
       System.clearProperty(HTTP_MAX_CONN_SYS_PROP);
@@ -114,15 +159,17 @@ public class TestApacheClientConnectionPool extends
 
       keepAliveCache.put(connection);
 
-      Assert.assertNotNull(keepAliveCache.get());
-      keepAliveCache.put(connection);
+      assertCacheGetNonNull(keepAliveCache);
     }
   }
 
   @Test
   public void testKeepAliveCacheCleanup() throws Exception {
+    Configuration configuration = new Configuration();
+    configuration.set(FS_AZURE_APACHE_HTTP_CLIENT_IDLE_CONNECTION_TTL,
+        HUNDRED + EMPTY_STRING);
     try (KeepAliveCache keepAliveCache = new KeepAliveCache(
-        new AbfsConfiguration(new Configuration(), EMPTY_STRING))) {
+        new AbfsConfiguration(configuration, EMPTY_STRING))) {
       keepAliveCache.clear();
       HttpClientConnection connection = Mockito.mock(
           HttpClientConnection.class);
@@ -141,15 +188,18 @@ public class TestApacheClientConnectionPool extends
       }
 
       // Assert that the closed connection is removed from the cache.
-      Assert.assertNull(keepAliveCache.get());
+      assertCacheGetNull(keepAliveCache);
       Mockito.verify(connection, Mockito.times(1)).close();
     }
   }
 
   @Test
   public void testKeepAliveCacheCleanupWithConnections() throws Exception {
+    Configuration configuration = new Configuration();
+    configuration.set(FS_AZURE_APACHE_HTTP_CLIENT_IDLE_CONNECTION_TTL,
+        HUNDRED + EMPTY_STRING);
     try (KeepAliveCache keepAliveCache = new KeepAliveCache(
-        new AbfsConfiguration(new Configuration(), EMPTY_STRING))) {
+        new AbfsConfiguration(configuration, EMPTY_STRING))) {
       keepAliveCache.pauseThread();
       keepAliveCache.clear();
       HttpClientConnection connection = Mockito.mock(
@@ -162,7 +212,7 @@ public class TestApacheClientConnectionPool extends
        * remove the TTL-elapsed connection.
        */
       Mockito.verify(connection, Mockito.times(0)).close();
-      Assert.assertNull(keepAliveCache.get());
+      assertCacheGetNull(keepAliveCache);
       Mockito.verify(connection, Mockito.times(1)).close();
       keepAliveCache.resumeThread();
     }
@@ -177,9 +227,9 @@ public class TestApacheClientConnectionPool extends
           HttpClientConnection.class);
       keepAliveCache.put(connection);
 
-      Assert.assertNotNull(keepAliveCache.get());
+      assertCacheGetNonNull(keepAliveCache);
       keepAliveCache.put(connection);
-      Assert.assertNotNull(keepAliveCache.get());
+      assertCacheGetNonNull(keepAliveCache);
     }
   }
 
@@ -211,10 +261,10 @@ public class TestApacheClientConnectionPool extends
           i--) {
         // The last two connections are not stale and would be returned.
         if (i >= (DEFAULT_HTTP_CLIENT_CONN_MAX_CACHED_CONNECTIONS - 2)) {
-          Assert.assertNotNull(keepAliveCache.get());
+          assertCacheGetNonNull(keepAliveCache);
         } else {
           // Stale connections are closed and removed.
-          Assert.assertNull(keepAliveCache.get());
+          assertCacheGetNull(keepAliveCache);
           Mockito.verify(connections[i], Mockito.times(1)).close();
         }
       }
@@ -223,16 +273,18 @@ public class TestApacheClientConnectionPool extends
 
   @Test
   public void testKeepAliveCacheClosed() throws Exception {
-    KeepAliveCache keepAliveCache = new KeepAliveCache(
-        new AbfsConfiguration(new Configuration(), EMPTY_STRING));
+    KeepAliveCache keepAliveCache = Mockito.spy(new KeepAliveCache(
+        new AbfsConfiguration(new Configuration(), EMPTY_STRING)));
     keepAliveCache.put(Mockito.mock(HttpClientConnection.class));
     keepAliveCache.close();
-    IOException ex = intercept(IOException.class,
+    intercept(ClosedIOException.class,
+        KEEP_ALIVE_CACHE_CLOSED,
         () -> keepAliveCache.get());
-    Assertions.assertThat(ex.getMessage()).isEqualTo(KEEP_ALIVE_CACHE_CLOSED);
 
     HttpClientConnection conn = Mockito.mock(HttpClientConnection.class);
-    Assertions.assertThat(keepAliveCache.put(conn)).isFalse();
+    assertCachePutFail(keepAliveCache, conn);
     Mockito.verify(conn, Mockito.times(1)).close();
+    keepAliveCache.close();
+    Mockito.verify(keepAliveCache, Mockito.times(1)).closeInternal();
   }
 }
