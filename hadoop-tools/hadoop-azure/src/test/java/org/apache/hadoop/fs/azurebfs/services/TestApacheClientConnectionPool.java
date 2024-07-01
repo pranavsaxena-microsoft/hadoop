@@ -18,17 +18,15 @@
 
 package org.apache.hadoop.fs.azurebfs.services;
 
-import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.assertj.core.api.Assertions;
-import org.checkerframework.checker.units.qual.C;
 import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Mockito;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.ClosedException;
+import org.apache.hadoop.fs.ClosedIOException;
 import org.apache.hadoop.fs.azurebfs.AbfsConfiguration;
 import org.apache.hadoop.fs.azurebfs.AbstractAbfsTestWithTimeout;
 
@@ -248,7 +246,7 @@ public class TestApacheClientConnectionPool extends
         new AbfsConfiguration(new Configuration(), EMPTY_STRING)));
     keepAliveCache.put(Mockito.mock(HttpClientConnection.class));
     keepAliveCache.close();
-    intercept(ClosedException.class,
+    intercept(ClosedIOException.class,
         KEEP_ALIVE_CACHE_CLOSED,
         () -> keepAliveCache.get());
 

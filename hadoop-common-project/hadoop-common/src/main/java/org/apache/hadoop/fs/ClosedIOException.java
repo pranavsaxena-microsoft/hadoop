@@ -22,8 +22,8 @@ import org.apache.hadoop.classification.InterfaceStability;
 
 @InterfaceAudience.Public
 @InterfaceStability.Unstable
-public class ClosedException extends PathIOException {
-  public ClosedException(String path, String message) {
+public class ClosedIOException extends PathIOException {
+  public ClosedIOException(String path, String message) {
     super(path, message);
   }
 }

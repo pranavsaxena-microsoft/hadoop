@@ -30,7 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.hadoop.classification.VisibleForTesting;
-import org.apache.hadoop.fs.ClosedException;
+import org.apache.hadoop.fs.ClosedIOException;
 import org.apache.hadoop.fs.azurebfs.AbfsConfiguration;
 import org.apache.hadoop.fs.azurebfs.AbfsStatistic;
 import org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants;
@@ -47,7 +47,6 @@ import java.util.Map;
 import org.apache.hadoop.fs.azurebfs.AbfsBackoffMetrics;
 import org.apache.http.impl.execchain.RequestAbortedException;
 
-import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.KEEP_ALIVE_CACHE_CLOSED;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.ZERO;
 import static org.apache.hadoop.util.Time.now;
 
@@ -483,7 +482,7 @@ public class AbfsRestOperation {
       if (httpOperation instanceof AbfsAHCHttpOperation) {
         registerApacheHttpClientIoException();
         if (ex instanceof RequestAbortedException
-            && ex.getCause() instanceof ClosedException) {
+            && ex.getCause() instanceof ClosedIOException) {
           throw new AbfsDriverException((IOException) ex.getCause());
         }
       }

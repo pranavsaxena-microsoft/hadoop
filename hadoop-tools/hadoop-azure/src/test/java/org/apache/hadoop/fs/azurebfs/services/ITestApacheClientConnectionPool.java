@@ -20,7 +20,7 @@ package org.apache.hadoop.fs.azurebfs.services;
 
 import org.junit.Test;
 
-import org.apache.hadoop.fs.ClosedException;
+import org.apache.hadoop.fs.ClosedIOException;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.azurebfs.AbstractAbfsIntegrationTest;
@@ -52,7 +52,7 @@ public class ITestApacheClientConnectionPool extends
           KEEP_ALIVE_CACHE_CLOSED, () -> {
             fs.create(new Path("/test"));
           });
-      verifyCause(ClosedException.class, ex);
+      verifyCause(ClosedIOException.class, ex);
     }
   }
 }

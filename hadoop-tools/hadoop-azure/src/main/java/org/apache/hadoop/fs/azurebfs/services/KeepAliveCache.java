@@ -30,7 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.hadoop.classification.VisibleForTesting;
-import org.apache.hadoop.fs.ClosedException;
+import org.apache.hadoop.fs.ClosedIOException;
 import org.apache.hadoop.fs.azurebfs.AbfsConfiguration;
 import org.apache.http.HttpClientConnection;
 
@@ -230,7 +230,7 @@ class KeepAliveCache extends Stack<KeepAliveCache.KeepAliveEntry>
   public synchronized HttpClientConnection get()
       throws IOException {
     if (isClosed.get()) {
-      throw new ClosedException(accountNamePath, KEEP_ALIVE_CACHE_CLOSED);
+      throw new ClosedIOException(accountNamePath, KEEP_ALIVE_CACHE_CLOSED);
     }
     if (empty()) {
       return null;
