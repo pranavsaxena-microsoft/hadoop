@@ -97,6 +97,10 @@ class KeepAliveCache extends Stack<KeepAliveCache.KeepAliveEntry>
    */
   private final AtomicBoolean isPaused = new AtomicBoolean(false);
 
+  /**
+   * Account name for which the cache is created. To be used only in exception
+   * messages.
+   */
   private final String accountNamePath;
 
   @VisibleForTesting
@@ -188,7 +192,7 @@ class KeepAliveCache extends Stack<KeepAliveCache.KeepAliveEntry>
     try {
       hc.close();
     } catch (IOException ex) {
-      if(LOG.isDebugEnabled()) {
+      if (LOG.isDebugEnabled()) {
         LOG.debug("Close failed for connection: {}", hc, ex);
       }
     }
