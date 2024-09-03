@@ -172,8 +172,7 @@ class KeepAliveCache extends Stack<KeepAliveCache.KeepAliveEntry>
     int i;
     for (i = 0; i < size(); i++) {
       KeepAliveEntry e = elementAt(i);
-      if ((currentTime - e.idleStartTime) > connectionIdleTTL
-          || e.httpClientConnection.isStale()) {
+      if ((currentTime - e.idleStartTime) > connectionIdleTTL) {
         HttpClientConnection hc = e.httpClientConnection;
         closeHttpClientConnection(hc);
       } else {
@@ -243,8 +242,7 @@ class KeepAliveCache extends Stack<KeepAliveCache.KeepAliveEntry>
     long currentTime = System.currentTimeMillis();
     do {
       KeepAliveEntry e = pop();
-      if ((currentTime - e.idleStartTime) > connectionIdleTTL
-          || e.httpClientConnection.isStale()) {
+      if ((currentTime - e.idleStartTime) > connectionIdleTTL) {
         closeHttpClientConnection(e.httpClientConnection);
       } else {
         hc = e.httpClientConnection;
