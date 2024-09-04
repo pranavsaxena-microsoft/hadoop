@@ -39,6 +39,42 @@ import static org.apache.hadoop.fs.azurebfs.constants.AbfsHttpConstants.KEEP_ALI
 import static org.apache.hadoop.fs.azurebfs.constants.ConfigurationKeys.FS_AZURE_APACHE_HTTP_CLIENT_MAX_CACHE_CONNECTION_SIZE;
 import static org.apache.hadoop.fs.azurebfs.constants.FileSystemConfigurations.DEFAULT_HTTP_CLIENT_CONN_MAX_CACHED_CONNECTIONS;
 
+
+class ConnCloser {
+  public Stack<HttpClientConnection> stack = new Stack<HttpClientConnection>();
+
+  public synchronized void add(HttpClientConnection conn) {
+    stack.push(conn);
+  }
+
+  private synchronized HttpClientConnection get() {
+    if (stack.isEmpty()) {
+      return null;
+    }
+    return stack.pop();
+  }
+
+  Thread thread = new Thread(new Runnable() {
+    public void run() {
+      while (true) {
+        HttpClientConnection conn = get();
+        if (conn != null) {
+          try {
+            conn.close();
+          } catch (IOException e) {
+            // ignore
+          }
+        }
+      }
+    }
+  });
+
+  public static ConnCloser connCloser = new ConnCloser();
+  private ConnCloser() {
+    thread.start();
+  }
+}
+
 /**
  * Connection-pooling heuristics used by {@link AbfsConnectionManager}. Each
  * instance of FileSystem has its own KeepAliveCache.
@@ -65,12 +101,12 @@ class KeepAliveCache extends Stack<KeepAliveCache.KeepAliveEntry>
   /**
    * Scheduled timer that evicts idle connections.
    */
-  private final transient Timer timer;
+  private transient Timer timer;
 
   /**
    * Task provided to the timer that owns eviction logic.
    */
-  private final transient TimerTask timerTask;
+  private transient TimerTask timerTask;
 
   /**
    * Flag to indicate if the cache is closed.
@@ -136,7 +172,7 @@ class KeepAliveCache extends Stack<KeepAliveCache.KeepAliveEntry>
    */
   KeepAliveCache(AbfsConfiguration abfsConfiguration) {
     accountNamePath = abfsConfiguration.getAccountName();
-    this.timer = new Timer("abfs-kac-" + KAC_COUNTER.getAndIncrement(), true);
+//    this.timer = new Timer("abfs-kac-" + KAC_COUNTER.getAndIncrement(), true);
 
     int sysPropMaxConn = Integer.parseInt(System.getProperty(HTTP_MAX_CONN_SYS_PROP, "0"));
     final int defaultMaxConn;
@@ -151,16 +187,16 @@ class KeepAliveCache extends Stack<KeepAliveCache.KeepAliveEntry>
 
     this.connectionIdleTTL
         = abfsConfiguration.getMaxApacheHttpClientConnectionIdleTime();
-    this.timerTask = new TimerTask() {
-      @Override
-      public void run() {
-          if (isPaused.get() || isClosed.get()) {
-            return;
-          }
-          evictIdleConnection();
-      }
-    };
-    timer.schedule(timerTask, 0, connectionIdleTTL);
+//    this.timerTask = new TimerTask() {
+//      @Override
+//      public void run() {
+//          if (isPaused.get() || isClosed.get()) {
+//            return;
+//          }
+//          evictIdleConnection();
+//      }
+//    };
+//    timer.schedule(timerTask, 0, connectionIdleTTL);
   }
 
   /**
@@ -188,13 +224,9 @@ class KeepAliveCache extends Stack<KeepAliveCache.KeepAliveEntry>
    * @param hc HttpClientConnection to be closed
    */
   private void closeHttpClientConnection(final HttpClientConnection hc) {
-    try {
-      hc.close();
-    } catch (IOException ex) {
-      if (LOG.isDebugEnabled()) {
-        LOG.debug("Close failed for connection: {}", hc, ex);
-      }
-    }
+
+      ConnCloser.connCloser.add(hc);
+
   }
 
   /**
@@ -211,8 +243,8 @@ class KeepAliveCache extends Stack<KeepAliveCache.KeepAliveEntry>
 
   @VisibleForTesting
   void closeInternal() {
-    timerTask.cancel();
-    timer.purge();
+//    timerTask.cancel();
+//    timer.purge();
     while (!empty()) {
       KeepAliveEntry e = pop();
       closeHttpClientConnection(e.httpClientConnection);
